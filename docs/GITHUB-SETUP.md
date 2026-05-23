@@ -16,6 +16,53 @@ git push -u origin main
 
 > `buzzit/` 内にあったネストした `.git` は削除済みです（モノレポ構成のため）。
 
+## このフォルダだけ別 GitHub アカウントを使う
+
+他プロジェクトと GitHub アカウントを分けている場合、このリポジトリは **ローカル設定** で push 先アカウントを固定できます（グローバル設定は変更しません）。
+
+### すでに設定済み（このリポジトリ）
+
+```bash
+git config --local credential.https://github.com.helper manager
+git config --local credential.useHttpPath true
+```
+
+- グローバルの `gh auth git-credential` ではなく、**Windows 資格情報マネージャー**を使います
+- `useHttpPath` により、リポジトリ URL ごとに資格情報を保存します（他プロジェクトと混ざりません）
+
+### 初回 push 手順
+
+1. **Shigotoku 用 GitHub ユーザー名**を remote URL に含める（例: `ShigotokuUser`）
+
+```bash
+git remote set-url origin https://ShigotokuUser@github.com/Shigotoku/shigotoku.git
+```
+
+2. push する（ブラウザで Shigotoku 用アカウントにログイン）
+
+```bash
+git push -u origin main
+```
+
+3. コミット作者も分けたい場合（任意）
+
+```bash
+git config --local user.name "表示名"
+git config --local user.email "shigotoku用メール@example.com"
+```
+
+### SSH で分ける場合（上級者向け）
+
+HTTPS の代わりに SSH キーをリポジトリごとに使う方法もあります。`~/.ssh/config` に Host を追加し、このリポジトリだけ `git@github-shigotoku:Shigotoku/shigotoku.git` に変更します。
+
+### トラブル時
+
+403 が出る場合:
+
+1. 「資格情報マネージャー」→ `git:https://github.com/Shigotoku/shigotoku.git` を削除
+2. 上記の remote URL（正しいユーザー名付き）を再設定
+3. もう一度 `git push`
+
 ## GitHub Actions 自動デプロイ
 
 `main` ブランチへの push で Firebase Hosting へ自動デプロイされます。
