@@ -27,5 +27,11 @@ export const projectEnv = {
   },
   'buzzit-app': {
     VITE_LANDING_URL: BUZZIT_LP_URL,
+    VITE_FIREBASE_API_KEY: 'AIzaSyAMxl7Co5d5Kj52qt_Gh716Tob80f3qUTE',
+    VITE_FIREBASE_AUTH_DOMAIN: 'shigotoku-prod.firebaseapp.com',
+    VITE_FIREBASE_PROJECT_ID: 'shigotoku-prod',
+    VITE_FIREBASE_STORAGE_BUCKET: 'shigotoku-prod.firebasestorage.app',
+    VITE_FIREBASE_MESSAGING_SENDER_ID: '750163975008',
+    VITE_FIREBASE_APP_ID: '1:750163975008:web:d494d629951bfb05311c05',
   },
 };

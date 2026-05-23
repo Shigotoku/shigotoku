@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Wand2,
@@ -39,6 +40,7 @@ const platformColors = {
 
 export default function MagicCreator() {
   const { plan } = useApp();
+  const [searchParams] = useSearchParams();
   const [idea, setIdea] = useState('');
   const [localMedia, setLocalMedia] = useState<LocalMediaFile[]>([]);
   const [uploadedMedia, setUploadedMedia] = useState<UploadedMedia[]>([]);
@@ -55,6 +57,11 @@ export default function MagicCreator() {
     d.setHours(d.getHours() + 2);
     return d.toISOString().slice(0, 16);
   });
+
+  useEffect(() => {
+    const fromTrend = searchParams.get('idea');
+    if (fromTrend) setIdea(fromTrend);
+  }, [searchParams]);
 
   useEffect(() => {
     return () => {
@@ -142,7 +149,10 @@ export default function MagicCreator() {
         })),
         scheduledAt: new Date(scheduleDate).toISOString(),
       });
-      setScheduleMessage(result.message);
+      const trackingNote = result.trackingLinks?.length
+        ? ` 計測リンク ${result.trackingLinks.length} 件を生成しました。`
+        : '';
+      setScheduleMessage(`${result.message}${trackingNote}`);
     } catch {
       const result = await scheduleToAyrshare(results, new Date(scheduleDate));
       setScheduleMessage(result.message);

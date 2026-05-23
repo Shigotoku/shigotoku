@@ -17,11 +17,16 @@ import {
   updateUserSettings,
   getMetrics,
   getPosts,
+  addPost,
   addSlackIdea,
   getSlackIdeas,
   approveSlackIdea,
   saveScheduledJob,
   trackMetricEvent,
+  createTrackingLink,
+  getTrackingLink,
+  recordTrackingClick,
+  findUserByLineDestination,
 } from './services/firestore';
 import {
   verifySlackSignature,
@@ -32,6 +37,19 @@ import {
   runAutoModeForUser,
   canUseSlack,
 } from './services/autoMode';
+import {
+  generateTrackingToken,
+  trackingClickUrl,
+  lineWebhookUrl,
+  verifyLineSignature,
+} from './services/tracking';
+import { getTrends, refreshTrends, markTrendUsed } from './services/trends';
+import {
+  createAbTest,
+  getAbTests,
+  evaluateAbTest,
+  evaluateAllRunningAbTests,
+} from './services/abTest';
 import { requireAuth, type AuthedRequest } from './middleware/auth';
 
 if (!getApps().length) initializeApp();
@@ -53,7 +71,7 @@ api.get('/health', (_req, res) => {
   res.json({
     ok: true,
     service: 'buzzit-api',
-    features: ['gemini', 'firestore', 'slack', 'ayrshare', 'auto-mode'],
+    features: ['gemini', 'firestore', 'slack', 'ayrshare', 'auto-mode', 'utm-tracking', 'line-webhook', 'trends', 'ab-tests'],
   });
 });
 
@@ -146,9 +164,10 @@ api.post('/v1/repurpose', requireAuth, async (req: AuthedRequest, res) => {
 
 // --- Schedule (Ayrshare) ---
 api.post('/v1/schedule', requireAuth, async (req: AuthedRequest, res) => {
-  const { contents, scheduledAt } = req.body as {
+  const { contents, scheduledAt, destinationUrl } = req.body as {
     contents?: Array<{ platform: string; label: string; content: string }>;
     scheduledAt?: string;
+    destinationUrl?: string;
   };
 
   if (!contents?.length || !scheduledAt) {
@@ -158,9 +177,35 @@ api.post('/v1/schedule', requireAuth, async (req: AuthedRequest, res) => {
 
   try {
     const settings = await getUserSettings(req.uid!);
+    const dest = destinationUrl ?? settings.defaultDestinationUrl;
+    const trackingLinks: Array<{ platform: string; trackingUrl: string; postId: string }> = [];
+
+    if (dest) {
+      for (const item of contents) {
+        const postId = await addPost(req.uid!, {
+          title: item.label,
+          platform: item.platform,
+          content: item.content,
+          reach: 0,
+          revenue: 0,
+        });
+        const token = generateTrackingToken();
+        const utmCampaign = `buzzit_${item.platform}_${Date.now()}`;
+        await createTrackingLink(req.uid!, {
+          token,
+          postId,
+          destinationUrl: dest,
+          utmCampaign,
+          platform: item.platform,
+          title: item.label,
+        });
+        trackingLinks.push({ platform: item.platform, trackingUrl: trackingClickUrl(token), postId });
+      }
+    }
+
     const result = await scheduleWithAyrshare(contents, scheduledAt, settings.ayrshareProfileKey);
     await saveScheduledJob(req.uid!, contents, scheduledAt, 'scheduled', result);
-    res.json(result);
+    res.json({ ...result, trackingLinks });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: '予約投稿に失敗しました' });
@@ -169,12 +214,17 @@ api.post('/v1/schedule', requireAuth, async (req: AuthedRequest, res) => {
 
 // --- Dashboard ---
 api.get('/v1/dashboard', requireAuth, async (req: AuthedRequest, res) => {
-  await ensureUser(req.uid!);
-  const [metrics, settings] = await Promise.all([
-    getMetrics(req.uid!),
-    getUserSettings(req.uid!),
-  ]);
-  res.json({ metrics, plan: settings.plan });
+  try {
+    await ensureUser(req.uid!);
+    const [metrics, settings] = await Promise.all([
+      getMetrics(req.uid!),
+      getUserSettings(req.uid!),
+    ]);
+    res.json({ metrics, plan: settings.plan });
+  } catch (err) {
+    console.error('dashboard failed', err);
+    res.status(500).json({ error: 'ダッシュボードの取得に失敗しました' });
+  }
 });
 
 // --- Analytics ---
@@ -195,11 +245,15 @@ api.get('/v1/settings', requireAuth, async (req: AuthedRequest, res) => {
     snsConnections,
     canUseSlack: canUseSlack(settings),
     canUseAutoMode: settings.plan === 'growth',
+    lineWebhookUrl: lineWebhookUrl(req.uid!),
   });
 });
 
 api.put('/v1/settings', requireAuth, async (req: AuthedRequest, res) => {
-  const allowed = ['plan', 'slackWebhookUrl', 'ayrshareProfileKey', 'autoModeEnabled', 'slackTeamId', 'displayName'];
+  const allowed = [
+    'plan', 'slackWebhookUrl', 'ayrshareProfileKey', 'autoModeEnabled', 'slackTeamId',
+    'displayName', 'lineChannelSecret', 'lineDestinationId', 'defaultDestinationUrl',
+  ];
   const patch: Record<string, unknown> = {};
   for (const key of allowed) {
     if (key in req.body) patch[key] = req.body[key];
@@ -223,6 +277,190 @@ api.post('/v1/metrics/event', requireAuth, async (req: AuthedRequest, res) => {
   await trackMetricEvent(req.uid!, event as 'reach' | 'click' | 'line_signup' | 'revenue', value);
   const metrics = await getMetrics(req.uid!);
   res.json({ success: true, metrics });
+});
+
+// --- UTM click tracking (public redirect) ---
+api.get('/v1/track/click/:token', async (req, res) => {
+  try {
+    const token = String(req.params.token);
+    const link = await getTrackingLink(token);
+    if (!link) {
+      res.status(404).send('リンクが見つかりません');
+      return;
+    }
+    const redirectUrl = await recordTrackingClick(link.uid, token, link.postId);
+    res.redirect(302, redirectUrl);
+  } catch (err) {
+    console.error('track/click failed', err);
+    res.status(500).send('計測に失敗しました');
+  }
+});
+
+// --- Tracking link creation ---
+api.post('/v1/tracking/link', requireAuth, async (req: AuthedRequest, res) => {
+  const { destinationUrl, title, platform, postId } = req.body as {
+    destinationUrl?: string;
+    title?: string;
+    platform?: string;
+    postId?: string;
+  };
+
+  const settings = await getUserSettings(req.uid!);
+  const dest = destinationUrl ?? settings.defaultDestinationUrl;
+  if (!dest) {
+    res.status(400).json({ error: 'destinationUrl または設定のリダイレクト先 URL が必要です' });
+    return;
+  }
+
+  let effectivePostId = postId;
+  if (!effectivePostId && title) {
+    effectivePostId = await addPost(req.uid!, {
+      title,
+      platform: platform ?? 'link',
+      content: title,
+      reach: 0,
+      revenue: 0,
+    });
+  }
+
+  const token = generateTrackingToken();
+  const utmCampaign = `buzzit_${platform ?? 'link'}_${Date.now()}`;
+  await createTrackingLink(req.uid!, {
+    token,
+    postId: effectivePostId,
+    destinationUrl: dest,
+    utmCampaign,
+    platform,
+    title,
+  });
+
+  res.json({
+    token,
+    trackingUrl: trackingClickUrl(token),
+    postId: effectivePostId,
+    utmCampaign,
+  });
+});
+
+// --- LINE Messaging API Webhook ---
+api.post('/v1/webhooks/line', async (req: AuthedRequest, res) => {
+  const rawBody = req.rawBody?.toString() ?? JSON.stringify(req.body);
+  const signature = req.header('x-line-signature') ?? '';
+  const queryUid = typeof req.query.uid === 'string' ? req.query.uid : undefined;
+
+  const body = req.body as {
+    destination?: string;
+    events?: Array<{ type?: string; postback?: { data?: string } }>;
+  };
+
+  let uid = queryUid ?? null;
+  if (!uid && body.destination) {
+    uid = await findUserByLineDestination(body.destination);
+  }
+
+  if (!uid) {
+    res.status(200).json({ ok: true, ignored: true });
+    return;
+  }
+
+  const settings = await getUserSettings(uid);
+  if (settings.lineChannelSecret) {
+    if (!verifyLineSignature(rawBody, signature, settings.lineChannelSecret)) {
+      res.status(401).json({ error: 'Invalid LINE signature' });
+      return;
+    }
+  }
+
+  for (const event of body.events ?? []) {
+    if (event.type === 'follow') {
+      const postId = event.postback?.data?.startsWith('post=')
+        ? event.postback.data.slice(5)
+        : undefined;
+      await trackMetricEvent(uid, 'line_signup', 1, postId);
+    }
+  }
+
+  res.status(200).json({ ok: true });
+});
+
+// --- Trend Riding Engine ---
+api.get('/v1/trends', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const trends = await getTrends(req.uid!);
+    res.json({ trends });
+  } catch (err) {
+    console.error('trends get failed', err);
+    res.status(500).json({ error: 'トレンドの取得に失敗しました' });
+  }
+});
+
+api.post('/v1/trends/refresh', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const settings = await getUserSettings(req.uid!);
+    if (!['pro', 'team', 'growth'].includes(settings.plan)) {
+      res.status(403).json({ error: 'Pro プラン以上が必要です' });
+      return;
+    }
+    const trends = await refreshTrends(req.uid!, settings.industry);
+    res.json({ trends });
+  } catch (err) {
+    console.error('trends refresh failed', err);
+    res.status(500).json({ error: 'トレンド更新に失敗しました' });
+  }
+});
+
+api.post('/v1/trends/:id/use', requireAuth, async (req: AuthedRequest, res) => {
+  const trend = await markTrendUsed(req.uid!, String(req.params.id));
+  if (!trend) {
+    res.status(404).json({ error: 'トレンドが見つかりません' });
+    return;
+  }
+  res.json({
+    idea: `${trend.topic} — ${trend.hook}`,
+    platform: trend.platform,
+    trend,
+  });
+});
+
+// --- AB Test Automation ---
+api.get('/v1/ab-tests', requireAuth, async (req: AuthedRequest, res) => {
+  const tests = await getAbTests(req.uid!);
+  res.json({ tests });
+});
+
+api.post('/v1/ab-tests', requireAuth, async (req: AuthedRequest, res) => {
+  const { idea, platform } = req.body as { idea?: string; platform?: string };
+  if (!idea?.trim() || !platform?.trim()) {
+    res.status(400).json({ error: 'idea と platform が必要です' });
+    return;
+  }
+  const settings = await getUserSettings(req.uid!);
+  if (!['pro', 'team', 'growth'].includes(settings.plan)) {
+    res.status(403).json({ error: 'Pro プラン以上が必要です' });
+    return;
+  }
+  try {
+    const test = await createAbTest(req.uid!, idea.trim(), platform.trim());
+    res.json(test);
+  } catch (err) {
+    console.error('ab-test create failed', err);
+    res.status(500).json({ error: 'A/Bテストの作成に失敗しました' });
+  }
+});
+
+api.post('/v1/ab-tests/:id/evaluate', requireAuth, async (req: AuthedRequest, res) => {
+  const result = await evaluateAbTest(req.uid!, String(req.params.id));
+  if (!result) {
+    res.status(404).json({ error: 'テストが見つかりません' });
+    return;
+  }
+  res.json(result);
+});
+
+api.post('/v1/ab-tests/evaluate-all', requireAuth, async (req: AuthedRequest, res) => {
+  const count = await evaluateAllRunningAbTests(req.uid!);
+  const tests = await getAbTests(req.uid!);
+  res.json({ evaluated: count, tests });
 });
 
 // --- Slack ---
@@ -321,9 +559,14 @@ api.post('/v1/auto-mode/run', requireAuth, async (req: AuthedRequest, res) => {
 
 // --- Auth bootstrap ---
 api.post('/v1/auth/bootstrap', requireAuth, async (req: AuthedRequest, res) => {
-  const { email, displayName } = req.body as { email?: string; displayName?: string };
-  const settings = await ensureUser(req.uid!, email, displayName);
-  res.json(settings);
+  try {
+    const { email, displayName } = req.body as { email?: string; displayName?: string };
+    const settings = await ensureUser(req.uid!, email, displayName);
+    res.json(settings);
+  } catch (err) {
+    console.error('auth/bootstrap failed', err);
+    res.status(500).json({ error: 'ユーザープロファイルの作成に失敗しました' });
+  }
 });
 
 app.use('/api', api);

@@ -16,8 +16,11 @@ export async function runAutoModeForUser(uid: string): Promise<{ mission: { titl
   const metrics = await getMetrics(uid);
   const ideas = await getSlackIdeas(uid);
   const pendingIdea = ideas.find((i) => i.status === 'pending');
+  const { getTrends } = await import('./trends');
+  const trends = await getTrends(uid, 1);
+  const trendIdea = trends[0] ? `${trends[0].topic} — ${trends[0].hook}` : null;
 
-  const ideaSource = pendingIdea?.text ?? '新作メニューの春カラー施策';
+  const ideaSource = trendIdea ?? pendingIdea?.text ?? '新作メニューの春カラー施策';
   const { results } = await generateRepurposeWithGemini(ideaSource, settings.plan);
 
   const reels = results.find((r) => r.platform === 'reels');

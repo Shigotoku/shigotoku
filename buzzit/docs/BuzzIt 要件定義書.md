@@ -173,6 +173,16 @@ Cloud Scheduler が毎日実行:
 | POST | `/v1/slack/events` | Slack Events 受信 |
 | POST | `/v1/slack/ideas/:id/approve` | アイデア採用 |
 | GET | `/v1/slack/ideas` | アイデア一覧 |
+| POST | `/v1/tracking/link` | UTM 計測リンク生成 |
+| GET | `/v1/track/click/:token` | クリック計測 + リダイレクト（公開） |
+| POST | `/v1/webhooks/line` | LINE Messaging API Webhook |
+| GET | `/v1/trends` | トレンドネタ一覧 |
+| POST | `/v1/trends/refresh` | トレンド更新（Gemini） |
+| POST | `/v1/trends/:id/use` | トレンドを投稿ネタに採用 |
+| GET | `/v1/ab-tests` | A/B テスト一覧 |
+| POST | `/v1/ab-tests` | A/B テスト作成 |
+| POST | `/v1/ab-tests/:id/evaluate` | 勝者判定 |
+| POST | `/v1/ab-tests/evaluate-all` | 実行中テスト一括評価 |
 | POST | `/v1/auto-mode/run` | Auto Mode 手動実行 |
 
 認証: `Authorization: Bearer {Firebase ID Token}`
@@ -213,9 +223,9 @@ users/{uid}/scheduled/{jobId}
 - [x] ブランドセーフティ
 - [x] 本番デプロイ
 
-### Phase 2 — 組織化 & PLG 🔄 本リリース対象
+### Phase 2 — 組織化 & PLG ✅
 
-- [x] Firebase Authentication
+- [x] Firebase Authentication（Google / メール / 匿名）
 - [x] Firestore KPI / ダッシュボード
 - [x] Slack Webhook 通知・Events ネタ会議
 - [x] Ayrshare 予約投稿連携
@@ -225,9 +235,9 @@ users/{uid}/scheduled/{jobId}
 
 - [x] Auto Mode（Scheduler）
 - [x] 投稿別売上貢献度
-- [ ] UTM / LINE 公式 Webhook による自動 CV 計測（要外部連携）
-- [ ] トレンド波乗りエンジン
-- [ ] ABテスト自動化
+- [x] UTM クリック計測 + LINE 公式 Webhook による自動 CV 計測
+- [x] トレンド波乗りエンジン
+- [x] ABテスト自動化
 
 ### Phase 4 — エコシステム
 

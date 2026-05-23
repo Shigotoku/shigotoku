@@ -11,6 +11,13 @@ export interface UserSettings {
   ayrshareProfileKey?: string;
   autoModeEnabled?: boolean;
   industry?: string;
+  slackTeamId?: string;
+  /** LINE Messaging API Channel Secret */
+  lineChannelSecret?: string;
+  /** LINE Webhook destination（Bot ID）— ユーザー特定用 */
+  lineDestinationId?: string;
+  /** クリック計測のリダイレクト先（店舗サイト・予約ページ等） */
+  defaultDestinationUrl?: string;
 }
 
 export interface MetricsSummary {
@@ -42,6 +49,22 @@ export interface PostRecord {
   content: string;
   reach: number;
   revenue: number;
+  clicks?: number;
+  lineSignups?: number;
+  trackingUrl?: string;
+  utmCampaign?: string;
+  createdAt: string;
+}
+
+export interface TrackingLinkRecord {
+  token: string;
+  uid: string;
+  postId?: string;
+  destinationUrl: string;
+  utmCampaign: string;
+  platform?: string;
+  title?: string;
+  clicks: number;
   createdAt: string;
 }
 
@@ -85,10 +108,10 @@ export async function ensureUser(uid: string, email?: string, displayName?: stri
     const settings: UserSettings = {
       uid,
       plan: 'starter',
-      email,
-      displayName,
       autoModeEnabled: false,
       industry: 'salon',
+      ...(email ? { email } : {}),
+      ...(displayName ? { displayName } : {}),
     };
     await ref.set({ ...settings, createdAt: FieldValue.serverTimestamp() });
     await ref.collection('metrics').doc('summary').set(DEFAULT_METRICS);
@@ -101,9 +124,9 @@ export async function ensureUser(uid: string, email?: string, displayName?: stri
 
 async function seedDemoPosts(uid: string) {
   const posts = [
-    { title: '春カラーショート動画', platform: 'reels', reach: 12400, revenue: 128000 },
-    { title: '【悲報】カラー失敗フック', platform: 'x_thread', reach: 8200, revenue: 98000 },
-    { title: 'スタッフ紹介カルーセル', platform: 'carousel', reach: 3900, revenue: 56000 },
+    { title: '春カラーショート動画', platform: 'reels', reach: 12400, revenue: 128000, clicks: 186, lineSignups: 12 },
+    { title: '【悲報】カラー失敗フック', platform: 'x_thread', reach: 8200, revenue: 98000, clicks: 142, lineSignups: 9 },
+    { title: 'スタッフ紹介カルーセル', platform: 'carousel', reach: 3900, revenue: 56000, clicks: 58, lineSignups: 4 },
   ];
   const batch = db().batch();
   for (const p of posts) {
@@ -125,7 +148,10 @@ export async function getUserSettings(uid: string): Promise<UserSettings> {
 
 export async function updateUserSettings(uid: string, patch: Partial<UserSettings>): Promise<UserSettings> {
   await ensureUser(uid);
-  const { uid: _, ...safe } = patch;
+  const { uid: _, ...rest } = patch;
+  const safe = Object.fromEntries(
+    Object.entries(rest).filter(([, v]) => v !== undefined),
+  );
   await db().collection('users').doc(uid).set(
     { ...safe, updatedAt: FieldValue.serverTimestamp() },
     { merge: true },
@@ -169,8 +195,12 @@ export async function getPosts(uid: string): Promise<PostRecord[]> {
       title: data.title as string,
       platform: data.platform as string,
       content: data.content as string,
-      reach: data.reach as number,
-      revenue: data.revenue as number,
+      reach: (data.reach as number) ?? 0,
+      revenue: (data.revenue as number) ?? 0,
+      clicks: (data.clicks as number) ?? 0,
+      lineSignups: (data.lineSignups as number) ?? 0,
+      trackingUrl: data.trackingUrl as string | undefined,
+      utmCampaign: data.utmCampaign as string | undefined,
       createdAt: created,
     };
   });
@@ -179,11 +209,116 @@ export async function getPosts(uid: string): Promise<PostRecord[]> {
 export async function addPost(
   uid: string,
   post: Omit<PostRecord, 'id' | 'createdAt'>,
-): Promise<void> {
-  await db().collection('users').doc(uid).collection('posts').add({
+): Promise<string> {
+  const ref = await db().collection('users').doc(uid).collection('posts').add({
+    clicks: 0,
+    lineSignups: 0,
     ...post,
     createdAt: FieldValue.serverTimestamp(),
   });
+  return ref.id;
+}
+
+export async function incrementPostMetric(
+  uid: string,
+  postId: string,
+  field: 'clicks' | 'lineSignups' | 'revenue' | 'reach',
+  value = 1,
+): Promise<void> {
+  const ref = db().collection('users').doc(uid).collection('posts').doc(postId);
+  await ref.set(
+    { [field]: FieldValue.increment(value) },
+    { merge: true },
+  );
+}
+
+export async function createTrackingLink(
+  uid: string,
+  input: {
+    token: string;
+    postId?: string;
+    destinationUrl: string;
+    utmCampaign: string;
+    platform?: string;
+    title?: string;
+  },
+): Promise<void> {
+  await db().collection('tracking').doc(input.token).set({
+    uid,
+    postId: input.postId ?? null,
+    destinationUrl: input.destinationUrl,
+    utmCampaign: input.utmCampaign,
+    platform: input.platform ?? null,
+    title: input.title ?? null,
+    clicks: 0,
+    createdAt: FieldValue.serverTimestamp(),
+  });
+
+  if (input.postId) {
+    const { trackingClickUrl } = await import('./tracking');
+    await db().collection('users').doc(uid).collection('posts').doc(input.postId).set(
+      {
+        trackingUrl: trackingClickUrl(input.token),
+        utmCampaign: input.utmCampaign,
+        destinationUrl: input.destinationUrl,
+      },
+      { merge: true },
+    );
+  }
+}
+
+export async function getTrackingLink(token: string): Promise<(TrackingLinkRecord & { uid: string }) | null> {
+  const snap = await db().collection('tracking').doc(token).get();
+  if (!snap.exists) return null;
+  const data = snap.data()!;
+  return {
+    token: snap.id,
+    uid: data.uid as string,
+    postId: (data.postId as string | null) ?? undefined,
+    destinationUrl: data.destinationUrl as string,
+    utmCampaign: data.utmCampaign as string,
+    platform: (data.platform as string | null) ?? undefined,
+    title: (data.title as string | null) ?? undefined,
+    clicks: (data.clicks as number) ?? 0,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+export async function recordTrackingClick(uid: string, token: string, postId?: string): Promise<string> {
+  const linkRef = db().collection('tracking').doc(token);
+  const linkSnapBefore = await linkRef.get();
+  const linkData = linkSnapBefore.data();
+  const abTestId = linkData?.abTestId as string | undefined;
+  const abVariant = linkData?.abVariant as 'A' | 'B' | undefined;
+
+  await linkRef.set({ clicks: FieldValue.increment(1) }, { merge: true });
+
+  if (postId) {
+    await incrementPostMetric(uid, postId, 'clicks', 1);
+  }
+  if (abTestId && abVariant) {
+    const { incrementAbVariantMetric } = await import('./abTest');
+    await incrementAbVariantMetric(uid, abTestId, abVariant, 'clicks');
+  }
+  await trackMetricEvent(uid, 'click', 1, postId);
+
+  const linkSnap = await linkRef.get();
+  const destinationUrl = linkSnap.data()?.destinationUrl as string;
+  const utmCampaign = linkSnap.data()?.utmCampaign as string;
+  const platform = linkSnap.data()?.platform as string | undefined;
+
+  const { appendUtmParams } = await import('./tracking');
+  return appendUtmParams(destinationUrl, {
+    campaign: utmCampaign,
+    medium: platform ?? 'social',
+    content: postId,
+  });
+}
+
+export async function findUserByLineDestination(destination: string): Promise<string | null> {
+  const snap = await db().collection('users').where('lineDestinationId', '==', destination).limit(1).get();
+  if (snap.empty) return null;
+  return snap.docs[0].id;
 }
 
 export async function saveScheduledJob(
@@ -255,7 +390,12 @@ export async function trackMetricEvent(
   uid: string,
   event: 'reach' | 'click' | 'line_signup' | 'revenue',
   value: number,
+  postId?: string,
 ): Promise<void> {
+  if (postId && event === 'line_signup') {
+    await incrementPostMetric(uid, postId, 'lineSignups', value);
+  }
+
   const metrics = await getMetrics(uid);
   const funnel = { ...metrics.funnel };
 

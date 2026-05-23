@@ -3,12 +3,13 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, CheckCircle2, TrendingUp, Users, DollarSign } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { kpiLabels, mockMetrics, mockMission } from '../data/mockDashboard';
-import { fetchDashboard } from '../lib/api';
+import { fetchDashboard, fetchTrends, type TrendTopic } from '../lib/api';
 
 export default function Dashboard() {
   const [metrics, setMetrics] = useState(mockMetrics);
   const [mission, setMission] = useState(mockMission);
   const [loading, setLoading] = useState(true);
+  const [trends, setTrends] = useState<TrendTopic[]>([]);
 
   useEffect(() => {
     fetchDashboard()
@@ -32,6 +33,9 @@ export default function Dashboard() {
         // Firestore 未設定時はモック表示
       })
       .finally(() => setLoading(false));
+    fetchTrends()
+      .then((r) => setTrends(r.trends.slice(0, 3)))
+      .catch(() => {});
   }, []);
 
   return (
@@ -136,6 +140,35 @@ export default function Dashboard() {
           </div>
         </div>
       </motion.div>
+
+      {trends.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="rounded-2xl bg-slate-800/50 border border-slate-700 p-8"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold">今週のトレンドネタ</h3>
+            <Link to="/analytics" className="text-sm text-indigo-400 hover:text-indigo-300">
+              すべて見る →
+            </Link>
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            {trends.map((t) => (
+              <Link
+                key={t.id}
+                to={`/magic-creator?idea=${encodeURIComponent(`${t.topic} — ${t.hook}`)}`}
+                className="p-4 rounded-xl bg-slate-900/50 border border-slate-800 hover:border-indigo-500/40 transition-colors"
+              >
+                <p className="font-medium text-sm">{t.topic}</p>
+                <p className="text-xs text-slate-500 mt-1 line-clamp-2">{t.hook}</p>
+                <p className="text-xs text-indigo-300 mt-2">スコア {t.score}</p>
+              </Link>
+            ))}
+          </div>
+        </motion.div>
+      )}
     </div>
   );
 }

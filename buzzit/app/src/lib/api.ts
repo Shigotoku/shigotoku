@@ -68,7 +68,7 @@ export interface AnalyticsResponse {
     lineFriends: number;
     estimatedRevenue: number;
   };
-  topPosts: Array<{ id: string; title: string; reach: number; revenue: number }>;
+  topPosts: Array<{ id: string; title: string; reach: number; revenue: number; clicks?: number; lineSignups?: number; trackingUrl?: string }>;
 }
 
 export function fetchAnalytics() {
@@ -82,6 +82,10 @@ export interface SettingsResponse {
   ayrshareProfileKey?: string;
   autoModeEnabled?: boolean;
   slackTeamId?: string;
+  lineChannelSecret?: string;
+  lineDestinationId?: string;
+  defaultDestinationUrl?: string;
+  lineWebhookUrl?: string;
   snsConnections: Array<{ name: string; connected: boolean }>;
   canUseSlack: boolean;
   canUseAutoMode: boolean;
@@ -125,10 +129,18 @@ export function repurposeViaApi(body: RepurposeApiRequest) {
 export interface ScheduleApiRequest {
   contents: Array<{ platform: string; label: string; content: string }>;
   scheduledAt: string;
+  destinationUrl?: string;
 }
 
 export function scheduleViaApi(body: ScheduleApiRequest) {
-  return request<{ success: boolean; message: string }>('/v1/schedule', {
+  return request<{ success: boolean; message: string; trackingLinks?: Array<{ platform: string; trackingUrl: string; postId: string }> }>('/v1/schedule', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function createTrackingLink(body: { destinationUrl?: string; title?: string; platform?: string; postId?: string }) {
+  return request<{ token: string; trackingUrl: string; postId?: string; utmCampaign: string }>('/v1/tracking/link', {
     method: 'POST',
     body: JSON.stringify(body),
   });
@@ -153,6 +165,72 @@ export function approveSlackIdea(id: string) {
 
 export function runAutoMode() {
   return request<{ mission: { title: string; description: string } }>('/v1/auto-mode/run', {
+    method: 'POST',
+  });
+}
+
+export interface TrendTopic {
+  id: string;
+  topic: string;
+  hook: string;
+  platform: string;
+  score: number;
+  status: string;
+  source: string;
+}
+
+export function fetchTrends() {
+  return request<{ trends: TrendTopic[] }>('/v1/trends');
+}
+
+export function refreshTrends() {
+  return request<{ trends: TrendTopic[] }>('/v1/trends/refresh', { method: 'POST' });
+}
+
+export function useTrend(id: string) {
+  return request<{ idea: string; platform: string; trend: TrendTopic }>(`/v1/trends/${id}/use`, {
+    method: 'POST',
+  });
+}
+
+export interface AbVariant {
+  label: string;
+  content: string;
+  trackingUrl?: string;
+  clicks: number;
+  impressions: number;
+}
+
+export interface AbTestRecord {
+  id: string;
+  idea: string;
+  platform: string;
+  status: 'running' | 'completed';
+  variantA: AbVariant;
+  variantB: AbVariant;
+  winner?: 'A' | 'B';
+  winnerReason?: string;
+  createdAt: string;
+  completedAt?: string;
+}
+
+export function fetchAbTests() {
+  return request<{ tests: AbTestRecord[] }>('/v1/ab-tests');
+}
+
+export function createAbTest(idea: string, platform: string) {
+  return request<AbTestRecord>('/v1/ab-tests', {
+    method: 'POST',
+    body: JSON.stringify({ idea, platform }),
+  });
+}
+
+export function evaluateAbTest(id: string) {
+  return request<AbTestRecord>(`/v1/ab-tests/${id}/evaluate`, { method: 'POST' });
+}
+
+export function evaluateAllAbTests() {
+  return request<{ evaluated: number; tests: AbTestRecord[] }>('/v1/ab-tests/evaluate-all', {
     method: 'POST',
   });
 }

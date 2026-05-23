@@ -1,6 +1,8 @@
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { initializeApp, getApps } from 'firebase-admin/app';
 import { runAutoModeForAllUsers, sendStrategicNotifications } from './services/autoMode';
+import { refreshTrendsForAllUsers } from './services/trends';
+import { evaluateAbTestsForAllUsers } from './services/abTest';
 
 if (!getApps().length) initializeApp();
 
@@ -19,7 +21,11 @@ export const buzzitScheduler = onSchedule(
 
     await sendStrategicNotifications(slot);
     if (slot === 'morning') {
+      await refreshTrendsForAllUsers();
       await runAutoModeForAllUsers();
+    }
+    if (slot === 'evening') {
+      await evaluateAbTestsForAllUsers();
     }
   },
 );

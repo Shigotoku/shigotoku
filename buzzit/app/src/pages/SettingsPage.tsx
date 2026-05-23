@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Check, Link2, MessageSquare, Zap, Save } from 'lucide-react';
+import { Check, Link2, MessageSquare, Zap, Save, BarChart3 } from 'lucide-react';
 import { WATERMARK } from '../constants/brand';
 import {
   fetchSettings,
@@ -25,6 +25,10 @@ export default function SettingsPage() {
   const [ayrshareProfileKey, setAyrshareProfileKey] = useState('');
   const [slackTeamId, setSlackTeamId] = useState('');
   const [autoModeEnabled, setAutoModeEnabled] = useState(false);
+  const [lineChannelSecret, setLineChannelSecret] = useState('');
+  const [lineDestinationId, setLineDestinationId] = useState('');
+  const [defaultDestinationUrl, setDefaultDestinationUrl] = useState('');
+  const [lineWebhookUrl, setLineWebhookUrl] = useState('');
   const [snsConnections, setSnsConnections] = useState<Array<{ name: string; connected: boolean }>>([]);
   const [slackIdeas, setSlackIdeas] = useState<Array<{ id: string; text: string; status: string; scriptPreview: string }>>([]);
   const [newIdea, setNewIdea] = useState('');
@@ -39,6 +43,10 @@ export default function SettingsPage() {
         setAyrshareProfileKey(s.ayrshareProfileKey ?? '');
         setSlackTeamId(s.slackTeamId ?? '');
         setAutoModeEnabled(!!s.autoModeEnabled);
+        setLineChannelSecret(s.lineChannelSecret ?? '');
+        setLineDestinationId(s.lineDestinationId ?? '');
+        setDefaultDestinationUrl(s.defaultDestinationUrl ?? '');
+        setLineWebhookUrl(s.lineWebhookUrl ?? '');
         setSnsConnections(s.snsConnections);
       })
       .catch(() => {});
@@ -56,6 +64,9 @@ export default function SettingsPage() {
         ayrshareProfileKey,
         slackTeamId,
         autoModeEnabled,
+        lineChannelSecret,
+        lineDestinationId,
+        defaultDestinationUrl,
       });
       setMessage('設定を保存しました');
     } catch {
@@ -197,6 +208,45 @@ export default function SettingsPage() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-2xl bg-slate-800/50 border border-slate-700 p-8 space-y-4">
+        <h3 className="text-lg font-bold flex items-center gap-2">
+          <BarChart3 className="w-5 h-5 text-indigo-400" />
+          売上トラッキング（UTM / LINE）
+        </h3>
+        <p className="text-sm text-slate-400">
+          投稿からのクリックと LINE 友だち追加を自動計測します。予約投稿時に計測リンクが自動生成されます。
+        </p>
+        <label className="text-xs text-slate-400 block">リダイレクト先 URL（店舗サイト・予約ページ等）</label>
+        <input
+          value={defaultDestinationUrl}
+          onChange={(e) => setDefaultDestinationUrl(e.target.value)}
+          placeholder="https://example.com/reserve"
+          className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-500"
+        />
+        <label className="text-xs text-slate-400 block">LINE Channel Secret</label>
+        <input
+          value={lineChannelSecret}
+          onChange={(e) => setLineChannelSecret(e.target.value)}
+          placeholder="LINE Developers で取得"
+          type="password"
+          autoComplete="off"
+          className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-500"
+        />
+        <label className="text-xs text-slate-400 block">LINE Destination ID（Webhook の destination 値）</label>
+        <input
+          value={lineDestinationId}
+          onChange={(e) => setLineDestinationId(e.target.value)}
+          placeholder="Uxxxxxxxx..."
+          className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-500"
+        />
+        {lineWebhookUrl && (
+          <div className="rounded-xl bg-slate-900/50 border border-slate-800 p-4">
+            <p className="text-xs text-slate-400 mb-2">LINE Webhook URL（Messaging API に設定）</p>
+            <code className="block text-xs text-emerald-300 break-all">{lineWebhookUrl}</code>
           </div>
         )}
       </section>

@@ -8,13 +8,30 @@ import {
   type ReactNode,
 } from 'react';
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
-import { auth, getIdToken, signInDemo, signInWithGoogle, isFirebaseConfigured } from '../lib/firebase';
+import {
+  auth,
+  getIdToken,
+  signInDemo,
+  signInWithGoogle,
+  signInWithEmailPassword,
+  signUpWithEmailPassword,
+  resetPasswordEmail,
+  resolveGoogleRedirect,
+  isFirebaseConfigured,
+  formatAuthError,
+} from '../lib/firebase';
 import { bootstrapAuth, setAuthTokenGetter } from '../lib/api';
 
 interface AuthContextValue {
   user: User | null;
-  loading: boolean;
+  initializing: boolean;
+  submitting: boolean;
   isConfigured: boolean;
+  authError: string | null;
+  clearAuthError: () => void;
+  signInEmail: (email: string, password: string) => Promise<void>;
+  signUpEmail: (email: string, password: string, displayName?: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
   signInGoogle: () => Promise<void>;
   signInDemo: () => Promise<void>;
   logout: () => Promise<void>;
@@ -22,48 +39,145 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function syncUserProfile(u: User) {
+  void bootstrapAuth(u.email || undefined, u.displayName || undefined).catch(() => {
+    // API 未接続でもログイン自体は継続
+  });
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [initializing, setInitializing] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
     setAuthTokenGetter(getIdToken);
-    const unsub = onAuthStateChanged(auth, async (u) => {
+    let mounted = true;
+
+    // 保存済みセッションを最優先で復元（待ち時間を最小化）
+    const unsubAuth = onAuthStateChanged(auth, (u) => {
+      if (!mounted) return;
       setUser(u);
       if (u) {
-        try {
-          await bootstrapAuth(u.email ?? undefined, u.displayName ?? undefined);
-        } catch {
-          // bootstrap optional on first load
-        }
+        setAuthError(null);
+        syncUserProfile(u);
       }
-      setLoading(false);
+      setInitializing(false);
     });
-    return unsub;
+
+    // Google リダイレクト復帰はバックグラウンド処理
+    void resolveGoogleRedirect()
+      .then((result) => {
+        if (!mounted || !result?.user) return;
+        setUser(result.user);
+        syncUserProfile(result.user);
+      })
+      .catch(() => {});
+
+    return () => {
+      mounted = false;
+      unsubAuth();
+    };
   }, []);
+
+  const runAuthAction = useCallback(async (action: () => Promise<void>) => {
+    setAuthError(null);
+    setSubmitting(true);
+    try {
+      await action();
+    } catch (err) {
+      setAuthError(formatAuthError(err));
+      throw err;
+    } finally {
+      setSubmitting(false);
+    }
+  }, []);
+
+  const signInEmail = useCallback(
+    async (email: string, password: string) => {
+      await runAuthAction(async () => {
+        const cred = await signInWithEmailPassword(email, password);
+        setUser(cred.user);
+        syncUserProfile(cred.user);
+      });
+    },
+    [runAuthAction],
+  );
+
+  const signUpEmail = useCallback(
+    async (email: string, password: string, displayName?: string) => {
+      await runAuthAction(async () => {
+        const cred = await signUpWithEmailPassword(email, password, displayName);
+        setUser(cred.user);
+        syncUserProfile(cred.user);
+      });
+    },
+    [runAuthAction],
+  );
+
+  const resetPassword = useCallback(
+    async (email: string) => {
+      await runAuthAction(async () => {
+        await resetPasswordEmail(email);
+      });
+    },
+    [runAuthAction],
+  );
 
   const signInGoogle = useCallback(async () => {
-    await signInWithGoogle();
-  }, []);
+    await runAuthAction(async () => {
+      await signInWithGoogle();
+      if (auth.currentUser) {
+        setUser(auth.currentUser);
+        syncUserProfile(auth.currentUser);
+      }
+    });
+  }, [runAuthAction]);
 
   const signInDemoHandler = useCallback(async () => {
-    await signInDemo();
-  }, []);
+    await runAuthAction(async () => {
+      const cred = await signInDemo();
+      setUser(cred.user);
+      syncUserProfile(cred.user);
+    });
+  }, [runAuthAction]);
 
   const logout = useCallback(async () => {
     await signOut(auth);
+    setUser(null);
   }, []);
+
+  const clearAuthError = useCallback(() => setAuthError(null), []);
 
   const value = useMemo(
     () => ({
       user,
-      loading,
+      initializing,
+      submitting,
       isConfigured: isFirebaseConfigured,
+      authError,
+      clearAuthError,
+      signInEmail,
+      signUpEmail,
+      resetPassword,
       signInGoogle,
       signInDemo: signInDemoHandler,
       logout,
     }),
-    [user, loading, signInGoogle, signInDemoHandler, logout],
+    [
+      user,
+      initializing,
+      submitting,
+      authError,
+      clearAuthError,
+      signInEmail,
+      signUpEmail,
+      resetPassword,
+      signInGoogle,
+      signInDemoHandler,
+      logout,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
