@@ -123,7 +123,7 @@
   ],
   "functions": [
     {
-      "source": "../buzzit/api",
+      "source": "functions/buzzit-api",
       "codebase": "buzzit-api",
       "runtime": "nodejs22"
     }
