@@ -67,29 +67,42 @@ HTTPS の代わりに SSH キーをリポジトリごとに使う方法もあり
 
 `main` ブランチへの push で Firebase Hosting へ自動デプロイされます。
 
-### 1. Firebase トークンを取得
+### 初回セットアップ（自動）
+
+PowerShell で以下を実行すると、Firebase トークン取得 → GitHub Secret 登録 → ワークフロー再実行まで行います。
+
+```powershell
+cd deploy\scripts
+powershell -ExecutionPolicy Bypass -File .\setup-github-actions.ps1
+```
+
+> ブラウザが2回開きます（Firebase ログイン、必要に応じて GitHub 認証）。
+
+### 手動セットアップ
+
+#### 1. Firebase トークンを取得
 
 ```bash
 cd deploy
 npx firebase login:ci
 ```
 
-表示されたトークンをコピーします。
+表示されたトークン（`1//...` で始まる文字列）をコピーします。
 
-### 2. GitHub Secrets に登録
+#### 2. GitHub Secrets に登録
 
 1. [GitHub リポジトリ → Settings → Secrets and variables → Actions](https://github.com/Shigotoku/shigotoku/settings/secrets/actions)
 2. **New repository secret**
 3. Name: `FIREBASE_TOKEN`
 4. Value: 上記トークン
 
-### 3. 動作確認
+### 動作確認
 
 ```bash
 git push origin main
 ```
 
-[Actions タブ](https://github.com/Shigotoku/shigotoku/actions) でワークフローが成功することを確認してください。
+[Actions タブ](https://github.com/Shigotoku/shigotoku/actions) でワークフローが成功することを確認してください。失敗した場合は **Re-run jobs** で再実行できます。
 
 ## 手動デプロイ（ローカル）
 
