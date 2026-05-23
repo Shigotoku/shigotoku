@@ -9,7 +9,7 @@
     "deploy:buzzit-app": "npm run build && firebase deploy --only hosting:buzzit-app",
     "deploy:buzzit-api": "npm run build:buzzit-api && firebase deploy --only functions:buzzitApi,storage",
     "build:buzzit-api": "npm ci --prefix ../buzzit/api && npm run build --prefix ../buzzit/api",
-    "deploy:all": "npm run build && firebase deploy --only hosting"
+    "deploy:all": "npm run build && npm run build:buzzit-api && firebase deploy --only hosting,functions:buzzitApi,storage"
   },
   "devDependencies": {
     "firebase-tools": "^14.0.0"

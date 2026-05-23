@@ -96,7 +96,7 @@ app.post('/v1/schedule', (req, res) => {
 export const buzzitApi = onRequest(
   {
     region: 'asia-northeast1',
-    memory: '512MiB',
+    memory: '256MiB',
     timeoutSeconds: 60,
     cors: true,
   },
