@@ -1,22 +1,25 @@
-import { getSignedUploadUrl } from '../lib/api';
+import { API_BASE } from '../lib/api';
 import type { LocalMediaFile, UploadedMedia } from '../types/media';
 
 export async function uploadMediaToGcp(local: LocalMediaFile): Promise<UploadedMedia> {
-  const { uploadUrl, storagePath, publicUrl } = await getSignedUploadUrl(
-    local.name,
-    local.file.type,
-    local.file.size,
-  );
-
-  const uploadRes = await fetch(uploadUrl, {
-    method: 'PUT',
-    headers: { 'Content-Type': local.file.type },
+  const uploadRes = await fetch(`${API_BASE}/v1/upload`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': local.file.type,
+      'X-File-Name': encodeURIComponent(local.name),
+    },
     body: local.file,
   });
 
   if (!uploadRes.ok) {
-    throw new Error('クラウドへのアップロードに失敗しました');
+    const body = await uploadRes.json().catch(() => ({}));
+    throw new Error(body.error ?? 'クラウドへのアップロードに失敗しました');
   }
+
+  const { storagePath, publicUrl } = (await uploadRes.json()) as {
+    storagePath: string;
+    publicUrl: string;
+  };
 
   return {
     id: local.id,

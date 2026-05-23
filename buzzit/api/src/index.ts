@@ -2,7 +2,7 @@ import cors from 'cors';
 import express from 'express';
 import { onRequest } from 'firebase-functions/v2/https';
 import { initializeApp } from 'firebase-admin/app';
-import { createSignedUploadUrl } from './services/storage';
+import { createSignedUploadUrl, uploadBufferToGcp } from './services/storage';
 import {
   ACCEPTED_TYPES,
   MAX_IMAGE_BYTES,
@@ -17,11 +17,47 @@ const app = express();
 app.use(cors({ origin: true }));
 app.use(express.json({ limit: '1mb' }));
 
-app.get('/health', (_req, res) => {
+const api = express.Router();
+
+api.get('/health', (_req, res) => {
   res.json({ ok: true, service: 'buzzit-api' });
 });
 
-app.post('/v1/upload/signed-url', async (req, res) => {
+// ブラウザ → Storage 直接 PUT は CORS 制限があるため、同一オリジン経由で受け取る
+const rawUpload = express.raw({ type: '*/*', limit: `${MAX_VIDEO_BYTES}b` });
+
+api.post('/v1/upload', rawUpload, async (req, res) => {
+  try {
+    const fileName = decodeURIComponent(req.header('x-file-name') ?? 'upload.bin');
+    const contentType = req.header('content-type') ?? 'application/octet-stream';
+    const buffer = Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body ?? '');
+
+    if (!buffer.length) {
+      res.status(400).json({ error: 'ファイルが空です' });
+      return;
+    }
+
+    if (!ACCEPTED_TYPES.has(contentType)) {
+      res.status(400).json({ error: '対応していないファイル形式です' });
+      return;
+    }
+
+    const isVideo = contentType.startsWith('video/');
+    const maxSize = isVideo ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
+    if (buffer.length > maxSize) {
+      res.status(400).json({ error: 'ファイルサイズが上限を超えています' });
+      return;
+    }
+
+    const result = await uploadBufferToGcp(buffer, fileName, contentType);
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'アップロードに失敗しました' });
+  }
+});
+
+api.post('/v1/upload/signed-url', async (req, res) => {
   try {
     const { fileName, contentType, size } = req.body as {
       fileName?: string;
@@ -54,7 +90,7 @@ app.post('/v1/upload/signed-url', async (req, res) => {
   }
 });
 
-app.post('/v1/repurpose', (req, res) => {
+api.post('/v1/repurpose', (req, res) => {
   const { idea, plan = 'starter', mediaUrls } = req.body as {
     idea?: string;
     plan?: string;
@@ -75,7 +111,7 @@ app.post('/v1/repurpose', (req, res) => {
   });
 });
 
-app.post('/v1/schedule', (req, res) => {
+api.post('/v1/schedule', (req, res) => {
   const { contents, scheduledAt } = req.body as {
     contents?: Array<{ platform: string; label: string; content: string }>;
     scheduledAt?: string;
@@ -93,12 +129,19 @@ app.post('/v1/schedule', (req, res) => {
   });
 });
 
+// Hosting rewrite: /api/** → function
+app.use('/api', api);
+// Direct Cloud Functions URL: /health, /v1/...
+app.use(api);
+
 export const buzzitApi = onRequest(
   {
     region: 'asia-northeast1',
-    memory: '256MiB',
-    timeoutSeconds: 60,
+    memory: '512MiB',
+    timeoutSeconds: 120,
     cors: true,
+    // バケットに Storage Admin 済みの Firebase Admin SDK SA を使用
+    serviceAccount: 'firebase-adminsdk-fbsvc@shigotoku-prod.iam.gserviceaccount.com',
   },
   app,
 );
