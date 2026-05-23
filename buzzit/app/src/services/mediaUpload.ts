@@ -1,19 +1,21 @@
-import { API_BASE } from '../lib/api';
+import { API_BASE, authFetch } from '../lib/api';
 import type { LocalMediaFile, UploadedMedia } from '../types/media';
 
 export async function uploadMediaToGcp(local: LocalMediaFile): Promise<UploadedMedia> {
-  const uploadRes = await fetch(`${API_BASE}/v1/upload`, {
+  const headers: Record<string, string> = {
+    'Content-Type': local.file.type,
+    'X-File-Name': encodeURIComponent(local.name),
+  };
+
+  const uploadRes = await authFetch('/v1/upload', {
     method: 'POST',
-    headers: {
-      'Content-Type': local.file.type,
-      'X-File-Name': encodeURIComponent(local.name),
-    },
+    headers,
     body: local.file,
   });
 
   if (!uploadRes.ok) {
     const body = await uploadRes.json().catch(() => ({}));
-    throw new Error(body.error ?? 'クラウドへのアップロードに失敗しました');
+    throw new Error((body as { error?: string }).error ?? 'クラウドへのアップロードに失敗しました');
   }
 
   const { storagePath, publicUrl } = (await uploadRes.json()) as {
@@ -35,3 +37,6 @@ export async function uploadMediaToGcp(local: LocalMediaFile): Promise<UploadedM
 export async function uploadAllMedia(files: LocalMediaFile[]): Promise<UploadedMedia[]> {
   return Promise.all(files.map(uploadMediaToGcp));
 }
+
+// re-export for debugging
+export { API_BASE };

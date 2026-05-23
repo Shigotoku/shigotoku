@@ -105,6 +105,11 @@ export default function MagicCreator() {
           setSafetyWarning(apiResult.safetyViolations);
         }
         setResults(apiResult.results as RepurposeContent[]);
+        if (apiResult.usedGemini) {
+          setUploadMessage((prev) =>
+            prev ? `${prev}（Gemini AI 生成）` : 'Gemini AI でコンテンツを生成しました',
+          );
+        }
       } catch {
         const safety = checkBrandSafety(effectiveIdea);
         if (!safety.safe) setSafetyWarning(safety.violations);

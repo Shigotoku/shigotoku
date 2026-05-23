@@ -1,14 +1,45 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, CheckCircle2, TrendingUp, Users, DollarSign } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { kpiLabels, mockMetrics, mockMission } from '../data/mockDashboard';
+import { fetchDashboard } from '../lib/api';
 
 export default function Dashboard() {
-  const metrics = mockMetrics;
-  const mission = mockMission;
+  const [metrics, setMetrics] = useState(mockMetrics);
+  const [mission, setMission] = useState(mockMission);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchDashboard()
+      .then((data) => {
+        setMetrics({
+          ...mockMetrics,
+          healthScore: data.metrics.healthScore,
+          healthTrend: data.metrics.healthTrend,
+          reachRating: data.metrics.reachRating,
+          clickRating: data.metrics.clickRating,
+          reach: data.metrics.funnel.reach,
+          lineFriends: data.metrics.funnel.lineSignups,
+          estimatedRevenue: data.metrics.funnel.revenue,
+          lineCvr: data.metrics.funnel.reach > 0
+            ? Math.round((data.metrics.funnel.lineSignups / data.metrics.funnel.reach) * 1000) / 10
+            : mockMetrics.lineCvr,
+        });
+        setMission({ ...data.metrics.mission, scriptCount: 3 });
+      })
+      .catch(() => {
+        // Firestore 未設定時はモック表示
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
+      {loading && (
+        <p className="text-sm text-slate-500">Firestore から KPI を読み込み中...</p>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -74,10 +105,6 @@ export default function Dashboard() {
             <h3 className="text-xl font-bold mb-1">売上ファネルトラッキング</h3>
             <p className="text-sm text-slate-400">投稿 → LINE/LP遷移 → 来店 → 売上の流れを可視化</p>
           </div>
-          <select className="bg-slate-900 border border-slate-700 text-sm rounded-lg px-3 py-2 outline-none focus:border-indigo-500">
-            <option>今月 (May)</option>
-            <option>先月 (Apr)</option>
-          </select>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -89,9 +116,6 @@ export default function Dashboard() {
             <div className="text-2xl font-bold">{metrics.reach.toLocaleString()}</div>
           </div>
           <div className="p-6 rounded-xl bg-slate-900/50 border border-slate-800 relative">
-            <div className="absolute top-1/2 -left-3 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-800 border-2 border-slate-700 flex items-center justify-center hidden md:flex">
-              <ArrowRight className="w-3 h-3 text-slate-500" />
-            </div>
             <div className="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400 mb-4">
               <CheckCircle2 className="w-5 h-5" />
             </div>
@@ -102,9 +126,6 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="p-6 rounded-xl bg-slate-900/50 border border-slate-800 relative">
-            <div className="absolute top-1/2 -left-3 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-800 border-2 border-slate-700 flex items-center justify-center hidden md:flex">
-              <ArrowRight className="w-3 h-3 text-slate-500" />
-            </div>
             <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400 mb-4">
               <DollarSign className="w-5 h-5" />
             </div>

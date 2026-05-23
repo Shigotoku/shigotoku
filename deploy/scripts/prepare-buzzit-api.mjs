@@ -18,4 +18,6 @@ for (const name of ['package.json', 'package-lock.json', 'lib']) {
 
 execSync('npm ci --omit=dev', { cwd: apiDest, stdio: 'inherit' });
 
+cpSync(join(apiSrc, 'storage.rules'), join(deployDir, 'storage.rules'));
+
 console.log('✓ Prepared functions/buzzit-api for Firebase deploy');

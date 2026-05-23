@@ -7,10 +7,11 @@
     "deploy:web": "npm run build && firebase deploy --only hosting:shigotoku-web",
     "deploy:runwith-app": "npm run build && firebase deploy --only hosting:runwith-app",
     "deploy:buzzit-app": "npm run build && firebase deploy --only hosting:buzzit-app",
-    "deploy:buzzit-api": "npm run build:buzzit-api && firebase deploy --only functions:buzzit-api,storage",
-    "build:buzzit-api": "npm ci --prefix ../buzzit/api && npm run build --prefix ../buzzit/api && node scripts/prepare-buzzit-api.mjs && cp ../buzzit/api/storage.rules storage.rules",
-    "deploy:all": "npm run build && cp ../buzzit/api/storage.rules storage.rules && firebase deploy --only hosting,storage",
-    "deploy:all-with-api": "npm run build && npm run build:buzzit-api && firebase deploy --only hosting,functions:buzzit-api,storage"
+    "deploy:buzzit-api": "npm run build:buzzit-api && firebase deploy --only functions:buzzit-api,storage,firestore",
+    "build:buzzit-api": "npm ci --prefix ../buzzit/api && npm run build --prefix ../buzzit/api && node scripts/prepare-buzzit-api.mjs",
+    "copy:storage-rules": "node scripts/copy-storage-rules.mjs",
+    "deploy:all": "npm run build && npm run copy:storage-rules && firebase deploy --only hosting,storage,firestore",
+    "deploy:all-with-api": "npm run build && npm run build:buzzit-api && firebase deploy --only hosting,functions:buzzit-api,storage,firestore"
   },
   "devDependencies": {
     "firebase-tools": "^14.0.0"

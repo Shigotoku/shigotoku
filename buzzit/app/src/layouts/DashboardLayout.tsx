@@ -1,8 +1,9 @@
 import { Outlet, NavLink } from 'react-router-dom';
-import { LayoutDashboard, Wand2, BarChart3, Settings, Bell, ExternalLink } from 'lucide-react';
+import { LayoutDashboard, Wand2, BarChart3, Settings, Bell, ExternalLink, LogOut } from 'lucide-react';
 import { BRAND_NAME } from '../constants/brand';
 import { landingPath } from '../lib/urls';
 import { useApp } from '../store/appContext';
+import { useAuth } from '../store/authContext';
 
 const planLabels = {
   starter: 'Starter (無料)',
@@ -13,6 +14,8 @@ const planLabels = {
 
 export default function DashboardLayout() {
   const { plan } = useApp();
+  const { user, logout } = useAuth();
+  const displayName = user?.displayName ?? user?.email ?? 'デモユーザー';
 
   const navItems = [
     { name: '経営コクピット', path: '/dashboard', icon: LayoutDashboard },
@@ -57,13 +60,21 @@ export default function DashboardLayout() {
             サービスサイトへ
           </a>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-slate-800 overflow-hidden">
-              <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" />
+            <div className="w-10 h-10 rounded-full bg-slate-800 overflow-hidden flex items-center justify-center text-sm font-bold text-indigo-300">
+              {displayName.slice(0, 1)}
             </div>
-            <div>
-              <p className="text-sm font-medium">田中 太郎</p>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">{displayName}</p>
               <p className="text-xs text-slate-500">Owner ({planLabels[plan]})</p>
             </div>
+            <button
+              type="button"
+              onClick={() => logout()}
+              className="p-2 rounded-lg hover:bg-white/5 text-slate-400"
+              title="ログアウト"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </aside>

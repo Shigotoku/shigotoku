@@ -1,27 +1,50 @@
+import { useEffect, useState } from 'react';
 import { BarChart3, Share2, MousePointerClick, Users, DollarSign } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { kpiLabels, mockMetrics } from '../data/mockDashboard';
-
-const kpiCards = [
-  { key: 'awareness', label: kpiLabels.awareness, value: '24,500', icon: Users, iconClass: 'text-blue-400', bgClass: 'bg-blue-500/20' },
-  { key: 'interest', label: kpiLabels.interest, value: '保存率 8.2% / シェア率 2.1%', icon: Share2, iconClass: 'text-purple-400', bgClass: 'bg-purple-500/20' },
-  { key: 'conversion', label: kpiLabels.conversion, value: 'URLクリック率 1.8%', icon: MousePointerClick, iconClass: 'text-indigo-400', bgClass: 'bg-indigo-500/20' },
-  { key: 'leads', label: kpiLabels.leads, value: `${mockMetrics.lineFriends}件`, icon: Users, iconClass: 'text-sky-400', bgClass: 'bg-sky-500/20' },
-  { key: 'revenue', label: kpiLabels.revenue, value: `¥${mockMetrics.estimatedRevenue.toLocaleString()}`, icon: DollarSign, iconClass: 'text-emerald-400', bgClass: 'bg-emerald-500/20' },
-];
-
-const topPosts = [
-  { title: '春カラーショート動画', reach: 12400, revenue: 128000 },
-  { title: '【悲報】カラー失敗フック', reach: 8200, revenue: 98000 },
-  { title: 'スタッフ紹介カルーセル', reach: 3900, revenue: 56000 },
-];
+import { fetchAnalytics } from '../lib/api';
 
 export default function AnalyticsPage() {
+  const [metrics, setMetrics] = useState(mockMetrics);
+  const [topPosts, setTopPosts] = useState([
+    { title: '春カラーショート動画', reach: 12400, revenue: 128000 },
+    { title: '【悲報】カラー失敗フック', reach: 8200, revenue: 98000 },
+    { title: 'スタッフ紹介カルーセル', reach: 3900, revenue: 56000 },
+  ]);
+
+  useEffect(() => {
+    fetchAnalytics()
+      .then((data) => {
+        setMetrics({
+          ...mockMetrics,
+          reach: data.metrics.reach,
+          lineFriends: data.metrics.lineFriends,
+          estimatedRevenue: data.metrics.estimatedRevenue,
+        });
+        if (data.topPosts.length) {
+          setTopPosts(data.topPosts.map((p) => ({
+            title: p.title,
+            reach: p.reach,
+            revenue: p.revenue,
+          })));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const kpiCards = [
+    { key: 'awareness', label: kpiLabels.awareness, value: metrics.reach.toLocaleString(), icon: Users, iconClass: 'text-blue-400', bgClass: 'bg-blue-500/20' },
+    { key: 'interest', label: kpiLabels.interest, value: '保存率 8.2% / シェア率 2.1%', icon: Share2, iconClass: 'text-purple-400', bgClass: 'bg-purple-500/20' },
+    { key: 'conversion', label: kpiLabels.conversion, value: 'URLクリック率 1.8%', icon: MousePointerClick, iconClass: 'text-indigo-400', bgClass: 'bg-indigo-500/20' },
+    { key: 'leads', label: kpiLabels.leads, value: `${metrics.lineFriends}件`, icon: Users, iconClass: 'text-sky-400', bgClass: 'bg-sky-500/20' },
+    { key: 'revenue', label: kpiLabels.revenue, value: `¥${metrics.estimatedRevenue.toLocaleString()}`, icon: DollarSign, iconClass: 'text-emerald-400', bgClass: 'bg-emerald-500/20' },
+  ];
+
   return (
     <div className="max-w-6xl mx-auto space-y-8">
       <div>
         <h2 className="text-2xl font-bold mb-2">分析・売上</h2>
-        <p className="text-slate-400">要件定義のKPI設計に基づく経営判断用ダッシュボード（Phase 1: デモデータ）</p>
+        <p className="text-slate-400">Firestore の KPI データに基づく経営判断用ダッシュボード</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
