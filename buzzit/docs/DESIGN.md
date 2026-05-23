@@ -1,7 +1,7 @@
 ---
-# DESIGN.md - BuzzPilot Clean & Modern Design System
+# DESIGN.md - BuzzIt Clean & Modern Design System
 brand:
-  name: "BuzzPilot"
+  name: "BuzzIt"
   essence: ["clean", "airy", "trustworthy", "modern"]
 colors:
   primary: "#4f46e5" # Indigo 600
@@ -26,9 +26,9 @@ border_radius:
   button: "9999px (full)"
 ---
 
-# BuzzPilot Design Principles (Clean Theme)
+# BuzzIt Design Principles (Clean Theme)
 
-This document defines the core aesthetic for BuzzPilot, focusing on a clean, off-white, and airy feel that inspires trust and professionalism.
+This document defines the core aesthetic for BuzzIt, focusing on a clean, off-white, and airy feel that inspires trust and professionalism.
 
 ## 1. Visual Hierarchy & Contrast
 - **Off-White Theme**: Use `#fafafa` (or Tailwind's `slate-50`) as the absolute background to provide a clean canvas.
@@ -48,4 +48,4 @@ This document defines the core aesthetic for BuzzPilot, focusing on a clean, off
 - **Buttons**: Pill-shaped (`rounded-full`), solid colors for primary actions, and very soft hover animations (`hover:-translate-y-0.5`).
 - **Cards**: Pure white (`bg-white`), large corner radii (`rounded-3xl`), and very soft borders or shadows.
 
-*Note: Always refer to these tokens when generating HTML/Tailwind for BuzzPilot.*
+*Note: Always refer to these tokens when generating HTML/Tailwind for BuzzIt.*

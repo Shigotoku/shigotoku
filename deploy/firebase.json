@@ -81,6 +81,13 @@
       "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
       "rewrites": [
         {
+          "source": "/api/**",
+          "function": {
+            "functionId": "buzzitApi",
+            "region": "asia-northeast1"
+          }
+        },
+        {
           "source": "**",
           "destination": "/index.html"
         }
@@ -113,5 +120,15 @@
         }
       ]
     }
-  ]
+  ],
+  "functions": [
+    {
+      "source": "../buzzit/api",
+      "codebase": "buzzit-api",
+      "runtime": "nodejs22"
+    }
+  ],
+  "storage": {
+    "rules": "../buzzit/api/storage.rules"
+  }
 }

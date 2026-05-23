@@ -6,8 +6,10 @@
     "build": "node build.mjs",
     "deploy:web": "npm run build && firebase deploy --only hosting:shigotoku-web",
     "deploy:runwith-app": "npm run build && firebase deploy --only hosting:runwith-app",
-    "deploy:buzzit-app": "npm run build && firebase deploy --only hosting:buzzit-app",
-    "deploy:all": "npm run build && firebase deploy --only hosting"
+    "deploy:buzzit-app": "npm run build && npm run build:buzzit-api && firebase deploy --only hosting:buzzit-app,functions:buzzitApi,storage",
+    "deploy:buzzit-api": "npm run build:buzzit-api && firebase deploy --only functions:buzzitApi,storage",
+    "build:buzzit-api": "npm ci --prefix ../buzzit/api && npm run build --prefix ../buzzit/api",
+    "deploy:all": "npm run build && npm run build:buzzit-api && firebase deploy --only hosting,functions:buzzitApi,storage"
   },
   "devDependencies": {
     "firebase-tools": "^14.0.0"

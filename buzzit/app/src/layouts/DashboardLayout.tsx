@@ -1,8 +1,19 @@
 import { Outlet, NavLink } from 'react-router-dom';
 import { LayoutDashboard, Wand2, BarChart3, Settings, Bell, ExternalLink } from 'lucide-react';
+import { BRAND_NAME } from '../constants/brand';
 import { landingPath } from '../lib/urls';
+import { useApp } from '../store/appContext';
+
+const planLabels = {
+  starter: 'Starter (無料)',
+  pro: 'Pro',
+  team: 'Team',
+  growth: 'Growth OS',
+} as const;
 
 export default function DashboardLayout() {
+  const { plan } = useApp();
+
   const navItems = [
     { name: '経営コクピット', path: '/dashboard', icon: LayoutDashboard },
     { name: 'マジック・クリエイター', path: '/magic-creator', icon: Wand2 },
@@ -12,12 +23,11 @@ export default function DashboardLayout() {
 
   return (
     <div className="flex h-screen bg-[#0f172a] text-slate-50 font-['Inter']">
-      {/* Sidebar */}
       <aside className="w-64 border-r border-slate-800 bg-slate-900/50 backdrop-blur-xl flex flex-col">
         <div className="h-20 flex items-center px-6 border-b border-slate-800">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-lg">B</div>
-            <span className="text-xl font-bold font-['Outfit'] tracking-wide">BuzzPilot</span>
+            <span className="text-xl font-bold font-['Outfit'] tracking-wide">{BRAND_NAME}</span>
           </div>
         </div>
         <nav className="flex-1 p-4 space-y-1">
@@ -52,13 +62,12 @@ export default function DashboardLayout() {
             </div>
             <div>
               <p className="text-sm font-medium">田中 太郎</p>
-              <p className="text-xs text-slate-500">Owner (Pro)</p>
+              <p className="text-xs text-slate-500">Owner ({planLabels[plan]})</p>
             </div>
           </div>
         </div>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden relative">
         <div className="absolute top-[-20%] right-[-10%] w-[50%] h-[50%] bg-indigo-600/10 blur-[150px] rounded-full pointer-events-none"></div>
         <header className="h-20 flex items-center justify-between px-8 border-b border-slate-800/50 z-10 relative">

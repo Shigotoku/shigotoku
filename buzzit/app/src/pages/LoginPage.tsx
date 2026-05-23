@@ -1,5 +1,6 @@
-import { ArrowRight, Sparkles } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import { ArrowRight, Sparkles } from 'lucide-react';
+import { BRAND_FULL, BRAND_NAME } from '../constants/brand';
 import { landingPath } from '../lib/urls';
 
 export default function LoginPage() {
@@ -13,7 +14,7 @@ export default function LoginPage() {
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 text-lg font-bold">
               B
             </div>
-            <span className="text-lg font-bold font-['Outfit']">BuzzPilot</span>
+            <span className="text-lg font-bold font-['Outfit']">{BRAND_NAME}</span>
           </Link>
           <a
             href={landingPath('/')}
@@ -36,12 +37,12 @@ export default function LoginPage() {
             毎朝5分のルーティンへ。
           </h1>
           <p className="mt-6 text-base leading-relaxed text-slate-400">
-            BuzzPilotは、BtoC店舗向けのSNS運用・売上トラッキングOSです。
+            {BRAND_FULL}は、BtoC店舗向けのSNS運用・売上トラッキングOSです。
             まずはデモ環境で、経営コクピットの体験から始められます。
           </p>
           <ul className="mt-8 space-y-3 text-sm text-slate-300">
             <li>・AIが「今日やること」を提案</li>
-            <li>・チーム承認フローで運用を標準化</li>
+            <li>・1本の素材から全SNSへ自動展開（Repurpose）</li>
             <li>・売上への貢献を可視化</li>
           </ul>
         </div>

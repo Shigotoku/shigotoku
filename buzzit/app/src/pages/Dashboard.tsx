@@ -1,12 +1,16 @@
+import { Link } from 'react-router-dom';
 import { ArrowRight, CheckCircle2, TrendingUp, Users, DollarSign } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { kpiLabels, mockMetrics, mockMission } from '../data/mockDashboard';
 
 export default function Dashboard() {
+  const metrics = mockMetrics;
+  const mission = mockMission;
+
   return (
     <div className="max-w-6xl mx-auto space-y-8">
-      {/* Today's Mission & Health Score */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="lg:col-span-2 rounded-2xl bg-gradient-to-r from-indigo-600/20 to-purple-600/20 border border-indigo-500/30 p-8 flex flex-col justify-center relative overflow-hidden"
@@ -17,16 +21,19 @@ export default function Dashboard() {
               <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span>
               Today's Mission
             </div>
-            <h2 className="text-3xl font-bold mb-2">新作「春カラー」の動画を承認してください</h2>
-            <p className="text-slate-400 mb-6">AIが3パターンの台本とTikTok/Reels用動画を生成しました。確認後、ワンタップで各SNSへ予約投稿されます。</p>
-            <button className="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium flex items-center gap-2 w-fit transition-all shadow-[0_0_20px_rgba(79,70,229,0.4)] hover:-translate-y-0.5">
+            <h2 className="text-3xl font-bold mb-2">{mission.title}</h2>
+            <p className="text-slate-400 mb-6">{mission.description}</p>
+            <Link
+              to="/magic-creator"
+              className="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium flex items-center gap-2 w-fit transition-all shadow-[0_0_20px_rgba(79,70,229,0.4)] hover:-translate-y-0.5"
+            >
               内容を確認・承認する
               <ArrowRight className="w-4 h-4" />
-            </button>
+            </Link>
           </div>
         </motion.div>
 
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
@@ -37,27 +44,26 @@ export default function Dashboard() {
             <p className="text-sm text-slate-500">アカウントの総合的な評価</p>
           </div>
           <div className="flex items-end gap-3 mt-4">
-            <span className="text-6xl font-bold tracking-tight text-white">92</span>
+            <span className="text-6xl font-bold tracking-tight text-white">{metrics.healthScore}</span>
             <div className="flex items-center gap-1 text-emerald-400 pb-2">
               <TrendingUp className="w-4 h-4" />
-              <span className="font-medium">+12%</span>
+              <span className="font-medium">+{metrics.healthTrend}%</span>
             </div>
           </div>
           <div className="mt-6 space-y-3 text-sm">
             <div className="flex justify-between">
-              <span className="text-slate-400">認知 (リーチ)</span>
-              <span className="text-white font-medium">Excellent</span>
+              <span className="text-slate-400">{kpiLabels.awareness}</span>
+              <span className="text-white font-medium">{metrics.reachRating}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">誘導 (URLクリック)</span>
-              <span className="text-emerald-400 font-medium">Good</span>
+              <span className="text-slate-400">{kpiLabels.conversion}</span>
+              <span className="text-emerald-400 font-medium">{metrics.clickRating}</span>
             </div>
           </div>
         </motion.div>
       </div>
 
-      {/* Funnel Tracking */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
@@ -66,7 +72,7 @@ export default function Dashboard() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h3 className="text-xl font-bold mb-1">売上ファネルトラッキング</h3>
-            <p className="text-sm text-slate-400">SNSが実際の売上にどう貢献しているかを可視化</p>
+            <p className="text-sm text-slate-400">投稿 → LINE/LP遷移 → 来店 → 売上の流れを可視化</p>
           </div>
           <select className="bg-slate-900 border border-slate-700 text-sm rounded-lg px-3 py-2 outline-none focus:border-indigo-500">
             <option>今月 (May)</option>
@@ -80,7 +86,7 @@ export default function Dashboard() {
               <Users className="w-5 h-5" />
             </div>
             <div className="text-sm text-slate-400 mb-1">総リーチ数</div>
-            <div className="text-2xl font-bold">24,500</div>
+            <div className="text-2xl font-bold">{metrics.reach.toLocaleString()}</div>
           </div>
           <div className="p-6 rounded-xl bg-slate-900/50 border border-slate-800 relative">
             <div className="absolute top-1/2 -left-3 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-800 border-2 border-slate-700 flex items-center justify-center hidden md:flex">
@@ -89,8 +95,11 @@ export default function Dashboard() {
             <div className="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400 mb-4">
               <CheckCircle2 className="w-5 h-5" />
             </div>
-            <div className="text-sm text-slate-400 mb-1">LINE友だち追加</div>
-            <div className="text-2xl font-bold">124 <span className="text-sm font-normal text-emerald-400 ml-2">CVR 0.5%</span></div>
+            <div className="text-sm text-slate-400 mb-1">{kpiLabels.leads}</div>
+            <div className="text-2xl font-bold">
+              {metrics.lineFriends}{' '}
+              <span className="text-sm font-normal text-emerald-400 ml-2">CVR {metrics.lineCvr}%</span>
+            </div>
           </div>
           <div className="p-6 rounded-xl bg-slate-900/50 border border-slate-800 relative">
             <div className="absolute top-1/2 -left-3 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-800 border-2 border-slate-700 flex items-center justify-center hidden md:flex">
@@ -99,8 +108,10 @@ export default function Dashboard() {
             <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400 mb-4">
               <DollarSign className="w-5 h-5" />
             </div>
-            <div className="text-sm text-slate-400 mb-1">来店・売上推計</div>
-            <div className="text-2xl font-bold text-emerald-400">¥342,000</div>
+            <div className="text-sm text-slate-400 mb-1">{kpiLabels.revenue}</div>
+            <div className="text-2xl font-bold text-emerald-400">
+              ¥{metrics.estimatedRevenue.toLocaleString()}
+            </div>
           </div>
         </div>
       </motion.div>
