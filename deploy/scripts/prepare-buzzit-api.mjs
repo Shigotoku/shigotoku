@@ -3,8 +3,9 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
 
-const deployDir = dirname(fileURLToPath(import.meta.url));
-const root = join(deployDir, '..');
+const scriptDir = dirname(fileURLToPath(import.meta.url));
+const deployDir = dirname(scriptDir);
+const root = dirname(deployDir);
 const apiSrc = join(root, 'buzzit', 'api');
 const apiDest = join(deployDir, 'functions', 'buzzit-api');
 
