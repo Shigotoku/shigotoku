@@ -1,0 +1,29 @@
+---
+import Icon from './Icon.astro';
+import { appPath } from '../lib/urls';
+
+const loginUrl = appPath('/login');
+const bullets = ['クレジットカード不要', '会社設立ナビは無料', 'いつでもキャンセル可能'];
+---
+
+<section class="bg-slate-950 px-4 py-24 sm:px-6 sm:py-32">
+  <div class="mx-auto max-w-3xl text-center">
+    <p class="mb-4 text-sm font-semibold uppercase tracking-widest text-slate-500">Get Started</p>
+    <h2 class="text-4xl font-extrabold leading-tight text-white sm:text-5xl">今日、最初の一歩を踏み出す。</h2>
+    <p class="mx-auto mt-5 max-w-xl text-lg text-slate-400">会社設立ナビは無料で使えます。登録してすぐに、あなたのスタートアップの旅を始めてください。</p>
+    <div class="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+      <a href={loginUrl} class="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-8 py-4 text-base font-bold text-slate-900 transition-all hover:bg-slate-100 sm:w-auto">
+        無料アカウントを作成する
+        <Icon name="arrow-right" class="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
+      </a>
+    </div>
+    <div class="mt-8 flex flex-wrap justify-center gap-5 text-xs text-slate-600">
+      {bullets.map((t) => (
+        <span class="flex items-center gap-1.5">
+          <Icon name="check-circle" class="h-3.5 w-3.5 text-emerald-500" />
+          {t}
+        </span>
+      ))}
+    </div>
+  </div>
+</section>

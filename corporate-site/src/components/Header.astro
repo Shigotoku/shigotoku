@@ -1,0 +1,52 @@
+---
+import { navItems } from '../data/content';
+import { RUNWITH_LP } from '../lib/urls';
+---
+
+<header class="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm">
+  <div class="mx-auto max-w-7xl px-6 lg:px-8">
+    <div class="flex h-16 items-center justify-between">
+      <a href="/" class="flex items-center gap-2">
+        <img src="/images/shigotoku-logo.png" alt="シゴトク" class="h-8 w-auto object-contain" />
+        <span class="text-lg font-bold text-gray-900 tracking-tight">シゴトク</span>
+      </a>
+
+      <nav class="hidden md:flex items-center gap-7">
+        {navItems.map((item) => (
+          <a href={item.href} class="text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors">{item.label}</a>
+        ))}
+        <a href={RUNWITH_LP} class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors shadow-sm">ランウィズ</a>
+      </nav>
+
+      <button id="menu-toggle" type="button" class="md:hidden text-gray-600 hover:text-gray-900" aria-label="メニュー">
+        <svg id="menu-icon-open" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
+        </svg>
+        <svg id="menu-icon-close" class="hidden h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <div id="mobile-menu" class="hidden md:hidden bg-white border-t border-gray-100 px-6 py-4 space-y-1">
+    {navItems.map((item) => (
+      <a href={item.href} class="block text-sm font-medium text-gray-600 hover:text-blue-600 py-2">{item.label}</a>
+    ))}
+    <a href={RUNWITH_LP} class="block text-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white mt-2">ランウィズ</a>
+  </div>
+</header>
+
+<script>
+  const toggle = document.getElementById('menu-toggle');
+  const menu = document.getElementById('mobile-menu');
+  const openIcon = document.getElementById('menu-icon-open');
+  const closeIcon = document.getElementById('menu-icon-close');
+
+  toggle?.addEventListener('click', () => {
+    const isOpen = !menu?.classList.contains('hidden');
+    menu?.classList.toggle('hidden', isOpen);
+    openIcon?.classList.toggle('hidden', !isOpen);
+    closeIcon?.classList.toggle('hidden', isOpen);
+  });
+</script>

@@ -1,0 +1,24 @@
+---
+import { companyInfo } from '../data/content';
+---
+
+<section id="company" class="py-32 bg-white">
+  <div class="mx-auto max-w-7xl px-6 lg:px-8">
+    <div class="text-center mb-16">
+      <span class="inline-block rounded-full bg-blue-50 px-4 py-1.5 text-sm font-semibold text-blue-600 mb-4">Company</span>
+      <h2 class="text-4xl sm:text-5xl font-black tracking-tight text-gray-900">会社概要</h2>
+    </div>
+    <div class="mx-auto max-w-3xl">
+      <div class="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
+        {companyInfo.map((item, i) => (
+          <div class={`flex flex-col sm:flex-row gap-1 sm:gap-0 px-8 py-5 ${i !== companyInfo.length - 1 ? 'border-b border-gray-50' : ''} ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+            <dt class="sm:w-40 shrink-0 text-sm font-semibold text-gray-400">{item.label}</dt>
+            <dd class="text-sm font-medium text-gray-700">
+              {item.isEmail ? <a href={`mailto:${item.value}`} class="text-blue-600 hover:underline">{item.value}</a> : item.value}
+            </dd>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+</section>

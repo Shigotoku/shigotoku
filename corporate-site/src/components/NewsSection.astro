@@ -1,0 +1,21 @@
+---
+import { news } from '../data/content';
+---
+
+<section id="news" class="py-32 bg-gray-50">
+  <div class="mx-auto max-w-7xl px-6 lg:px-8">
+    <div class="mb-12">
+      <span class="inline-block rounded-full bg-blue-50 px-4 py-1.5 text-sm font-semibold text-blue-600 mb-4">News</span>
+      <h2 class="text-4xl sm:text-5xl font-black tracking-tight text-gray-900">お知らせ</h2>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-100 overflow-hidden">
+      {news.map((item) => (
+        <article class="group flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 p-6 hover:bg-blue-50/30 transition-colors">
+          <time class="text-sm text-gray-400 font-mono shrink-0">{item.date}</time>
+          <span class={`inline-flex self-start rounded-full px-3 py-0.5 text-xs font-semibold shrink-0 ${item.categoryColor}`}>{item.category}</span>
+          <h3 class="text-sm sm:text-base font-medium text-gray-700 group-hover:text-blue-600 transition-colors flex-1">{item.title}</h3>
+        </article>
+      ))}
+    </div>
+  </div>
+</section>

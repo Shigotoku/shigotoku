@@ -1,0 +1,55 @@
+---
+import Icon from './Icon.astro';
+import { appPath, sitePath } from '../lib/urls';
+
+const loginUrl = appPath('/login');
+const heroCards = [
+  { label: '会社設立ナビ', sub: '7ステップ完全ガイド' },
+  { label: '届出ナビ', sub: '全提出先を一元管理' },
+  { label: '補助金マッチング', sub: '適合補助金を自動検出' },
+  { label: '事業シミュレーター', sub: '60ヶ月の収支を試算' },
+];
+---
+
+<section class="relative overflow-hidden bg-slate-950 px-4 pb-24 pt-20 sm:px-6 sm:pb-32 sm:pt-28">
+  <div class="pointer-events-none absolute inset-0 opacity-[0.03]" style="background-image: linear-gradient(rgba(255,255,255,.3) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.3) 1px, transparent 1px); background-size: 64px 64px;"></div>
+
+  <div class="relative mx-auto max-w-5xl text-center">
+    <div class="mb-7 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-sm font-medium text-slate-300">
+      <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+      日本のスタートアップを支える、実務特化プラットフォーム
+    </div>
+
+    <h1 class="text-5xl font-extrabold leading-[1.08] tracking-tight text-white sm:text-7xl">
+      アイデアから<span class="text-primary-400"> IPO </span>まで、<br class="hidden sm:block" />迷わずに進める。
+    </h1>
+
+    <p class="mx-auto mt-7 max-w-2xl text-lg leading-relaxed text-slate-400 sm:text-xl">
+      会社設立・届出・補助金・資金調達・IPO準備——スタートアップが直面するすべての壁を、ひとつのプラットフォームで突破する。
+    </p>
+
+    <div class="mt-9 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+      <a href={loginUrl} class="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-8 py-3.5 text-sm font-bold text-slate-900 transition-all hover:bg-slate-100 sm:w-auto">
+        無料で始める（登録不要）
+        <Icon name="arrow-right" class="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+      </a>
+          <a href={sitePath('pricing')} class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 px-8 py-3.5 text-sm font-semibold text-slate-300 transition-all hover:border-white/30 hover:text-white sm:w-auto">
+        料金プランを確認する
+      </a>
+    </div>
+
+    <p class="mt-4 text-xs text-slate-500">クレジットカード不要 ・ 会社設立ナビは完全無料</p>
+  </div>
+
+  <div class="relative mx-auto mt-16 max-w-4xl">
+    <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {heroCards.map((item) => (
+        <div class="rounded-xl border border-white/8 bg-white/5 p-4 text-left backdrop-blur-sm">
+          <div class="mb-2 h-5 w-5 rounded bg-primary-400/20"></div>
+          <p class="text-sm font-semibold text-white">{item.label}</p>
+          <p class="mt-0.5 text-xs text-slate-400">{item.sub}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>

@@ -1,0 +1,29 @@
+---
+import Icon from './Icon.astro';
+import { testimonials } from '../data/content';
+---
+
+<section class="border-b border-slate-100 bg-white px-4 py-20 sm:px-6 sm:py-24">
+  <div class="mx-auto max-w-6xl">
+    <div class="mb-12 text-center">
+      <p class="mb-3 text-sm font-semibold uppercase tracking-widest text-slate-400">Testimonials</p>
+      <h2 class="text-3xl font-extrabold text-slate-900 sm:text-4xl">実際に使った起業家の声</h2>
+    </div>
+    <div class="grid grid-cols-1 gap-5 sm:grid-cols-3">
+      {testimonials.map((t) => (
+        <div class="rounded-2xl border border-slate-200/60 bg-white p-7 shadow-sm">
+          <Icon name="quote" class="mb-4 h-7 w-7 text-slate-200" />
+          <p class="text-sm leading-relaxed text-slate-700">{t.quote}</p>
+          <div class="mt-6 flex items-center gap-3">
+            <div class="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-600">{t.name[0]}</div>
+            <div>
+              <p class="text-sm font-semibold text-slate-900">{t.name}</p>
+              <p class="text-xs text-slate-400">{t.role}</p>
+            </div>
+            <span class={`ml-auto rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${t.phaseColor}`}>{t.phase}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>

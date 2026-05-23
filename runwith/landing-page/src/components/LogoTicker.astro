@@ -1,0 +1,21 @@
+---
+import { logos } from '../data/content';
+
+const doubled = [...logos, ...logos];
+---
+
+<section class="border-y border-slate-100 bg-white py-12">
+  <p class="mb-7 text-center text-xs font-semibold uppercase tracking-widest text-slate-400">導入スタートアップ</p>
+  <div class="relative overflow-hidden">
+    <div class="pointer-events-none absolute inset-y-0 left-0 z-10 w-28 bg-gradient-to-r from-white to-transparent"></div>
+    <div class="pointer-events-none absolute inset-y-0 right-0 z-10 w-28 bg-gradient-to-l from-white to-transparent"></div>
+    <div class="ticker-track flex w-max items-center gap-0">
+      {doubled.map((logo, i) => (
+        <div class="flex shrink-0 items-center whitespace-nowrap px-8">
+          <div class="mr-8 h-6 w-px bg-slate-200"></div>
+          <span class={`text-slate-700 transition-colors hover:text-slate-900 ${logo.style}`}>{logo.name}</span>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>

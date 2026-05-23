@@ -1,0 +1,58 @@
+---
+import Icon from './Icon.astro';
+import { previewPlans } from '../data/content';
+import { appPath } from '../lib/urls';
+
+const loginUrl = appPath('/login');
+---
+
+<section class="bg-slate-50 px-4 py-20 sm:px-6 sm:py-24">
+  <div class="mx-auto max-w-5xl">
+    <div class="mb-12 text-center">
+      <p class="mb-3 text-sm font-semibold uppercase tracking-widest text-slate-400">Pricing</p>
+      <h2 class="text-3xl font-extrabold text-slate-900 sm:text-4xl">フェーズに合わせた料金プラン</h2>
+      <p class="mt-3 text-slate-500">会社設立ナビは無料。成長に合わせてアップグレードできます。</p>
+    </div>
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      {previewPlans.map((plan) => (
+        <div class={`relative rounded-2xl border bg-white p-7 shadow-sm transition-all hover:shadow-md ${plan.border}`}>
+          <div class="mb-5 flex items-center justify-between">
+            <h3 class="text-lg font-bold text-slate-900">{plan.name}</h3>
+            <span class={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${plan.tagColor}`}>{plan.tag}</span>
+          </div>
+          <div class="mb-6">
+            <span class="text-4xl font-extrabold text-slate-900">{plan.price}</span>
+            <span class="text-sm text-slate-500">{plan.per}</span>
+          </div>
+          <ul class="mb-7 space-y-2.5">
+            {plan.features.map((f) => (
+              <li class="flex items-start gap-2 text-sm text-slate-700">
+                <Icon name="check-circle" class="mt-0.5 h-4 w-4 shrink-0 text-primary-500" />
+                {f}
+              </li>
+            ))}
+          </ul>
+          <a href={loginUrl} class={`flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition-all ${plan.ctaStyle}`}>
+            始める
+            <Icon name="arrow-right" class="h-4 w-4" />
+          </a>
+        </div>
+      ))}
+    </div>
+    <div class="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+      <div class="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex items-center gap-3">
+          <Icon name="stethoscope" class="h-5 w-5 shrink-0 text-emerald-600" />
+          <div>
+            <p class="font-semibold text-slate-900">医療モード アドオン</p>
+            <p class="text-sm text-slate-500">Growth / Proプランに追加可能。薬機法・PMDA・治験管理など医療系に特化した機能。</p>
+          </div>
+        </div>
+        <div class="shrink-0 text-right">
+          <span class="text-2xl font-extrabold text-slate-900">+¥3,000</span>
+          <span class="text-sm text-slate-500">/月</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

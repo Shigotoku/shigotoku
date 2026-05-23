@@ -1,0 +1,27 @@
+---
+import Layout from '../layouts/Layout.astro';
+import LegalBackLink from '../components/LegalBackLink.astro';
+import { tokushohoItems } from '../data/content';
+---
+
+<Layout title="特定商取引法に基づく表記 | 株式会社シゴトク">
+  <div class="min-h-screen bg-white pt-16">
+    <div class="mx-auto max-w-3xl px-6 lg:px-8 py-16">
+      <LegalBackLink />
+      <h1 class="text-3xl font-black text-gray-900 mb-2">特定商取引法に基づく表記</h1>
+      <p class="text-sm text-gray-400 mb-10">最終更新日：2026年3月24日</p>
+      <div class="rounded-2xl border border-gray-100 overflow-hidden">
+        {tokushohoItems.map((item, i) => (
+          <div class={`flex flex-col sm:flex-row gap-1 sm:gap-0 px-6 py-4 ${i !== tokushohoItems.length - 1 ? 'border-b border-gray-50' : ''} ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+            <dt class="sm:w-48 shrink-0 text-sm font-semibold text-gray-500">{item.label}</dt>
+            <dd class="text-sm text-gray-700 leading-relaxed">
+              {item.isEmail ? <a href={`mailto:${item.value}`} class="text-blue-600 hover:underline">{item.value}</a>
+                : item.isUrl ? <a href={item.value} class="text-blue-600 hover:underline">{item.value}</a>
+                : item.value}
+            </dd>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+</Layout>

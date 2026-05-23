@@ -1,0 +1,20 @@
+{
+  "projects": {
+    "default": "shigotoku-prod"
+  },
+  "targets": {
+    "shigotoku-prod": {
+      "hosting": {
+        "shigotoku-web": [
+          "shigotoku-web"
+        ],
+        "runwith-app": [
+          "runwith-app"
+        ],
+        "buzzit-app": [
+          "shigotoku-buzzit-app"
+        ]
+      }
+    }
+  }
+}

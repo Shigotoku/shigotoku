@@ -1,0 +1,43 @@
+name: Deploy to Firebase
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: firebase-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: |
+            corporate-site/package-lock.json
+            runwith/landing-page/package-lock.json
+            runwith/app/package-lock.json
+            buzzit/landing-page/package-lock.json
+            buzzit/app/package-lock.json
+            deploy/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          npm ci --prefix corporate-site
+          npm ci --prefix runwith/landing-page
+          npm ci --prefix runwith/app
+          npm ci --prefix buzzit/landing-page
+          npm ci --prefix buzzit/app
+          npm ci --prefix deploy
+
+      - name: Deploy to Firebase Hosting
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: npm run deploy:all --prefix deploy

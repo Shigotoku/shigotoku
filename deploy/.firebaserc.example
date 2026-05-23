@@ -1,0 +1,20 @@
+{
+  "projects": {
+    "default": "YOUR_GCP_PROJECT_ID"
+  },
+  "targets": {
+    "YOUR_GCP_PROJECT_ID": {
+      "hosting": {
+        "shigotoku-web": [
+          "shigotoku-web"
+        ],
+        "runwith-app": [
+          "runwith-app"
+        ],
+        "buzzit-app": [
+          "shigotoku-buzzit-app"
+        ]
+      }
+    }
+  }
+}

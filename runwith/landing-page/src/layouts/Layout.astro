@@ -1,0 +1,116 @@
+---
+import '../styles/global.css';
+import Seo from '../components/Seo.astro';
+import { appPath, sitePath, assetPath } from '../lib/urls';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = 'ランウィズ (Runwith) - スタートアップを、もっと確実に。' } = Astro.props;
+const loginUrl = appPath('/login');
+const homeUrl = import.meta.env.BASE_URL;
+const featuresUrl = `${homeUrl}#features`;
+const pricingUrl = sitePath('pricing');
+---
+
+<!doctype html>
+<html lang="ja" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <link rel="icon" type="image/png" href={assetPath('icon.png')} />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <Seo title={title} description={description} />
+    <title>{title}</title>
+  </head>
+  <body class="min-h-screen bg-white font-sans antialiased">
+    <header class="sticky top-0 z-50 border-b border-slate-200/60 bg-white/95 backdrop-blur-xl">
+      <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-6">
+        <a href={homeUrl} class="flex items-center gap-2.5 transition-opacity hover:opacity-80">
+          <img src={assetPath('icon.png')} alt="ランウィズ" class="h-8 w-8 object-contain" />
+          <span class="text-base font-bold tracking-tight text-slate-900">ランウィズ</span>
+        </a>
+
+        <nav class="hidden items-center gap-6 md:flex">
+          <a href={featuresUrl} class="text-sm font-medium text-slate-500 transition-colors hover:text-slate-900">機能</a>
+          <a href={pricingUrl} class="text-sm font-medium text-slate-500 transition-colors hover:text-slate-900">料金</a>
+          <a href={loginUrl} class="text-sm font-medium text-slate-500 transition-colors hover:text-slate-900">ログイン</a>
+          <a href={loginUrl} class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-slate-700">無料で始める</a>
+        </nav>
+
+        <button id="menu-toggle" type="button" class="rounded-lg p-2 text-slate-600 transition-colors hover:bg-slate-100 md:hidden" aria-label="メニューを開く">
+          <svg id="menu-icon-open" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+          <svg id="menu-icon-close" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+
+      <div id="mobile-menu" class="hidden border-t border-slate-100 bg-white px-4 pb-4 pt-2 md:hidden">
+        <a href={pricingUrl} class="block rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">料金プラン</a>
+        <a href={loginUrl} class="mt-2 block rounded-xl bg-primary-600 px-4 py-2.5 text-center text-sm font-semibold text-white">ログイン</a>
+      </div>
+    </header>
+
+    <main>
+      <slot />
+    </main>
+
+    <footer class="border-t border-slate-200/60 bg-white/50 py-12">
+      <div class="mx-auto max-w-7xl px-4 sm:px-6">
+        <div class="grid grid-cols-2 gap-8 sm:grid-cols-4">
+          <div>
+            <h3 class="text-sm font-semibold text-slate-900">プロダクト</h3>
+            <ul class="mt-3 space-y-2">
+              <li><a href={pricingUrl} class="text-sm text-slate-500 hover:text-slate-700">料金プラン</a></li>
+              <li><span class="text-sm text-slate-500">会社設立ナビ</span></li>
+              <li><span class="text-sm text-slate-500">補助金マッチング</span></li>
+            </ul>
+          </div>
+          <div>
+            <h3 class="text-sm font-semibold text-slate-900">サポート</h3>
+            <ul class="mt-3 space-y-2">
+              <li><span class="text-sm text-slate-500">ヘルプセンター</span></li>
+              <li><span class="text-sm text-slate-500">お問い合わせ</span></li>
+            </ul>
+          </div>
+          <div>
+            <h3 class="text-sm font-semibold text-slate-900">法務</h3>
+            <ul class="mt-3 space-y-2">
+              <li><span class="text-sm text-slate-500">利用規約</span></li>
+              <li><span class="text-sm text-slate-500">プライバシーポリシー</span></li>
+            </ul>
+          </div>
+          <div>
+            <h3 class="text-sm font-semibold text-slate-900">会社情報</h3>
+            <ul class="mt-3 space-y-2">
+              <li><span class="text-sm text-slate-500">運営会社</span></li>
+              <li><span class="text-sm text-slate-500">ブログ</span></li>
+            </ul>
+          </div>
+        </div>
+        <div class="mt-10 border-t border-slate-200/60 pt-6 text-center">
+          <p class="text-sm text-slate-400">&copy; 2026 ランウィズ (Runwith). All rights reserved.</p>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      const toggle = document.getElementById('menu-toggle');
+      const menu = document.getElementById('mobile-menu');
+      const openIcon = document.getElementById('menu-icon-open');
+      const closeIcon = document.getElementById('menu-icon-close');
+
+      toggle?.addEventListener('click', () => {
+        const isOpen = !menu?.classList.contains('hidden');
+        menu?.classList.toggle('hidden', isOpen);
+        openIcon?.classList.toggle('hidden', !isOpen);
+        closeIcon?.classList.toggle('hidden', isOpen);
+      });
+    </script>
+  </body>
+</html>

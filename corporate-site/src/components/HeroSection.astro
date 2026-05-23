@@ -1,0 +1,47 @@
+---
+import { RUNWITH_LP } from '../lib/urls';
+---
+
+<section class="relative min-h-screen flex items-center pt-16 overflow-hidden">
+  <div class="absolute inset-0">
+    <img src="/images/hero.jpg" alt="" class="w-full h-full object-cover object-center" />
+    <div class="absolute inset-0 bg-white/70"></div>
+    <div class="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-white/50"></div>
+  </div>
+
+  <div class="relative mx-auto max-w-7xl px-6 lg:px-8 w-full py-24 text-center">
+    <div class="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50/90 px-3 py-1 mb-8">
+      <span class="h-1.5 w-1.5 rounded-full bg-blue-500"></span>
+      <span class="text-xs font-semibold text-blue-600 tracking-wide">ランウィズ (Runwith) 提供中</span>
+    </div>
+
+    <h1 class="text-5xl sm:text-6xl font-extrabold tracking-tight text-gray-900 leading-[1.2]" style="text-shadow: 0 2px 20px rgba(255,255,255,0.8), 0 0 40px rgba(255,255,255,0.6);">
+      スタートアップの<br />
+      <span class="text-blue-600" style="text-shadow: 0 2px 20px rgba(255,255,255,0.9);">挑戦を、加速する。</span>
+    </h1>
+
+    <div class="mt-6 inline-block">
+      <p class="text-base text-gray-600 leading-relaxed max-w-lg mx-auto px-4 py-2 rounded-xl bg-white/60 backdrop-blur-sm">
+        創業アイデアの段階からIPO・M&Aまで。<br />
+        テクノロジーの力で、スタートアップの成長を支えます。
+      </p>
+    </div>
+
+    <div class="mt-8 flex items-center justify-center gap-3">
+      <a href={RUNWITH_LP} class="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200">
+        ランウィズを見る
+        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
+      </a>
+      <a href="#mission" class="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white/90 backdrop-blur-sm px-6 py-3 text-sm font-semibold text-gray-700 hover:bg-white transition-colors shadow-sm">私たちについて</a>
+    </div>
+
+    <div class="mt-12 inline-flex items-center gap-8 px-8 py-4 rounded-2xl bg-white/90 backdrop-blur-sm border border-gray-100 shadow-md">
+      {[{ value: '30+', label: '搭載ツール' }, { value: '12+', label: '補助金対応' }, { value: '無料〜', label: '始められる' }].map((stat) => (
+        <div class="text-center">
+          <p class="text-xl font-black text-blue-600">{stat.value}</p>
+          <p class="text-xs text-gray-400 mt-0.5">{stat.label}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>

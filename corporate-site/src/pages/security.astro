@@ -1,0 +1,27 @@
+---
+import Layout from '../layouts/Layout.astro';
+import LegalBackLink from '../components/LegalBackLink.astro';
+---
+
+<Layout title="情報セキュリティ方針 | 株式会社シゴトク">
+  <div class="min-h-screen bg-white pt-16">
+    <div class="mx-auto max-w-3xl px-6 lg:px-8 py-16">
+      <LegalBackLink />
+      <h1 class="text-3xl font-black text-gray-900 mb-2">情報セキュリティ方針</h1>
+      <p class="text-sm text-gray-400 mb-10">最終更新日：2026年3月24日</p>
+      <div class="space-y-8 text-sm leading-relaxed text-gray-700">
+        <div class="p-6 bg-blue-50 rounded-xl border border-blue-100">
+          <p class="font-semibold text-blue-900">基本方針</p>
+          <p class="mt-2 text-blue-800">株式会社シゴトク（以下「当社」）は、お客様・取引先・従業員の情報資産を守ることが経営上の最重要課題のひとつであると認識し、情報セキュリティの確保に努めます。</p>
+        </div>
+        <section><h2 class="text-lg font-bold text-gray-900 mb-3">1. 情報資産の管理</h2><p>当社は、業務上取り扱う情報資産を適切に分類・管理し、その重要度に応じた保護措置を講じます。</p></section>
+        <section><h2 class="text-lg font-bold text-gray-900 mb-3">2. リスクへの対応</h2><p>当社は、情報セキュリティに関するリスクを定期的に評価し、適切な対策を実施します。</p><ul class="list-disc pl-5 space-y-1 mt-2"><li>不正アクセス・情報漏洩・改ざん・破壊等に対する技術的・物理的対策の実施</li><li>HTTPS による通信の暗号化</li><li>Cloudflare によるDDoS 攻撃対策・WAF の活用</li><li>定期的なセキュリティアップデートの実施</li><li>アクセス権限の最小化</li></ul></section>
+        <section><h2 class="text-lg font-bold text-gray-900 mb-3">3. 法令・規範の遵守</h2><p>当社は、個人情報の保護に関する法律をはじめとする、情報セキュリティに関連する法令・規制・規範を遵守します。</p></section>
+        <section><h2 class="text-lg font-bold text-gray-900 mb-3">4. 教育・啓発</h2><p>当社は、役員・従業員に対して情報セキュリティに関する教育・訓練を定期的に実施し、セキュリティ意識の向上を図ります。</p></section>
+        <section><h2 class="text-lg font-bold text-gray-900 mb-3">5. インシデント対応</h2><p>情報セキュリティインシデントが発生した場合、当社は速やかに原因究明・被害拡大防止の措置を取るとともに、影響を受けたお客様および関係機関に対して適切な報告・対応を行います。</p></section>
+        <section><h2 class="text-lg font-bold text-gray-900 mb-3">6. 継続的改善</h2><p>当社は、情報セキュリティ体制を定期的に見直し、継続的な改善に取り組みます。</p></section>
+        <div class="p-4 bg-gray-50 rounded-lg"><p>株式会社シゴトク（代表：徳永 竜馬）</p><p>所在地：熊本県</p><p class="mt-1">セキュリティに関するお問い合わせ：<a href="mailto:support@shigotoku.com" class="text-blue-600 hover:underline">support@shigotoku.com</a></p></div>
+      </div>
+    </div>
+  </div>
+</Layout>

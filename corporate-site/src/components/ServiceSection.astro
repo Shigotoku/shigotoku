@@ -1,0 +1,70 @@
+---
+import { RUNWITH_LP, RUNWITH_APP, runwithAppPath } from '../lib/urls';
+
+const features = [
+  { color: 'bg-blue-50', iconColor: 'text-blue-600', title: 'ジャーニーマップ', description: '創業前〜EXITまでの全タスクを可視化。進捗バーで次のアクションが一目でわかります。', demoUrl: runwithAppPath('/journey') },
+  { color: 'bg-amber-50', iconColor: 'text-amber-600', title: '補助金・助成金マッチング', description: 'AIが会社情報から最適な補助金を自動マッチング。締切管理・申請支援まで一括対応。', demoUrl: runwithAppPath('/funding') },
+  { color: 'bg-emerald-50', iconColor: 'text-emerald-600', title: '事業シミュレーション', description: '60ヶ月収支予測・バリュエーション算定・感度分析。投資家への説明データを瞬時に生成。', demoUrl: runwithAppPath('/simulator') },
+  { color: 'bg-violet-50', iconColor: 'text-violet-600', title: 'AI壁打ち支援', description: '入力内容からプロンプトを自動生成。ビジネスモデル、定款、ピッチ資料をAIと一緒に作成。', demoUrl: runwithAppPath('/journey/business-idea') },
+];
+---
+
+<section id="service" class="py-32 bg-gray-50">
+  <div class="mx-auto max-w-7xl px-6 lg:px-8">
+    <div class="text-center mb-16">
+      <span class="inline-block rounded-full bg-blue-50 px-4 py-1.5 text-sm font-semibold text-blue-600 mb-4">Service</span>
+      <h2 class="text-4xl sm:text-5xl font-black tracking-tight text-gray-900">プロダクト</h2>
+      <p class="mx-auto mt-4 max-w-xl text-lg text-gray-500">スタートアップに必要なすべてを、ひとつのプラットフォームに。</p>
+    </div>
+
+    <div class="rounded-3xl bg-gradient-to-br from-blue-600 to-violet-600 p-px mb-12 shadow-xl shadow-blue-100">
+      <div class="rounded-[calc(1.5rem-1px)] bg-white p-8 sm:p-12">
+        <div class="flex flex-col lg:flex-row items-center gap-10">
+          <div class="flex-1">
+            <span class="inline-block rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-600 mb-4">FLAGSHIP PRODUCT</span>
+            <h3 class="text-3xl sm:text-4xl font-black text-gray-900 mb-4">ランウィズ <span class="text-xl font-semibold text-gray-400">(Runwith)</span></h3>
+            <p class="text-gray-500 leading-relaxed mb-6">創業アイデアの整理から、会社設立、補助金申請、資金調達まで。スタートアップの成長フェーズに合わせた30以上のツールを搭載したオールインワンSaaSプラットフォーム。</p>
+            <div class="flex flex-wrap gap-3">
+              <a href={RUNWITH_LP} class="group inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors shadow-sm">
+                サービスサイトへ
+                <svg class="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
+              </a>
+              <a href={RUNWITH_APP} class="group inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-5 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-100 transition-colors">
+                デモを試す
+                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 010 1.972l-11.54 6.347a1.125 1.125 0 01-1.667-.986V5.653z" /></svg>
+              </a>
+            </div>
+          </div>
+          <div class="flex-1 w-full">
+            <div class="rounded-2xl bg-gradient-to-br from-blue-50 to-violet-50 border border-blue-100 p-8 text-center">
+              <img src="/images/runwith-logo.png" alt="ランウィズ" class="h-24 w-24 mx-auto mb-4 object-contain" />
+              <p class="text-2xl font-black text-gray-900">30+ ツール搭載</p>
+              <p class="text-sm text-gray-500 mt-1">創業前 〜 IPO・M&A まで対応</p>
+              <div class="mt-4 flex flex-wrap justify-center gap-2">
+                {['無料プランあり', 'AI搭載', '医療モード対応'].map((tag) => (
+                  <span class="rounded-full bg-white border border-blue-100 px-3 py-1 text-xs font-medium text-blue-700 shadow-sm">{tag}</span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+      {features.map((feature) => (
+        <div class="group rounded-2xl bg-white border border-gray-100 p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col">
+          <div class={`inline-flex items-center justify-center w-11 h-11 rounded-xl ${feature.color} ${feature.iconColor} mb-4 text-lg font-bold`}>◆</div>
+          <h4 class="text-lg font-bold text-gray-900 mb-2">{feature.title}</h4>
+          <p class="text-gray-500 text-sm leading-relaxed flex-1">{feature.description}</p>
+          <div class="mt-4 pt-4 border-t border-gray-50">
+            <a href={feature.demoUrl} class="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700 transition-colors">
+              デモを見る
+              <svg class="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
+            </a>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
