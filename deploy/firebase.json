@@ -129,6 +129,6 @@
     }
   ],
   "storage": {
-    "rules": "../buzzit/api/storage.rules"
+    "rules": "storage.rules"
   }
 }

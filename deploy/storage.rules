@@ -1,0 +1,10 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // uploads は Cloud Functions 発行の署名付き URL 経由のみ（直接書き込み禁止で不正利用・コスト増を防止）
+    match /uploads/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}

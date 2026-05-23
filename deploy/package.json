@@ -8,7 +8,7 @@
     "deploy:runwith-app": "npm run build && firebase deploy --only hosting:runwith-app",
     "deploy:buzzit-app": "npm run build && firebase deploy --only hosting:buzzit-app",
     "deploy:buzzit-api": "npm run build:buzzit-api && firebase deploy --only functions:buzzitApi,storage",
-    "build:buzzit-api": "npm ci --prefix ../buzzit/api && npm run build --prefix ../buzzit/api",
+    "build:buzzit-api": "npm ci --prefix ../buzzit/api && npm run build --prefix ../buzzit/api && cp ../buzzit/api/storage.rules storage.rules",
     "deploy:all": "npm run build && npm run build:buzzit-api && firebase deploy --only hosting,functions:buzzitApi,storage"
   },
   "devDependencies": {
