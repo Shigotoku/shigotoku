@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, CheckCircle2, TrendingUp, Users, DollarSign } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { ArrowRight, CheckCircle2, TrendingUp, Users, DollarSign, Clock } from 'lucide-react';
 import { kpiLabels, mockMetrics, mockMission } from '../data/mockDashboard';
-import { fetchDashboard, fetchTrends, type TrendTopic } from '../lib/api';
+import { fetchDashboard, fetchTrends, fetchScheduledJobs, approveScheduledJob, type TrendTopic, type ScheduledJob } from '../lib/api';
 
 export default function Dashboard() {
   const [metrics, setMetrics] = useState(mockMetrics);
   const [mission, setMission] = useState(mockMission);
   const [loading, setLoading] = useState(true);
   const [trends, setTrends] = useState<TrendTopic[]>([]);
+  const [pendingJobs, setPendingJobs] = useState<ScheduledJob[]>([]);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchDashboard()
@@ -23,134 +24,148 @@ export default function Dashboard() {
           reach: data.metrics.funnel.reach,
           lineFriends: data.metrics.funnel.lineSignups,
           estimatedRevenue: data.metrics.funnel.revenue,
-          lineCvr: data.metrics.funnel.reach > 0
-            ? Math.round((data.metrics.funnel.lineSignups / data.metrics.funnel.reach) * 1000) / 10
-            : mockMetrics.lineCvr,
+          lineCvr:
+            data.metrics.funnel.reach > 0
+              ? Math.round((data.metrics.funnel.lineSignups / data.metrics.funnel.reach) * 1000) / 10
+              : mockMetrics.lineCvr,
         });
         setMission({ ...data.metrics.mission, scriptCount: 3 });
       })
-      .catch(() => {
-        // Firestore 未設定時はモック表示
-      })
+      .catch(() => {})
       .finally(() => setLoading(false));
     fetchTrends()
       .then((r) => setTrends(r.trends.slice(0, 3)))
       .catch(() => {});
+    fetchScheduledJobs('pending_approval')
+      .then((r) => setPendingJobs(r.jobs))
+      .catch(() => {});
   }, []);
 
-  return (
-    <div className="max-w-6xl mx-auto space-y-8">
-      {loading && (
-        <p className="text-sm text-slate-500">Firestore から KPI を読み込み中...</p>
-      )}
+  const handleApproveJob = async (jobId: string) => {
+    setApprovingId(jobId);
+    try {
+      await approveScheduledJob(jobId);
+      setPendingJobs((prev) => prev.filter((j) => j.id !== jobId));
+    } catch {
+      /* ignore */
+    }
+    setApprovingId(null);
+  };
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="lg:col-span-2 rounded-2xl bg-gradient-to-r from-indigo-600/20 to-purple-600/20 border border-indigo-500/30 p-8 flex flex-col justify-center relative overflow-hidden"
-        >
-          <div className="absolute right-0 top-0 w-64 h-64 bg-indigo-500/20 blur-3xl rounded-full"></div>
-          <div className="relative z-10">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-bold tracking-wider uppercase mb-4">
-              <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span>
-              Today's Mission
-            </div>
-            <h2 className="text-3xl font-bold mb-2">{mission.title}</h2>
-            <p className="text-slate-400 mb-6">{mission.description}</p>
-            <Link
-              to="/magic-creator"
-              className="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium flex items-center gap-2 w-fit transition-all shadow-[0_0_20px_rgba(79,70,229,0.4)] hover:-translate-y-0.5"
-            >
+  return (
+    <div className="buzz-page">
+      {loading && <p className="text-sm text-neutral-500">Firestore から KPI を読み込み中...</p>}
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="buzz-card lg:col-span-2">
+          <div className="border-b border-neutral-200 bg-neutral-50 p-6 md:p-8">
+            <p className="buzz-section-label mb-3">Today&apos;s Mission</p>
+            <h2 className="text-2xl font-bold md:text-3xl">{mission.title}</h2>
+            <p className="mt-3 max-w-xl text-sm leading-relaxed text-neutral-600 md:text-base">
+              {mission.description}
+            </p>
+            <Link to="/magic-creator" className="buzz-btn-primary mt-6">
               内容を確認・承認する
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
-        </motion.div>
+        </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="rounded-2xl bg-slate-800/50 border border-slate-700 p-8 flex flex-col justify-between"
-        >
+        <div className="buzz-card-pad flex flex-col justify-between">
           <div>
-            <h3 className="text-lg font-medium text-slate-300 mb-1">SNS健康スコア</h3>
-            <p className="text-sm text-slate-500">アカウントの総合的な評価</p>
+            <h3 className="mb-1 text-lg font-semibold">SNS健康スコア</h3>
+            <p className="text-sm text-neutral-500">アカウントの総合的な評価</p>
           </div>
-          <div className="flex items-end gap-3 mt-4">
-            <span className="text-6xl font-bold tracking-tight text-white">{metrics.healthScore}</span>
-            <div className="flex items-center gap-1 text-emerald-400 pb-2">
-              <TrendingUp className="w-4 h-4" />
-              <span className="font-medium">+{metrics.healthTrend}%</span>
+          <div className="mt-4 flex items-end gap-3">
+            <span className="buzz-stat-value text-6xl">{metrics.healthScore}</span>
+            <div className="flex items-center gap-1 pb-2 text-neutral-700">
+              <TrendingUp className="h-4 w-4" />
+              <span className="text-sm font-medium">+{metrics.healthTrend}%</span>
             </div>
           </div>
           <div className="mt-6 space-y-3 text-sm">
-            <div className="flex justify-between">
-              <span className="text-slate-400">{kpiLabels.awareness}</span>
-              <span className="text-white font-medium">{metrics.reachRating}</span>
+            <div className="flex justify-between border-b border-neutral-100 pb-2">
+              <span className="text-neutral-500">{kpiLabels.awareness}</span>
+              <span className="font-medium">{metrics.reachRating}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">{kpiLabels.conversion}</span>
-              <span className="text-emerald-400 font-medium">{metrics.clickRating}</span>
+              <span className="text-neutral-500">{kpiLabels.conversion}</span>
+              <span className="font-medium">{metrics.clickRating}</span>
             </div>
           </div>
-        </motion.div>
+        </div>
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="rounded-2xl bg-slate-800/50 border border-slate-700 p-8"
-      >
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h3 className="text-xl font-bold mb-1">売上ファネルトラッキング</h3>
-            <p className="text-sm text-slate-400">投稿 → LINE/LP遷移 → 来店 → 売上の流れを可視化</p>
-          </div>
+      <div className="buzz-card-pad">
+        <div className="mb-8">
+          <h2 className="mb-1 text-xl font-bold">売上ファネルトラッキング</h2>
+          <p className="text-sm text-neutral-600">投稿 → LINE/LP遷移 → 来店 → 売上の流れを可視化</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="p-6 rounded-xl bg-slate-900/50 border border-slate-800">
-            <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400 mb-4">
-              <Users className="w-5 h-5" />
+        <div className="grid grid-cols-1 gap-px overflow-hidden border border-neutral-200 bg-neutral-200 md:grid-cols-3">
+          <div className="bg-white p-6">
+            <div className="mb-4 flex h-10 w-10 items-center justify-center border border-neutral-200 bg-neutral-50 text-neutral-700">
+              <Users className="h-5 w-5" />
             </div>
-            <div className="text-sm text-slate-400 mb-1">総リーチ数</div>
-            <div className="text-2xl font-bold">{metrics.reach.toLocaleString()}</div>
+            <div className="mb-1 text-sm text-neutral-500">総リーチ数</div>
+            <div className="buzz-stat-value text-2xl">{metrics.reach.toLocaleString()}</div>
           </div>
-          <div className="p-6 rounded-xl bg-slate-900/50 border border-slate-800 relative">
-            <div className="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400 mb-4">
-              <CheckCircle2 className="w-5 h-5" />
+          <div className="bg-white p-6">
+            <div className="mb-4 flex h-10 w-10 items-center justify-center border border-neutral-200 bg-neutral-50 text-neutral-700">
+              <CheckCircle2 className="h-5 w-5" />
             </div>
-            <div className="text-sm text-slate-400 mb-1">{kpiLabels.leads}</div>
-            <div className="text-2xl font-bold">
+            <div className="mb-1 text-sm text-neutral-500">{kpiLabels.leads}</div>
+            <div className="buzz-stat-value text-2xl">
               {metrics.lineFriends}{' '}
-              <span className="text-sm font-normal text-emerald-400 ml-2">CVR {metrics.lineCvr}%</span>
+              <span className="ml-2 text-sm font-normal text-neutral-600">CVR {metrics.lineCvr}%</span>
             </div>
           </div>
-          <div className="p-6 rounded-xl bg-slate-900/50 border border-slate-800 relative">
-            <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400 mb-4">
-              <DollarSign className="w-5 h-5" />
+          <div className="bg-white p-6">
+            <div className="mb-4 flex h-10 w-10 items-center justify-center border border-neutral-200 bg-neutral-50 text-neutral-700">
+              <DollarSign className="h-5 w-5" />
             </div>
-            <div className="text-sm text-slate-400 mb-1">{kpiLabels.revenue}</div>
-            <div className="text-2xl font-bold text-emerald-400">
-              ¥{metrics.estimatedRevenue.toLocaleString()}
-            </div>
+            <div className="mb-1 text-sm text-neutral-500">{kpiLabels.revenue}</div>
+            <div className="buzz-stat-value text-2xl">¥{metrics.estimatedRevenue.toLocaleString()}</div>
           </div>
         </div>
-      </motion.div>
+      </div>
+
+      {pendingJobs.length > 0 && (
+        <div className="buzz-card-pad">
+          <div className="mb-4 flex items-center gap-2">
+            <Clock className="h-5 w-5 text-neutral-700" />
+            <h2 className="text-lg font-bold">承認待ちの投稿（{pendingJobs.length}件）</h2>
+          </div>
+          <div className="space-y-3">
+            {pendingJobs.map((job) => (
+              <div key={job.id} className="border border-neutral-200 bg-neutral-50 p-4">
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-sm font-medium">
+                    {new Date(job.scheduledAt).toLocaleString('ja-JP')} · {job.publishMode}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={approvingId === job.id}
+                    onClick={() => handleApproveJob(job.id)}
+                    className="buzz-btn-primary text-sm px-4 py-2 disabled:opacity-60"
+                  >
+                    {approvingId === job.id ? '承認中...' : '承認して予約'}
+                  </button>
+                </div>
+                <p className="line-clamp-2 text-sm text-neutral-600">
+                  {job.contents.map((c) => c.label).join(' / ')} — {job.contents[0]?.content.slice(0, 120)}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {trends.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="rounded-2xl bg-slate-800/50 border border-slate-700 p-8"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold">今週のトレンドネタ</h3>
-            <Link to="/analytics" className="text-sm text-indigo-400 hover:text-indigo-300">
+        <div className="buzz-card-pad">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-bold">今週のトレンドネタ</h2>
+            <Link to="/analytics" className="text-sm text-neutral-600 hover:text-neutral-900">
               すべて見る →
             </Link>
           </div>
@@ -159,15 +174,15 @@ export default function Dashboard() {
               <Link
                 key={t.id}
                 to={`/magic-creator?idea=${encodeURIComponent(`${t.topic} — ${t.hook}`)}`}
-                className="p-4 rounded-xl bg-slate-900/50 border border-slate-800 hover:border-indigo-500/40 transition-colors"
+                className="border border-neutral-200 bg-neutral-50 p-4 transition-colors hover:border-neutral-400 hover:bg-white"
               >
-                <p className="font-medium text-sm">{t.topic}</p>
-                <p className="text-xs text-slate-500 mt-1 line-clamp-2">{t.hook}</p>
-                <p className="text-xs text-indigo-300 mt-2">スコア {t.score}</p>
+                <p className="text-sm font-medium">{t.topic}</p>
+                <p className="mt-1 line-clamp-2 text-xs text-neutral-500">{t.hook}</p>
+                <p className="mt-2 text-xs text-neutral-600">スコア {t.score}</p>
               </Link>
             ))}
           </div>
-        </motion.div>
+        </div>
       )}
     </div>
   );

@@ -1,0 +1,15 @@
+---
+import { photoStripImages } from '../lib/images';
+
+const slides = [...photoStripImages, ...photoStripImages];
+---
+
+<section class="buzz-photo-strip" aria-label="店舗・サロンのイメージ写真">
+  <div class="buzz-photo-strip-track">
+    {slides.map((item, i) => (
+      <div class="buzz-photo-strip-item">
+        <img src={item.src} alt={i < photoStripImages.length ? item.alt : ''} loading="lazy" decoding="async" />
+      </div>
+    ))}
+  </div>
+</section>

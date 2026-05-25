@@ -4,8 +4,10 @@ const PLATFORM_MAP: Record<string, string> = {
   reels: 'instagram',
   carousel: 'instagram',
   x_thread: 'twitter',
-  line: 'linkedin',
 };
+
+/** Ayrshare 非対応プラットフォーム（LINE は自前 Messaging API で配信） */
+const AYRSHARE_SKIP = new Set(['line']);
 
 export interface ScheduleContent {
   platform: string;
@@ -31,6 +33,8 @@ export async function scheduleWithAyrshare(
   const postIds: string[] = [];
 
   for (const item of contents) {
+    if (AYRSHARE_SKIP.has(item.platform)) continue;
+
     const platform = PLATFORM_MAP[item.platform] ?? 'twitter';
     const body: Record<string, unknown> = {
       post: item.content.slice(0, 3000),

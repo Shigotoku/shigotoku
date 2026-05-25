@@ -53,5 +53,5 @@
     }
   ],
   "storage": { "rules": "storage.buzzit.rules" },
-  "firestore": { "rules": "firestore.buzzit.rules" }
+  "firestore": { "rules": "firestore.buzzit.rules", "indexes": "firestore.indexes.json" }
 }

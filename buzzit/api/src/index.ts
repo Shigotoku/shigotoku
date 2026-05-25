@@ -10,7 +10,7 @@ import {
   checkBrandSafety,
 } from './services/repurpose';
 import { generateRepurposeWithGemini } from './services/gemini';
-import { scheduleWithAyrshare, getAyrshareProfiles } from './services/ayrshare';
+import { getAyrshareProfiles } from './services/ayrshare';
 import {
   ensureUser,
   getUserSettings,
@@ -21,7 +21,9 @@ import {
   addSlackIdea,
   getSlackIdeas,
   approveSlackIdea,
-  saveScheduledJob,
+  createScheduledJob,
+  getScheduledJobs,
+  approveScheduledJob,
   trackMetricEvent,
   createTrackingLink,
   getTrackingLink,
@@ -44,6 +46,13 @@ import {
   verifyLineSignature,
 } from './services/tracking';
 import { getTrends, refreshTrends, markTrendUsed } from './services/trends';
+import {
+  exchangeMetaCode,
+  getMetaOAuthUrl,
+  resolveMetaAccounts,
+} from './services/meta';
+import { saveOAuthState, consumeOAuthState } from './services/schedulerWorker';
+import type { PublishMode } from './types/schedule';
 import {
   createAbTest,
   getAbTests,
@@ -72,7 +81,7 @@ api.get('/health', (_req, res) => {
   res.json({
     ok: true,
     service: 'buzzit-api',
-    features: ['gemini', 'firestore', 'slack', 'ayrshare', 'auto-mode', 'utm-tracking', 'line-webhook', 'trends', 'ab-tests'],
+    features: ['gemini', 'firestore', 'slack', 'meta-oauth', 'publish-worker', 'auto-mode', 'utm-tracking', 'line-webhook', 'trends', 'ab-tests'],
   });
 });
 
@@ -163,12 +172,14 @@ api.post('/v1/repurpose', requireAuth, async (req: AuthedRequest, res) => {
   });
 });
 
-// --- Schedule (Ayrshare) ---
+// --- Schedule (Firestore + Worker / Meta / LINE / Notify) ---
 api.post('/v1/schedule', requireAuth, async (req: AuthedRequest, res) => {
-  const { contents, scheduledAt, destinationUrl } = req.body as {
-    contents?: Array<{ platform: string; label: string; content: string }>;
+  const { contents, scheduledAt, destinationUrl, publishMode, mediaUrls } = req.body as {
+    contents?: Array<{ platform: string; label: string; content: string; carouselSlides?: string[] }>;
     scheduledAt?: string;
     destinationUrl?: string;
+    publishMode?: PublishMode;
+    mediaUrls?: string[];
   };
 
   if (!contents?.length || !scheduledAt) {
@@ -179,6 +190,7 @@ api.post('/v1/schedule', requireAuth, async (req: AuthedRequest, res) => {
   try {
     const settings = await getUserSettings(req.uid!);
     const dest = destinationUrl ?? settings.defaultDestinationUrl;
+    const mode: PublishMode = publishMode ?? settings.defaultPublishMode ?? 'notify';
     const trackingLinks: Array<{ platform: string; trackingUrl: string; postId: string }> = [];
 
     if (dest) {
@@ -204,13 +216,112 @@ api.post('/v1/schedule', requireAuth, async (req: AuthedRequest, res) => {
       }
     }
 
-    const result = await scheduleWithAyrshare(contents, scheduledAt, settings.ayrshareProfileKey);
-    await saveScheduledJob(req.uid!, contents, scheduledAt, 'scheduled', result);
-    res.json({ ...result, trackingLinks });
+    const jobId = await createScheduledJob(req.uid!, {
+      contents,
+      scheduledAt,
+      publishMode: mode,
+      mediaUrls,
+      destinationUrl: dest,
+      trackingLinks,
+    });
+
+    const when = new Date(scheduledAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
+    const modeLabel: Record<PublishMode, string> = {
+      notify: '通知リマインダー',
+      approval: '承認待ちキュー',
+      meta: 'Meta 自動投稿',
+      line: 'LINE 配信',
+      ayrshare: 'Ayrshare 予約',
+      auto: '自動（接続に応じて）',
+    };
+
+    res.json({
+      success: true,
+      jobId,
+      message: `${contents.length}件を ${when} に登録しました（${modeLabel[mode]}）`,
+      trackingLinks,
+      publishMode: mode,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: '予約投稿に失敗しました' });
   }
+});
+
+api.get('/v1/scheduled', requireAuth, async (req: AuthedRequest, res) => {
+  const statusParam = req.query.status;
+  const status =
+    typeof statusParam === 'string' && statusParam.includes(',')
+      ? (statusParam.split(',') as import('./types/schedule').ScheduledJobStatus[])
+      : typeof statusParam === 'string'
+        ? (statusParam as import('./types/schedule').ScheduledJobStatus)
+        : undefined;
+
+  const jobs = await getScheduledJobs(req.uid!, status);
+  res.json({ jobs });
+});
+
+api.post('/v1/scheduled/:id/approve', requireAuth, async (req: AuthedRequest, res) => {
+  const job = await approveScheduledJob(req.uid!, String(req.params.id));
+  if (!job) {
+    res.status(404).json({ error: '承認待ちジョブが見つかりません' });
+    return;
+  }
+  res.json({ success: true, job });
+});
+
+// --- Meta OAuth ---
+const META_APP_ORIGIN = process.env.BUZZIT_APP_ORIGIN ?? 'https://app.buzzit.shigotoku.com';
+
+function metaOAuthRedirectUri(): string {
+  return `${META_APP_ORIGIN}/api/v1/oauth/meta/callback`;
+}
+
+api.get('/v1/oauth/meta/start', requireAuth, async (req: AuthedRequest, res) => {
+  const state = await saveOAuthState(req.uid!);
+  const url = getMetaOAuthUrl(state, metaOAuthRedirectUri());
+  if (!url) {
+    res.status(503).json({ error: 'Meta OAuth が未設定です（META_APP_ID / META_APP_SECRET）' });
+    return;
+  }
+  res.json({ url });
+});
+
+api.get('/v1/oauth/meta/callback', async (req, res) => {
+  const code = typeof req.query.code === 'string' ? req.query.code : null;
+  const state = typeof req.query.state === 'string' ? req.query.state : null;
+
+  if (!code || !state) {
+    res.redirect(302, `${META_APP_ORIGIN}/settings?meta=error`);
+    return;
+  }
+
+  const uid = await consumeOAuthState(state);
+  if (!uid) {
+    res.redirect(302, `${META_APP_ORIGIN}/settings?meta=expired`);
+    return;
+  }
+
+  const exchanged = await exchangeMetaCode(code, metaOAuthRedirectUri());
+  if (!exchanged) {
+    res.redirect(302, `${META_APP_ORIGIN}/settings?meta=error`);
+    return;
+  }
+
+  const accounts = await resolveMetaAccounts(exchanged.accessToken);
+  const expiresAt = exchanged.expiresIn
+    ? new Date(Date.now() + exchanged.expiresIn * 1000).toISOString()
+    : undefined;
+
+  await updateUserSettings(uid, {
+    metaAccessToken: exchanged.accessToken,
+    metaPageAccessToken: accounts.pageAccessToken,
+    metaIgUserId: accounts.igUserId,
+    metaPageId: accounts.pageId,
+    metaTokenExpiresAt: expiresAt,
+  });
+
+  res.redirect(302, `${META_APP_ORIGIN}/settings?meta=connected`);
 });
 
 // --- Dashboard ---
@@ -241,9 +352,11 @@ api.get('/v1/analytics', requireAuth, async (req: AuthedRequest, res) => {
 api.get('/v1/settings', requireAuth, async (req: AuthedRequest, res) => {
   const settings = await getUserSettings(req.uid!);
   const snsConnections = await getAyrshareProfiles();
+  const metaConnected = !!(settings.metaAccessToken && settings.metaIgUserId);
   res.json({
     ...settings,
     snsConnections,
+    metaConnected,
     canUseSlack: canUseSlack(settings),
     canUseAutoMode: settings.plan === 'growth',
     lineWebhookUrl: lineWebhookUrl(req.uid!),
@@ -253,7 +366,9 @@ api.get('/v1/settings', requireAuth, async (req: AuthedRequest, res) => {
 api.put('/v1/settings', requireAuth, async (req: AuthedRequest, res) => {
   const allowed = [
     'plan', 'slackWebhookUrl', 'ayrshareProfileKey', 'autoModeEnabled', 'slackTeamId',
-    'displayName', 'lineChannelSecret', 'lineDestinationId', 'defaultDestinationUrl',
+    'displayName', 'lineChannelSecret', 'lineChannelAccessToken', 'lineAdminUserId',
+    'lineDestinationId', 'defaultDestinationUrl', 'defaultPublishMode',
+    'metaAccessToken', 'metaPageAccessToken', 'metaIgUserId', 'metaPageId', 'metaTokenExpiresAt',
   ];
   const patch: Record<string, unknown> = {};
   for (const key of allowed) {
@@ -583,4 +698,4 @@ const functionOptions = {
 
 export const buzzitApi = onRequest({ ...functionOptions, secrets: [...functionSecrets] }, app);
 
-export { buzzitScheduler } from './scheduler';
+export { buzzitScheduler, buzzitPublishWorker } from './scheduler';

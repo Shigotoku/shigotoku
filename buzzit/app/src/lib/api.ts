@@ -83,8 +83,15 @@ export interface SettingsResponse {
   autoModeEnabled?: boolean;
   slackTeamId?: string;
   lineChannelSecret?: string;
+  lineChannelAccessToken?: string;
+  lineAdminUserId?: string;
   lineDestinationId?: string;
   defaultDestinationUrl?: string;
+  defaultPublishMode?: PublishMode;
+  metaConnected?: boolean;
+  metaIgUserId?: string;
+  metaPageId?: string;
+  metaTokenExpiresAt?: string;
   lineWebhookUrl?: string;
   snsConnections: Array<{ name: string; connected: boolean }>;
   canUseSlack: boolean;
@@ -126,17 +133,53 @@ export function repurposeViaApi(body: RepurposeApiRequest) {
   });
 }
 
+export type PublishMode = 'notify' | 'approval' | 'meta' | 'line' | 'ayrshare' | 'auto';
+
 export interface ScheduleApiRequest {
-  contents: Array<{ platform: string; label: string; content: string }>;
+  contents: Array<{ platform: string; label: string; content: string; carouselSlides?: string[] }>;
   scheduledAt: string;
   destinationUrl?: string;
+  publishMode?: PublishMode;
+  mediaUrls?: string[];
+}
+
+export interface ScheduledJob {
+  id: string;
+  contents: ScheduleApiRequest['contents'];
+  scheduledAt: string;
+  publishMode: PublishMode;
+  status: 'pending_approval' | 'pending' | 'processing' | 'published' | 'notified' | 'failed';
+  completedMessage?: string;
+  errorMessage?: string;
+  createdAt: string;
 }
 
 export function scheduleViaApi(body: ScheduleApiRequest) {
-  return request<{ success: boolean; message: string; trackingLinks?: Array<{ platform: string; trackingUrl: string; postId: string }> }>('/v1/schedule', {
+  return request<{
+    success: boolean;
+    jobId: string;
+    message: string;
+    publishMode: PublishMode;
+    trackingLinks?: Array<{ platform: string; trackingUrl: string; postId: string }>;
+  }>('/v1/schedule', {
     method: 'POST',
     body: JSON.stringify(body),
   });
+}
+
+export function fetchScheduledJobs(status?: string) {
+  const q = status ? `?status=${encodeURIComponent(status)}` : '';
+  return request<{ jobs: ScheduledJob[] }>(`/v1/scheduled${q}`);
+}
+
+export function approveScheduledJob(id: string) {
+  return request<{ success: boolean; job: ScheduledJob }>(`/v1/scheduled/${id}/approve`, {
+    method: 'POST',
+  });
+}
+
+export function startMetaOAuth() {
+  return request<{ url: string }>('/v1/oauth/meta/start');
 }
 
 export function createTrackingLink(body: { destinationUrl?: string; title?: string; platform?: string; postId?: string }) {

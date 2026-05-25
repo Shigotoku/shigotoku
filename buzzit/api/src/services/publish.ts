@@ -1,0 +1,123 @@
+import type { PublishMode, ScheduleContentItem } from '../types/schedule';
+import type { UserSettings } from './firestore';
+import { scheduleWithAyrshare } from './ayrshare';
+import { publishToMeta, type MetaConnection } from './meta';
+import { formatScheduleNotification, sendLineBroadcast } from './lineMessaging';
+import { postToSlackWebhook } from './slack';
+
+export interface PublishOutcome {
+  status: 'published' | 'notified' | 'failed';
+  message: string;
+  results?: Array<{ platform: string; success: boolean; message: string; externalId?: string }>;
+}
+
+function metaConnectionFromSettings(settings: UserSettings): MetaConnection | null {
+  if (!settings.metaAccessToken) return null;
+  return {
+    accessToken: settings.metaAccessToken,
+    igUserId: settings.metaIgUserId,
+    pageId: settings.metaPageId,
+    pageAccessToken: settings.metaPageAccessToken ?? settings.metaAccessToken,
+    expiresAt: settings.metaTokenExpiresAt,
+  };
+}
+
+export async function executePublish(
+  uid: string,
+  settings: UserSettings,
+  mode: PublishMode,
+  contents: ScheduleContentItem[],
+  scheduledAt: string,
+  mediaUrls?: string[],
+): Promise<PublishOutcome> {
+  const effectiveMode = mode === 'auto' ? resolveAutoMode(settings) : mode;
+
+  switch (effectiveMode) {
+    case 'notify':
+      return notifyUser(settings, contents, scheduledAt);
+
+    case 'meta': {
+      const conn = metaConnectionFromSettings(settings);
+      if (!conn) {
+        const fallback = await notifyUser(settings, contents, scheduledAt);
+        return { ...fallback, message: `Meta 未連携のため通知に切替: ${fallback.message}` };
+      }
+      const results = await publishToMeta(conn, contents, mediaUrls);
+      const anyOk = results.some((r) => r.success);
+      if (anyOk) {
+        return {
+          status: 'published',
+          message: results.map((r) => r.message).join(' / '),
+          results,
+        };
+      }
+      return { status: 'failed', message: results.map((r) => r.message).join(' / '), results };
+    }
+
+    case 'line': {
+      const lineContent = contents.find((c) => c.platform === 'line') ?? contents[0];
+      if (!settings.lineChannelAccessToken) {
+        return { status: 'failed', message: 'LINE Channel Access Token 未設定' };
+      }
+      const result = await sendLineBroadcast(settings.lineChannelAccessToken, lineContent.content);
+      return {
+        status: result.success ? 'published' : 'failed',
+        message: result.message,
+        results: [{ platform: 'line', success: result.success, message: result.message }],
+      };
+    }
+
+    case 'ayrshare': {
+      if (!process.env.AYRSHARE_API_KEY) {
+        return notifyUser(settings, contents, scheduledAt);
+      }
+      try {
+        const result = await scheduleWithAyrshare(contents, scheduledAt, settings.ayrshareProfileKey);
+        return { status: 'published', message: result.message };
+      } catch (err) {
+        return { status: 'failed', message: err instanceof Error ? err.message : 'Ayrshare failed' };
+      }
+    }
+
+    default:
+      return notifyUser(settings, contents, scheduledAt);
+  }
+}
+
+function resolveAutoMode(settings: UserSettings): PublishMode {
+  if (settings.metaAccessToken && settings.metaIgUserId) return 'meta';
+  if (settings.lineChannelAccessToken) return 'line';
+  if (process.env.AYRSHARE_API_KEY && settings.ayrshareProfileKey) return 'ayrshare';
+  return 'notify';
+}
+
+async function notifyUser(
+  settings: UserSettings,
+  contents: ScheduleContentItem[],
+  scheduledAt: string,
+): Promise<PublishOutcome> {
+  const text = formatScheduleNotification(contents, scheduledAt);
+  const sent: string[] = [];
+
+  if (settings.slackWebhookUrl) {
+    const ok = await postToSlackWebhook(settings.slackWebhookUrl, text);
+    if (ok) sent.push('Slack');
+  }
+
+  if (settings.lineChannelAccessToken) {
+    const lineResult = await sendLineBroadcast(settings.lineChannelAccessToken, text);
+    if (lineResult.success) sent.push('LINE');
+  }
+
+  if (sent.length === 0) {
+    return {
+      status: 'notified',
+      message: '通知チャネル未設定（Slack Webhook または LINE Token を設定してください）。ジョブは完了扱いです。',
+    };
+  }
+
+  return {
+    status: 'notified',
+    message: `${sent.join('・')} に投稿文案を通知しました`,
+  };
+}

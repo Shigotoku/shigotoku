@@ -11,92 +11,57 @@ const stats = [
 ];
 ---
 
-<section id="top" class="bg-[#f5f4f0] pt-16 md:pt-20">
-  <div class="mx-auto max-w-6xl px-5 md:px-8">
-    <div class="grid items-stretch gap-10 pb-16 pt-12 md:grid-cols-12 md:gap-8 md:pb-20 md:pt-16 lg:gap-12">
-      <!-- Copy -->
-      <div class="flex flex-col justify-center md:col-span-5">
-        <p class="animate-on-scroll slide-up text-[11px] font-semibold uppercase tracking-[0.22em] text-neutral-500">
-          BtoC店舗のための SNS 経営OS
-        </p>
-        <h1 class="animate-on-scroll slide-up delay-100 mt-5 font-display text-[2.25rem] font-bold leading-[1.12] text-neutral-900 md:text-5xl lg:text-[3.25rem]">
-          SNSを伸ばす。<br />
-          売上をつくる。
-        </h1>
-        <p class="animate-on-scroll slide-up delay-200 mt-6 max-w-md text-base leading-[1.85] text-neutral-600 md:text-[17px]">
-          毎朝5分。AIが今日の台本と投稿スケジュールを用意し、チーム承認から全SNS配信まで一気通貫。美容・クリニック・飲食店の現場向けに設計されています。
-        </p>
-        <div class="animate-on-scroll slide-up delay-300 mt-9 flex flex-col gap-3 sm:flex-row">
-          <a
-            href={loginUrl}
-            class="inline-flex items-center justify-center bg-neutral-900 px-8 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-neutral-700"
-          >
-            無料診断を始める
-          </a>
-          <a
-            href="#features"
-            class="inline-flex items-center justify-center border border-neutral-300 bg-white px-8 py-3.5 text-sm font-semibold text-neutral-800 transition-colors hover:border-neutral-900"
-          >
-            機能を見る
-          </a>
-        </div>
-
-        <!-- Stats — readable, editorial -->
-        <div class="animate-on-scroll slide-up delay-300 mt-12 border-t border-neutral-300 pt-8">
-          <div class="grid grid-cols-3 gap-4 md:gap-6">
-            {stats.map((stat, i) => (
-              <div class:list={[i < 2 && 'border-r border-neutral-300 pr-4 md:pr-6']}>
-                <p class="buzz-stat-value text-3xl md:text-4xl">{stat.value}</p>
-                <p class="buzz-stat-label">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <!-- Photo collage — Beams-inspired, no mockups -->
-      <div class="animate-on-scroll slide-left delay-200 md:col-span-7">
-        <div class="grid h-[420px] grid-cols-12 grid-rows-6 gap-2 md:h-[520px] md:gap-2.5">
-          <div class="buzz-photo col-span-7 row-span-6">
-            <img
-              src={images.heroMain}
-              alt="サロンで施術を受けるお客様"
-              class="h-full w-full object-cover"
-              loading="eager"
-            />
-          </div>
-          <div class="buzz-photo col-span-5 row-span-3">
-            <img
-              src={images.heroSubA}
-              alt="カフェの店内"
-              class="h-full w-full object-cover"
-              loading="eager"
-            />
-          </div>
-          <div class="buzz-photo col-span-5 row-span-3">
-            <img
-              src={images.heroSubB}
-              alt="美容製品とライフスタイル"
-              class="h-full w-full object-cover"
-              loading="lazy"
-            />
-          </div>
-        </div>
-        <p class="mt-3 text-right text-[11px] tracking-wide text-neutral-400">
-          サロン · 飲食 · クリニック — 現場の写真が、そのままコンテンツになる
-        </p>
-      </div>
-    </div>
+<section id="top" class="buzz-hero relative overflow-hidden pt-20 pb-14 md:pt-24 md:pb-24">
+  <div class="buzz-hero-bg" aria-hidden="true">
+    <img
+      src={images.heroCollage}
+      alt=""
+      width="2400"
+      height="1600"
+      loading="eager"
+      fetchpriority="high"
+      decoding="async"
+    />
   </div>
+  <div class="buzz-hero-scrim" aria-hidden="true"></div>
 
-  <!-- Full-bleed photo strip -->
-  <div class="animate-on-scroll slide-up border-y border-neutral-200 bg-white">
-    <div class="mx-auto grid max-w-6xl grid-cols-2 gap-0 md:grid-cols-4">
-      {[images.heroSubC, images.socialHands, images.teamWork, images.cafeStore].map((src, i) => (
-        <div class="buzz-photo aspect-[4/3] border-neutral-200 md:border-r last:md:border-r-0">
-          <img src={src} alt="" class="h-full w-full object-cover" loading="lazy" />
+  <div class="relative mx-auto max-w-6xl px-5 pt-6 md:px-8 md:pt-10">
+    <div class="buzz-hero-panel max-w-xl pb-16 pt-10 md:pb-24 md:pt-12 lg:max-w-2xl">
+      <p class="animate-on-scroll slide-up text-[11px] font-semibold uppercase tracking-[0.22em] text-neutral-600">
+        BtoC店舗のための SNS 経営OS
+      </p>
+      <h1 class="animate-on-scroll slide-up delay-100 mt-5 font-display text-[2.25rem] font-bold leading-[1.12] md:text-5xl lg:text-[3.25rem]">
+        SNSを伸ばす。<br />
+        売上をつくる。
+      </h1>
+      <p class="animate-on-scroll slide-up delay-200 mt-6 max-w-md text-base leading-[1.85] text-neutral-700 md:text-[17px]">
+        毎朝5分。AIが今日の台本と投稿スケジュールを用意し、チーム承認から全SNS配信まで一気通貫。美容・クリニック・飲食店の現場向けに設計されています。
+      </p>
+      <div class="animate-on-scroll slide-up delay-300 mt-9 flex flex-col gap-3 sm:flex-row">
+        <a
+          href={loginUrl}
+          class="inline-flex items-center justify-center bg-neutral-900 px-8 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-neutral-700"
+        >
+          無料診断を始める
+        </a>
+        <a
+          href="#features"
+          class="inline-flex items-center justify-center border border-neutral-400/80 bg-white/90 px-8 py-3.5 text-sm font-semibold text-neutral-800 backdrop-blur-sm transition-colors hover:border-neutral-900"
+        >
+          機能を見る
+        </a>
+      </div>
+
+      <div class="animate-on-scroll slide-up delay-300 mt-12 border-t border-neutral-400/50 pt-8">
+        <div class="grid grid-cols-3 gap-4 md:gap-6">
+          {stats.map((stat, i) => (
+            <div class:list={[i < 2 && 'border-r border-neutral-400/50 pr-4 md:pr-6']}>
+              <p class="buzz-stat-value text-3xl md:text-4xl">{stat.value}</p>
+              <p class="buzz-stat-label">{stat.label}</p>
+            </div>
+          ))}
         </div>
-      ))}
+      </div>
     </div>
   </div>
 </section>

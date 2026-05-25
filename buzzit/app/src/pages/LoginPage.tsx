@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, Eye, EyeOff, LogIn, Mail, Sparkles } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff, LogIn, Mail } from 'lucide-react';
 import { BRAND_FULL, BRAND_NAME } from '../constants/brand';
 import { landingPath } from '../lib/urls';
 import { useAuth } from '../store/authContext';
@@ -73,17 +73,16 @@ export default function LoginPage() {
     mode === 'signup' ? '新規登録' : mode === 'reset' ? 'パスワード再設定' : 'ログイン';
 
   return (
-    <div className="min-h-screen bg-[#0f172a] text-slate-50">
-      <header className="border-b border-slate-800/80 bg-slate-900/40 backdrop-blur-xl">
+    <div className="min-h-screen bg-[#f5f4f0] text-neutral-900">
+      <header className="border-b border-neutral-200 bg-[#f5f4f0]">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <Link to="/login" className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 text-lg font-bold">
-              B
-            </div>
-            <span className="text-lg font-bold font-['Outfit']">{BRAND_NAME}</span>          </Link>
+            <span className="buzz-logo-mark text-base">B</span>
+            <span className="font-display text-lg font-bold">{BRAND_NAME}</span>
+          </Link>
           <a
             href={landingPath('/')}
-            className="text-sm text-slate-400 transition-colors hover:text-white"
+            className="text-sm text-neutral-600 transition-colors hover:text-neutral-900"
           >
             サービスサイトへ
           </a>
@@ -92,28 +91,26 @@ export default function LoginPage() {
 
       <main className="mx-auto grid max-w-5xl gap-10 px-6 py-16 lg:grid-cols-2 lg:items-center lg:py-24">
         <div>
-          <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-4 py-1.5 text-sm text-indigo-300">
-            <Sparkles className="h-4 w-4" />
-            GCP 連携版を公開中
-          </p>
-          <h1 className="text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
+          <p className="buzz-section-label mb-4">BtoC店舗のための SNS 経営OS</p>
+          <h1 className="text-4xl font-bold leading-tight sm:text-5xl">
             SNS運用を、
             <br />
             毎朝5分のルーティンへ。
           </h1>
-          <p className="mt-6 text-base leading-relaxed text-slate-400">
+          <p className="mt-6 text-base leading-relaxed text-neutral-600">
             {BRAND_FULL}は、BtoC店舗向けのSNS運用・売上トラッキングOSです。
-            メールアドレスでログインし、Gemini・Slack・Ayrshare と連携できます。          </p>
-          <ul className="mt-8 space-y-3 text-sm text-slate-300">
+            メールアドレスでログインし、Gemini・Slack・Ayrshare と連携できます。
+          </p>
+          <ul className="mt-8 space-y-3 text-sm text-neutral-700">
             <li>・Gemini AI による Repurpose 生成</li>
             <li>・Slack ネタ会議・戦略的通知</li>
             <li>・Firestore による売上 KPI 管理</li>
           </ul>
         </div>
 
-        <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-8 shadow-2xl shadow-indigo-950/30">
+        <div className="border border-neutral-200 bg-white p-8">
           <h2 className="text-xl font-bold">{title}</h2>
-          <p className="mt-2 text-sm text-slate-400">
+          <p className="mt-2 text-sm text-neutral-600">
             {mode === 'signup'
               ? 'メールアドレスとパスワードでアカウントを作成します。'
               : mode === 'reset'
@@ -122,27 +119,19 @@ export default function LoginPage() {
           </p>
 
           {!isConfigured && (
-            <p className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+            <p className="buzz-alert buzz-alert-warning mt-4">
               Firebase Web アプリ未設定です。`.env` に VITE_FIREBASE_* を設定してください。
             </p>
           )}
 
-          {authError && (
-            <p className="mt-4 rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-200">
-              {authError}
-            </p>
-          )}
+          {authError && <p className="buzz-alert buzz-alert-error mt-4">{authError}</p>}
 
-          {success && (
-            <p className="mt-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-200">
-              {success}
-            </p>
-          )}
+          {success && <p className="buzz-alert buzz-alert-success mt-4">{success}</p>}
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-4" autoComplete="on">
             {mode === 'signup' && (
               <div>
-                <label htmlFor="displayName" className="mb-1.5 block text-xs font-medium text-slate-400">
+                <label htmlFor="displayName" className="buzz-label">
                   お名前（任意）
                 </label>
                 <input
@@ -152,18 +141,18 @@ export default function LoginPage() {
                   autoComplete="name"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none transition focus:border-indigo-500"
+                  className="buzz-input"
                   placeholder="山田 太郎"
                 />
               </div>
             )}
 
             <div>
-              <label htmlFor="email" className="mb-1.5 block text-xs font-medium text-slate-400">
+              <label htmlFor="email" className="buzz-label">
                 メールアドレス
               </label>
               <div className="relative">
-                <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
                 <input
                   id="email"
                   name="email"
@@ -172,7 +161,7 @@ export default function LoginPage() {
                   autoComplete="username email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950/60 py-3 pl-10 pr-4 text-sm text-white outline-none transition focus:border-indigo-500"
+                  className="buzz-input pl-10"
                   placeholder="you@example.com"
                 />
               </div>
@@ -180,7 +169,7 @@ export default function LoginPage() {
 
             {mode !== 'reset' && (
               <div>
-                <label htmlFor="password" className="mb-1.5 block text-xs font-medium text-slate-400">
+                <label htmlFor="password" className="buzz-label">
                   パスワード
                 </label>
                 <div className="relative">
@@ -193,13 +182,13 @@ export default function LoginPage() {
                     autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-xl border border-slate-700 bg-slate-950/60 py-3 pl-4 pr-11 text-sm text-white outline-none transition focus:border-indigo-500"
+                    className="buzz-input pr-11"
                     placeholder={mode === 'signup' ? '6文字以上' : 'パスワード'}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700"
                     aria-label={showPassword ? 'パスワードを隠す' : 'パスワードを表示'}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -213,18 +202,14 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => switchMode('reset')}
-                  className="text-xs text-indigo-300 hover:text-indigo-200"
+                  className="text-xs text-neutral-600 underline-offset-2 hover:text-neutral-900 hover:underline"
                 >
                   パスワードをお忘れですか？
                 </button>
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={submitting || !isConfigured}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3.5 text-sm font-semibold text-white transition-all hover:bg-indigo-500 disabled:opacity-70"
-            >
+            <button type="submit" disabled={submitting || !isConfigured} className="buzz-btn-primary w-full py-3.5">
               {submitting
                 ? '処理中...'
                 : mode === 'signup'
@@ -236,14 +221,14 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-2 text-xs text-slate-400">
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-2 text-xs text-neutral-500">
             {mode === 'login' ? (
               <>
                 <span>はじめての方は</span>
                 <button
                   type="button"
                   onClick={() => switchMode('signup')}
-                  className="font-medium text-indigo-300 hover:text-indigo-200"
+                  className="font-medium text-neutral-900 underline-offset-2 hover:underline"
                 >
                   新規登録
                 </button>
@@ -254,7 +239,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => switchMode('login')}
-                  className="font-medium text-indigo-300 hover:text-indigo-200"
+                  className="font-medium text-neutral-900 underline-offset-2 hover:underline"
                 >
                   ログイン
                 </button>
@@ -265,16 +250,16 @@ export default function LoginPage() {
           {mode !== 'reset' && (
             <>
               <div className="my-6 flex items-center gap-3">
-                <div className="h-px flex-1 bg-slate-800" />
-                <span className="text-xs text-slate-500">または</span>
-                <div className="h-px flex-1 bg-slate-800" />
+                <div className="h-px flex-1 bg-neutral-200" />
+                <span className="text-xs text-neutral-400">または</span>
+                <div className="h-px flex-1 bg-neutral-200" />
               </div>
 
               <button
                 type="button"
                 disabled={submitting}
                 onClick={() => signInGoogle().catch(() => {})}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-950/40 px-6 py-3 text-sm font-medium text-slate-200 transition hover:bg-slate-800/60 disabled:opacity-70"
+                className="buzz-btn-secondary w-full"
               >
                 <LogIn className="h-4 w-4" />
                 Google でログイン
@@ -283,7 +268,7 @@ export default function LoginPage() {
           )}
 
           {initializing && (
-            <p className="mt-4 text-center text-xs text-slate-500">ログイン状態を確認しています...</p>
+            <p className="mt-4 text-center text-xs text-neutral-500">ログイン状態を確認しています...</p>
           )}
         </div>
       </main>

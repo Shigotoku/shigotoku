@@ -1,25 +1,133 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary-50: #eef2ff;
-  --color-primary-100: #e0e7ff;
-  --color-primary-500: #6366f1;
-  --color-primary-600: #4f46e5;
-  --color-primary-700: #4338ca;
-  --color-dark-bg: #0f172a;
-  --color-dark-surface: #1e293b;
-  --color-dark-border: #334155;
+  --font-display: "Syne", "Outfit", sans-serif;
+  --font-body: "Plus Jakarta Sans", "Inter", sans-serif;
+  --color-buzz-ink: #111111;
+  --color-buzz-paper: #f5f4f0;
+  --color-buzz-muted: #6b6b6b;
+  --color-buzz-title: #6b4a3a;
 }
 
 @layer base {
-  :root {
-    background-color: var(--color-dark-bg);
-    color: #f8fafc;
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: var(--font-body);
+    background-color: var(--color-buzz-paper);
+    color: var(--color-buzz-ink);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+
+  h1,
+  h2 {
+    color: var(--color-buzz-title);
+  }
+
+  h3,
+  h4,
+  h5,
+  h6 {
+    color: var(--color-buzz-ink);
   }
 }
 
-html, body {
-  margin: 0;
-  padding: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+@layer components {
+  .buzz-page {
+    @apply mx-auto max-w-6xl space-y-8;
+  }
+
+  .buzz-page-narrow {
+    @apply mx-auto max-w-4xl space-y-8;
+  }
+
+  .buzz-section-label {
+    @apply text-[11px] font-semibold uppercase tracking-[0.22em] text-neutral-500;
+  }
+
+  .buzz-card {
+    @apply border border-neutral-200 bg-white;
+  }
+
+  .buzz-card-pad {
+    @apply border border-neutral-200 bg-white p-6 md:p-8;
+  }
+
+  .buzz-card-muted {
+    @apply border border-neutral-200 bg-neutral-50;
+  }
+
+  .buzz-btn-primary {
+    @apply inline-flex items-center justify-center gap-2 bg-neutral-900 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .buzz-btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 border border-neutral-300 bg-white px-6 py-3 text-sm font-semibold text-neutral-800 transition-colors hover:border-neutral-900;
+  }
+
+  .buzz-btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-neutral-600 transition-colors hover:text-neutral-900;
+  }
+
+  .buzz-input {
+    @apply w-full border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-900;
+  }
+
+  .buzz-label {
+    @apply mb-1.5 block text-xs font-medium text-neutral-500;
+  }
+
+  .buzz-stat-value {
+    font-family: var(--font-body);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+    @apply font-bold tracking-tight text-neutral-900;
+  }
+
+  .buzz-nav-link {
+    @apply flex items-center gap-3 px-3 py-3 text-sm transition-colors;
+  }
+
+  .buzz-nav-link-active {
+    @apply border border-neutral-300 bg-white font-medium text-neutral-900;
+  }
+
+  .buzz-nav-link-inactive {
+    @apply text-neutral-600 hover:bg-white/70 hover:text-neutral-900;
+  }
+
+  .buzz-alert {
+    @apply border p-3 text-sm;
+  }
+
+  .buzz-alert-success {
+    @apply border-emerald-200 bg-emerald-50 text-emerald-900;
+  }
+
+  .buzz-alert-error {
+    @apply border-rose-200 bg-rose-50 text-rose-900;
+  }
+
+  .buzz-alert-warning {
+    @apply border-amber-200 bg-amber-50 text-amber-950;
+  }
+
+  .buzz-alert-info {
+    @apply border-neutral-200 bg-neutral-50 text-neutral-700;
+  }
+
+  .buzz-logo-mark {
+    @apply flex h-8 w-8 items-center justify-center bg-neutral-900 text-xs font-bold text-white;
+  }
 }

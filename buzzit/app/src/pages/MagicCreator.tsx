@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import MediaDropzone from '../components/MediaDropzone';
 import { WATERMARK } from '../constants/brand';
-import { repurposeViaApi, scheduleViaApi } from '../lib/api';
+import { repurposeViaApi, scheduleViaApi, type PublishMode } from '../lib/api';
 import { checkBrandSafety } from '../services/brandSafety';
 import { generateScript } from '../services/scriptGenerator';
 import { repurposeContent, scheduleToAyrshare } from '../services/repurposeEngine';
@@ -32,10 +32,10 @@ const platformIcons = {
 } as const;
 
 const platformColors = {
-  reels: 'text-pink-500',
-  carousel: 'text-purple-500',
-  x_thread: 'text-sky-500',
-  line: 'text-emerald-500',
+  reels: 'text-neutral-700',
+  carousel: 'text-neutral-700',
+  x_thread: 'text-neutral-700',
+  line: 'text-neutral-700',
 } as const;
 
 export default function MagicCreator() {
@@ -57,6 +57,7 @@ export default function MagicCreator() {
     d.setHours(d.getHours() + 2);
     return d.toISOString().slice(0, 16);
   });
+  const [publishMode, setPublishMode] = useState<PublishMode>('notify');
 
   useEffect(() => {
     const fromTrend = searchParams.get('idea');
@@ -146,8 +147,11 @@ export default function MagicCreator() {
           platform: r.platform,
           label: r.label,
           content: r.content,
+          carouselSlides: r.carouselSlides,
         })),
         scheduledAt: new Date(scheduleDate).toISOString(),
+        publishMode,
+        mediaUrls: uploadedMedia.length > 0 ? uploadedMedia.map((m) => m.publicUrl) : undefined,
       });
       const trackingNote = result.trackingLinks?.length
         ? ` 計測リンク ${result.trackingLinks.length} 件を生成しました。`
@@ -163,22 +167,22 @@ export default function MagicCreator() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
+    <div className="buzz-page">
       <div>
         <h2 className="text-2xl font-bold mb-2">マジック・クリエイター</h2>
-        <p className="text-slate-400">
+        <p className="text-neutral-600">
           1つのアイデアや素材から、全SNSプラットフォーム向けコンテンツを自動生成（Repurpose）。
           {plan === 'starter' && (
-            <span className="text-indigo-400 ml-1">Starterプランでは透かし「{WATERMARK}」が付与されます。</span>
+            <span className="text-neutral-700 ml-1">Starterプランでは透かし「{WATERMARK}」が付与されます。</span>
           )}
         </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-1 space-y-6">
-          <div className="p-6 rounded-2xl bg-slate-800/50 border border-slate-700">
+          <div className="buzz-card-pad">
             <h3 className="font-medium mb-4 flex items-center gap-2">
-              <span className="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs font-bold">1</span>
+              <span className="w-6 h-6 border border-neutral-300 bg-neutral-100 text-neutral-700 flex items-center justify-center text-xs font-bold">1</span>
               素材を入力
             </h3>
 
@@ -190,11 +194,11 @@ export default function MagicCreator() {
               />
 
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">伝えたい内容・アイデア</label>
+                <label className="text-xs text-neutral-600 mb-1 block">伝えたい内容・アイデア</label>
                 <textarea
                   value={idea}
                   onChange={(e) => setIdea(e.target.value)}
-                  className="w-full h-24 bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm resize-none focus:outline-none focus:border-indigo-500 transition-colors"
+                  className="buzz-input h-24 resize-none"
                   placeholder="例: 新作の春カラーをアピールしたい。透明感があって色落ちしにくいのが特徴。"
                 />
               </div>
@@ -203,7 +207,7 @@ export default function MagicCreator() {
                 type="button"
                 onClick={handleGenerate}
                 disabled={isGenerating || !canGenerate}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium flex items-center justify-center gap-2 hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+                className="buzz-btn-primary w-full disabled:cursor-not-allowed"
               >
                 {isGenerating ? (
                   <span className="flex items-center gap-2">
@@ -223,8 +227,8 @@ export default function MagicCreator() {
 
         <div className="lg:col-span-2 relative min-h-[500px]">
           {!results && !isGenerating && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500">
-              <div className="w-16 h-16 rounded-2xl bg-slate-800/50 flex items-center justify-center mb-4 border border-slate-700">
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-neutral-500">
+              <div className="mb-4 flex h-16 w-16 items-center justify-center border border-neutral-200 bg-neutral-50">
                 <LayoutList className="w-8 h-8 opacity-50" />
               </div>
               <p>素材またはアイデアを入力して生成を開始してください</p>
@@ -232,9 +236,9 @@ export default function MagicCreator() {
           )}
 
           {isGenerating && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-indigo-400">
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-neutral-700">
               <div className="relative">
-                <div className="w-16 h-16 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
+                <div className="w-16 h-16 border-4 border-neutral-200 border-t-neutral-900 rounded-full animate-spin"></div>
                 <Wand2 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 animate-pulse" />
               </div>
               <p className="mt-4 animate-pulse">
@@ -250,7 +254,7 @@ export default function MagicCreator() {
               className="space-y-6"
             >
               {uploadMessage && (
-                <div className="flex items-start gap-3 p-4 rounded-xl bg-sky-500/10 border border-sky-500/30 text-sky-200 text-sm">
+                <div className="flex items-start gap-3 p-4 rounded-xl buzz-alert buzz-alert-info text-sm">
                   <CloudUpload className="w-5 h-5 shrink-0 mt-0.5" />
                   <p>{uploadMessage}</p>
                 </div>
@@ -259,7 +263,7 @@ export default function MagicCreator() {
               {uploadedMedia.length > 0 && (
                 <div className="flex gap-2 overflow-x-auto pb-1">
                   {uploadedMedia.map((m) => (
-                    <div key={m.id} className="shrink-0 w-20 h-20 rounded-lg overflow-hidden border border-slate-700">
+                    <div key={m.id} className="shrink-0 w-20 h-20 rounded-lg overflow-hidden border border-neutral-200">
                       {m.previewUrl ? (
                         m.kind === 'video' ? (
                           <video src={m.previewUrl} className="w-full h-full object-cover" muted />
@@ -267,7 +271,7 @@ export default function MagicCreator() {
                           <img src={m.previewUrl} alt={m.name} className="w-full h-full object-cover" />
                         )
                       ) : (
-                        <div className="w-full h-full bg-slate-800 flex items-center justify-center text-[10px] text-slate-500">GCP</div>
+                        <div className="w-full h-full bg-slate-800 flex items-center justify-center text-[10px] text-neutral-500">GCP</div>
                       )}
                     </div>
                   ))}
@@ -275,17 +279,17 @@ export default function MagicCreator() {
               )}
 
               {safetyWarning && (
-                <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-sm">
+                <div className="flex items-start gap-3 p-4 rounded-xl buzz-alert buzz-alert-warning text-sm">
                   <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
                   <div>
                     <p className="font-medium mb-1">ブランドセーフティフィルターが検知しました</p>
-                    <p className="text-amber-200/80">NGワード: {safetyWarning.join('、')} — 自動で表現を調整しました。</p>
+                    <p className="text-amber-900/80">NGワード: {safetyWarning.join('、')} — 自動で表現を調整しました。</p>
                   </div>
                 </div>
               )}
 
               {scheduleMessage && (
-                <div className="flex items-start gap-3 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-200 text-sm">
+                <div className="flex items-start gap-3 p-4 rounded-xl buzz-alert buzz-alert-success text-sm">
                   <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
                   <p>{scheduleMessage}</p>
                 </div>
@@ -293,13 +297,13 @@ export default function MagicCreator() {
 
               <div className="flex items-center justify-between">
                 <h3 className="font-medium flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-bold">2</span>
+                  <span className="w-6 h-6 border border-neutral-300 bg-neutral-100 text-neutral-700 flex items-center justify-center text-xs font-bold">2</span>
                   生成結果 (Repurpose)
                 </h3>
                 <button
                   type="button"
                   onClick={() => setScheduleModal(true)}
-                  className="text-sm px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-white font-medium transition-colors flex items-center gap-2"
+                  className="buzz-btn-primary text-sm px-4 py-2"
                 >
                   <Calendar className="w-4 h-4" />
                   すべて一括予約
@@ -313,7 +317,7 @@ export default function MagicCreator() {
                   return (
                     <div
                       key={item.platform}
-                      className="p-5 rounded-xl bg-slate-800/50 border border-slate-700 hover:border-indigo-500/30 transition-colors"
+                      className="p-5 rounded-xl bg-slate-800/50 border border-neutral-200 hover:border-indigo-500/30 transition-colors"
                     >
                       <div className="flex items-center gap-2 mb-3">
                         <Icon className={`w-5 h-5 ${color}`} />
@@ -324,7 +328,7 @@ export default function MagicCreator() {
                           {item.carouselSlides.map((slide, i) => (
                             <div
                               key={slide}
-                              className="w-1/4 aspect-[4/5] bg-slate-900 rounded-lg border border-slate-700 flex items-center justify-center text-[10px] text-slate-500 p-1 text-center overflow-hidden"
+                              className="w-1/4 aspect-[4/5] bg-slate-900 rounded-lg border border-neutral-200 flex items-center justify-center text-[10px] text-neutral-500 p-1 text-center overflow-hidden"
                             >
                               {i === 0 && localMedia[0]?.kind === 'image' ? (
                                 <img src={localMedia[0].previewUrl} alt="" className="w-full h-full object-cover" />
@@ -335,15 +339,15 @@ export default function MagicCreator() {
                           ))}
                         </div>
                       ) : (
-                        <div className="p-3 bg-slate-900 rounded-lg text-sm text-slate-300 mb-4 h-32 overflow-hidden relative whitespace-pre-wrap">
+                        <div className="mb-4 h-32 overflow-hidden whitespace-pre-wrap border border-neutral-200 bg-neutral-50 p-3 text-sm text-neutral-700 relative">
                           {item.content}
-                          <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-slate-900 to-transparent"></div>
+                          <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-neutral-50 to-transparent"></div>
                         </div>
                       )}
                       <button
                         type="button"
                         onClick={() => setScheduleModal(true)}
-                        className="w-full py-2 bg-white/5 hover:bg-white/10 rounded-lg text-xs font-medium transition-colors"
+                        className="w-full border border-neutral-200 py-2 text-xs font-medium transition-colors hover:border-neutral-900"
                       >
                         編集・予約
                       </button>
@@ -362,41 +366,53 @@ export default function MagicCreator() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/40 p-4"
             onClick={() => !isScheduling && setScheduleModal(false)}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-700 p-6 shadow-2xl"
+              className="w-full max-w-md rounded-2xl bg-slate-900 border border-neutral-200 p-6 shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-bold">Ayrshare 一括予約</h3>
+                <h3 className="text-lg font-bold">投稿を予約</h3>
                 <button
                   type="button"
                   onClick={() => setScheduleModal(false)}
-                  className="p-1 rounded-lg hover:bg-white/5 text-slate-400"
+                  className="p-1 rounded-lg hover:bg-white/5 text-neutral-600"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <p className="text-sm text-slate-400 mb-4">
-                公式API経由で各SNSへ予約投稿します。
+              <p className="text-sm text-neutral-600 mb-4">
+                投稿モードと日時を選んで予約登録します。時刻到来時に Worker が処理します。
               </p>
-              <label className="text-xs text-slate-400 mb-1 block">投稿日時</label>
+              <label className="text-xs text-neutral-600 mb-1 block">投稿モード</label>
+              <select
+                value={publishMode}
+                onChange={(e) => setPublishMode(e.target.value as PublishMode)}
+                className="w-full bg-slate-800 border border-neutral-200 rounded-xl px-4 py-3 text-sm mb-4 focus:outline-none focus:border-indigo-500"
+              >
+                <option value="notify">通知リマインダー（Slack/LINE に文案）</option>
+                <option value="approval">承認後投稿（ダッシュボードで承認）</option>
+                <option value="meta">Meta 自動投稿</option>
+                <option value="line">LINE ブロードキャスト</option>
+                <option value="auto">自動（接続に応じて）</option>
+              </select>
+              <label className="text-xs text-neutral-600 mb-1 block">投稿日時</label>
               <input
                 type="datetime-local"
                 value={scheduleDate}
                 onChange={(e) => setScheduleDate(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm mb-6 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-slate-800 border border-neutral-200 rounded-xl px-4 py-3 text-sm mb-6 focus:outline-none focus:border-indigo-500"
               />
               <button
                 type="button"
                 onClick={handleScheduleAll}
                 disabled={isScheduling}
-                className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium disabled:opacity-70"
+                className="buzz-btn-primary w-full disabled:opacity-70"
               >
                 {isScheduling ? '予約中...' : `${results?.length ?? 0}件を予約する`}
               </button>

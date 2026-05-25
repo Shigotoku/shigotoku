@@ -3,6 +3,7 @@ import { initializeApp, getApps } from 'firebase-admin/app';
 import { runAutoModeForAllUsers, sendStrategicNotifications } from './services/autoMode';
 import { refreshTrendsForAllUsers } from './services/trends';
 import { evaluateAbTestsForAllUsers } from './services/abTest';
+import { processDueScheduledJobs } from './services/schedulerWorker';
 import { functionSecrets } from './config/secrets';
 
 if (!getApps().length) initializeApp();
@@ -29,5 +30,20 @@ export const buzzitScheduler = onSchedule(
     if (slot === 'evening') {
       await evaluateAbTestsForAllUsers();
     }
+  },
+);
+
+/** 5分ごと: Firestore 予約ジョブを処理（notify / meta / line / ayrshare） */
+export const buzzitPublishWorker = onSchedule(
+  {
+    schedule: '*/5 * * * *',
+    timeZone: 'Asia/Tokyo',
+    region: 'asia-northeast1',
+    serviceAccount: 'firebase-adminsdk-fbsvc@shigotoku-prod.iam.gserviceaccount.com',
+    secrets: [...functionSecrets],
+  },
+  async () => {
+    const result = await processDueScheduledJobs();
+    console.log('buzzitPublishWorker:', result);
   },
 );

@@ -1,3 +1,4 @@
+import type { PublishMode, ScheduledJobStatus, ScheduleContentItem } from '../types/schedule';
 import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
 
 export type PlanTier = 'starter' | 'pro' | 'team' | 'growth';
@@ -12,10 +13,22 @@ export interface UserSettings {
   autoModeEnabled?: boolean;
   industry?: string;
   slackTeamId?: string;
-  /** LINE Messaging API Channel Secret */
+  /** LINE Messaging API Channel Secret（Webhook 署名検証） */
   lineChannelSecret?: string;
+  /** LINE Messaging API Channel Access Token（配信・通知） */
+  lineChannelAccessToken?: string;
+  /** LINE 管理者ユーザーID（push 通知用・任意） */
+  lineAdminUserId?: string;
   /** LINE Webhook destination（Bot ID）— ユーザー特定用 */
   lineDestinationId?: string;
+  /** Meta OAuth */
+  metaAccessToken?: string;
+  metaPageAccessToken?: string;
+  metaIgUserId?: string;
+  metaPageId?: string;
+  metaTokenExpiresAt?: string;
+  /** 通知モード（notify / meta / line / approval / auto） */
+  defaultPublishMode?: 'notify' | 'meta' | 'line' | 'approval' | 'auto';
   /** クリック計測のリダイレクト先（店舗サイト・予約ページ等） */
   defaultDestinationUrl?: string;
 }
@@ -328,14 +341,172 @@ export async function saveScheduledJob(
   status: string,
   ayrshareResponse?: unknown,
 ): Promise<string> {
-  const ref = await db().collection('users').doc(uid).collection('scheduled').add({
+  return createScheduledJob(uid, {
     contents,
     scheduledAt,
+    publishMode: 'notify',
+    status: status as ScheduledJobStatus,
+    ayrshareResponse,
+  });
+}
+
+export interface CreateScheduledJobInput {
+  contents: ScheduleContentItem[];
+  scheduledAt: string;
+  publishMode: PublishMode;
+  status?: ScheduledJobStatus;
+  mediaUrls?: string[];
+  destinationUrl?: string;
+  trackingLinks?: Array<{ platform: string; trackingUrl: string; postId: string }>;
+  ayrshareResponse?: unknown;
+}
+
+export async function createScheduledJob(uid: string, input: CreateScheduledJobInput): Promise<string> {
+  const status =
+    input.status ??
+    (input.publishMode === 'approval' ? 'pending_approval' : 'pending');
+
+  const ref = await db().collection('users').doc(uid).collection('scheduled').add({
+    contents: input.contents,
+    scheduledAt: input.scheduledAt,
+    publishMode: input.publishMode,
     status,
-    ayrshareResponse: ayrshareResponse ?? null,
+    mediaUrls: input.mediaUrls ?? [],
+    destinationUrl: input.destinationUrl ?? null,
+    trackingLinks: input.trackingLinks ?? [],
+    ayrshareResponse: input.ayrshareResponse ?? null,
     createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   });
   return ref.id;
+}
+
+export interface ScheduledJobDoc {
+  id: string;
+  uid: string;
+  contents: ScheduleContentItem[];
+  scheduledAt: string;
+  publishMode: PublishMode;
+  status: ScheduledJobStatus;
+  mediaUrls?: string[];
+  destinationUrl?: string;
+  trackingLinks?: Array<{ platform: string; trackingUrl: string; postId: string }>;
+  errorMessage?: string;
+  completedMessage?: string;
+  publishResults?: Array<{ platform: string; success: boolean; message: string; externalId?: string }>;
+  createdAt: string;
+}
+
+function mapScheduledDoc(uid: string, id: string, data: FirebaseFirestore.DocumentData): ScheduledJobDoc {
+  const created = data.createdAt instanceof Timestamp
+    ? data.createdAt.toDate().toISOString()
+    : new Date().toISOString();
+  return {
+    id,
+    uid,
+    contents: data.contents as ScheduleContentItem[],
+    scheduledAt: data.scheduledAt as string,
+    publishMode: (data.publishMode as PublishMode) ?? 'notify',
+    status: (data.status as ScheduledJobStatus) ?? 'pending',
+    mediaUrls: (data.mediaUrls as string[]) ?? [],
+    destinationUrl: (data.destinationUrl as string | null) ?? undefined,
+    trackingLinks: (data.trackingLinks as ScheduledJobDoc['trackingLinks']) ?? [],
+    errorMessage: data.errorMessage as string | undefined,
+    completedMessage: data.completedMessage as string | undefined,
+    publishResults: data.publishResults as ScheduledJobDoc['publishResults'],
+    createdAt: created,
+  };
+}
+
+export async function getScheduledJobs(
+  uid: string,
+  status?: ScheduledJobStatus | ScheduledJobStatus[],
+): Promise<ScheduledJobDoc[]> {
+  let query: FirebaseFirestore.Query = db()
+    .collection('users')
+    .doc(uid)
+    .collection('scheduled')
+    .orderBy('scheduledAt', 'desc')
+    .limit(30);
+
+  if (status) {
+    const statuses = Array.isArray(status) ? status : [status];
+    if (statuses.length === 1) {
+      query = query.where('status', '==', statuses[0]);
+    }
+  }
+
+  const snap = await query.get();
+  let docs = snap.docs.map((d) => mapScheduledDoc(uid, d.id, d.data()));
+  if (status && Array.isArray(status) && status.length > 1) {
+    docs = docs.filter((d) => status.includes(d.status));
+  }
+  return docs;
+}
+
+export async function approveScheduledJob(uid: string, jobId: string): Promise<ScheduledJobDoc | null> {
+  const ref = db().collection('users').doc(uid).collection('scheduled').doc(jobId);
+  const snap = await ref.get();
+  if (!snap.exists) return null;
+  const data = snap.data()!;
+  if (data.status !== 'pending_approval') return null;
+
+  await ref.update({
+    status: 'pending',
+    approvedAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+
+  const updated = await ref.get();
+  return mapScheduledDoc(uid, jobId, updated.data()!);
+}
+
+export async function updateScheduledJobStatus(
+  uid: string,
+  jobId: string,
+  patch: {
+    status: ScheduledJobStatus;
+    errorMessage?: string;
+    completedMessage?: string;
+    publishResults?: ScheduledJobDoc['publishResults'];
+  },
+): Promise<void> {
+  await db().collection('users').doc(uid).collection('scheduled').doc(jobId).update({
+    ...patch,
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+}
+
+export async function claimDueScheduledJobs(limit = 20): Promise<ScheduledJobDoc[]> {
+  const now = new Date().toISOString();
+  const snap = await db()
+    .collectionGroup('scheduled')
+    .where('status', '==', 'pending')
+    .where('scheduledAt', '<=', now)
+    .limit(limit)
+    .get();
+
+  const claimed: ScheduledJobDoc[] = [];
+
+  for (const doc of snap.docs) {
+    const uid = doc.ref.parent.parent?.id;
+    if (!uid) continue;
+
+    const ref = doc.ref;
+    const locked = await db().runTransaction(async (tx) => {
+      const fresh = await tx.get(ref);
+      if (!fresh.exists) return false;
+      if (fresh.data()?.status !== 'pending') return false;
+      tx.update(ref, { status: 'processing', updatedAt: FieldValue.serverTimestamp() });
+      return true;
+    });
+
+    if (locked) {
+      claimed.push(mapScheduledDoc(uid, doc.id, doc.data()));
+    }
+  }
+
+  return claimed;
 }
 
 export async function addSlackIdea(

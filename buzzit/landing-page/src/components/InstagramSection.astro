@@ -5,11 +5,11 @@ import { images } from '../lib/images';
 const loginUrl = appPath('/login');
 ---
 
-<section class="relative overflow-hidden border-y border-slate-100 bg-[#faf9fc] py-24 md:py-32">
+<section class="relative overflow-hidden border-y border-neutral-200 bg-white py-24 md:py-32">
   <div class="mx-auto grid max-w-6xl items-center gap-12 px-5 md:grid-cols-2 md:gap-16 md:px-8">
     <div class="animate-on-scroll slide-right order-2 md:order-1">
       <div class="relative">
-        <div class="overflow-hidden rounded-3xl shadow-2xl shadow-violet-500/10">
+        <div class="overflow-hidden">
           <img
             src={images.cafeStore}
             alt="店舗の雰囲気"
@@ -21,25 +21,25 @@ const loginUrl = appPath('/login');
           <div class="mb-3 flex items-center gap-2">
             <span class="flex h-9 w-9 items-center justify-center bg-neutral-900 text-xs font-bold text-white">IG</span>
             <div>
-              <p class="text-sm font-bold text-slate-900">今日のミッション</p>
-              <p class="text-xs text-slate-400">春カラー Reels</p>
+              <p class="text-sm font-semibold text-neutral-900">今日のミッション</p>
+              <p class="text-xs text-neutral-500">春カラー Reels</p>
             </div>
           </div>
-          <p class="rounded-xl bg-slate-50 p-3 text-xs leading-relaxed text-slate-600">
+          <p class="bg-neutral-50 p-3 text-xs leading-relaxed text-neutral-600">
             【悲報】春カラー、予約が埋まりすぎて… 詳細はプロフィールのLINEから▼
           </p>
           <div class="mt-3 grid grid-cols-3 gap-2 text-center">
-            <div class="rounded-lg bg-neutral-100 py-2">
+            <div class="bg-neutral-100 py-2">
               <p class="buzz-stat-value text-sm">24.5K</p>
               <p class="text-[10px] text-neutral-500">リーチ</p>
             </div>
-            <div class="rounded-lg bg-neutral-100 py-2">
+            <div class="bg-neutral-100 py-2">
               <p class="buzz-stat-value text-sm">124</p>
               <p class="text-[10px] text-neutral-500">LINE</p>
             </div>
-            <div class="rounded-lg bg-neutral-100 py-2">
+            <div class="bg-neutral-100 py-2">
               <p class="buzz-stat-value text-sm">¥34.2万</p>
-              <p class="text-[10px] text-slate-400">売上</p>
+              <p class="text-[10px] text-neutral-500">売上</p>
             </div>
           </div>
         </div>
@@ -47,11 +47,14 @@ const loginUrl = appPath('/login');
     </div>
 
     <div class="animate-on-scroll slide-left order-1 md:order-2">
-      <p class="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-neutral-500">Instagram × LINE</p>
-      <h2 class="font-display text-3xl font-bold text-neutral-900 md:text-4xl">
-        Instagram で集客、<br />LINE でリピート。
+      <p class="mb-3 text-[11px] font-semibold tracking-[0.18em] text-neutral-500">
+        <span class="buzz-latin">Instagram</span> × <span class="buzz-latin">LINE</span>
+      </p>
+      <h2 class="text-3xl font-bold leading-[1.35] md:text-4xl">
+        <span class="buzz-latin">Instagram</span> で集客、<br />
+        <span class="buzz-latin">LINE</span> でリピート。
       </h2>
-      <p class="mt-4 text-base leading-relaxed text-slate-500 md:text-lg">
+      <p class="mt-4 text-base leading-relaxed text-neutral-600 md:text-lg">
         「いいね数」ではなく、LINE友だち追加・来店・売上をKPIに設計。店舗ビジネスで最も効く導線を、毎朝5分のルーティンで回せます。
       </p>
       <ul class="mt-8 space-y-4">
@@ -61,8 +64,8 @@ const loginUrl = appPath('/login');
           '投稿→LINE→来店までをダッシュボードで可視化',
         ].map((text, i) => (
           <li class="flex items-start gap-3">
-            <span class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#0c0a12] text-[11px] font-bold text-white">{i + 1}</span>
-            <span class="text-sm text-slate-700 md:text-base">{text}</span>
+            <span class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center bg-neutral-900 text-[11px] font-bold text-white">{i + 1}</span>
+            <span class="text-sm text-neutral-700 md:text-base">{text}</span>
           </li>
         ))}
       </ul>

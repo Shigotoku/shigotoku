@@ -1,6 +1,7 @@
 import { generateMissionAdvice, generateRepurposeWithGemini } from './gemini';
 import {
   addPost,
+  createScheduledJob,
   getMetrics,
   getSlackIdeas,
   getUserSettings,
@@ -10,6 +11,13 @@ import {
 import { postToSlackWebhook } from './slack';
 import type { NotificationSlot } from './slack';
 import { buildStrategicNotification } from './slack';
+import type { PublishMode } from '../types/schedule';
+
+function nextAutoScheduleAt(): string {
+  const d = new Date();
+  d.setHours(d.getHours() + 2, 0, 0, 0);
+  return d.toISOString();
+}
 
 export async function runAutoModeForUser(uid: string): Promise<{ mission: { title: string; description: string } }> {
   const settings = await getUserSettings(uid);
@@ -34,13 +42,40 @@ export async function runAutoModeForUser(uid: string): Promise<{ mission: { titl
     });
   }
 
+  const publishMode: PublishMode =
+    settings.defaultPublishMode === 'auto' || settings.defaultPublishMode === 'meta'
+      ? (settings.defaultPublishMode ?? 'approval')
+      : 'approval';
+
+  await createScheduledJob(uid, {
+    contents: results.map((r) => ({
+      platform: r.platform,
+      label: r.label,
+      content: r.content,
+      carouselSlides: r.carouselSlides,
+    })),
+    scheduledAt: nextAutoScheduleAt(),
+    publishMode,
+    status: publishMode === 'approval' ? 'pending_approval' : 'pending',
+  });
+
   const mission = await generateMissionAdvice(metrics);
-  await updateMetrics(uid, { mission });
+  await updateMetrics(uid, {
+    mission: {
+      title: publishMode === 'approval' ? '承認待ちの投稿があります' : mission.title,
+      description:
+        publishMode === 'approval'
+          ? 'Auto Mode が生成した投稿案をダッシュボードから承認してください。'
+          : mission.description,
+    },
+  });
 
   if (settings.slackWebhookUrl) {
     await postToSlackWebhook(
       settings.slackWebhookUrl,
-      `🤖 *Auto Mode* が新しい投稿案を生成しました\n${mission.title}\n${mission.description}`,
+      publishMode === 'approval'
+        ? `🤖 *Auto Mode* が投稿案を生成しました（承認待ち）\n${ideaSource.slice(0, 120)}`
+        : `🤖 *Auto Mode* が新しい投稿案を生成しました\n${mission.title}\n${mission.description}`,
     );
   }
 

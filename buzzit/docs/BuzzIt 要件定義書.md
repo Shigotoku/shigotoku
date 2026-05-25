@@ -1,7 +1,7 @@
 # BuzzIt（バジット）要件定義書
 
-**版:** 3.0  
-**最終更新:** 2026-05-23  
+**版:** 4.0  
+**最終更新:** 2026-05-25  
 **インフラ方針:** Google Cloud Platform（Firebase）統一 — Supabase は使用しない
 
 ---
@@ -41,39 +41,59 @@
 | LP | Astro | `shigotoku.com/buzzit/` |
 | API | Cloud Functions v2 (Express) | REST API `/api/**` |
 | 認証 | **Firebase Authentication** | Google / メール / 匿名（デモ） |
-| DB | **Cloud Firestore** | ユーザー設定・KPI・投稿・Slackアイデア |
+| DB | **Cloud Firestore** | ユーザー設定・KPI・投稿・予約ジョブ |
 | ストレージ | **Cloud Storage** | 素材 `uploads/`（Functions 経由のみ書込） |
 | AI | **Gemini API**（Google AI） | 台本生成・Repurpose |
-| スケジュール | **Cloud Scheduler** + Functions | Auto Mode・朝昼夜通知 |
+| スケジュール | **Cloud Scheduler** + Functions | Auto Mode・朝昼夜通知・**5分ごとPublish Worker** |
 | 秘密情報 | Secret Manager / Functions 環境変数 | API キー管理 |
 | 配信 | Firebase Hosting | SPA + API リライト |
-| SNS投稿 | **Ayrshare API** | 公式API経由の一括予約投稿 |
+| SNS投稿 | **Meta Graph API（BYO OAuth）** + LINE Messaging API + Slack 通知 | 店舗アカウント直結 |
+| SNS投稿（任意） | **Ayrshare API** | レガシーアダプタ（オプション） |
 | 組織連携 | **Slack Incoming Webhook / Events API** | ネタ会議・戦略的通知 |
 
-### 2.2 非採用
+### 2.2 投稿パイプライン（v4）
 
-- **Supabase** — 使用しない。認証・DB はすべて GCP（Firebase）で統一
-- **スクレイピング** — 禁止。データ取得・投稿は公式API範囲内のみ
+```
+Magic Creator / Auto Mode
+        ↓
+Firestore users/{uid}/scheduled/{jobId}
+  publishMode: notify | approval | meta | line | auto | ayrshare
+  status: pending_approval → pending → processing → published | notified | failed
+        ↓
+buzzitPublishWorker（5分ごと）
+        ↓
+executePublish()
+  ├─ notify  → Slack Webhook + LINE broadcast（文案リマインダー）
+  ├─ meta    → Meta Graph API（IG / FB Page / Threads）
+  ├─ line    → LINE Messaging API broadcast
+  ├─ approval→ ダッシュボード承認後 pending へ
+  ├─ auto    → 接続状況に応じて meta / line / notify
+  └─ ayrshare→ Ayrshare API（任意・フォールバック）
+```
 
-### 2.3 コスト最適化方針
+**設計方針:** Ayrshare 依存をやめ、Meta 直結 + 自前 Scheduler + BYO モデルを主軸とする。X 自動投稿は後回し。
 
-- Functions: 256〜512MiB、min instances 0、東京リージョン
-- Storage: Regional Standard、直接 write 禁止（API 経由）
-- Gemini: プロンプトを短く構造化、失敗時はテンプレートフォールバック
-- Artifact Registry: 7日で古いイメージ削除
+### 2.3 非採用
+
+- **Supabase** — 使用しない
+- **スクレイピング** — 禁止。公式API範囲内のみ
 
 ### 2.4 環境変数（Cloud Functions）
 
 | 変数 | 用途 |
 |------|------|
 | `GEMINI_API_KEY` | Gemini 台本生成 |
-| `AYRSHARE_API_KEY` | SNS 予約投稿（未設定時は Firestore 保存のみ） |
+| `META_APP_ID` / `META_APP_SECRET` | Meta OAuth（店舗 BYO トークン取得） |
+| `AYRSHARE_API_KEY` | レガシー予約（任意） |
 | `SLACK_SIGNING_SECRET` | Slack Events 署名検証（任意） |
+| `BUZZIT_APP_ORIGIN` | OAuth コールバック元（既定: `https://app.buzzit.shigotoku.com`） |
 
 ユーザーごとの設定（Firestore `users/{uid}`）:
 
-- `slackWebhookUrl` — 戦略的通知送先
-- `ayrshareProfileKey` — Ayrshare プロファイルキー（Team 以上推奨）
+- `slackWebhookUrl` — 戦略的通知・投稿リマインダー
+- `lineChannelAccessToken` — LINE 配信・通知
+- `metaAccessToken`, `metaIgUserId`, `metaPageId` — Meta OAuth 連携
+- `defaultPublishMode` — notify / approval / meta / line / auto
 - `autoModeEnabled` — Auto Mode オン/オフ
 - `plan` — starter / pro / team / growth
 
@@ -84,66 +104,29 @@
 ### 3.1 経営コクピット（Dashboard）
 
 - SNS **健康スコア**（0〜100）とトレンド
-- **Today's Mission** — AI 処方的提案（承認ボタンでマジック・クリエイターへ）
+- **Today's Mission** — AI 処方的提案
+- **承認待ちキュー** — `pending_approval` ジョブの一覧・ワンクリック承認
 - **売上ファネル** — 投稿 → リーチ → クリック → LINE友だち → 売上
-
-データソース: Firestore `users/{uid}/metrics/summary`（投稿・手動入力・Ayrshare 連携で更新）
 
 ### 3.2 マジック・クリエイター
 
-- 画像/動画ドロップ（10MB/50MB 上限）
-- **GCP Storage** へ API 経由アップロード
-- **Gemini** による Repurpose（Reels / IGカルーセル / X / LINE）
-- ブランドセーフティ（医療・薬機法 NG ワード）
-- Starter プラン: 透かし `Powered by BuzzIt`
-- **Ayrshare** 一括予約
+- 画像/動画ドロップ → GCP Storage
+- Gemini Repurpose
+- **投稿モード選択:** 通知 / 承認後 / Meta 自動 / LINE / 自動
+- 予約登録 → Firestore + Worker 処理
 
-### 3.3 分析・売上（Analytics）
+### 3.3 設定
 
-KPI 設計:
+- Meta OAuth 連携ボタン
+- LINE Channel Access Token 入力
+- デフォルト投稿モード
+- Slack / Ayrshare（任意）
 
-| 段階 | 指標 |
-|------|------|
-| 認知 | リーチ数 |
-| 興味 | 保存率・シェア率 |
-| 誘導 | URLクリック率 |
-| 見込み客 | LINE友だち追加数 |
-| 成果 | 売上・予約数（投稿別貢献度） |
+### 3.4 Auto Mode（Growth OS）
 
-### 3.4 Slack 連携（Team プラン以上）
-
-**ネタ出し会議**
-
-1. 社員が Slack チャンネルに投稿
-2. Events API → BuzzIt API → Gemini で台本化 → スレッド返信
-3. Firestore `slackIdeas` に保存
-4. 管理画面で「採用」→ マジック・クリエイターのキューへ
-
-**戦略的通知（朝/昼/夜）**
-
-| 時間帯 | 内容 |
-|--------|------|
-| 朝 7:00 | 前日成果 + 今日のアドバイス |
-| 昼 12:00 | 本日の投稿生成・承認依頼 |
-| 夜 20:00 | バズ開始・全員いいね促進 |
-
-送信: ユーザー設定の Incoming Webhook URL
-
-### 3.5 Auto Mode（Growth OS）
-
-Cloud Scheduler が毎日実行:
-
-1. 過去 KPI・Slack アイデア・トレンドを参照
-2. Gemini で投稿案生成
-3. 承認待ちとして Mission に表示（または autoModeEnabled + 信頼度 high なら自動予約）
-4. 結果を metrics に反映し次サイクルへ
-
-### 3.6 設定
-
-- プラン切替（UI + Firestore）
-- SNS 連携状態（Ayrshare プロファイルキー）
-- Slack Webhook URL
-- Auto Mode トグル
+1. Gemini で投稿案生成
+2. デフォルトは **承認待ちキュー** に登録
+3. `defaultPublishMode=auto|meta` 時は自動予約
 
 ---
 
@@ -151,143 +134,89 @@ Cloud Scheduler が毎日実行:
 
 | プラン | 月額 | 主要機能 |
 |--------|------|----------|
-| Starter | ¥0 | AI台本、健康診断、透かしあり |
-| Pro | ¥4,980 | 全SNS自動予約、透かし削除、処方的提案 |
-| Team | ¥9,800 | Slack連携、戦略的通知、チーム承認 |
-| Growth OS | ¥29,800 | 深い売上トラッキング、Auto Mode |
+| Starter | ¥0 | AI台本、健康診断、透かしあり、通知リマインダー |
+| Pro | ¥4,980 | Meta/LINE 自動投稿、透かし削除 |
+| Team | ¥9,800 | Slack連携、承認フロー、戦略的通知 |
+| Growth OS | ¥29,800 | Auto Mode、深い売上トラッキング |
 
 ---
 
-## 5. API 一覧
+## 5. API 一覧（v4 追加分）
 
 | メソッド | パス | 説明 |
 |---------|------|------|
-| GET | `/health` | ヘルスチェック |
-| POST | `/v1/upload` | 素材アップロード → GCS |
-| POST | `/v1/repurpose` | Gemini Repurpose |
-| POST | `/v1/schedule` | Ayrshare 予約 |
-| GET | `/v1/dashboard` | コクピットデータ |
-| GET | `/v1/analytics` | 分析 KPI |
-| GET/PUT | `/v1/settings` | ユーザー設定 |
-| POST | `/v1/metrics/event` | KPI イベント記録 |
-| POST | `/v1/slack/events` | Slack Events 受信 |
-| POST | `/v1/slack/ideas/:id/approve` | アイデア採用 |
-| GET | `/v1/slack/ideas` | アイデア一覧 |
-| POST | `/v1/tracking/link` | UTM 計測リンク生成 |
-| GET | `/v1/track/click/:token` | クリック計測 + リダイレクト（公開） |
-| POST | `/v1/webhooks/line` | LINE Messaging API Webhook |
-| GET | `/v1/trends` | トレンドネタ一覧 |
-| POST | `/v1/trends/refresh` | トレンド更新（Gemini） |
-| POST | `/v1/trends/:id/use` | トレンドを投稿ネタに採用 |
-| GET | `/v1/ab-tests` | A/B テスト一覧 |
-| POST | `/v1/ab-tests` | A/B テスト作成 |
-| POST | `/v1/ab-tests/:id/evaluate` | 勝者判定 |
-| POST | `/v1/ab-tests/evaluate-all` | 実行中テスト一括評価 |
-| POST | `/v1/auto-mode/run` | Auto Mode 手動実行 |
+| POST | `/v1/schedule` | 予約登録（`publishMode` 対応） |
+| GET | `/v1/scheduled` | 予約ジョブ一覧 |
+| POST | `/v1/scheduled/:id/approve` | 承認待ち → pending |
+| GET | `/v1/oauth/meta/start` | Meta OAuth URL 取得 |
+| GET | `/v1/oauth/meta/callback` | Meta OAuth コールバック |
 
-認証: `Authorization: Bearer {Firebase ID Token}`
+既存 API（upload, repurpose, dashboard, analytics, settings, slack, trends, ab-tests, auto-mode 等）は v3 と同様。
 
 ---
 
-## 6. Firestore スキーマ
+## 6. Firestore スキーマ（v4）
 
 ```
 users/{uid}
-  plan, email, displayName, slackWebhookUrl, ayrshareProfileKey,
-  autoModeEnabled, industry, createdAt, updatedAt
-
-users/{uid}/metrics/summary
-  healthScore, healthTrend, reach, saveRate, shareRate, clickRate,
-  lineFriends, estimatedRevenue, funnel, mission, updatedAt
-
-users/{uid}/posts/{postId}
-  title, platform, content, reach, clicks, lineSignups, revenue, createdAt
-
-users/{uid}/slackIdeas/{ideaId}
-  text, author, scriptPreview, status, createdAt
+  plan, slackWebhookUrl, lineChannelAccessToken, metaAccessToken, metaIgUserId,
+  metaPageId, defaultPublishMode, autoModeEnabled, ...
 
 users/{uid}/scheduled/{jobId}
-  contents, scheduledAt, status, ayrshareResponse
+  contents, scheduledAt, publishMode, status, mediaUrls,
+  trackingLinks, publishResults, errorMessage, createdAt, updatedAt
+
+oauthStates/{state}
+  uid, provider, expiresAt
 ```
+
+**collectionGroup インデックス:** `scheduled` — `status` + `scheduledAt`
 
 ---
 
 ## 7. ロードマップと実装状況
 
-### Phase 1 — MVP ✅
+### Phase 0 — 半自動（notify） ✅
 
-- [x] BuzzIt ブランド統一
-- [x] マジック・クリエイター（素材ドロップ）
-- [x] GCP Storage アップロード
-- [x] Repurpose API（Gemini + フォールバック）
-- [x] ブランドセーフティ
-- [x] 本番デプロイ
+- Firestore 予約 + Slack/LINE 文案通知
 
-### Phase 2 — 組織化 & PLG ✅
+### Phase 1 — Meta 直結 + Worker ✅
 
-- [x] Firebase Authentication（Google / メール / 匿名）
-- [x] Firestore KPI / ダッシュボード
-- [x] Slack Webhook 通知・Events ネタ会議
-- [x] Ayrshare 予約投稿連携
-- [x] 設定画面（連携キー入力）
+- Meta OAuth、Graph API 投稿、5分 Worker
 
-### Phase 3 — 経営OS化
+### Phase 2 — LINE ブロードキャスト ✅
 
-- [x] Auto Mode（Scheduler）
-- [x] 投稿別売上貢献度
-- [x] UTM クリック計測 + LINE 公式 Webhook による自動 CV 計測
-- [x] トレンド波乗りエンジン
-- [x] ABテスト自動化
+- Messaging API broadcast
 
-### Phase 4 — エコシステム
+### Phase 3 — 承認キュー + Auto Mode 連携 ✅
 
-- [ ] 勝ちテンプレ市場
-- [ ] 代理店ホワイトラベル
-- [ ] SLM ファインチューニング・プロンプトキャッシュ
+- `pending_approval` → ダッシュボード承認
+
+### Phase 4 — AI エージェント層（将来）
+
+- Gemini 従量のみ
 
 ---
 
-## 8. 非機能要件
+## 8. セットアップ（運用者向け）
 
-- **UI/UX:** 思考コストゼロ。次のアクションを常に1つ提示
-- **セキュリティ:** Firebase Auth、Storage write 禁止、API トークン検証
-- **可用性:** Functions 東京、Hosting CDN
-- **ブランドセーフティ:** NG ワードフィルター（生成前後）
+### Meta App
 
----
+1. developers.facebook.com でアプリ作成
+2. Instagram Graph API / Pages API を有効化
+3. OAuth リダイレクト: `https://app.buzzit.shigotoku.com/api/v1/oauth/meta/callback`
+4. Secret Manager に `META_APP_ID`, `META_APP_SECRET` を設定
 
-## 9. セットアップ手順（運用者向け）
-
-### 9.1 Firebase Console
-
-1. **Authentication** を有効化（Google、メール、匿名）
-2. **Firestore** を作成（asia-northeast1）
-3. **Web アプリ** を追加し、設定値を `buzzit/app/.env` に設定
-
-### 9.2 Cloud Functions 環境変数
-
-```bash
-firebase functions:secrets:set GEMINI_API_KEY
-firebase functions:secrets:set AYRSHARE_API_KEY
-firebase functions:secrets:set SLACK_SIGNING_SECRET
-```
-
-### 9.3 Slack App（Team 利用時）
-
-1. Slack App 作成 → Event Subscriptions URL: `https://app.buzzit.shigotoku.com/api/v1/slack/events`
-2. `message.channels` 購読
-3. Signing Secret を Functions に設定
-
-### 9.4 デプロイ
+### デプロイ
 
 ```bash
 cd deploy
-npm run deploy:all-with-api   # Hosting + Functions + Storage + Firestore rules
+npm run deploy:buzzit
 ```
 
 ---
 
-## 10. URL
+## 9. URL
 
 | 環境 | URL |
 |------|-----|

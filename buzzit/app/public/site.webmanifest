@@ -4,8 +4,8 @@
   "description": "SNS運用を毎朝5分のルーティンで。BtoC店舗向けの経営OS。",
   "start_url": "/login",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#4f46e5",
+  "background_color": "#f5f4f0",
+  "theme_color": "#f5f4f0",
   "lang": "ja",
   "icons": [
     {

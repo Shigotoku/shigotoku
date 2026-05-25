@@ -6,6 +6,7 @@
   --color-buzz-ink: #111111;
   --color-buzz-paper: #f5f4f0;
   --color-buzz-muted: #6b6b6b;
+  --color-buzz-title: #6b4a3a;
 }
 
 html {
@@ -21,6 +22,15 @@ body {
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display);
   letter-spacing: -0.02em;
+}
+
+h1,
+h2 {
+  color: var(--color-buzz-title);
+}
+
+footer h2 {
+  color: #ffffff;
 }
 
 /* Scroll reveal — subtle only */
@@ -71,22 +81,102 @@ h1, h2, h3, h4, h5, h6 {
   color: #ffffff;
 }
 
-/* Photo grid hover — very subtle */
-.buzz-photo {
+/* Latin brand names — body font, not display */
+.buzz-latin {
+  font-family: var(--font-body);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* Full-width photo strip (Before/After → Instagram) */
+.buzz-photo-strip {
+  width: 100%;
   overflow: hidden;
+  border-top: 1px solid #e5e5e5;
+  border-bottom: 1px solid #e5e5e5;
+  background: #f5f4f0;
 }
 
-.buzz-photo img {
-  transition: transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+.buzz-photo-strip-track {
+  display: flex;
+  gap: 0;
+  width: max-content;
+  animation: buzz-strip-scroll 55s linear infinite;
 }
 
-.buzz-photo:hover img {
-  transform: scale(1.03);
+.buzz-photo-strip-item {
+  flex: 0 0 auto;
+  width: clamp(200px, 28vw, 360px);
+  height: clamp(180px, 22vw, 280px);
+  margin: 0;
+}
+
+.buzz-photo-strip-item img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+@keyframes buzz-strip-scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* Hero — collage as full-bleed background */
+.buzz-hero {
+  min-height: clamp(680px, 88vh, 980px);
+}
+
+.buzz-hero-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.buzz-hero-bg img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 40%;
+}
+
+.buzz-hero-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+    105deg,
+    rgba(245, 244, 240, 0.55) 0%,
+    rgba(245, 244, 240, 0.25) 35%,
+    rgba(245, 244, 240, 0.08) 60%,
+    rgba(245, 244, 240, 0) 100%
+  );
+  pointer-events: none;
+}
+
+.buzz-hero-panel {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  padding: 2rem 1.75rem;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
+}
+
+@media (min-width: 768px) {
+  .buzz-hero-panel {
+    padding: 2.5rem 2.25rem;
+  }
+}
+
+.buzz-hero > .relative {
+  z-index: 2;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .animate-on-scroll,
-  .buzz-photo img {
+  .buzz-photo-strip-track {
     animation: none !important;
     transition: none !important;
     opacity: 1 !important;

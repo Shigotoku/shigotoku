@@ -117,17 +117,17 @@ export default function MediaDropzone({ files, onChange, disabled }: MediaDropzo
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}
         onDrop={onDrop}
-        className={`min-h-[8rem] border-2 border-dashed rounded-xl flex flex-col items-center justify-center text-slate-500 transition-colors cursor-pointer px-4 py-6 ${
+        className={`flex min-h-[8rem] cursor-pointer flex-col items-center justify-center border-2 border-dashed px-4 py-6 transition-colors ${
           isDragging
-            ? 'border-indigo-400 bg-indigo-500/10 text-indigo-300'
-            : 'border-slate-700 hover:border-indigo-500/50 hover:bg-indigo-500/5'
-        } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+            ? 'border-neutral-900 bg-neutral-50 text-neutral-800'
+            : 'border-neutral-300 text-neutral-500 hover:border-neutral-500 hover:bg-neutral-50'
+        } ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
       >
-        <Upload className={`w-6 h-6 mb-2 ${isDragging ? 'text-indigo-400' : ''}`} />
-        <span className="text-sm text-center">
+        <Upload className="mb-2 h-6 w-6" />
+        <span className="text-center text-sm">
           {isDragging ? 'ここにドロップ' : '画像や動画をドロップ、またはクリックして選択'}
         </span>
-        <span className="text-xs text-slate-600 mt-1">JPEG / PNG / WebP / MP4 など（画像10MB・動画50MBまで）</span>
+        <span className="mt-1 text-xs text-neutral-400">JPEG / PNG / WebP / MP4 など（画像10MB・動画50MBまで）</span>
         <input
           ref={inputRef}
           type="file"
@@ -142,28 +142,26 @@ export default function MediaDropzone({ files, onChange, disabled }: MediaDropzo
         />
       </div>
 
-      {error && (
-        <p className="text-xs text-rose-400">{error}</p>
-      )}
+      {error && <p className="text-xs text-rose-700">{error}</p>}
 
       {files.length > 0 && (
         <div className="grid grid-cols-2 gap-2">
           {files.map((item) => (
             <div
               key={item.id}
-              className="relative rounded-lg overflow-hidden border border-slate-700 bg-slate-900 aspect-video group"
+              className="group relative aspect-video overflow-hidden border border-neutral-200 bg-neutral-100"
             >
               {item.kind === 'image' ? (
-                <img src={item.previewUrl} alt={item.name} className="w-full h-full object-cover" />
+                <img src={item.previewUrl} alt={item.name} className="h-full w-full object-cover" />
               ) : (
-                <video src={item.previewUrl} className="w-full h-full object-cover" muted playsInline />
+                <video src={item.previewUrl} className="h-full w-full object-cover" muted playsInline />
               )}
-              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2">
-                <div className="flex items-center gap-1 text-[10px] text-white truncate">
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+                <div className="flex items-center gap-1 truncate text-[10px] text-white">
                   {item.kind === 'video' ? (
-                    <Film className="w-3 h-3 shrink-0" />
+                    <Film className="h-3 w-3 shrink-0" />
                   ) : (
-                    <ImageIcon className="w-3 h-3 shrink-0" />
+                    <ImageIcon className="h-3 w-3 shrink-0" />
                   )}
                   <span className="truncate">{item.name}</span>
                 </div>
@@ -174,10 +172,10 @@ export default function MediaDropzone({ files, onChange, disabled }: MediaDropzo
                   e.stopPropagation();
                   removeFile(item.id);
                 }}
-                className="absolute top-1 right-1 p-1 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
                 aria-label="削除"
               >
-                <X className="w-3.5 h-3.5" />
+                <X className="h-3.5 w-3.5" />
               </button>
             </div>
           ))}
