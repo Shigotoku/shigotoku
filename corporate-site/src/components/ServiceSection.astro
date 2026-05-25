@@ -1,5 +1,5 @@
 ---
-import { RUNWITH_LP, RUNWITH_APP, runwithAppPath } from '../lib/urls';
+import { RUNWITH_LP, RUNWITH_APP, BUZZIT_LP, BUZZIT_APP, runwithAppPath } from '../lib/urls';
 
 const features = [
   { color: 'bg-blue-50', iconColor: 'text-blue-600', title: 'ジャーニーマップ', description: '創業前〜EXITまでの全タスクを可視化。進捗バーで次のアクションが一目でわかります。', demoUrl: runwithAppPath('/journey') },
@@ -51,7 +51,41 @@ const features = [
       </div>
     </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+    <div class="rounded-3xl bg-gradient-to-br from-indigo-600 to-sky-500 p-px shadow-xl shadow-indigo-100">
+      <div class="rounded-[calc(1.5rem-1px)] bg-white p-8 sm:p-12">
+        <div class="flex flex-col lg:flex-row items-center gap-10">
+          <div class="flex-1">
+            <span class="inline-block rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-600 mb-4">SNS × 売上</span>
+            <h3 class="text-3xl sm:text-4xl font-black text-gray-900 mb-4">バジット <span class="text-xl font-semibold text-gray-400">(BuzzIt)</span></h3>
+            <p class="text-gray-500 leading-relaxed mb-6">BtoC店舗向けのSNS運用・売上トラッキングOS。InstagramからLINE、来店までを毎朝5分のルーティンで回せます。</p>
+            <div class="flex flex-wrap gap-3">
+              <a href={BUZZIT_LP} class="group inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors shadow-sm">
+                サービスサイトへ
+                <svg class="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
+              </a>
+              <a href={`${BUZZIT_APP}/login`} class="group inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-5 py-2.5 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 transition-colors">
+                デモを試す
+                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 010 1.972l-11.54 6.347a1.125 1.125 0 01-1.667-.986V5.653z" /></svg>
+              </a>
+            </div>
+          </div>
+          <div class="flex-1 w-full">
+            <div class="rounded-2xl bg-gradient-to-br from-indigo-50 to-sky-50 border border-indigo-100 p-8 text-center">
+              <div class="h-24 w-24 mx-auto mb-4 rounded-2xl bg-indigo-600 flex items-center justify-center text-4xl font-black text-white">B</div>
+              <p class="text-2xl font-black text-gray-900">Instagram × LINE 連携</p>
+              <p class="text-sm text-gray-500 mt-1">美容サロン・店舗ビジネス向け</p>
+              <div class="mt-4 flex flex-wrap justify-center gap-2">
+                {['無料診断あり', 'AI台本生成', '売上トラッキング'].map((tag) => (
+                  <span class="rounded-full bg-white border border-indigo-100 px-3 py-1 text-xs font-medium text-indigo-700 shadow-sm">{tag}</span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-12">
       {features.map((feature) => (
         <div class="group rounded-2xl bg-white border border-gray-100 p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col">
           <div class={`inline-flex items-center justify-center w-11 h-11 rounded-xl ${feature.color} ${feature.iconColor} mb-4 text-lg font-bold`}>◆</div>

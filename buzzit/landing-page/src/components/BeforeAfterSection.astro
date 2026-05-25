@@ -1,0 +1,47 @@
+---
+const comparisons = [
+  {
+    before: '毎週3時間、何を投稿するか悩む。結局、同じ店内写真を載せるだけ。',
+    after: 'BuzzItが「今日の台本」を提示。スマホで30秒読むだけで投稿完了。',
+    metric: '運用時間 90% 削減',
+  },
+  {
+    before: 'Instagram のリーチは伸びない。いいねは社内メンバーだけ。',
+    after: '【悲報】フック台本で初動を改善。1本のショート動画から全SNSへ展開。',
+    metric: 'リーチ 3.2倍',
+  },
+  {
+    before: 'SNSが売上に繋がっているか、店長も社長も把握できない。',
+    after: 'LINE登録→来店→売上までをダッシュボードで可視化。',
+    metric: '推計売上 +¥342,000/月',
+  },
+];
+---
+
+<section id="solution" class="py-32 relative z-10 bg-white">
+  <div class="max-w-[1400px] mx-auto px-6 md:px-12">
+    <div class="mb-16 text-center animate-on-scroll slide-up">
+      <p class="text-sm font-bold tracking-widest text-indigo-600 uppercase mb-4">Before / After</p>
+      <h2 class="text-5xl md:text-6xl font-bold font-['Outfit'] tracking-tight mb-6 text-slate-900">
+        投稿の悩みが、<br class="md:hidden" />売上の仕組みに変わる。
+      </h2>
+      <p class="text-slate-500 text-xl max-w-3xl mx-auto">美容サロン・クリニック・飲食店など、BtoC店舗で起きている変化。</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      {comparisons.map((item, index) => (
+        <div class="rounded-[32px] border border-slate-100 bg-slate-50/80 p-8 shadow-sm animate-on-scroll slide-up">
+          <div class="mb-6">
+            <p class="text-xs font-bold uppercase tracking-wider text-rose-500 mb-2">Before</p>
+            <p class="text-slate-600 leading-relaxed">{item.before}</p>
+          </div>
+          <div class="mb-6 rounded-2xl bg-white border border-indigo-100 p-6">
+            <p class="text-xs font-bold uppercase tracking-wider text-indigo-600 mb-2">After（BuzzIt）</p>
+            <p class="text-slate-800 leading-relaxed font-medium">{item.after}</p>
+          </div>
+          <p class="text-sm font-bold text-emerald-600">{item.metric}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>

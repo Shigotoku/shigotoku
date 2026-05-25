@@ -55,6 +55,50 @@ export const testimonials = [
   { quote: 'DCF計算とマルチプル評価をスプレッドシートでやっていたが、毎回VCから「計算の根拠は？」と聞かれた。このツールに変えてから、資金調達の議論の質が上がった。', name: '山本 隆史', role: 'CFO / SaaS企業', phase: 'シリーズA', phaseColor: 'bg-violet-100 text-violet-700' },
 ];
 
+export const caseStudies = [
+  {
+    tag: '創業支援',
+    tagColor: 'bg-blue-100 text-blue-700',
+    title: '熊本のSaaS起業家が、設立から補助金申請まで3週間で完走',
+    summary: '会社設立ナビと届出チェックリストで手続きを標準化。補助金マッチングでIT導入補助金の候補を当日中に特定しました。',
+    metrics: [
+      { label: '設立完了', value: '21日' },
+      { label: '補助金候補', value: '3件' },
+      { label: '利用プラン', value: 'Growth' },
+    ],
+  },
+  {
+    tag: '医療スタートアップ',
+    tagColor: 'bg-emerald-100 text-emerald-700',
+    title: '医療AIスタートアップが、薬機法チェックとピッチ資料を一元管理',
+    summary: '医療モードで薬機法ナビを活用しつつ、ピッチデッキとDDチェックリストをProプランで運用。投資家向け説明の準備時間を大幅に短縮。',
+    metrics: [
+      { label: 'DD準備', value: '−60%' },
+      { label: 'ピッチ更新', value: '月2回' },
+      { label: '利用プラン', value: 'Pro' },
+    ],
+  },
+  {
+    tag: '資金調達',
+    tagColor: 'bg-violet-100 text-violet-700',
+    title: 'シリーズA準備中のCFOが、バリュエーション根拠を可視化',
+    summary: '事業シミュレーターで60ヶ月の収支と感度分析を作成。VCとの打ち合わせで「数字の根拠」をその場で説明できるようになりました。',
+    metrics: [
+      { label: 'シミュレーション', value: '60ヶ月' },
+      { label: 'VC面談', value: '8社' },
+      { label: '利用プラン', value: 'Pro' },
+    ],
+  },
+];
+
+export const homepageFaqs = [
+  { q: 'ランウィズはどんな起業家向けですか？', a: '創業アイデア段階からIPO・EXIT準備まで、スタートアップの成長フェーズに合わせた30以上のツールを提供します。特に医療・ヘルスケア系スタートアップ向けの医療モードも用意しています。' },
+  { q: '本当に無料で始められますか？', a: 'はい。会社設立ナビ・届出・手続きナビ・事業シミュレーター（基本）など、創業準備に必要な機能はクレジットカード登録なしで利用できます。' },
+  { q: '補助金・助成金のマッチングはどう使いますか？', a: '会社情報を入力すると、IT導入補助金やものづくり補助金など、適合可能性の高い制度を自動で一覧化します。Growthプラン以上でご利用いただけます。' },
+  { q: '医療スタートアップ向けの機能はありますか？', a: 'はい。Growth・Proプランに医療モード（+¥3,000/月）を追加すると、薬機法ナビ・PMDA対応ガイド・臨床研究ロードマップなどが利用できます。' },
+  { q: 'チームで使えますか？', a: 'はい。メンバー招待・権限管理に対応しています。共同創業者やCFO、外注パートナーと進捗を共有できます。' },
+];
+
 export const previewPlans = [
   { name: 'Free', price: '¥0', per: '', tag: 'まず試したい方に', tagColor: 'bg-slate-100 text-slate-600', border: 'border-slate-200/60', ctaStyle: 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50', features: ['会社設立ナビ（7ステップ）', '届出・手続きナビ', '銀行口座開設ガイド', '法人カード比較', '事業シミュレーター（基本）'] },
   { name: 'Growth', price: '¥2,980', per: '/月', tag: '最も人気', tagColor: 'bg-primary-600 text-white', border: 'border-primary-400 ring-2 ring-primary-100', ctaStyle: 'bg-primary-600 text-white shadow-md hover:bg-primary-700', features: ['Freeの全機能', '補助金マッチング', '契約書テンプレート15種', '税務カレンダー', '労務管理ガイド', '知財管理', 'KPIトラッカー', 'ピッチデッキ作成'] },

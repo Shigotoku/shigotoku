@@ -10,17 +10,23 @@ export const CORPORATE_URL = 'https://shigotoku.com';
 export const RUNWITH_LP_URL = 'https://shigotoku.com/runwith';
 export const BUZZIT_LP_URL = 'https://shigotoku.com/buzzit';
 
+/** GA4 測定 ID（未設定時は計測タグを出力しない） */
+export const GA_MEASUREMENT_ID = process.env.PUBLIC_GA_MEASUREMENT_ID ?? '';
+
 export const projectEnv = {
   'corporate-site': {
     PUBLIC_RUNWITH_APP_URL: RUNWITH_APP_URL,
     PUBLIC_BUZZIT_APP_URL: BUZZIT_APP_URL,
+    PUBLIC_GA_MEASUREMENT_ID: GA_MEASUREMENT_ID,
   },
   'runwith-landing': {
     PUBLIC_APP_URL: RUNWITH_APP_URL,
+    PUBLIC_GA_MEASUREMENT_ID: GA_MEASUREMENT_ID,
   },
   'buzzit-landing': {
     PUBLIC_APP_URL: BUZZIT_APP_URL,
     PUBLIC_CORPORATE_URL: `${CORPORATE_URL}/`,
+    PUBLIC_GA_MEASUREMENT_ID: GA_MEASUREMENT_ID,
   },
   'runwith-app': {
     VITE_LANDING_URL: RUNWITH_LP_URL,

@@ -30,8 +30,7 @@ export default function DashboardLayout() {
         <div className="h-20 flex items-center px-6 border-b border-slate-800">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-lg">B</div>
-            <span className="text-xl font-bold font-['Outfit'] tracking-wide">{BRAND_NAME}</span>
-          </div>
+            <span className="text-xl font-bold font-['Outfit'] tracking-wide">{BRAND_NAME}</span>          </div>
         </div>
         <nav className="flex-1 p-4 space-y-1">
           {navItems.map((item) => (

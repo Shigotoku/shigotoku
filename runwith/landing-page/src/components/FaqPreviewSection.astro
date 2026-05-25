@@ -1,0 +1,31 @@
+---
+import { homepageFaqs } from '../data/content';
+import { sitePath } from '../lib/urls';
+
+const pricingUrl = sitePath('pricing');
+---
+
+<section id="faq" class="border-b border-slate-100 bg-white px-4 py-20 sm:px-6 sm:py-24">
+  <div class="mx-auto max-w-3xl">
+    <div class="mb-12 text-center">
+      <p class="mb-3 text-sm font-semibold uppercase tracking-widest text-slate-400">FAQ</p>
+      <h2 class="text-3xl font-extrabold text-slate-900 sm:text-4xl">よくある質問</h2>
+    </div>
+    <div class="space-y-4">
+      {homepageFaqs.map((faq) => (
+        <details class="group rounded-2xl border border-slate-200/60 bg-slate-50/50 px-6 py-5">
+          <summary class="cursor-pointer list-none text-sm font-semibold text-slate-900 marker:content-none">
+            <span class="flex items-center justify-between gap-4">
+              {faq.q}
+              <span class="text-slate-400 transition-transform group-open:rotate-45">+</span>
+            </span>
+          </summary>
+          <p class="mt-4 text-sm leading-relaxed text-slate-600">{faq.a}</p>
+        </details>
+      ))}
+    </div>
+    <p class="mt-8 text-center text-sm text-slate-500">
+      料金・プランの詳細は <a href={pricingUrl} class="font-semibold text-primary-600 hover:text-primary-700">料金ページ</a> をご覧ください。
+    </p>
+  </div>
+</section>

@@ -3,6 +3,7 @@ import '../styles/global.css';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import Seo from '../components/Seo.astro';
+import Analytics from '../components/Analytics.astro';
 
 interface Props {
   title: string;
@@ -27,6 +28,7 @@ const {
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+JP:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
     <Seo title={title} description={description} />
+    <Analytics />
     <title>{title}</title>
   </head>
   <body class="min-h-screen bg-white text-gray-900">

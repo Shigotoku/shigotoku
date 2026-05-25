@@ -80,8 +80,7 @@ export default function LoginPage() {
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 text-lg font-bold">
               B
             </div>
-            <span className="text-lg font-bold font-['Outfit']">{BRAND_NAME}</span>
-          </Link>
+            <span className="text-lg font-bold font-['Outfit']">{BRAND_NAME}</span>          </Link>
           <a
             href={landingPath('/')}
             className="text-sm text-slate-400 transition-colors hover:text-white"
@@ -104,8 +103,7 @@ export default function LoginPage() {
           </h1>
           <p className="mt-6 text-base leading-relaxed text-slate-400">
             {BRAND_FULL}は、BtoC店舗向けのSNS運用・売上トラッキングOSです。
-            メールアドレスでログインし、Gemini・Slack・Ayrshare と連携できます。
-          </p>
+            メールアドレスでログインし、Gemini・Slack・Ayrshare と連携できます。          </p>
           <ul className="mt-8 space-y-3 text-sm text-slate-300">
             <li>・Gemini AI による Repurpose 生成</li>
             <li>・Slack ネタ会議・戦略的通知</li>

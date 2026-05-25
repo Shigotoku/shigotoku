@@ -9,8 +9,8 @@
 | [`corporate-site/`](./corporate-site/) | シゴトク ホームページ | コーポレートサイト | Astro |
 | [`runwith/landing-page/`](./runwith/landing-page/) | ランウィズ | ランディングページ | Astro |
 | [`runwith/app/`](./runwith/app/) | ランウィズ | Webアプリ | React + Vite |
-| [`buzzit/landing-page/`](./buzzit/landing-page/) | バジット（BuzzPilot） | ランディングページ | Astro |
-| [`buzzit/app/`](./buzzit/app/) | バジット（BuzzPilot） | Webアプリ | React + Vite |
+| [`buzzit/landing-page/`](./buzzit/landing-page/) | バジット（BuzzIt） | ランディングページ | Astro |
+| [`buzzit/app/`](./buzzit/app/) | バジット（BuzzIt） | Webアプリ | React + Vite |
 
 ## 開発の起動方法
 
@@ -61,5 +61,5 @@ npm run deploy:all     # Firebase へデプロイ
 
 ## 補足
 
-- **バジット**はプロダクト名「BuzzPilot」として開発されています。
+- **バジット**のプロダクト名は **BuzzIt** です。
 - **ランウィズ**の DB マイグレーション（参考用）は [`runwith/supabase/`](./runwith/supabase/) にあります。Supabase は本番未使用（デモモード）。
