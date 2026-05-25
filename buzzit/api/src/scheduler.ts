@@ -3,6 +3,7 @@ import { initializeApp, getApps } from 'firebase-admin/app';
 import { runAutoModeForAllUsers, sendStrategicNotifications } from './services/autoMode';
 import { refreshTrendsForAllUsers } from './services/trends';
 import { evaluateAbTestsForAllUsers } from './services/abTest';
+import { functionSecrets } from './config/secrets';
 
 if (!getApps().length) initializeApp();
 
@@ -12,6 +13,7 @@ export const buzzitScheduler = onSchedule(
     timeZone: 'Asia/Tokyo',
     region: 'asia-northeast1',
     serviceAccount: 'firebase-adminsdk-fbsvc@shigotoku-prod.iam.gserviceaccount.com',
+    secrets: [...functionSecrets],
   },
   async () => {
     const hour = new Date().getHours();

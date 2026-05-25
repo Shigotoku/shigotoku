@@ -26,6 +26,7 @@ jobs:
             runwith/app/package-lock.json
             buzzit/landing-page/package-lock.json
             buzzit/app/package-lock.json
+            buzzit/api/package-lock.json
             deploy/package-lock.json
 
       - name: Install dependencies
@@ -35,10 +36,11 @@ jobs:
           npm ci --prefix runwith/app
           npm ci --prefix buzzit/landing-page
           npm ci --prefix buzzit/app
+          npm ci --prefix buzzit/api
           npm ci --prefix deploy
 
-      - name: Deploy to Firebase Hosting
+      - name: Deploy to Firebase (Hosting + BuzzIt API)
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
           PUBLIC_GA_MEASUREMENT_ID: ${{ secrets.PUBLIC_GA_MEASUREMENT_ID }}
-        run: npm run deploy:all --prefix deploy
+        run: npm run deploy:all-with-api --prefix deploy

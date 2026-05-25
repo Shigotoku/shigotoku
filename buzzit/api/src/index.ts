@@ -51,6 +51,7 @@ import {
   evaluateAllRunningAbTests,
 } from './services/abTest';
 import { requireAuth, type AuthedRequest } from './middleware/auth';
+import { functionSecrets } from './config/secrets';
 
 if (!getApps().length) initializeApp();
 
@@ -78,7 +79,7 @@ api.get('/health', (_req, res) => {
 // --- Upload ---
 const rawUpload = express.raw({ type: '*/*', limit: `${MAX_VIDEO_BYTES}b` });
 
-api.post('/v1/upload', rawUpload, async (req, res) => {
+api.post('/v1/upload', requireAuth, rawUpload, async (req: AuthedRequest, res) => {
   try {
     const fileName = decodeURIComponent(req.header('x-file-name') ?? 'upload.bin');
     const contentType = req.header('content-type') ?? 'application/octet-stream';
@@ -108,7 +109,7 @@ api.post('/v1/upload', rawUpload, async (req, res) => {
   }
 });
 
-api.post('/v1/upload/signed-url', async (req, res) => {
+api.post('/v1/upload/signed-url', requireAuth, async (req: AuthedRequest, res) => {
   try {
     const { fileName, contentType, size } = req.body as {
       fileName?: string;
@@ -580,6 +581,6 @@ const functionOptions = {
   serviceAccount: 'firebase-adminsdk-fbsvc@shigotoku-prod.iam.gserviceaccount.com',
 };
 
-export const buzzitApi = onRequest(functionOptions, app);
+export const buzzitApi = onRequest({ ...functionOptions, secrets: [...functionSecrets] }, app);
 
 export { buzzitScheduler } from './scheduler';

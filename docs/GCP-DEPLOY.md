@@ -103,13 +103,17 @@ deploy/dist/
 ```bash
 cd deploy
 
-# すべてデプロイ
+# Hosting + Storage + Firestore ルール
 npm run deploy:all
+
+# BuzzIt API（Cloud Functions + Scheduler）も含める
+npm run deploy:all-with-api
 
 # 個別デプロイ
 npm run deploy:web
 npm run deploy:runwith-app
 npm run deploy:buzzit-app
+npm run deploy:buzzit-api
 ```
 
 初回は `*.web.app` のデフォルト URL で表示確認できます。
@@ -148,6 +152,44 @@ export const BUZZIT_APP_URL = 'https://app.buzzit.shigotoku.com';
 ```
 
 ローカル開発用は各プロジェクトの `.env.example` を参照してください。
+
+---
+
+## 10. BuzzIt API（Cloud Functions）
+
+BuzzIt アプリは Hosting の `/api/**` を Cloud Functions `buzzitApi`（`asia-northeast1`）へプロキシします。
+
+### Secret の登録
+
+```bash
+cd deploy
+firebase functions:secrets:set GEMINI_API_KEY
+firebase functions:secrets:set AYRSHARE_API_KEY
+firebase functions:secrets:set SLACK_SIGNING_SECRET
+```
+
+### デプロイ
+
+```bash
+cd deploy
+npm run deploy:all-with-api
+```
+
+### 動作確認
+
+```bash
+curl https://app.buzzit.shigotoku.com/api/health
+```
+
+---
+
+## 11. ランウィズのバックエンドについて
+
+ランウィズアプリは **Firebase Hosting（GCP）で配信** されていますが、認証・DB のコードは **Supabase 向け** です。
+
+本番ビルド（`deploy/build.mjs`）では Supabase キーを意図的に空にしているため、現状は **デモモード**（ブラウザ localStorage）で動作します。GCP 上の Firebase Auth / Firestore には未接続です。
+
+本番でログイン・永続データが必要な場合は、Supabase 再開または GCP 移行のどちらかを選んで実装してください。詳細は [`DEPLOY-STATUS.md`](./DEPLOY-STATUS.md) を参照。
 
 ---
 
