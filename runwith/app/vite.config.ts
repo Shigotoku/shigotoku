@@ -13,4 +13,31 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/firebase') || id.includes('node_modules/@firebase')) {
+            return 'firebase';
+          }
+          if (id.includes('node_modules/recharts') || id.includes('node_modules/d3-')) {
+            return 'charts';
+          }
+          if (
+            id.includes('/features/labor/') ||
+            id.includes('/features/bank/') ||
+            id.includes('/features/credit/') ||
+            id.includes('/features/tax/') ||
+            id.includes('/features/contracts/') ||
+            id.includes('/features/notifications/')
+          ) {
+            return 'guides';
+          }
+          if (id.includes('/features/idea-tools/') || id.includes('/features/seed/')) {
+            return 'idea-tools';
+          }
+        },
+      },
+    },
+  },
 });

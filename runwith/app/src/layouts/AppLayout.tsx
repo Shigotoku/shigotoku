@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import {
   LayoutDashboard, Map, Building2, Banknote, Landmark, CreditCard,
   LineChart, Presentation, Users, Handshake, Settings,
@@ -12,6 +12,8 @@ import { useAuthStore } from "../store/auth";
 import { useCompanyStore } from "../store/company";
 import { useSubscriptionStore, PLAN_LABELS } from "../store/subscription";
 import CompanySwitcher from "../components/CompanySwitcher";
+import PageLoader from "../components/PageLoader";
+import { prefetchRoute } from "../lib/routePrefetch";
 import { isAdminUser } from "../lib/admin";
 import clsx from "clsx";
 
@@ -98,6 +100,10 @@ export default function AppLayout() {
   const [journeyReturnPhase, setJourneyReturnPhase] = useState<string | null>(null);
 
   useEffect(() => {
+    prefetchRoute(location.pathname);
+  }, [location.pathname]);
+
+  useEffect(() => {
     const state = location.state as { fromJourney?: boolean; returnPhase?: string } | null;
     if (state?.fromJourney) {
       setFromJourney(true);
@@ -143,6 +149,8 @@ export default function AppLayout() {
 
   const planLevel = (p: string) => p === "pro" ? 3 : p === "growth" ? 2 : 1;
   const currentLevel = planLevel(plan);
+
+  const prefetchOnIntent = (path: string) => () => prefetchRoute(path);
 
   return (
     <div className="flex min-h-screen bg-slate-50">
@@ -251,6 +259,8 @@ export default function AppLayout() {
                         key={item.path}
                         to={item.path}
                         onClick={() => setSidebarOpen(false)}
+                        onMouseEnter={prefetchOnIntent(item.path)}
+                        onFocus={prefetchOnIntent(item.path)}
                         title={collapsed ? item.label : undefined}
                         className={clsx(
                           "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-all",
@@ -299,6 +309,8 @@ export default function AppLayout() {
                     key={item.path}
                     to={item.path}
                     onClick={() => setSidebarOpen(false)}
+                    onMouseEnter={prefetchOnIntent(item.path)}
+                    onFocus={prefetchOnIntent(item.path)}
                     title={collapsed ? item.label : undefined}
                     className={clsx(
                       "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-all",
@@ -320,6 +332,8 @@ export default function AppLayout() {
         <div className="border-t border-slate-100 px-3 py-3">
           <Link
             to="/community"
+            onMouseEnter={prefetchOnIntent('/community')}
+            onFocus={prefetchOnIntent('/community')}
             className={clsx(
               "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-all",
               collapsed && "justify-center",
@@ -335,6 +349,8 @@ export default function AppLayout() {
         <div className="border-t border-slate-100 px-3 py-3">
           <Link
             to="/settings"
+            onMouseEnter={prefetchOnIntent('/settings')}
+            onFocus={prefetchOnIntent('/settings')}
             className={clsx(
               "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium text-slate-600 transition-all hover:bg-slate-100",
               collapsed && "justify-center"
@@ -421,7 +437,9 @@ export default function AppLayout() {
             </div>
           )}
           <div className="mx-auto max-w-6xl">
-            <Outlet />
+            <Suspense fallback={<PageLoader compact />}>
+              <Outlet />
+            </Suspense>
           </div>
         </main>
       </div>

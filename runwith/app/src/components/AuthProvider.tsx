@@ -3,6 +3,7 @@ import { useAuthStore } from "../store/auth";
 import { useCompanyStore } from "../store/company";
 import { useSubscriptionStore } from "../store/subscription";
 import { isFirebaseConfigured } from "../lib/firebase";
+import { prefetchNavRoutes } from "../lib/routePrefetch";
 import { Loader2 } from "lucide-react";
 
 export default function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -22,6 +23,8 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
 
     // サブスクリプションはユーザー単位で取得
     fetchSubscription(user.id);
+
+    prefetchNavRoutes();
   }, [isAuthenticated, user?.id, isDemo, fetchCompanies, fetchSubscription]);
 
   if (!initialized) {
