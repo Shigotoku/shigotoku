@@ -1,28 +1,30 @@
-# デプロイ状況（2026-05-22 更新）
+# デプロイ状況（2026-05-25 更新）
 
 ## 完了
 
 | 項目 | URL / 備考 |
 |------|------------|
-| GCP プロジェクト | `shigotoku-prod` |
-| Firebase Hosting | 3 サイトすべてデプロイ済み |
+| GCP プロジェクト | **`shigotoku-prod`**（BuzzIt + コーポレート） / **`shigotoku-runwith-prod`**（ランウィズ専用） |
+| Firebase Hosting | BuzzIt 2 サイト + ランウィズ 1 サイト デプロイ済み |
 | コーポレート + LP | https://shigotoku.com/ |
 | ランウィズ LP | https://shigotoku.com/runwith/ |
 | バジット LP | https://shigotoku.com/buzzit/ |
-| ランウィズ アプリ | https://app.runwith.shigotoku.com/（Hosting のみ GCP） |
-| バジット アプリ | https://app.buzzit.shigotoku.com/（Firebase Auth + Firestore + API） |
+| ランウィズ アプリ | https://app.runwith.shigotoku.com/ → **`shigotoku-runwith-prod`** |
+| バジット アプリ | https://app.buzzit.shigotoku.com/ → **`shigotoku-prod`** |
 | GA4 | コーポレート / LP に計測タグ反映済み（`G-3T67LD7FT9`） |
 | Search Console | sitemap 送信済み（8 ページ検出） |
-| GitHub Actions | `main` push → Firebase デプロイ（Hosting + BuzzIt API） |
+| GitHub Actions | `main` push → `deploy:all-with-api`（両プロジェクト） |
 
 ---
 
 ## バックエンド構成（重要）
 
-| サービス | Hosting | 認証・DB | 備考 |
-|----------|---------|----------|------|
-| **ランウィズ** | GCP（Firebase Hosting） | **Firebase Auth + Firestore + Storage** | `runwith_users`, `runwith_companies` コレクション |
-| **BuzzIt** | GCP（Firebase Hosting） | Firebase Auth + Firestore + Cloud Functions + Storage | `/api/**` → `buzzitApi` |
+| サービス | Firebase プロジェクト | 認証・DB | 備考 |
+|----------|----------------------|----------|------|
+| **ランウィズ** | `shigotoku-runwith-prod` | Firebase Auth + Firestore + Storage | `runwith_users`, `runwith_companies` 等 |
+| **BuzzIt** | `shigotoku-prod` | Firebase Auth + Firestore + Cloud Functions + Storage | `/api/**` → `buzzitApi` |
+
+詳細: [FIREBASE-SPLIT.md](./FIREBASE-SPLIT.md)
 
 ---
 
@@ -87,17 +89,19 @@ Firebase Console で以下も有効化済みか確認:
 
 Formspree ではなく、自社リード管理アプリ連携予定（保留）。
 
-### 3. ランウィズ本番 DB / 認証
+### 3. ランウィズ本番（`shigotoku-runwith-prod`）
 
-**Firebase Auth + Firestore へ移行済み**（2026-05-22）。
+**2026-05-25 時点で完了:**
 
-Firebase Console で以下を確認:
+- [x] Blaze プラン + Storage 有効化
+- [x] Authentication（メール/パスワード + Google）
+- [x] Authorized domains に `app.runwith.shigotoku.com`
+- [x] Hosting カスタムドメイン接続
+- [x] Firestore / Storage ルールデプロイ
 
-- Authentication → Email/Password 有効化
-- Authorized domains に `app.runwith.shigotoku.com` 追加
-- Firestore Database 有効化
+**ユーザー向け注意:** 旧 `shigotoku-prod` のランウィズアカウントは使えません。新プロジェクトで再登録が必要です。
 
-機能データ（ジャーニー進捗・KPI 等）は引き続き localStorage。クラウド同期は今後の拡張。
+**Google ログイン:** Console で有効化済みですが、アプリ UI には未実装（メール/パスワードのみ）。
 
 ### 4. その他
 

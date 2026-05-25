@@ -1,19 +1,19 @@
 {
   "projects": {
-    "default": "YOUR_GCP_PROJECT_ID"
+    "default": "YOUR_GCP_PROJECT_ID",
+    "buzzit": "shigotoku-prod",
+    "runwith": "shigotoku-runwith-prod"
   },
   "targets": {
-    "YOUR_GCP_PROJECT_ID": {
+    "shigotoku-prod": {
       "hosting": {
-        "shigotoku-web": [
-          "shigotoku-web"
-        ],
-        "runwith-app": [
-          "runwith-app"
-        ],
-        "buzzit-app": [
-          "shigotoku-buzzit-app"
-        ]
+        "shigotoku-web": ["shigotoku-web"],
+        "buzzit-app": ["shigotoku-buzzit-app"]
+      }
+    },
+    "shigotoku-runwith-prod": {
+      "hosting": {
+        "runwith-app": ["shigotoku-runwith-app"]
       }
     }
   }

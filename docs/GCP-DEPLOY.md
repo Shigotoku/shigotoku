@@ -185,7 +185,7 @@ curl https://app.buzzit.shigotoku.com/api/health
 
 ## 11. ランウィズのバックエンド
 
-ランウィズアプリは **Firebase Auth + Firestore + Storage** を使用します（BuzzIt と同一 GCP プロジェクト `shigotoku-prod`）。
+ランウィズアプリは **Firebase Auth + Firestore + Storage** を使用します（専用プロジェクト **`shigotoku-runwith-prod`**。BuzzIt とは分離）。
 
 | コレクション | 用途 |
 |-------------|------|

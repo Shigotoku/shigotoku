@@ -39,7 +39,7 @@ jobs:
           npm ci --prefix buzzit/api
           npm ci --prefix deploy
 
-      - name: Deploy to Firebase (Hosting + BuzzIt API)
+      - name: Deploy to Firebase (BuzzIt + Runwith, both projects)
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
           PUBLIC_GA_MEASUREMENT_ID: ${{ secrets.PUBLIC_GA_MEASUREMENT_ID }}

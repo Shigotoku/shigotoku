@@ -1,0 +1,77 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isRunwithAdmin() {
+      return request.auth != null && request.auth.token.email == 'admin@shigotoku.com';
+    }
+
+    function isRunwithMember(companyId) {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/runwith_companies/$(companyId)/members/$(request.auth.uid));
+    }
+
+    function runwithMemberRole(companyId) {
+      return get(/databases/$(database)/documents/runwith_companies/$(companyId)/members/$(request.auth.uid)).data.role;
+    }
+
+    function isRunwithCompanyAdmin(companyId) {
+      let role = runwithMemberRole(companyId);
+      return role == 'owner' || role == 'admin';
+    }
+
+    match /runwith_users/{userId} {
+      allow read: if request.auth != null && (request.auth.uid == userId || isRunwithAdmin());
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if false;
+
+      match /subscription/{docId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      match /audit_logs/{logId} {
+        allow read: if request.auth != null && (request.auth.uid == userId || isRunwithAdmin());
+        allow create: if request.auth != null && request.auth.uid == userId;
+        allow update, delete: if false;
+      }
+    }
+
+    match /runwith_companies/{companyId} {
+      allow read: if request.auth != null && (isRunwithMember(companyId) || isRunwithAdmin());
+      allow create: if request.auth != null;
+      allow update: if request.auth != null && (isRunwithCompanyAdmin(companyId) || isRunwithAdmin());
+      allow delete: if request.auth != null && (runwithMemberRole(companyId) == 'owner' || isRunwithAdmin());
+
+      match /members/{memberId} {
+        allow read: if request.auth != null && (isRunwithMember(companyId) || isRunwithAdmin());
+        allow create: if request.auth != null
+          && (request.auth.uid == memberId || isRunwithCompanyAdmin(companyId) || isRunwithAdmin());
+        allow update, delete: if request.auth != null && (isRunwithCompanyAdmin(companyId) || isRunwithAdmin());
+      }
+
+      match /invitations/{invitationId} {
+        allow read: if request.auth != null && (isRunwithMember(companyId) || isRunwithAdmin());
+        allow create: if request.auth != null && (isRunwithCompanyAdmin(companyId) || isRunwithAdmin());
+        allow update: if request.auth != null && (isRunwithCompanyAdmin(companyId) || isRunwithAdmin());
+        allow delete: if request.auth != null && (isRunwithCompanyAdmin(companyId) || isRunwithAdmin());
+      }
+
+      match /audit_logs/{logId} {
+        allow read: if request.auth != null && (isRunwithCompanyAdmin(companyId) || isRunwithAdmin());
+        allow create: if request.auth != null && isRunwithMember(companyId);
+        allow update, delete: if false;
+      }
+
+      match /data/{dataKey} {
+        allow read, write: if request.auth != null && isRunwithMember(companyId);
+      }
+    }
+
+    match /runwith_invitation_tokens/{token} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null;
+    }
+  }
+}
