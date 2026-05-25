@@ -4,14 +4,19 @@ import { getStorage } from 'firebase/storage';
 import {
   createUserWithEmailAndPassword,
   getAuth,
+  GoogleAuthProvider,
   onAuthStateChanged,
   sendPasswordResetEmail,
   sendEmailVerification,
   signInWithEmailAndPassword,
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut as firebaseSignOut,
   updatePassword as firebaseUpdatePassword,
   updateProfile,
   type User,
+  type UserCredential,
 } from 'firebase/auth';
 
 const firebaseConfig = {
@@ -30,6 +35,33 @@ const app = getApps().length ? getApps()[0]! : initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+
+export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: 'select_account' });
+
+let redirectResultPromise: Promise<UserCredential | null> | null = null;
+
+/** Google リダイレクト結果（Strict Mode 二重呼び出し防止） */
+export function resolveGoogleRedirect() {
+  if (!redirectResultPromise) {
+    redirectResultPromise = getRedirectResult(auth);
+  }
+  return redirectResultPromise;
+}
+
+/** Google ログイン: ポップアップ優先、ブロック時はリダイレクト */
+export async function signInWithGoogle() {
+  try {
+    return await signInWithPopup(auth, googleProvider);
+  } catch (err) {
+    const code = (err as { code?: string }).code;
+    if (code === 'auth/popup-blocked' || code === 'auth/popup-closed-by-user') {
+      await signInWithRedirect(auth, googleProvider);
+      return null;
+    }
+    throw err;
+  }
+}
 
 export type { User };
 
@@ -91,6 +123,9 @@ export function formatAuthError(err: unknown): string {
       return 'パスワードは6文字以上で設定してください。';
     case 'auth/too-many-requests':
       return '試行回数が多すぎます。しばらく待ってから再度お試しください。';
+    case 'auth/popup-blocked':
+    case 'auth/cancelled-popup-request':
+      return 'ログインがブロックされました。もう一度お試しください。';
     default:
       return (err as Error)?.message ?? '認証エラーが発生しました';
   }

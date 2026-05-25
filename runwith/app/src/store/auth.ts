@@ -28,6 +28,7 @@ interface AuthState {
     fullName: string
   ) => Promise<{ needsEmailVerification: boolean }>;
   signIn: (email: string, password: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
@@ -67,6 +68,16 @@ export const useAuthStore = create<AuthState>()(
 
         set({ loading: true });
         try {
+          const redirectUser = await authService.resolveGoogleRedirect();
+          if (redirectUser) {
+            const profile = await authService.getProfile(redirectUser.uid);
+            set({
+              user: await profileToUser(redirectUser.uid, redirectUser.email ?? "", profile),
+              isAuthenticated: true,
+              isDemo: false,
+            });
+          }
+
           const session = await authService.getSession();
           if (session?.user) {
             const profile = await authService.getProfile(session.user.id);
@@ -114,6 +125,23 @@ export const useAuthStore = create<AuthState>()(
         set({ loading: true });
         try {
           const { user: authUser } = await authService.signIn(email, password);
+          const profile = await authService.getProfile(authUser.uid);
+          set({
+            user: await profileToUser(authUser.uid, authUser.email ?? "", profile),
+            isAuthenticated: true,
+            isDemo: false,
+          });
+          auditService.log({ action: "user.login" });
+        } finally {
+          set({ loading: false });
+        }
+      },
+
+      signInWithGoogle: async () => {
+        set({ loading: true });
+        try {
+          const { user: authUser } = await authService.signInWithGoogle();
+          if (!authUser) return;
           const profile = await authService.getProfile(authUser.uid);
           set({
             user: await profileToUser(authUser.uid, authUser.email ?? "", profile),

@@ -4,6 +4,8 @@ import {
   onAuthChanged,
   signUpWithEmail,
   signInWithEmail,
+  signInWithGoogle as signInWithGoogleAuth,
+  resolveGoogleRedirect,
   signOutUser,
   sendPasswordReset,
   updateUserPassword,
@@ -42,6 +44,23 @@ export const authService = {
     const user = await signInWithEmail(email, password);
     await ensureUserProfile(user.uid, user.email ?? email, user.displayName);
     return { user };
+  },
+
+  async signInWithGoogle() {
+    if (!isFirebaseConfigured) throw new Error('Firebase未設定');
+
+    const cred = await signInWithGoogleAuth();
+    if (!cred) return { user: null as User | null };
+    await ensureUserProfile(cred.user.uid, cred.user.email ?? '', cred.user.displayName);
+    return { user: cred.user };
+  },
+
+  async resolveGoogleRedirect() {
+    if (!isFirebaseConfigured) return null;
+    const cred = await resolveGoogleRedirect();
+    if (!cred?.user) return null;
+    await ensureUserProfile(cred.user.uid, cred.user.email ?? '', cred.user.displayName);
+    return cred.user;
   },
 
   async signOut() {
