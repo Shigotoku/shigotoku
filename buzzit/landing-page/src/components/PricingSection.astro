@@ -59,7 +59,7 @@ const plans = [
             </span>
           )}
           <h3 class={`font-display text-lg font-bold ${plan.highlight ? 'text-white' : 'text-neutral-900'}`}>{plan.name}</h3>
-          <p class={`mt-2 font-display text-3xl font-bold tabular-nums ${plan.highlight ? 'text-white' : 'text-neutral-900'}`}>
+          <p class:list={['buzz-stat-value mt-2 text-3xl', plan.highlight && 'buzz-stat-value--light']}>
             {plan.price}
             {plan.period && <span class={`text-sm font-normal ${plan.highlight ? 'text-neutral-400' : 'text-neutral-500'}`}>{plan.period}</span>}
           </p>

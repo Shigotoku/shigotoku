@@ -1,7 +1,7 @@
 /** LP 用の高品質ストック写真（Unsplash） */
 export const images = {
   heroMain:
-    'https://images.unsplash.com/photo-1522337360788-8bbb13fd5568?auto=format&fit=crop&w=1400&q=85',
+    'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=1400&q=85',
   heroSubA:
     'https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=800&q=85',
   heroSubB:

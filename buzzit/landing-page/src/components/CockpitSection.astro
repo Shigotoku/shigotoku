@@ -33,9 +33,9 @@ const funnelRows = [
           </div>
           <div class="border border-neutral-200 p-6">
             <p class="text-sm text-neutral-500">SNS健康スコア</p>
-            <p class="buzz-stat-value font-display text-5xl font-bold">
+            <p class="buzz-stat-value text-5xl">
               92
-              <span class="ml-2 text-lg font-bold text-neutral-600">+12%</span>
+              <span class="ml-2 text-lg font-semibold text-neutral-600">+12%</span>
             </p>
           </div>
         </div>
@@ -46,7 +46,7 @@ const funnelRows = [
               <div>
                 <div class="mb-1.5 flex justify-between text-sm">
                   <span class="text-neutral-500">{row.label}</span>
-                  <span class:list={['font-bold tabular-nums', row.accent ? 'text-neutral-900' : 'text-neutral-900']}>{row.value}</span>
+                  <span class="buzz-stat-value text-sm">{row.value}</span>
                 </div>
                 <div class="h-1.5 overflow-hidden bg-neutral-100">
                   <div class="h-full bg-neutral-900" style={`width: ${row.width}`}></div>

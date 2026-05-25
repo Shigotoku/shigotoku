@@ -49,11 +49,14 @@ h1, h2, h3, h4, h5, h6 {
 .delay-200 { transition-delay: 160ms; }
 .delay-300 { transition-delay: 240ms; }
 
-/* Stats — high contrast, tabular numbers */
+/* Stats & prices — sans-serif for readable digits (not display font) */
 .buzz-stat-value {
+  font-family: var(--font-body);
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.03em;
-  line-height: 1;
+  font-feature-settings: "tnum" 1;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
   color: #111111;
 }
 
@@ -62,6 +65,10 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 0.75rem;
   line-height: 1.4;
   margin-top: 0.5rem;
+}
+
+.buzz-stat-value--light {
+  color: #ffffff;
 }
 
 /* Photo grid hover — very subtle */
