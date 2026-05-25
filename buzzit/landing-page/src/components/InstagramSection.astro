@@ -17,9 +17,9 @@ const loginUrl = appPath('/login');
             loading="lazy"
           />
         </div>
-        <div class="absolute -bottom-6 -right-4 w-[72%] max-w-sm rounded-2xl border border-white/80 bg-white/95 p-5 shadow-xl backdrop-blur md:-right-8">
+        <div class="absolute -bottom-6 -right-4 w-[72%] max-w-sm border border-neutral-200 bg-white p-5 shadow-lg md:-right-8">
           <div class="mb-3 flex items-center gap-2">
-            <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400 text-xs font-bold text-white">IG</span>
+            <span class="flex h-9 w-9 items-center justify-center bg-neutral-900 text-xs font-bold text-white">IG</span>
             <div>
               <p class="text-sm font-bold text-slate-900">今日のミッション</p>
               <p class="text-xs text-slate-400">春カラー Reels</p>
@@ -29,16 +29,16 @@ const loginUrl = appPath('/login');
             【悲報】春カラー、予約が埋まりすぎて… 詳細はプロフィールのLINEから▼
           </p>
           <div class="mt-3 grid grid-cols-3 gap-2 text-center">
-            <div class="rounded-lg bg-violet-50 py-2">
-              <p class="text-sm font-bold text-violet-600">24.5K</p>
-              <p class="text-[10px] text-slate-400">リーチ</p>
+            <div class="rounded-lg bg-neutral-100 py-2">
+              <p class="text-sm font-bold text-neutral-900 tabular-nums">24.5K</p>
+              <p class="text-[10px] text-neutral-500">リーチ</p>
             </div>
-            <div class="rounded-lg bg-sky-50 py-2">
-              <p class="text-sm font-bold text-sky-600">124</p>
-              <p class="text-[10px] text-slate-400">LINE</p>
+            <div class="rounded-lg bg-neutral-100 py-2">
+              <p class="text-sm font-bold text-neutral-900 tabular-nums">124</p>
+              <p class="text-[10px] text-neutral-500">LINE</p>
             </div>
-            <div class="rounded-lg bg-emerald-50 py-2">
-              <p class="text-sm font-bold text-emerald-600">¥342K</p>
+            <div class="rounded-lg bg-neutral-100 py-2">
+              <p class="text-sm font-bold text-neutral-900 tabular-nums">¥34.2万</p>
               <p class="text-[10px] text-slate-400">売上</p>
             </div>
           </div>
@@ -47,8 +47,8 @@ const loginUrl = appPath('/login');
     </div>
 
     <div class="animate-on-scroll slide-left order-1 md:order-2">
-      <p class="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-violet-600">Instagram × LINE</p>
-      <h2 class="font-display text-3xl font-bold text-[#0c0a12] md:text-4xl">
+      <p class="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-neutral-500">Instagram × LINE</p>
+      <h2 class="font-display text-3xl font-bold text-neutral-900 md:text-4xl">
         Instagram で集客、<br />LINE でリピート。
       </h2>
       <p class="mt-4 text-base leading-relaxed text-slate-500 md:text-lg">
@@ -68,7 +68,7 @@ const loginUrl = appPath('/login');
       </ul>
       <a
         href={loginUrl}
-        class="mt-9 inline-flex rounded-full bg-[#0c0a12] px-8 py-3.5 text-sm font-bold text-white transition-all hover:bg-violet-700"
+        class="mt-9 inline-flex bg-neutral-900 px-8 py-3.5 text-sm font-bold text-white transition-colors hover:bg-neutral-700"
       >
         無料診断を始める
       </a>

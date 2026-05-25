@@ -3,99 +3,100 @@ import { appPath } from '../lib/urls';
 import { images } from '../lib/images';
 
 const loginUrl = appPath('/login');
+
+const stats = [
+  { value: '90%', label: '運用時間削減' },
+  { value: '3.2×', label: 'リーチ改善' },
+  { value: '+¥34.2万', label: '推計売上 / 月' },
+];
 ---
 
-<section id="top" class="relative overflow-hidden bg-[#0c0a12] pb-24 pt-28 md:pb-32 md:pt-36">
-  <div class="buzz-grain pointer-events-none absolute inset-0"></div>
-  <div class="buzz-mesh-a pointer-events-none absolute -left-32 top-0 h-[520px] w-[520px] rounded-full bg-violet-600/25 blur-[120px]"></div>
-  <div class="buzz-mesh-b pointer-events-none absolute -right-24 bottom-0 h-[480px] w-[480px] rounded-full bg-rose-500/20 blur-[120px]"></div>
-  <div class="pointer-events-none absolute left-1/2 top-1/3 h-64 w-64 -translate-x-1/2 rounded-full bg-fuchsia-500/10 blur-[80px]"></div>
+<section id="top" class="bg-[#f5f4f0] pt-16 md:pt-20">
+  <div class="mx-auto max-w-6xl px-5 md:px-8">
+    <div class="grid items-stretch gap-10 pb-16 pt-12 md:grid-cols-12 md:gap-8 md:pb-20 md:pt-16 lg:gap-12">
+      <!-- Copy -->
+      <div class="flex flex-col justify-center md:col-span-5">
+        <p class="animate-on-scroll slide-up text-[11px] font-semibold uppercase tracking-[0.22em] text-neutral-500">
+          BtoC店舗のための SNS 経営OS
+        </p>
+        <h1 class="animate-on-scroll slide-up delay-100 mt-5 font-display text-[2.25rem] font-bold leading-[1.12] text-neutral-900 md:text-5xl lg:text-[3.25rem]">
+          SNSを伸ばす。<br />
+          売上をつくる。
+        </h1>
+        <p class="animate-on-scroll slide-up delay-200 mt-6 max-w-md text-base leading-[1.85] text-neutral-600 md:text-[17px]">
+          毎朝5分。AIが今日の台本と投稿スケジュールを用意し、チーム承認から全SNS配信まで一気通貫。美容・クリニック・飲食店の現場向けに設計されています。
+        </p>
+        <div class="animate-on-scroll slide-up delay-300 mt-9 flex flex-col gap-3 sm:flex-row">
+          <a
+            href={loginUrl}
+            class="inline-flex items-center justify-center bg-neutral-900 px-8 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-neutral-700"
+          >
+            無料診断を始める
+          </a>
+          <a
+            href="#features"
+            class="inline-flex items-center justify-center border border-neutral-300 bg-white px-8 py-3.5 text-sm font-semibold text-neutral-800 transition-colors hover:border-neutral-900"
+          >
+            機能を見る
+          </a>
+        </div>
 
-  <div class="relative z-10 mx-auto grid max-w-6xl items-center gap-14 px-5 md:grid-cols-2 md:gap-10 md:px-8 lg:gap-16">
-    <div>
-      <div class="animate-on-scroll slide-up mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-semibold tracking-wide text-violet-200">
-        <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
-        BtoC店舗のための SNS 経営OS
+        <!-- Stats — readable, editorial -->
+        <div class="animate-on-scroll slide-up delay-300 mt-12 border-t border-neutral-300 pt-8">
+          <div class="grid grid-cols-3 gap-4 md:gap-6">
+            {stats.map((stat, i) => (
+              <div class:list={[i < 2 && 'border-r border-neutral-300 pr-4 md:pr-6']}>
+                <p class="buzz-stat-value font-display text-2xl font-bold md:text-3xl">{stat.value}</p>
+                <p class="buzz-stat-label">{stat.label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
-      <h1 class="animate-on-scroll slide-up delay-100 font-display text-4xl font-bold leading-[1.08] text-white md:text-5xl lg:text-[3.4rem]">
-        SNSを「伸ばす」から、<br />
-        <span class="buzz-gradient-text">売上をつくる</span>へ。
-      </h1>
-      <p class="animate-on-scroll slide-up delay-200 mt-6 max-w-lg text-base leading-relaxed text-white/55 md:text-lg">
-        毎朝5分。AIが今日の台本と投稿スケジュールを用意し、チーム承認から全SNS配信まで一気通貫。美容・クリニック・飲食店の現場向けに設計されています。
-      </p>
-      <div class="animate-on-scroll slide-up delay-300 mt-9 flex flex-col gap-3 sm:flex-row">
-        <a
-          href={loginUrl}
-          class="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-violet-500 to-rose-500 px-8 py-3.5 text-sm font-bold text-white shadow-xl shadow-violet-500/25 transition-all hover:brightness-110 hover:shadow-violet-500/40"
-        >
-          無料診断を始める
-        </a>
-        <a
-          href="#features"
-          class="inline-flex items-center justify-center gap-2 rounded-full border border-white/15 bg-white/5 px-8 py-3.5 text-sm font-semibold text-white/80 transition-all hover:bg-white/10 hover:text-white"
-        >
-          機能を見る
-          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg>
-        </a>
-      </div>
-      <div class="animate-on-scroll slide-up delay-300 mt-10 flex flex-wrap gap-6 text-sm text-white/45">
-        <div><span class="block font-display text-2xl font-bold text-white">90%</span>運用時間削減</div>
-        <div><span class="block font-display text-2xl font-bold text-white">3.2×</span>リーチ改善</div>
-        <div><span class="block font-display text-2xl font-bold text-emerald-400">+¥342K</span>推計売上/月</div>
+
+      <!-- Photo collage — Beams-inspired, no mockups -->
+      <div class="animate-on-scroll slide-left delay-200 md:col-span-7">
+        <div class="grid h-[420px] grid-cols-12 grid-rows-6 gap-2 md:h-[520px] md:gap-2.5">
+          <div class="buzz-photo col-span-7 row-span-6">
+            <img
+              src={images.heroMain}
+              alt="サロンで施術を受けるお客様"
+              class="h-full w-full object-cover"
+              loading="eager"
+            />
+          </div>
+          <div class="buzz-photo col-span-5 row-span-3">
+            <img
+              src={images.heroSubA}
+              alt="カフェの店内"
+              class="h-full w-full object-cover"
+              loading="eager"
+            />
+          </div>
+          <div class="buzz-photo col-span-5 row-span-3">
+            <img
+              src={images.heroSubB}
+              alt="美容製品とライフスタイル"
+              class="h-full w-full object-cover"
+              loading="lazy"
+            />
+          </div>
+        </div>
+        <p class="mt-3 text-right text-[11px] tracking-wide text-neutral-400">
+          サロン · 飲食 · クリニック — 現場の写真が、そのままコンテンツになる
+        </p>
       </div>
     </div>
+  </div>
 
-    <!-- Phone mockup -->
-    <div class="animate-on-scroll slide-left delay-200 relative mx-auto w-full max-w-[320px] md:max-w-none md:justify-self-end">
-      <div class="buzz-float buzz-phone relative mx-auto w-[280px] overflow-hidden rounded-[2.5rem] border border-white/10 bg-[#111018] md:w-[300px]">
-        <div class="flex items-center justify-between px-5 pb-2 pt-3 text-[10px] text-white/50">
-          <span>9:41</span>
-          <div class="mx-auto h-6 w-24 rounded-full bg-black/80"></div>
-          <span>5G</span>
+  <!-- Full-bleed photo strip -->
+  <div class="animate-on-scroll slide-up border-y border-neutral-200 bg-white">
+    <div class="mx-auto grid max-w-6xl grid-cols-2 gap-0 md:grid-cols-4">
+      {[images.heroSubC, images.socialHands, images.teamWork, images.cafeStore].map((src, i) => (
+        <div class="buzz-photo aspect-[4/3] border-neutral-200 md:border-r last:md:border-r-0">
+          <img src={src} alt="" class="h-full w-full object-cover" loading="lazy" />
         </div>
-        <div class="px-3 pb-3">
-          <div class="mb-3 flex items-center gap-2 px-1">
-            <div class="h-8 w-8 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400 p-[2px]">
-              <img src={images.reelsContent} alt="" class="h-full w-full rounded-full object-cover" loading="eager" />
-            </div>
-            <div>
-              <p class="text-xs font-semibold text-white">salon_buzz_official</p>
-              <p class="text-[10px] text-white/40">Sponsored · BuzzIt</p>
-            </div>
-          </div>
-          <div class="overflow-hidden rounded-2xl">
-            <img src={images.heroCreator} alt="サロンでの施術風景" class="aspect-[4/5] w-full object-cover" loading="eager" />
-          </div>
-          <div class="mt-3 space-y-2 px-1">
-            <p class="text-xs leading-relaxed text-white/75">
-              <span class="font-semibold text-white">salon_buzz_official</span>
-              【悲報】春カラー、予約が埋まりすぎて困ってます… 詳細はプロフィールのLINEから▼
-            </p>
-            <div class="flex gap-4 text-white/40">
-              <span class="text-xs">♥ 1,284</span>
-              <span class="text-xs">💬 86</span>
-              <span class="text-xs">↗ 412</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Floating stat cards -->
-      <div class="buzz-float-delay absolute -left-4 bottom-8 z-10 hidden rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-xl md:block lg:-left-12">
-        <p class="text-[10px] font-medium uppercase tracking-wider text-emerald-300">先週比</p>
-        <p class="font-display text-2xl font-bold text-white">+¥342,000</p>
-      </div>
-      <div class="buzz-float absolute -right-2 top-16 z-10 hidden rounded-2xl border border-white/10 bg-white/10 px-4 py-3 backdrop-blur-xl md:block lg:-right-8">
-        <div class="flex items-center gap-2">
-          <div class="flex -space-x-2">
-            <span class="flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#0c0a12] bg-violet-500 text-[10px] font-bold text-white">A</span>
-            <span class="flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#0c0a12] bg-rose-500 text-[10px] font-bold text-white">M</span>
-            <span class="flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#0c0a12] bg-fuchsia-500 text-[10px] font-bold text-white">K</span>
-          </div>
-          <span class="text-xs font-semibold text-white">承認済み</span>
-        </div>
-      </div>
+      ))}
     </div>
   </div>
 </section>

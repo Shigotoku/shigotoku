@@ -4,55 +4,43 @@ const comparisons = [
     before: '毎週3時間、何を投稿するか悩む。結局、同じ店内写真を載せるだけ。',
     after: 'BuzzItが「今日の台本」を提示。スマホで30秒読むだけで投稿完了。',
     metric: '運用時間 90% 削減',
-    tone: 'violet',
   },
   {
     before: 'Instagram のリーチは伸びない。いいねは社内メンバーだけ。',
     after: '【悲報】フック台本で初動を改善。1本のショート動画から全SNSへ展開。',
     metric: 'リーチ 3.2倍',
-    tone: 'rose',
   },
   {
     before: 'SNSが売上に繋がっているか、店長も社長も把握できない。',
     after: 'LINE登録→来店→売上までをダッシュボードで可視化。',
-    metric: '推計売上 +¥342,000/月',
-    tone: 'emerald',
+    metric: '推計売上 +¥34.2万/月',
   },
 ];
 ---
 
-<section id="transform" class="relative bg-white py-24 md:py-32">
+<section id="transform" class="bg-white py-24 md:py-32">
   <div class="mx-auto max-w-6xl px-5 md:px-8">
-    <div class="animate-on-scroll slide-up mb-14 text-center md:mb-16">
-      <p class="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-violet-600">Before → After</p>
-      <h2 class="font-display text-3xl font-bold text-[#0c0a12] md:text-5xl">
+    <div class="animate-on-scroll slide-up mb-14 md:mb-16">
+      <p class="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-neutral-500">Before → After</p>
+      <h2 class="font-display text-3xl font-bold text-neutral-900 md:text-4xl lg:text-5xl">
         投稿の悩みが、<br class="md:hidden" />売上の仕組みに変わる。
       </h2>
-      <p class="mx-auto mt-4 max-w-2xl text-base text-slate-500 md:text-lg">
+      <p class="mt-4 max-w-2xl text-base leading-relaxed text-neutral-600">
         美容サロン・クリニック・飲食店で起きている、現場の変化。
       </p>
     </div>
 
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+    <div class="grid grid-cols-1 gap-px overflow-hidden border border-neutral-200 bg-neutral-200 lg:grid-cols-3">
       {comparisons.map((item, index) => (
-        <article
-          class={`animate-on-scroll slide-up group overflow-hidden rounded-3xl border border-slate-100 bg-[#faf9fc] transition-shadow hover:shadow-xl hover:shadow-violet-500/5 ${index === 1 ? 'delay-100' : index === 2 ? 'delay-200' : ''}`}
-        >
-          <div class="border-b border-slate-100 p-6">
-            <p class="mb-2 text-[10px] font-bold uppercase tracking-wider text-rose-400">Before</p>
-            <p class="text-sm leading-relaxed text-slate-500">{item.before}</p>
+        <article class={`animate-on-scroll slide-up bg-white ${index === 1 ? 'delay-100' : index === 2 ? 'delay-200' : ''}`}>
+          <div class="border-b border-neutral-100 p-6 md:p-8">
+            <p class="mb-2 text-[10px] font-bold uppercase tracking-wider text-neutral-400">Before</p>
+            <p class="text-sm leading-relaxed text-neutral-600">{item.before}</p>
           </div>
-          <div class="relative bg-gradient-to-br from-[#0c0a12] to-[#1a1528] p-6 text-white">
-            <div class="absolute inset-0 bg-gradient-to-br from-violet-500/10 to-rose-500/10 opacity-0 transition-opacity group-hover:opacity-100"></div>
-            <p class="relative mb-2 text-[10px] font-bold uppercase tracking-wider text-violet-300">After · BuzzIt</p>
-            <p class="relative text-sm font-medium leading-relaxed text-white/90">{item.after}</p>
-            <p class={`relative mt-5 inline-flex rounded-full px-3 py-1 text-xs font-bold ${
-              item.tone === 'emerald'
-                ? 'bg-emerald-500/15 text-emerald-300'
-                : item.tone === 'rose'
-                ? 'bg-rose-500/15 text-rose-300'
-                : 'bg-violet-500/15 text-violet-300'
-            }`}>
+          <div class="bg-neutral-900 p-6 text-white md:p-8">
+            <p class="mb-2 text-[10px] font-bold uppercase tracking-wider text-neutral-400">After · BuzzIt</p>
+            <p class="text-sm font-medium leading-relaxed text-neutral-100">{item.after}</p>
+            <p class="buzz-stat-value mt-6 inline-block border border-neutral-600 px-3 py-1.5 font-display text-sm font-bold text-white">
               {item.metric}
             </p>
           </div>
