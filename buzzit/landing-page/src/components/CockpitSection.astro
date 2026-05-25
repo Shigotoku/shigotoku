@@ -1,0 +1,64 @@
+---
+const funnelRows = [
+  { label: 'リーチ', value: '24,500', width: '100%', color: 'bg-violet-400', accent: false },
+  { label: 'LINE登録', value: '124', width: '30%', color: 'bg-sky-400', accent: false },
+  { label: '推計売上', value: '¥342,000', width: '15%', color: 'bg-emerald-400', accent: true },
+];
+---
+
+<section id="cockpit" class="bg-white py-24 md:py-32">
+  <div class="mx-auto max-w-6xl px-5 md:px-8">
+    <div class="animate-on-scroll slide-up mb-12 text-center md:mb-14">
+      <p class="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-violet-600">Dashboard</p>
+      <h2 class="font-display text-3xl font-bold text-[#0c0a12] md:text-5xl">美しい経営コクピット</h2>
+      <p class="mt-4 text-base text-slate-500">複雑なグラフは不要。今日やるべきことは、AIがすべて提案します。</p>
+    </div>
+
+    <div class="animate-on-scroll slide-up delay-100 overflow-hidden rounded-[2rem] border border-slate-200 bg-[#faf9fc] shadow-2xl shadow-slate-200/60">
+      <div class="flex h-12 items-center gap-2 border-b border-slate-200 bg-white px-5">
+        <span class="h-3 w-3 rounded-full bg-slate-200"></span>
+        <span class="h-3 w-3 rounded-full bg-slate-200"></span>
+        <span class="h-3 w-3 rounded-full bg-slate-200"></span>
+        <span class="ml-4 text-xs text-slate-400">app.buzzit.shigotoku.com</span>
+      </div>
+      <div class="grid grid-cols-1 gap-6 bg-white p-6 md:grid-cols-3 md:p-8">
+        <div class="md:col-span-2 space-y-5">
+          <div class="rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50 to-rose-50 p-6 md:p-8">
+            <p class="mb-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-violet-600">
+              <span class="h-1.5 w-1.5 rounded-full bg-violet-500"></span>
+              Today's Mission
+            </p>
+            <h3 class="font-display text-xl font-bold text-[#0c0a12] md:text-2xl">新作「春カラー」の動画を承認してください</h3>
+            <p class="mt-2 text-sm text-slate-500 md:text-base">AIが3パターンの台本を生成。確認後、ワンタップで全SNSへ予約されます。</p>
+            <button class="mt-5 rounded-xl bg-[#0c0a12] px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-violet-700">
+              内容を確認・承認する
+            </button>
+          </div>
+          <div class="rounded-2xl border border-slate-100 bg-white p-6">
+            <p class="text-sm text-slate-500">SNS健康スコア</p>
+            <p class="font-display text-5xl font-bold text-[#0c0a12]">
+              92
+              <span class="ml-2 text-lg font-bold text-emerald-500">+12%</span>
+            </p>
+          </div>
+        </div>
+        <div class="rounded-2xl border border-slate-100 bg-white p-6">
+          <h3 class="font-display text-lg font-bold text-[#0c0a12]">売上ファネル</h3>
+          <div class="mt-6 space-y-5">
+            {funnelRows.map((row) => (
+              <div>
+                <div class="mb-1.5 flex justify-between text-sm">
+                  <span class="text-slate-500">{row.label}</span>
+                  <span class:list={['font-bold', row.accent ? 'text-emerald-500' : 'text-[#0c0a12]']}>{row.value}</span>
+                </div>
+                <div class="h-2 overflow-hidden rounded-full bg-slate-100">
+                  <div class:list={['h-full rounded-full', row.color]} style={`width: ${row.width}`}></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
