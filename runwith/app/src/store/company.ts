@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { companyService } from "../services/companies";
-import { isSupabaseConfigured } from "../lib/supabase";
+import { isFirebaseConfigured } from "../lib/firebase";
 import { auditService } from "../services/audit";
 
 export type StartupPhase =
@@ -134,7 +134,7 @@ export const useCompanyStore = create<CompanyState>()(
       clearCompany: () => set({ company: null, companies: [] }),
 
       createCompanyInDB: async (userId, data) => {
-        if (!isSupabaseConfigured) {
+        if (!isFirebaseConfigured) {
           const company: Company = { ...data, id: `company-${Date.now()}` };
           set({ company, companies: [company] });
           return company;
@@ -172,7 +172,7 @@ export const useCompanyStore = create<CompanyState>()(
         const merged = { ...company, ...updates };
         set({ company: merged });
 
-        if (!isSupabaseConfigured) return;
+        if (!isFirebaseConfigured) return;
 
         set({ loading: true });
         try {
@@ -207,7 +207,7 @@ export const useCompanyStore = create<CompanyState>()(
       },
 
       fetchCompanies: async (userId) => {
-        if (!isSupabaseConfigured) return;
+        if (!isFirebaseConfigured) return;
 
         set({ loading: true });
         try {

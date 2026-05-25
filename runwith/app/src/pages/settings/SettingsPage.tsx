@@ -21,7 +21,8 @@ import {
   MEDICAL_FIELD_LABELS,
   type MedicalField,
 } from "../../store/company";
-import { isSupabaseConfigured, supabase } from "../../lib/supabase";
+import { isFirebaseConfigured, storage } from "../../lib/firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 export default function SettingsPage() {
   const { user, updateProfile, updatePassword, loading: authLoading, isDemo } = useAuthStore();
@@ -52,21 +53,13 @@ export default function SettingsPage() {
     setError("");
 
     try {
-      if (isSupabaseConfigured && supabase && user) {
-        const ext = file.name.split(".").pop();
-        const path = `avatars/${user.id}.${ext}`;
+      if (isFirebaseConfigured && user) {
+        const ext = file.name.split(".").pop() ?? "jpg";
+        const path = `runwith/avatars/${user.id}.${ext}`;
+        const storageRef = ref(storage, path);
 
-        const { error: uploadErr } = await supabase.storage
-          .from("avatars")
-          .upload(path, file, { upsert: true });
-
-        if (uploadErr) throw uploadErr;
-
-        const { data: urlData } = supabase.storage
-          .from("avatars")
-          .getPublicUrl(path);
-
-        const publicUrl = urlData.publicUrl + "?t=" + Date.now();
+        await uploadBytes(storageRef, file, { contentType: file.type });
+        const publicUrl = `${await getDownloadURL(storageRef)}?t=${Date.now()}`;
         setAvatarUrl(publicUrl);
         await updateProfile({ avatarUrl: publicUrl });
       } else {
@@ -98,7 +91,7 @@ export default function SettingsPage() {
   const handleSave = async () => {
     setError("");
     try {
-      if (isDemo || !isSupabaseConfigured) {
+      if (isDemo || !isFirebaseConfigured) {
         updateCompany({ isMedicalMode: medicalMode, medicalFields });
       } else {
         const profileUpdates: { name?: string; avatarUrl?: string } = {};
@@ -242,7 +235,7 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {isSupabaseConfigured && !isDemo && (
+          {isFirebaseConfigured && !isDemo && (
             <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
               <div className="mb-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">

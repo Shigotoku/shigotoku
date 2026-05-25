@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Users, Building2, TrendingUp, Crown, Loader2, ShieldCheck } from "lucide-react";
 import { fetchAdminStats, fetchAdminUsers, type AdminStats, type AdminUser } from "../../services/admin";
-import { isSupabaseConfigured } from "../../lib/supabase";
+import { isFirebaseConfigured } from "../../lib/firebase";
 import { PLAN_LABELS } from "../../store/subscription";
 
 const PLAN_COLORS: Record<string, string> = {
@@ -43,7 +43,7 @@ export default function AdminDashboardPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">管理ダッシュボード</h1>
           <p className="text-sm text-slate-500">
-            {isSupabaseConfigured ? "本番データ" : "デモデータ表示中"}
+            {isFirebaseConfigured ? "本番データ" : "デモデータ表示中"}
           </p>
         </div>
       </div>

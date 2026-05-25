@@ -3,7 +3,7 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import { Mail, Lock, ArrowRight, Loader2, Eye, EyeOff, AlertCircle, CheckCircle } from "lucide-react";
 import { useAuthStore } from "../../store/auth";
 import { useCompanyStore } from "../../store/company";
-import { isSupabaseConfigured } from "../../lib/supabase";
+import { isFirebaseConfigured } from "../../lib/firebase";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -26,7 +26,7 @@ export default function LoginPage() {
     setError("");
     setSuccess("");
 
-    if (!isSupabaseConfigured) {
+    if (!isFirebaseConfigured) {
       startDemo({
         id: "user-1",
         email: email || "demo@example.com",

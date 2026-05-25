@@ -19,11 +19,6 @@ const projects = [
 function run(command, cwd, env = {}) {
   console.log(`\n> ${command}  (${cwd})`);
   const buildEnv = { ...process.env, ...env };
-  // 本番ビルドに Supabase キーが混入しないよう明示的に空にする
-  if (cwd.includes('runwith/app')) {
-    buildEnv.VITE_SUPABASE_URL = '';
-    buildEnv.VITE_SUPABASE_ANON_KEY = '';
-  }
   execSync(command, {
     cwd,
     stdio: 'inherit',

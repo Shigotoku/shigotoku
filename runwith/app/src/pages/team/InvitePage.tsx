@@ -6,7 +6,7 @@ import {
 import { useCompanyStore } from "../../store/company";
 import { invitationService } from "../../services/invitations";
 import { companyService } from "../../services/companies";
-import { isSupabaseConfigured } from "../../lib/supabase";
+import { isFirebaseConfigured } from "../../lib/firebase";
 
 type Role = "admin" | "member" | "viewer";
 
@@ -54,7 +54,7 @@ export default function InvitePage() {
     if (!company) return;
     setError("");
 
-    if (!isSupabaseConfigured) {
+    if (!isFirebaseConfigured) {
       const demoUrl = `${window.location.origin}/invite/demo-token-123`;
       setInviteLinks((prev) => [{ email, url: demoUrl, role }, ...prev]);
       setEmail("");

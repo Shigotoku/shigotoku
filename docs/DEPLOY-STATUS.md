@@ -21,10 +21,8 @@
 
 | サービス | Hosting | 認証・DB | 備考 |
 |----------|---------|----------|------|
-| **ランウィズ** | GCP（Firebase Hosting） | **Supabase コードのまま** | 本番ビルドは Supabase キーを空にし **デモモード**（localStorage）。Supabase プロジェクト削除済みのため、本番ログイン・永続 DB は未接続 |
-| **BuzzIt** | GCP（Firebase Hosting） | **GCP**（Firebase Auth + Firestore + Cloud Functions + Storage） | `/api/**` → `buzzitApi`（asia-northeast1） |
-
-ランウィズを GCP バックエンド（Firebase Auth / Firestore 等）へ移行する場合は、別途マイグレーション作業が必要です。
+| **ランウィズ** | GCP（Firebase Hosting） | **Firebase Auth + Firestore + Storage** | `runwith_users`, `runwith_companies` コレクション |
+| **BuzzIt** | GCP（Firebase Hosting） | Firebase Auth + Firestore + Cloud Functions + Storage | `/api/**` → `buzzitApi` |
 
 ---
 
@@ -91,10 +89,15 @@ Formspree ではなく、自社リード管理アプリ連携予定（保留）�
 
 ### 3. ランウィズ本番 DB / 認証
 
-方針決定後に実装:
+**Firebase Auth + Firestore へ移行済み**（2026-05-22）。
 
-- **A.** Supabase プロジェクトを再作成してキーを本番注入
-- **B.** Firebase Auth + Firestore へ移行（BuzzIt と同様の GCP 構成）
+Firebase Console で以下を確認:
+
+- Authentication → Email/Password 有効化
+- Authorized domains に `app.runwith.shigotoku.com` 追加
+- Firestore Database 有効化
+
+機能データ（ジャーニー進捗・KPI 等）は引き続き localStorage。クラウド同期は今後の拡張。
 
 ### 4. その他
 

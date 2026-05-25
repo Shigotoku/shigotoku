@@ -1,10 +1,18 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // uploads は Cloud Functions 発行の署名付き URL 経由のみ（直接書き込み禁止で不正利用・コスト増を防止）
+    // BuzzIt: uploads は Cloud Functions 発行の署名付き URL 経由のみ
     match /uploads/{allPaths=**} {
       allow read: if true;
       allow write: if false;
+    }
+
+    // Runwith: プロフィール画像
+    match /runwith/avatars/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.resource.size < 2 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
     }
   }
 }

@@ -183,13 +183,20 @@ curl https://app.buzzit.shigotoku.com/api/health
 
 ---
 
-## 11. ランウィズのバックエンドについて
+## 11. ランウィズのバックエンド
 
-ランウィズアプリは **Firebase Hosting（GCP）で配信** されていますが、認証・DB のコードは **Supabase 向け** です。
+ランウィズアプリは **Firebase Auth + Firestore + Storage** を使用します（BuzzIt と同一 GCP プロジェクト `shigotoku-prod`）。
 
-本番ビルド（`deploy/build.mjs`）では Supabase キーを意図的に空にしているため、現状は **デモモード**（ブラウザ localStorage）で動作します。GCP 上の Firebase Auth / Firestore には未接続です。
+| コレクション | 用途 |
+|-------------|------|
+| `runwith_users/{uid}` | プロフィール・会社 ID 一覧 |
+| `runwith_users/{uid}/subscription/current` | サブスクリプション |
+| `runwith_companies/{id}` | 会社情報 |
+| `runwith_companies/{id}/members/{uid}` | メンバーシップ |
+| `runwith_companies/{id}/invitations/{id}` | チーム招待 |
+| `runwith_invitation_tokens/{token}` | 招待プレビュー（公開 read） |
 
-本番でログイン・永続データが必要な場合は、Supabase 再開または GCP 移行のどちらかを選んで実装してください。詳細は [`DEPLOY-STATUS.md`](./DEPLOY-STATUS.md) を参照。
+Firebase Console → Authentication → Sign-in method で **メール/パスワード** を有効化し、Authorized domains に `app.runwith.shigotoku.com` を追加してください。
 
 ---
 

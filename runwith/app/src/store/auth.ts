@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { authService } from "../services/auth";
-import { isSupabaseConfigured } from "../lib/supabase";
+import { isFirebaseConfigured } from "../lib/firebase";
 import { auditService } from "../services/audit";
 import type { Database } from "../lib/database.types";
 
@@ -39,6 +39,15 @@ interface AuthState {
   logout: () => void;
 }
 
+async function profileToUser(userId: string, email: string, profile: ProfileRow | null): Promise<User> {
+  return {
+    id: userId,
+    email: profile?.email ?? email,
+    name: profile?.full_name ?? "",
+    avatarUrl: profile?.avatar_url ?? undefined,
+  };
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
@@ -51,7 +60,7 @@ export const useAuthStore = create<AuthState>()(
       initialize: async () => {
         if (get().initialized) return;
 
-        if (!isSupabaseConfigured) {
+        if (!isFirebaseConfigured) {
           set({ initialized: true });
           return;
         }
@@ -60,14 +69,9 @@ export const useAuthStore = create<AuthState>()(
         try {
           const session = await authService.getSession();
           if (session?.user) {
-            const profile = await authService.getProfile(session.user.id) as ProfileRow | null;
+            const profile = await authService.getProfile(session.user.id);
             set({
-              user: {
-                id: session.user.id,
-                email: session.user.email ?? "",
-                name: profile?.full_name ?? "",
-                avatarUrl: profile?.avatar_url ?? undefined,
-              },
+              user: await profileToUser(session.user.id, session.user.email ?? "", profile),
               isAuthenticated: true,
               isDemo: false,
             });
@@ -78,27 +82,20 @@ export const useAuthStore = create<AuthState>()(
           set({ loading: false, initialized: true });
         }
 
-        authService.onAuthStateChange(async (event, session) => {
-          if (event === "SIGNED_OUT" || !session) {
+        authService.onAuthStateChange(async (_event, session) => {
+          if (!session) {
             set({ user: null, isAuthenticated: false, isDemo: false });
             return;
           }
-          if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
-            try {
-              const profile = await authService.getProfile(session.user.id) as ProfileRow | null;
-              set({
-                user: {
-                  id: session.user.id,
-                  email: session.user.email ?? "",
-                  name: profile?.full_name ?? "",
-                  avatarUrl: profile?.avatar_url ?? undefined,
-                },
-                isAuthenticated: true,
-                isDemo: false,
-              });
-            } catch {
-              // プロフィール取得失敗
-            }
+          try {
+            const profile = await authService.getProfile(session.user.id);
+            set({
+              user: await profileToUser(session.user.id, session.user.email ?? "", profile),
+              isAuthenticated: true,
+              isDemo: false,
+            });
+          } catch {
+            // プロフィール取得失敗
           }
         });
       },
@@ -117,14 +114,9 @@ export const useAuthStore = create<AuthState>()(
         set({ loading: true });
         try {
           const { user: authUser } = await authService.signIn(email, password);
-          const profile = await authService.getProfile(authUser.id) as ProfileRow | null;
+          const profile = await authService.getProfile(authUser.uid);
           set({
-            user: {
-              id: authUser.id,
-              email: authUser.email ?? "",
-              name: profile?.full_name ?? "",
-              avatarUrl: profile?.avatar_url ?? undefined,
-            },
+            user: await profileToUser(authUser.uid, authUser.email ?? "", profile),
             isAuthenticated: true,
             isDemo: false,
           });

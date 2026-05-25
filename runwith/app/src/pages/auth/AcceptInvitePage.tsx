@@ -4,7 +4,7 @@ import { CheckCircle, AlertCircle, Loader2, Users } from "lucide-react";
 import { useAuthStore } from "../../store/auth";
 import { useCompanyStore } from "../../store/company";
 import { invitationService } from "../../services/invitations";
-import { isSupabaseConfigured } from "../../lib/supabase";
+import { isFirebaseConfigured } from "../../lib/firebase";
 
 export default function AcceptInvitePage() {
   const { token } = useParams<{ token: string }>();
@@ -32,7 +32,7 @@ export default function AcceptInvitePage() {
   useEffect(() => {
     if (!token) return;
 
-    if (!isSupabaseConfigured) {
+    if (!isFirebaseConfigured) {
       setInfo({
         companyName: "デモ会社",
         inviterEmail: "demo@example.com",
@@ -53,7 +53,7 @@ export default function AcceptInvitePage() {
     if (!token) return;
     setAccepting(true);
 
-    if (!isSupabaseConfigured || isDemo) {
+    if (!isFirebaseConfigured || isDemo) {
       setTimeout(() => {
         setResult("success");
         if (user) fetchCompanies(user.id);

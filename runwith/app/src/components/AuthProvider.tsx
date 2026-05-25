@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useAuthStore } from "../store/auth";
 import { useCompanyStore } from "../store/company";
 import { useSubscriptionStore } from "../store/subscription";
-import { isSupabaseConfigured } from "../lib/supabase";
+import { isFirebaseConfigured } from "../lib/firebase";
 import { Loader2 } from "lucide-react";
 
 export default function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -15,7 +15,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   }, [initialize]);
 
   useEffect(() => {
-    if (!isAuthenticated || !user || isDemo || !isSupabaseConfigured) return;
+    if (!isAuthenticated || !user || isDemo || !isFirebaseConfigured) return;
 
     // 複数会社を取得 (1ユーザーが複数社に所属可能)
     fetchCompanies(user.id);

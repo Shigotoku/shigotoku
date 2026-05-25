@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { subscriptionService } from "../services/subscriptions";
-import { isSupabaseConfigured } from "../lib/supabase";
+import { isFirebaseConfigured } from "../lib/firebase";
 
 export type PlanTier = "free" | "growth" | "pro";
 
@@ -84,7 +84,7 @@ export const useSubscriptionStore = create<SubscriptionState>()(
       },
 
       fetchSubscription: async (userId) => {
-        if (!isSupabaseConfigured) return;
+        if (!isFirebaseConfigured) return;
         set({ loading: true });
         try {
           const sub = await subscriptionService.fetchByUser(userId);
@@ -98,7 +98,7 @@ export const useSubscriptionStore = create<SubscriptionState>()(
 
       changePlan: async (userId, plan) => {
         set({ plan });
-        if (!isSupabaseConfigured) return;
+        if (!isFirebaseConfigured) return;
         set({ loading: true });
         try {
           const sub = await subscriptionService.updatePlan(userId, plan);
@@ -110,7 +110,7 @@ export const useSubscriptionStore = create<SubscriptionState>()(
 
       toggleMedical: async (userId, enabled) => {
         set({ medicalAddon: enabled });
-        if (!isSupabaseConfigured) return;
+        if (!isFirebaseConfigured) return;
         set({ loading: true });
         try {
           const sub = await subscriptionService.toggleMedicalAddon(userId, enabled);

@@ -5,7 +5,7 @@ import {
   AlertCircle, Search, MoreHorizontal, ArrowUpRight,
 } from "lucide-react";
 import { fetchAdminUsers, type AdminUser } from "../../services/admin";
-import { isSupabaseConfigured } from "../../lib/supabase";
+import { isFirebaseConfigured } from "../../lib/firebase";
 import { PLAN_LABELS } from "../../store/subscription";
 import clsx from "clsx";
 
@@ -202,7 +202,7 @@ export default function AdminLeadsPage() {
           <div>
             <h1 className="text-2xl font-bold text-slate-900">リード管理</h1>
             <p className="text-sm text-slate-500">
-              {isSupabaseConfigured ? "本番データ" : "デモデータ表示中"}
+              {isFirebaseConfigured ? "本番データ" : "デモデータ表示中"}
             </p>
           </div>
         </div>

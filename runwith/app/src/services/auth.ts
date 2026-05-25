@@ -1,113 +1,95 @@
-import { supabase, isSupabaseConfigured } from "../lib/supabase";
-import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
-import type { Database } from "../lib/database.types";
+import {
+  auth,
+  isFirebaseConfigured,
+  onAuthChanged,
+  signUpWithEmail,
+  signInWithEmail,
+  signOutUser,
+  sendPasswordReset,
+  updateUserPassword,
+  type User,
+} from '../lib/firebase';
+import { ensureUserProfile, getProfile, updateProfileDoc } from '../lib/firestore';
+import type { Database } from '../lib/database.types';
 
-type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
+type ProfileRow = Database['public']['Tables']['profiles']['Row'];
 
 export interface SignUpResult {
   needsEmailVerification: boolean;
   userId?: string;
 }
 
-export const authService = {
-  async signUp(
-    email: string,
-    password: string,
-    fullName: string
-  ): Promise<SignUpResult> {
-    if (!isSupabaseConfigured) throw new Error("Supabase未設定");
+function userToProfile(user: User, profile: ProfileRow | null) {
+  return profile;
+}
 
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { full_name: fullName },
-        emailRedirectTo: `${window.location.origin}/login`,
-      },
-    });
-    if (error) throw error;
+export const authService = {
+  async signUp(email: string, password: string, fullName: string): Promise<SignUpResult> {
+    if (!isFirebaseConfigured) throw new Error('Firebase未設定');
+
+    const user = await signUpWithEmail(email, password, fullName);
+    await ensureUserProfile(user.uid, user.email ?? email, fullName);
 
     return {
-      needsEmailVerification: !data.session,
-      userId: data.user?.id,
+      needsEmailVerification: !user.emailVerified,
+      userId: user.uid,
     };
   },
 
   async signIn(email: string, password: string) {
-    if (!isSupabaseConfigured) throw new Error("Supabase未設定");
+    if (!isFirebaseConfigured) throw new Error('Firebase未設定');
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) throw error;
-    return data;
+    const user = await signInWithEmail(email, password);
+    await ensureUserProfile(user.uid, user.email ?? email, user.displayName);
+    return { user };
   },
 
   async signOut() {
-    if (!isSupabaseConfigured) return;
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    if (!isFirebaseConfigured) return;
+    await signOutUser();
   },
 
   async resetPassword(email: string) {
-    if (!isSupabaseConfigured) throw new Error("Supabase未設定");
-
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/update-password`,
-    });
-    if (error) throw error;
+    if (!isFirebaseConfigured) throw new Error('Firebase未設定');
+    await sendPasswordReset(email);
   },
 
   async updatePassword(password: string) {
-    if (!isSupabaseConfigured) throw new Error("Supabase未設定");
-
-    const { error } = await supabase.auth.updateUser({ password });
-    if (error) throw error;
+    if (!isFirebaseConfigured) throw new Error('Firebase未設定');
+    await updateUserPassword(password);
   },
 
   async getSession() {
-    if (!isSupabaseConfigured) return null;
-
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    return session;
+    if (!isFirebaseConfigured) return null;
+    const user = auth.currentUser;
+    if (!user) return null;
+    return { user: { id: user.uid, email: user.email } };
   },
 
   async getProfile(userId: string): Promise<ProfileRow | null> {
-    if (!isSupabaseConfigured) return null;
-
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .single();
-    if (error) throw error;
-    return data as ProfileRow;
+    if (!isFirebaseConfigured) return null;
+    return getProfile(userId);
   },
 
   async updateProfile(
     userId: string,
-    updates: { full_name?: string; avatar_url?: string }
+    updates: { full_name?: string; avatar_url?: string },
   ): Promise<ProfileRow> {
-    if (!isSupabaseConfigured) throw new Error("Supabase未設定");
-
-    const { data, error } = await supabase
-      .from("profiles")
-      .update(updates)
-      .eq("id", userId)
-      .select()
-      .single();
-    if (error) throw error;
-    return data as ProfileRow;
+    if (!isFirebaseConfigured) throw new Error('Firebase未設定');
+    return updateProfileDoc(userId, updates);
   },
 
-  onAuthStateChange(
-    callback: (event: AuthChangeEvent, session: Session | null) => void
-  ) {
-    if (!isSupabaseConfigured)
+  onAuthStateChange(callback: (event: string, session: { user: { id: string; email?: string | null } } | null) => void) {
+    if (!isFirebaseConfigured) {
       return { data: { subscription: { unsubscribe: () => {} } } };
-    return supabase.auth.onAuthStateChange(callback);
+    }
+    const unsub = onAuthChanged((user) => {
+      if (!user) {
+        callback('SIGNED_OUT', null);
+        return;
+      }
+      callback('SIGNED_IN', { user: { id: user.uid, email: user.email } });
+    });
+    return { data: { subscription: { unsubscribe: unsub } } };
   },
 };
