@@ -14,6 +14,7 @@ import {
   Eye,
   ChevronLeft,
 } from "lucide-react";
+import { useCompanyStorageState } from "../../../hooks/useCompanyStorageState";
 
 interface MonitoredBrand {
   id: string;
@@ -96,19 +97,12 @@ const statusConfig = {
 };
 
 export default function MonitoringPage() {
-  const [brands, setBrands] = useState<MonitoredBrand[]>(() => {
-    try {
-      const saved = localStorage.getItem("runwith-monitoring");
-      return saved ? JSON.parse(saved) : DEMO_BRANDS;
-    } catch { return DEMO_BRANDS; }
-  });
+  const [brands, setBrands] = useCompanyStorageState<MonitoredBrand[]>("runwith-monitoring", DEMO_BRANDS);
   const [newBrandName, setNewBrandName] = useState("");
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
 
-  // ブランドが変わるたびlocalStorageに保存
   const updateBrands = (next: MonitoredBrand[]) => {
     setBrands(next);
-    localStorage.setItem("runwith-monitoring", JSON.stringify(next));
   };
 
   const addBrand = () => {

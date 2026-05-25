@@ -11,6 +11,7 @@ import { useCompanyStore, PHASE_LABELS } from "../../store/company";
 import { useAuthStore } from "../../store/auth";
 import { useProgressStore, TASK_GROUPS, TASK_IDS } from "../../store/progress";
 import { useState, useEffect } from "react";
+import { getStorageJson } from "../../lib/companyStorage";
 
 const quickActions = [
   { icon: Building2, label: "会社設立ナビ", path: "/incorporation", color: "bg-blue-50 text-blue-600 hover:bg-blue-100" },
@@ -62,6 +63,7 @@ const allTools = [
 
 export default function DashboardPage() {
   const { company } = useCompanyStore();
+  const isDemo = useAuthStore((s) => s.isDemo);
   const { user } = useAuthStore();
   const { isDone, getCompletedCount } = useProgressStore();
   const [kpiSnapshot, setKpiSnapshot] = useState<KpiSnapshot | null>(null);
@@ -78,25 +80,29 @@ export default function DashboardPage() {
   const doneActions = nextActions.filter((t) => isDone(t.id));
   const nextMilestone = pendingActions[0];
 
-  // KPIデータをlocalStorageから取得
+  // KPIデータを会社ストレージから取得
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("runwith-kpi-data");
-      if (saved) {
-        const entries = JSON.parse(saved);
-        if (entries.length > 0) {
-          const latest = entries[entries.length - 1];
-          setKpiSnapshot({
-            mrr: latest.mrr || 0,
-            customers: latest.customers || 0,
-            churn: latest.churnRate || 0,
-          });
-        }
+    let cancelled = false;
+    (async () => {
+      try {
+        const entries = await getStorageJson<Array<{ mrr?: number; customers?: number; churnRate?: number }>>(
+          "runwith-kpi-data",
+          company?.id,
+          isDemo,
+        );
+        if (cancelled || !entries?.length) return;
+        const latest = entries[entries.length - 1];
+        setKpiSnapshot({
+          mrr: latest.mrr || 0,
+          customers: latest.customers || 0,
+          churn: latest.churnRate || 0,
+        });
+      } catch {
+        // ignore
       }
-    } catch {
-      // ignore
-    }
-  }, []);
+    })();
+    return () => { cancelled = true; };
+  }, [company?.id, isDemo]);
 
   const setupPercent = Math.round((totalDone / totalTasks) * 100);
 

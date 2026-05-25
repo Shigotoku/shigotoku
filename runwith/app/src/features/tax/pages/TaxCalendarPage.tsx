@@ -1,8 +1,9 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import {
   Calendar, AlertCircle, FileText, Banknote, Building2,
   CheckCircle2, Circle, Bell, ChevronDown, ChevronUp,
 } from "lucide-react";
+import { useCompanyStorageState } from "../../../hooks/useCompanyStorageState";
 
 const monthNames = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"];
 
@@ -117,16 +118,8 @@ const STORAGE_KEY = "runwith-tax-done";
 export default function TaxCalendarPage() {
   const [fiscalEndMonth, setFiscalEndMonth] = useState(3);
   const [showFiscalSelector, setShowFiscalSelector] = useState(false);
-  const [doneItems, setDoneItems] = useState<Set<string>>(() => {
-    try {
-      const s = localStorage.getItem(STORAGE_KEY);
-      return s ? new Set(JSON.parse(s)) : new Set();
-    } catch { return new Set(); }
-  });
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([...doneItems]));
-  }, [doneItems]);
+  const [doneArr, setDoneArr] = useCompanyStorageState<string[]>(STORAGE_KEY, []);
+  const doneItems = useMemo(() => new Set(doneArr), [doneArr]);
 
   const now = new Date();
   const currentMonth = now.getMonth() + 1;
@@ -152,10 +145,10 @@ export default function TaxCalendarPage() {
 
   const toggleDone = (deadlineId: string, month: number) => {
     const key = `${month}-${deadlineId}`;
-    setDoneItems(prev => {
+    setDoneArr((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key); else next.add(key);
-      return next;
+      return [...next];
     });
   };
 

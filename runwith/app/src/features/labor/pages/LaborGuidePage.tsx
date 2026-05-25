@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import {
   FileText, ChevronDown, ChevronUp, Scale, Clock, Calendar,
   Building2, Calculator, LogOut, Info, BookOpen, Search,
   CheckCircle2, Circle, Bookmark, BookmarkCheck,
 } from "lucide-react";
+import { useCompanyStorageState } from "../../../hooks/useCompanyStorageState";
 
 interface ContentBlock {
   subtitle?: string;
@@ -232,31 +233,27 @@ const STORAGE_KEY_CHECKLIST = "startup-labor-checklist";
 export default function LaborGuidePage() {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ "work-rules": true });
   const [searchQuery, setSearchQuery] = useState("");
-  const [bookmarks, setBookmarks] = useState<Set<string>>(() => {
-    try { return new Set(JSON.parse(localStorage.getItem(STORAGE_KEY_BOOKMARKS) || "[]")); }
-    catch { return new Set(); }
-  });
-  const [checkedItems, setCheckedItems] = useState<Set<string>>(() => {
-    try { return new Set(JSON.parse(localStorage.getItem(STORAGE_KEY_CHECKLIST) || "[]")); }
-    catch { return new Set(); }
-  });
+  const [bookmarksArr, setBookmarksArr] = useCompanyStorageState<string[]>(STORAGE_KEY_BOOKMARKS, []);
+  const [checkedArr, setCheckedArr] = useCompanyStorageState<string[]>(STORAGE_KEY_CHECKLIST, []);
+  const bookmarks = useMemo(() => new Set(bookmarksArr), [bookmarksArr]);
+  const checkedItems = useMemo(() => new Set(checkedArr), [checkedArr]);
   const [activeTab, setActiveTab] = useState<"all" | "bookmarks">("all");
   const [priorityFilter, setPriorityFilter] = useState<"すべて" | "必須" | "重要" | "推奨">("すべて");
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_BOOKMARKS, JSON.stringify([...bookmarks]));
-  }, [bookmarks]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_CHECKLIST, JSON.stringify([...checkedItems]));
-  }, [checkedItems]);
-
   const toggleBookmark = (id: string) => {
-    setBookmarks(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+    setBookmarksArr((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return [...n];
+    });
   };
 
   const toggleCheck = (key: string) => {
-    setCheckedItems(prev => { const n = new Set(prev); if (n.has(key)) n.delete(key); else n.add(key); return n; });
+    setCheckedArr((prev) => {
+      const n = new Set(prev);
+      if (n.has(key)) n.delete(key); else n.add(key);
+      return [...n];
+    });
   };
 
   const filteredSections = sections.filter(s => {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
   Search, Banknote, Filter, Clock, ArrowRight, Star,
@@ -9,6 +9,7 @@ import {
   Building2, MapPin, Users, Briefcase, Zap,
 } from "lucide-react";
 import { useCompanyStore, type Company } from "../../../store/company";
+import { useCompanyStorageState } from "../../../hooks/useCompanyStorageState";
 
 /* ================================================================
    データ型
@@ -396,40 +397,33 @@ export default function FundingSearchPage() {
   const [showMedicalOnly, setShowMedicalOnly] = useState(false);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [sortBy, setSortBy] = useState<"match" | "deadline" | "amount">("match");
-  const [appStatus, setAppStatus] = useState<Record<string, AppStatusEntry>>({});
-  const [favorites, setFavorites] = useState<Set<string>>(new Set());
-  const [alerts, setAlerts] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    try {
-      const s = localStorage.getItem(STORAGE_KEY_STATUS);
-      if (s) setAppStatus(JSON.parse(s));
-      const f = localStorage.getItem(STORAGE_KEY_FAVORITES);
-      if (f) setFavorites(new Set(JSON.parse(f)));
-      const a = localStorage.getItem(STORAGE_KEY_ALERTS);
-      if (a) setAlerts(new Set(JSON.parse(a)));
-    } catch { /* ignore */ }
-  }, []);
+  const [appStatus, setAppStatus] = useCompanyStorageState<Record<string, AppStatusEntry>>(STORAGE_KEY_STATUS, {});
+  const [favoritesArr, setFavoritesArr] = useCompanyStorageState<string[]>(STORAGE_KEY_FAVORITES, []);
+  const [alertsArr, setAlertsArr] = useCompanyStorageState<string[]>(STORAGE_KEY_ALERTS, []);
+  const favorites = useMemo(() => new Set(favoritesArr), [favoritesArr]);
+  const alerts = useMemo(() => new Set(alertsArr), [alertsArr]);
 
   const saveStatus = (id: string, entry: Partial<AppStatusEntry>) => {
-    const current = appStatus[id] || { status: "none", note: "", alertEnabled: false };
-    const next = { ...appStatus, [id]: { ...current, ...entry } };
-    setAppStatus(next);
-    localStorage.setItem(STORAGE_KEY_STATUS, JSON.stringify(next));
+    setAppStatus((prev) => {
+      const current = prev[id] || { status: "none", note: "", alertEnabled: false };
+      return { ...prev, [id]: { ...current, ...entry } };
+    });
   };
 
   const toggleFavorite = (id: string) => {
-    const next = new Set(favorites);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    setFavorites(next);
-    localStorage.setItem(STORAGE_KEY_FAVORITES, JSON.stringify([...next]));
+    setFavoritesArr((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return [...next];
+    });
   };
 
   const toggleAlert = (id: string) => {
-    const next = new Set(alerts);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    setAlerts(next);
-    localStorage.setItem(STORAGE_KEY_ALERTS, JSON.stringify([...next]));
+    setAlertsArr((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return [...next];
+    });
   };
 
   const scoredSubsidies = useMemo(() =>

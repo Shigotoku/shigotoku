@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { createCompanyPersistStorage } from "../lib/companyPersistStorage";
 
 interface ProgressState {
   completedTasks: Set<string>;
@@ -53,19 +54,20 @@ export const useProgressStore = create<ProgressState>()(
     {
       name: "runwith-progress",
       storage: {
-        getItem: (name) => {
-          const str = localStorage.getItem(name);
-          if (!str) return null;
-          const parsed = JSON.parse(str);
+        getItem: async (name) => {
+          const base = await createCompanyPersistStorage<ProgressState>().getItem(name);
+          if (!base) return null;
           return {
-            ...parsed,
+            ...base,
             state: {
-              ...parsed.state,
-              completedTasks: new Set<string>(parsed.state.completedTaskIds ?? []),
+              ...base.state,
+              completedTasks: new Set<string>(
+                (base.state as unknown as { completedTaskIds?: string[] }).completedTaskIds ?? [],
+              ),
             },
           };
         },
-        setItem: (name, value) => {
+        setItem: async (name, value) => {
           const serialized = {
             ...value,
             state: {
@@ -74,9 +76,9 @@ export const useProgressStore = create<ProgressState>()(
               completedTasks: undefined,
             },
           };
-          localStorage.setItem(name, JSON.stringify(serialized));
+          await createCompanyPersistStorage().setItem(name, serialized);
         },
-        removeItem: (name) => localStorage.removeItem(name),
+        removeItem: (name) => createCompanyPersistStorage().removeItem(name),
       },
     }
   )

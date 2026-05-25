@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Save, Lightbulb, Target, Users, Zap,
   TrendingUp, AlertTriangle, Check, Trash2, Plus,
   Bot, Copy, ExternalLink, BookOpen, PenTool,
 } from "lucide-react";
+import { useCompanyStorageState } from "../../../hooks/useCompanyStorageState";
 
 const STORAGE_KEY = "runwith-business-idea";
 
@@ -25,10 +26,7 @@ const emptyIdea: IdeaData = {
 };
 
 export default function BusinessIdeaPage() {
-  const [idea, setIdea] = useState<IdeaData>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? JSON.parse(saved) : emptyIdea;
-  });
+  const [idea, setIdea] = useCompanyStorageState(STORAGE_KEY, emptyIdea);
   const [saved, setSaved] = useState(false);
   const [newRisk, setNewRisk] = useState("");
   const [newAssumption, setNewAssumption] = useState("");
@@ -36,9 +34,7 @@ export default function BusinessIdeaPage() {
   const [showPrompt, setShowPrompt] = useState(false);
   const [tab, setTab] = useState<"input" | "guide">("input");
 
-  useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(idea)); }, [idea]);
-
-  const handleSave = () => { localStorage.setItem(STORAGE_KEY, JSON.stringify(idea)); setSaved(true); setTimeout(() => setSaved(false), 2000); };
+  const handleSave = () => { setSaved(true); setTimeout(() => setSaved(false), 2000); };
   const addRisk = () => { if (!newRisk.trim()) return; setIdea(p => ({ ...p, risks: [...p.risks, newRisk.trim()] })); setNewRisk(""); };
   const addAssumption = () => { if (!newAssumption.trim()) return; setIdea(p => ({ ...p, assumptions: [...p.assumptions, newAssumption.trim()] })); setNewAssumption(""); };
 

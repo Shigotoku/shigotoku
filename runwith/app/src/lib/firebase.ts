@@ -6,6 +6,7 @@ import {
   getAuth,
   onAuthStateChanged,
   sendPasswordResetEmail,
+  sendEmailVerification,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
   updatePassword as firebaseUpdatePassword,
@@ -40,6 +41,12 @@ export async function signUpWithEmail(email: string, password: string, displayNa
   const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
   if (displayName.trim()) {
     await updateProfile(cred.user, { displayName: displayName.trim() });
+  }
+  if (!cred.user.emailVerified) {
+    await sendEmailVerification(cred.user, {
+      url: `${window.location.origin}/login`,
+    });
+    await firebaseSignOut(auth);
   }
   return cred.user;
 }

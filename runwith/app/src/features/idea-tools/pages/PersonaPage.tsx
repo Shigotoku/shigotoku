@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Save,
   Check,
@@ -16,6 +16,7 @@ import {
   PenTool,
   X,
 } from "lucide-react";
+import { useCompanyStorageState } from "../../../hooks/useCompanyStorageState";
 
 const STORAGE_KEY = "runwith-personas";
 
@@ -48,19 +49,12 @@ const emptyPersona = (): Persona => ({
 });
 
 export default function PersonaPage() {
-  const [personas, setPersonas] = useState<Persona[]>(() => {
-    const s = localStorage.getItem(STORAGE_KEY);
-    return s ? JSON.parse(s) : [emptyPersona()];
-  });
+  const [personas, setPersonas] = useCompanyStorageState<Persona[]>(STORAGE_KEY, [emptyPersona()]);
   const [activeIdx, setActiveIdx] = useState(0);
   const [saved, setSaved] = useState(false);
   const [promptCopied, setPromptCopied] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
   const [tab, setTab] = useState<"input" | "guide">("input");
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(personas));
-  }, [personas]);
 
   const current = personas[activeIdx] || emptyPersona();
 

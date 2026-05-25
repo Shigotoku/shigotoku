@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { useCompanyStorageState } from "../../../hooks/useCompanyStorageState";
 import {
   CheckCircle2, Circle, CreditCard, ExternalLink,
   ArrowRight, Lightbulb, Info, AlertCircle,
@@ -92,15 +93,8 @@ const accountingSoftware = [
 
 export default function PostRegistrationPage() {
   const location = useLocation();
-  const [doneItems, setDoneItems] = useState<Record<string, boolean>>({});
+  const [doneItems, setDoneItems] = useCompanyStorageState<Record<string, boolean>>(STORAGE_KEY, {});
   const [openStep, setOpenStep] = useState<string | null>("seal-card");
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) setDoneItems(JSON.parse(saved));
-    } catch { /* ignore */ }
-  }, []);
 
   useEffect(() => {
     const state = location.state as { openStep?: string } | null;
@@ -110,9 +104,7 @@ export default function PostRegistrationPage() {
   }, [location.state]);
 
   const toggleDone = (id: string) => {
-    const next = { ...doneItems, [id]: !doneItems[id] };
-    setDoneItems(next);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    setDoneItems((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   const doneCount = Object.values(doneItems).filter(Boolean).length;

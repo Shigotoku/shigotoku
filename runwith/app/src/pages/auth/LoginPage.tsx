@@ -53,7 +53,7 @@ export default function LoginPage() {
         const result = await signUp(email, password, name);
         if (result.needsEmailVerification) {
           setSuccess(
-            "確認メールを送信しました。メール内のリンクをクリックしてアカウントを有効化してください。"
+            "確認メールを送信しました。メール内のリンクをクリックしてからログインしてください。届かない場合は迷惑メールフォルダもご確認ください。"
           );
         } else {
           navigate("/company/setup");

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Save,
   Check,
@@ -14,6 +14,7 @@ import {
   Lightbulb,
   AlertTriangle,
 } from "lucide-react";
+import { useCompanyStorageState } from "../../../hooks/useCompanyStorageState";
 
 const STORAGE_KEY = "runwith-competitors";
 
@@ -29,22 +30,11 @@ interface Competitor {
 
 export default function CompetitorAnalysisPage() {
   const [tab, setTab] = useState<"input" | "guide">("input");
-  const [competitors, setCompetitors] = useState<Competitor[]>(() => {
-    const s = localStorage.getItem(STORAGE_KEY);
-    return s ? JSON.parse(s) : [];
-  });
-  const [myStrengths, setMyStrengths] = useState(() => {
-    const s = localStorage.getItem(STORAGE_KEY + "-my");
-    return s ? JSON.parse(s) : { strength: "", differentiation: "" };
-  });
+  const [competitors, setCompetitors] = useCompanyStorageState<Competitor[]>(STORAGE_KEY, []);
+  const [myStrengths, setMyStrengths] = useCompanyStorageState(STORAGE_KEY + "-my", { strength: "", differentiation: "" });
   const [saved, setSaved] = useState(false);
   const [promptCopied, setPromptCopied] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(competitors));
-    localStorage.setItem(STORAGE_KEY + "-my", JSON.stringify(myStrengths));
-  }, [competitors, myStrengths]);
 
   const addCompetitor = () => {
     setCompetitors(p => [...p, {

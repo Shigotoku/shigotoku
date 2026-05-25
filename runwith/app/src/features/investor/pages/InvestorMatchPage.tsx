@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Search, MapPin, DollarSign, ExternalLink, Star,
   Filter, Briefcase, Building2, Heart, HeartOff,
 } from "lucide-react";
 import { useCompanyStore } from "../../../store/company";
+import { useCompanyStorageState } from "../../../hooks/useCompanyStorageState";
 
 interface Investor {
   id: string;
@@ -140,19 +141,16 @@ export default function InvestorMatchPage() {
   const [stageFilter, setStageFilter] = useState("すべて");
   const [typeFilter, setTypeFilter] = useState("すべてのタイプ");
   const [medicalOnly, setMedicalOnly] = useState(false);
-  const [favorites, setFavorites] = useState<Set<string>>(() => {
-    try {
-      const s = localStorage.getItem("vc-favorites");
-      return s ? new Set(JSON.parse(s)) : new Set();
-    } catch { return new Set(); }
-  });
+  const [favoritesArr, setFavoritesArr] = useCompanyStorageState<string[]>("vc-favorites", []);
+  const favorites = useMemo(() => new Set(favoritesArr), [favoritesArr]);
   const [showFavOnly, setShowFavOnly] = useState(false);
 
   const toggleFavorite = (id: string) => {
-    const next = new Set(favorites);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    setFavorites(next);
-    localStorage.setItem("vc-favorites", JSON.stringify([...next]));
+    setFavoritesArr((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return [...next];
+    });
   };
 
   const getMatchScore = (inv: Investor): number => {

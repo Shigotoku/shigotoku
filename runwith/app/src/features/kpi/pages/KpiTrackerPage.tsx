@@ -7,6 +7,7 @@ import {
   TrendingUp, TrendingDown, Minus, DollarSign, Target,
   Zap, Plus, X, Edit3, Check, AlertCircle, BarChart3, Upload, Download,
 } from "lucide-react";
+import { useCompanyStorageState } from "../../../hooks/useCompanyStorageState";
 
 type Trend = "up" | "down" | "flat";
 
@@ -41,17 +42,7 @@ const defaultData: MonthlyEntry[] = Array.from({ length: 6 }, (_, i) => ({
 const STORAGE_KEY = "runwith-kpi-data";
 
 function usePersistentKpi() {
-  const [entries, setEntries] = useState<MonthlyEntry[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      return saved ? JSON.parse(saved) : defaultData;
-    } catch { return defaultData; }
-  });
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-  }, [entries]);
-
+  const [entries, setEntries] = useCompanyStorageState(STORAGE_KEY, defaultData);
   return { entries, setEntries };
 }
 

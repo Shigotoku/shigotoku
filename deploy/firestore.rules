@@ -74,6 +74,10 @@ service cloud.firestore {
         allow create: if request.auth != null && isRunwithMember(companyId);
         allow update, delete: if false;
       }
+
+      match /data/{dataKey} {
+        allow read, write: if request.auth != null && isRunwithMember(companyId);
+      }
     }
 
     match /runwith_invitation_tokens/{token} {

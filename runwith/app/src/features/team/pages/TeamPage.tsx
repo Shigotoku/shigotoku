@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Users, Plus, Trash2, Edit2, Check, X, UserPlus,
   PieChart, Mail, Calendar, Award, AlertCircle,
 } from "lucide-react";
+import { useCompanyStorageState } from "../../../hooks/useCompanyStorageState";
 
 interface TeamMember {
   id: string;
@@ -41,19 +42,10 @@ const emptyForm: Omit<TeamMember, "id"> = {
 };
 
 export default function TeamPage() {
-  const [members, setMembers] = useState<TeamMember[]>(() => {
-    try {
-      const s = localStorage.getItem(STORAGE_KEY);
-      return s ? JSON.parse(s) : defaultMembers;
-    } catch { return defaultMembers; }
-  });
+  const [members, setMembers] = useCompanyStorageState<TeamMember[]>(STORAGE_KEY, defaultMembers);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<Omit<TeamMember, "id">>(emptyForm);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(members));
-  }, [members]);
 
   const totalEquity = members.reduce((s, m) => s + m.equity, 0);
   const remainingEsop = Math.max(0, 100 - totalEquity);

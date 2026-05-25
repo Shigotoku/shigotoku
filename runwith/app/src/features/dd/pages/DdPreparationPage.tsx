@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import {
   FileSpreadsheet, Scale, Briefcase, Receipt, Users,
   CheckCircle2, Circle, Lightbulb, ChevronDown, ChevronUp,
   StickyNote, X, Edit3, Check,
 } from "lucide-react";
+import { useCompanyStorageState } from "../../../hooks/useCompanyStorageState";
 
 interface ChecklistItem {
   id: string;
@@ -96,6 +97,22 @@ const initialSections: DdSection[] = [
 
 const STORAGE_KEY = "runwith-dd";
 
+type SavedSection = { id: string; items: { id: string; done: boolean; note: string }[] };
+
+function mergeSections(saved: SavedSection[]): DdSection[] {
+  if (!saved.length) return initialSections;
+  return initialSections.map((sec) => {
+    const savedSec = saved.find((s) => s.id === sec.id);
+    return {
+      ...sec,
+      items: sec.items.map((item) => {
+        const savedItem = savedSec?.items.find((i) => i.id === item.id);
+        return { ...item, done: savedItem?.done ?? false, note: savedItem?.note ?? "" };
+      }),
+    };
+  });
+}
+
 const ddTips = [
   { num: "01", text: "DD開始の2〜4週間前に資料を整備。投資家の想定質問Q&Aを作成しておく。" },
   { num: "02", text: "財務数値は一貫性が命。決算書・月次・予測の数値が矛盾しないよう整合確認。" },
@@ -106,34 +123,18 @@ const ddTips = [
 ];
 
 export default function DdPreparationPage() {
-  const [sections, setSections] = useState<DdSection[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const savedData = JSON.parse(saved) as { id: string; items: { id: string; done: boolean; note: string }[] }[];
-        return initialSections.map(sec => {
-          const savedSec = savedData.find(s => s.id === sec.id);
-          return {
-            ...sec,
-            items: sec.items.map(item => {
-              const savedItem = savedSec?.items.find(i => i.id === item.id);
-              return { ...item, done: savedItem?.done ?? false, note: savedItem?.note ?? "" };
-            }),
-          };
-        });
-      }
-    } catch { /* ignore */ }
-    return initialSections;
-  });
+  const [savedSections, setSavedSections] = useCompanyStorageState<SavedSection[]>(STORAGE_KEY, []);
+  const sections = useMemo(() => mergeSections(savedSections), [savedSections]);
+  const setSections = (updater: DdSection[] | ((prev: DdSection[]) => DdSection[])) => {
+    setSavedSections((prev) => {
+      const merged = mergeSections(prev);
+      const next = typeof updater === "function" ? updater(merged) : updater;
+      return next.map((s) => ({ id: s.id, items: s.items.map((i) => ({ id: i.id, done: i.done, note: i.note })) }));
+    });
+  };
   const [expandedSection, setExpandedSection] = useState<string | null>("financial");
   const [editingNote, setEditingNote] = useState<{ sectionId: string; itemId: string } | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(
-      sections.map(s => ({ id: s.id, items: s.items.map(i => ({ id: i.id, done: i.done, note: i.note })) }))
-    ));
-  }, [sections]);
 
   const toggleItem = (sectionId: string, itemId: string) => {
     setSections(prev => prev.map(s =>

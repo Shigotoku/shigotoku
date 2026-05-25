@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Search,
   FolderSearch,
@@ -20,6 +20,7 @@ import {
   BadgeCheck,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useCompanyStorageState } from "../../../hooks/useCompanyStorageState";
 
 interface IpItem {
   id: string;
@@ -208,19 +209,12 @@ const steps: Step[] = [
 export default function TrademarkGuidePage() {
   const [openStep, setOpenStep] = useState<number>(1);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
-  const [ipItems, setIpItems] = useState<IpItem[]>([]);
+  const [ipItems, setIpItems] = useCompanyStorageState<IpItem[]>(IP_STORAGE_KEY, []);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveMode, setSaveMode] = useState<"draft" | "final">("draft");
   const [saveForm, setSaveForm] = useState({
     name: "", filingDate: "", registrationNum: "", dueDate: "", notes: "", category: "",
   });
-
-  useEffect(() => {
-    try {
-      const s = localStorage.getItem(IP_STORAGE_KEY);
-      setIpItems(s ? JSON.parse(s) : []);
-    } catch { setIpItems([]); }
-  }, [showSaveModal]);
 
   const trademarks = ipItems.filter(i => i.type === "商標");
 
@@ -240,7 +234,6 @@ export default function TrademarkGuidePage() {
       dueDate: saveForm.dueDate,
     };
     const existing = [...ipItems, newItem];
-    localStorage.setItem(IP_STORAGE_KEY, JSON.stringify(existing));
     setIpItems(existing);
     setShowSaveModal(false);
     setSaveForm({ name: "", filingDate: "", registrationNum: "", dueDate: "", notes: "", category: "" });

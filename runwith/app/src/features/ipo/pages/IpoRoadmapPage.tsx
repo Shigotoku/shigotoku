@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import {
   Calendar, FileText, Building2, Scale, Shield,
   TrendingUp, Banknote, CheckCircle2, Circle, ChevronDown, ChevronUp,
 } from "lucide-react";
+import { useCompanyStorageState } from "../../../hooks/useCompanyStorageState";
 
 interface RoadmapTask {
   id: string;
@@ -116,6 +117,22 @@ const initialPeriods: RoadmapPeriod[] = [
 
 const STORAGE_KEY = "runwith-ipo";
 
+type SavedPeriod = { id: string; tasks: { id: string; done: boolean }[] };
+
+function mergePeriods(saved: SavedPeriod[]): RoadmapPeriod[] {
+  if (!saved.length) return initialPeriods;
+  return initialPeriods.map((p) => {
+    const sp = saved.find((d) => d.id === p.id);
+    return {
+      ...p,
+      tasks: p.tasks.map((t) => {
+        const st = sp?.tasks.find((d) => d.id === t.id);
+        return { ...t, done: st?.done ?? false };
+      }),
+    };
+  });
+}
+
 const costSummary = [
   { label: "監査法人", range: "年1,000〜3,000万円", icon: FileText },
   { label: "主幹事証券", range: "上場時に調達額の3〜5%", icon: Building2 },
@@ -125,32 +142,16 @@ const costSummary = [
 ];
 
 export default function IpoRoadmapPage() {
-  const [periods, setPeriods] = useState<RoadmapPeriod[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const savedData = JSON.parse(saved) as { id: string; tasks: { id: string; done: boolean }[] }[];
-        return initialPeriods.map(p => {
-          const sp = savedData.find(d => d.id === p.id);
-          return {
-            ...p,
-            tasks: p.tasks.map(t => {
-              const st = sp?.tasks.find(d => d.id === t.id);
-              return { ...t, done: st?.done ?? false };
-            }),
-          };
-        });
-      }
-    } catch { /* ignore */ }
-    return initialPeriods;
-  });
+  const [savedPeriods, setSavedPeriods] = useCompanyStorageState<SavedPeriod[]>(STORAGE_KEY, []);
+  const periods = useMemo(() => mergePeriods(savedPeriods), [savedPeriods]);
+  const setPeriods = (updater: RoadmapPeriod[] | ((prev: RoadmapPeriod[]) => RoadmapPeriod[])) => {
+    setSavedPeriods((prev) => {
+      const merged = mergePeriods(prev);
+      const next = typeof updater === "function" ? updater(merged) : updater;
+      return next.map((p) => ({ id: p.id, tasks: p.tasks.map((t) => ({ id: t.id, done: t.done })) }));
+    });
+  };
   const [expandedPeriod, setExpandedPeriod] = useState<string>("n3");
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(
-      periods.map(p => ({ id: p.id, tasks: p.tasks.map(t => ({ id: t.id, done: t.done })) }))
-    ));
-  }, [periods]);
 
   const toggleTask = (periodId: string, taskId: string) => {
     setPeriods(prev => prev.map(p =>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Save,
   Check,
@@ -14,6 +14,7 @@ import {
   Lightbulb,
   AlertCircle,
 } from "lucide-react";
+import { useCompanyStorageState } from "../../../hooks/useCompanyStorageState";
 
 const STORAGE_KEY = "runwith-market-size";
 
@@ -52,18 +53,11 @@ const emptyData: MarketData = {
 };
 
 export default function MarketSizePage() {
-  const [data, setData] = useState<MarketData>(() => {
-    const s = localStorage.getItem(STORAGE_KEY);
-    return s ? JSON.parse(s) : emptyData;
-  });
+  const [data, setData] = useCompanyStorageState(STORAGE_KEY, emptyData);
   const [saved, setSaved] = useState(false);
   const [tab, setTab] = useState<"input" | "guide">("input");
   const [promptCopied, setPromptCopied] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  }, [data]);
 
   const handleSave = () => {
     setSaved(true);

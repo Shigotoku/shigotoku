@@ -5,6 +5,10 @@ import {
   Calendar, Banknote, Info, AlertTriangle, Eye,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useCompanyStore } from "../../../store/company";
+import { useAuthStore } from "../../../store/auth";
+import { getStorageJson } from "../../../lib/companyStorage";
+import { useCompanyStorageState } from "../../../hooks/useCompanyStorageState";
 
 interface IpItem {
   id: string;
@@ -44,32 +48,27 @@ const emptyForm: Omit<IpItem, "id"> = {
 };
 
 export default function IpManagementPage() {
-  const [items, setItems] = useState<IpItem[]>(() => {
-    try {
-      const s = localStorage.getItem(STORAGE_KEY);
-      return s ? JSON.parse(s) : [];
-    } catch { return []; }
-  });
+  const [items, setItems] = useCompanyStorageState<IpItem[]>(STORAGE_KEY, []);
+  const companyId = useCompanyStore((s) => s.company?.id);
+  const isDemo = useAuthStore((s) => s.isDemo);
   const [monitoredNames, setMonitoredNames] = useState<Set<string>>(new Set());
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<Omit<IpItem, "id">>(emptyForm);
   const [activeTab, setActiveTab] = useState<"portfolio" | "guide">("portfolio");
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-  }, [items]);
-
   // ブランド監視リストを読み込む
   useEffect(() => {
-    try {
-      const s = localStorage.getItem("runwith-monitoring");
-      if (s) {
-        const brands: { name: string }[] = JSON.parse(s);
-        setMonitoredNames(new Set(brands.map(b => b.name.toLowerCase())));
-      }
-    } catch { /* ignore */ }
-  }, []);
+    let cancelled = false;
+    (async () => {
+      try {
+        const brands = await getStorageJson<{ name: string }[]>("runwith-monitoring", companyId, isDemo);
+        if (cancelled || !brands) return;
+        setMonitoredNames(new Set(brands.map((b) => b.name.toLowerCase())));
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
+  }, [companyId, isDemo]);
 
   const openAdd = () => {
     setForm(emptyForm);

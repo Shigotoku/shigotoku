@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useProgressStore, TASK_IDS } from "../../../store/progress";
 import { useCompanyStore } from "../../../store/company";
+import { useCompanyStorageState } from "../../../hooks/useCompanyStorageState";
 
 interface BasicItem {
   id: string;
@@ -50,23 +51,14 @@ const defaultData: CompanyBasicsData = {
 
 export default function CompanyBasicsPage() {
   const location = useLocation();
-  const [data, setData] = useState<CompanyBasicsData>(defaultData);
-  const [doneItems, setDoneItems] = useState<Record<string, boolean>>({});
+  const [data, setData] = useCompanyStorageState(STORAGE_KEY, defaultData);
+  const [doneItems, setDoneItems] = useCompanyStorageState<Record<string, boolean>>(STORAGE_KEY_DONE, {});
   const [openSection, setOpenSection] = useState<string | null>("companyType");
   const [promptCopied, setPromptCopied] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
   const [saved, setSaved] = useState(false);
   const { markDone, isDone } = useProgressStore();
   const { company, updateCompany } = useCompanyStore();
-
-  useEffect(() => {
-    try {
-      const savedData = localStorage.getItem(STORAGE_KEY);
-      if (savedData) setData(JSON.parse(savedData));
-      const savedDone = localStorage.getItem(STORAGE_KEY_DONE);
-      if (savedDone) setDoneItems(JSON.parse(savedDone));
-    } catch { /* ignore */ }
-  }, []);
 
   useEffect(() => {
     const state = location.state as { openSection?: string } | null;
@@ -80,15 +72,10 @@ export default function CompanyBasicsPage() {
   }, [location.state]);
 
   const save = (updates: Partial<CompanyBasicsData>) => {
-    const next = { ...data, ...updates };
-    setData(next);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    setData((prev) => ({ ...prev, ...updates }));
   };
 
   const handleSaveAll = () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    localStorage.setItem(STORAGE_KEY_DONE, JSON.stringify(doneItems));
-
     markDone(TASK_IDS.PRE_COMPANY_TYPE);
     markDone(TASK_IDS.PRE_FOUNDERS);
     markDone(TASK_IDS.PRE_CAPITAL);
@@ -110,9 +97,7 @@ export default function CompanyBasicsPage() {
   };
 
   const toggleDone = (id: string) => {
-    const next = { ...doneItems, [id]: !doneItems[id] };
-    setDoneItems(next);
-    localStorage.setItem(STORAGE_KEY_DONE, JSON.stringify(next));
+    setDoneItems((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   const toggle = (id: string) => setOpenSection(openSection === id ? null : id);

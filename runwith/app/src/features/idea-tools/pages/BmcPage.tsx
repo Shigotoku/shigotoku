@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Save, Check, LayoutGrid, Info, Bot, Copy, ExternalLink, BookOpen, PenTool } from "lucide-react";
+import { useCompanyStorageState } from "../../../hooks/useCompanyStorageState";
 
 const STORAGE_KEY = "runwith-bmc";
 
@@ -47,17 +48,10 @@ const guideElements: { label: string; emoji: string; desc: string }[] = [
 
 export default function BmcPage() {
   const [tab, setTab] = useState<"input" | "guide">("input");
-  const [data, setData] = useState<BmcData>(() => {
-    const s = localStorage.getItem(STORAGE_KEY);
-    return s ? JSON.parse(s) : emptyBmc;
-  });
+  const [data, setData] = useCompanyStorageState(STORAGE_KEY, emptyBmc);
   const [saved, setSaved] = useState(false);
   const [promptCopied, setPromptCopied] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  }, [data]);
 
   const handleSave = () => { setSaved(true); setTimeout(() => setSaved(false), 2000); };
 

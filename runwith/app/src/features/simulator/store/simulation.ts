@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { createCompanyPersistStorage } from "../../../lib/companyPersistStorage";
 import type {
   SimulationData,
   SimulationResult,
@@ -115,6 +116,9 @@ export const useSimulationStore = create<SimulationState>()(
         });
       },
     }),
-    { name: "runwith-simulation" }
+    {
+      name: "runwith-simulation",
+      storage: createCompanyPersistStorage<SimulationState>(),
+    }
   )
 );

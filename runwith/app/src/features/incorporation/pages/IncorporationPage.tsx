@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { useCompanyStore } from "../../../store/company";
+import { useAuthStore } from "../../../store/auth";
+import { getStorageJson } from "../../../lib/companyStorage";
 import {
   CheckCircle2,
   ArrowRight,
@@ -199,6 +202,8 @@ const incorporationSteps: Step[] = [
 
 export default function IncorporationPage() {
   const location = useLocation();
+  const companyId = useCompanyStore((s) => s.company?.id);
+  const isDemo = useAuthStore((s) => s.isDemo);
   const [activeTab, setActiveTab] = useState<"steps" | "guide" | "special">("steps");
   const [expandedStep, setExpandedStep] = useState<string | null>(null);
   const [showAiTool, setShowAiTool] = useState(false);
@@ -227,10 +232,20 @@ export default function IncorporationPage() {
   }, [location.state]);
 
   useEffect(() => {
-    try {
-      const basicsRaw = localStorage.getItem("company-basics-data");
-      if (basicsRaw) {
-        const basics = JSON.parse(basicsRaw);
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const basics = await getStorageJson<{
+          companyType?: string;
+          companyName?: string;
+          capitalAmount?: string;
+          address?: string;
+          representativeName?: string;
+          businessPurposes?: string;
+          fiscalYearEnd?: string;
+        }>("company-basics-data", companyId, isDemo);
+        if (cancelled || !basics) return;
         const hasData = basics.companyType || basics.companyName || basics.capitalAmount || basics.address;
         if (hasData) {
           setAiForm((prev) => ({
@@ -247,9 +262,11 @@ export default function IncorporationPage() {
           }));
           setBasicsLoaded(true);
         }
-      }
-    } catch { /* ignore */ }
-  }, []);
+      } catch { /* ignore */ }
+    })();
+
+    return () => { cancelled = true; };
+  }, [companyId, isDemo]);
 
   const generateAiPrompt = () => {
     return `以下の情報をもとに、${aiForm.companyType}の定款（草案）を作成してください。

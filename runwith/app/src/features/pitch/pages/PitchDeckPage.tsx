@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import {
   Presentation, Plus, Lightbulb, Target, Users,
   TrendingUp, DollarSign, Zap, CheckCircle2, Circle,
   ChevronRight, Save, FileText, Globe,
 } from "lucide-react";
+import { useCompanyStorageState } from "../../../hooks/useCompanyStorageState";
 
 interface Slide {
   id: string;
@@ -84,26 +85,27 @@ const defaultSlides: Omit<Slide, "content">[] = [
 
 const STORAGE_KEY = "runwith-pitch-slides";
 
-export default function PitchDeckPage() {
-  const [slides, setSlides] = useState<Slide[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved) as Slide[];
-        return defaultSlides.map((d) => {
-          const saved = parsed.find(s => s.id === d.id);
-          return { ...d, content: saved?.content ?? "", completed: saved?.completed ?? false };
-        });
-      }
-    } catch { /* ignore */ }
-    return defaultSlides.map(d => ({ ...d, content: "", completed: false }));
+type SavedSlide = { id: string; content: string; completed: boolean };
+
+function mergeSlides(saved: SavedSlide[]): Slide[] {
+  return defaultSlides.map((d) => {
+    const s = saved.find((x) => x.id === d.id);
+    return { ...d, content: s?.content ?? "", completed: s?.completed ?? false };
   });
+}
+
+export default function PitchDeckPage() {
+  const [savedSlides, setSavedSlides] = useCompanyStorageState<SavedSlide[]>(STORAGE_KEY, []);
+  const slides = useMemo(() => mergeSlides(savedSlides), [savedSlides]);
+  const setSlides = (updater: Slide[] | ((prev: Slide[]) => Slide[])) => {
+    setSavedSlides((prev) => {
+      const merged = mergeSlides(prev);
+      const next = typeof updater === "function" ? updater(merged) : updater;
+      return next.map((s) => ({ id: s.id, content: s.content, completed: s.completed }));
+    });
+  };
   const [selected, setSelected] = useState<string>("s1");
   const [saveIndicator, setSaveIndicator] = useState(false);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(slides.map(s => ({ id: s.id, content: s.content, completed: s.completed }))));
-  }, [slides]);
 
   const selectedSlide = slides.find(s => s.id === selected)!;
   const completed = slides.filter(s => s.completed).length;
