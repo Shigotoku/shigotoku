@@ -92,11 +92,16 @@ export default function LoginPage() {
       <main className="mx-auto grid max-w-5xl gap-10 px-6 py-16 lg:grid-cols-2 lg:items-center lg:py-24">
         <div>
           <p className="buzz-section-label mb-4">BtoC店舗のための SNS 経営OS</p>
-          <h1 className="text-4xl font-bold leading-tight sm:text-5xl">
-            SNS運用を、
-            <br />
-            毎朝5分のルーティンへ。
-          </h1>
+          <div className="headline-fit-wrap">
+            <h1 className="text-4xl font-bold leading-tight sm:text-5xl" data-headline-fit-off>
+              <span className="block" data-headline-fit data-headline-max="36">
+                SNS運用を、
+              </span>
+              <span className="block" data-headline-fit data-headline-max="36">
+                毎朝5分のルーティンへ。
+              </span>
+            </h1>
+          </div>
           <p className="mt-6 text-base leading-relaxed text-neutral-600">
             {BRAND_FULL}は、BtoC店舗向けのSNS運用・売上トラッキングOSです。
             メールアドレスでログインし、Gemini・Slack・Ayrshare と連携できます。

@@ -34,3 +34,20 @@ body {
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
 }
+
+.headline-fit-wrap {
+  container-type: inline-size;
+  width: 100%;
+}
+
+@media (max-width: 767px) {
+  [data-headline-fit] {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    white-space: nowrap;
+    font-size: clamp(0.875rem, 6.2cqi, 1.875rem);
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+  }
+}

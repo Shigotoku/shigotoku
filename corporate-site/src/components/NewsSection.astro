@@ -4,9 +4,9 @@ import { news } from '../data/content';
 
 <section id="news" class="py-32 bg-gray-50">
   <div class="mx-auto max-w-7xl px-6 lg:px-8">
-    <div class="mb-12">
+    <div class="mb-12 headline-fit-wrap">
       <span class="inline-block rounded-full bg-blue-50 px-4 py-1.5 text-sm font-semibold text-blue-600 mb-4">News</span>
-      <h2 class="text-4xl sm:text-5xl font-black tracking-tight text-gray-900">お知らせ</h2>
+      <h2 class="text-4xl sm:text-5xl font-black tracking-tight text-gray-900" data-headline-fit>お知らせ</h2>
     </div>
     <div class="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-100 overflow-hidden">
       {news.map((item) => (

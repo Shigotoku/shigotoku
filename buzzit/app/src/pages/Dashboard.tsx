@@ -60,7 +60,7 @@ export default function Dashboard() {
         <div className="buzz-card lg:col-span-2">
           <div className="border-b border-neutral-200 bg-neutral-50 p-6 md:p-8">
             <p className="buzz-section-label mb-3">Today&apos;s Mission</p>
-            <h2 className="text-2xl font-bold md:text-3xl">{mission.title}</h2>
+            <h2 className="text-2xl font-bold md:text-3xl" data-headline-max="28">{mission.title}</h2>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-neutral-600 md:text-base">
               {mission.description}
             </p>

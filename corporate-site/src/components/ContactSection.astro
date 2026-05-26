@@ -3,7 +3,9 @@
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
       <div>
         <span class="inline-block rounded-full bg-blue-50 px-4 py-1.5 text-sm font-semibold text-blue-600 mb-4">お問い合わせ</span>
-        <h2 class="text-4xl sm:text-5xl font-black tracking-tight text-gray-900 mb-6">お気軽に<br />ご相談ください</h2>
+        <div class="headline-fit-wrap mb-6">
+          <h2 class="text-4xl sm:text-5xl font-black tracking-tight text-gray-900" data-headline-fit>お気軽にご相談ください</h2>
+        </div>
         <p class="text-gray-500 leading-relaxed mb-8">サービスに関するご質問・ご相談、取材・提携のご依頼など、お気軽にお問い合わせください。通常2〜3営業日以内にご返信いたします。</p>
         <div class="space-y-4">
           {[{ icon: '📧', label: 'メール', value: 'support@shigotoku.com' }, { icon: '🕐', label: '対応時間', value: '平日 10:00〜18:00' }, { icon: '📍', label: '所在地', value: '熊本県' }].map((item) => (

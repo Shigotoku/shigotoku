@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider } from './store/appContext';
 import { AuthProvider } from './store/authContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import HeadlineFitRoot from './components/HeadlineFitRoot';
 import DashboardLayout from './layouts/DashboardLayout';
 import Dashboard from './pages/Dashboard';
 import LoginPage from './pages/LoginPage';
@@ -14,6 +15,7 @@ function App() {
     <AuthProvider>
       <AppProvider>
         <BrowserRouter>
+          <HeadlineFitRoot />
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route element={<ProtectedRoute />}>

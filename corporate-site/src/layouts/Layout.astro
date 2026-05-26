@@ -35,5 +35,47 @@ const {
     <Header />
     <slot />
     <Footer />
+
+    <script>
+      const fitHeadlines = () => {
+        const mobile = window.matchMedia('(max-width: 767px)').matches;
+        document.querySelectorAll('[data-headline-fit]').forEach((el) => {
+          const node = el;
+          node.style.fontSize = '';
+          node.style.whiteSpace = '';
+          if (!mobile) return;
+
+          const wrap = node.closest('.headline-fit-wrap');
+          const maxWidth = wrap?.clientWidth ?? node.parentElement?.clientWidth ?? window.innerWidth;
+          const maxPx = Number(node.dataset.headlineMax) || 30;
+          const minPx = Number(node.dataset.headlineMin) || 13;
+
+          node.style.whiteSpace = 'nowrap';
+          let low = minPx;
+          let high = maxPx;
+          while (high - low > 0.25) {
+            const mid = (low + high) / 2;
+            node.style.fontSize = `${mid}px`;
+            if (node.scrollWidth > maxWidth) high = mid;
+            else low = mid;
+          }
+          node.style.fontSize = `${low}px`;
+        });
+      };
+
+      let headlineFitReady = false;
+      const initHeadlineFit = () => {
+        fitHeadlines();
+        if (headlineFitReady) return;
+        headlineFitReady = true;
+        window.addEventListener('resize', fitHeadlines);
+        document.fonts?.ready.then(fitHeadlines);
+        const ro = new ResizeObserver(() => fitHeadlines());
+        document.querySelectorAll('.headline-fit-wrap').forEach((el) => ro.observe(el));
+      };
+
+      initHeadlineFit();
+      document.addEventListener('astro:page-load', initHeadlineFit);
+    </script>
   </body>
 </html>
