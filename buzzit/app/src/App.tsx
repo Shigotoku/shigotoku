@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import LoginPage from './pages/LoginPage';
 import MagicCreator from './pages/MagicCreator';
 import AnalyticsPage from './pages/AnalyticsPage';
+import LineCrmPage from './pages/LineCrmPage';
 import SettingsPage from './pages/SettingsPage';
 
 function App() {
@@ -24,6 +25,7 @@ function App() {
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="magic-creator" element={<MagicCreator />} />
                 <Route path="analytics" element={<AnalyticsPage />} />
+                <Route path="line-crm" element={<LineCrmPage />} />
                 <Route path="settings" element={<SettingsPage />} />
               </Route>
             </Route>

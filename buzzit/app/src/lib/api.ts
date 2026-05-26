@@ -187,6 +187,100 @@ export function startGbpOAuth() {
   return request<{ url: string }>('/v1/oauth/google/start');
 }
 
+// --- LINE CRM (Lstep Replacement) ---
+export interface LineSource {
+  id: string;
+  label: string;
+  addFriendUrl: string;
+  followsCount: number;
+  blocksCount: number;
+}
+
+export interface LineSegment {
+  id: string;
+  name: string;
+  estimatedReach: number;
+  conditions: unknown[];
+}
+
+export interface LineStep {
+  id: string;
+  name: string;
+  status: 'active' | 'paused';
+  segmentId?: string;
+  messages: unknown[];
+}
+
+export interface LineRichMenuRecord {
+  id: string;
+  name: string;
+  lineRichMenuId?: string;
+}
+
+export interface LineInsights {
+  followers: { count?: number; targetedReaches?: number } | null;
+  demographic: unknown | null;
+}
+
+export function fetchLineSources() {
+  return request<{ sources: LineSource[] }>('/v1/line/sources');
+}
+
+export function createLineSource(body: { label: string; addFriendUrl: string }) {
+  return request<{ id: string; shortUrl: string }>('/v1/line/sources', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function fetchLineSegments() {
+  return request<{ segments: LineSegment[] }>('/v1/line/segments');
+}
+
+export function createLineSegment(body: { name: string; conditions: unknown[] }) {
+  return request<{ id: string }>('/v1/line/segments', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function fetchLineSteps() {
+  return request<{ steps: LineStep[] }>('/v1/line/steps');
+}
+
+export function createLineStep(body: { name: string; segmentId?: string; messages: unknown[]; triggers: unknown[] }) {
+  return request<{ id: string }>('/v1/line/steps', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function fetchLineRichMenus() {
+  return request<{ menus: LineRichMenuRecord[] }>('/v1/line/richmenu');
+}
+
+export function fetchLineInsights() {
+  return request<LineInsights>('/v1/line/insights');
+}
+
+export function createLineTag(body: { name: string; color?: string; ruleType?: 'manual' | 'auto' }) {
+  return request<{ id: string }>('/v1/line/tags', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function deleteLineTag(id: string) {
+  return request<{ success: boolean }>(`/v1/line/tags/${id}`, { method: 'DELETE' });
+}
+
+export function sendLineNarrowcast(body: { segmentId?: string; text: string; userIds: string[] }) {
+  return request<{ success: boolean; message: string; requestId?: string }>('/v1/line/narrowcast', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
 export interface ScheduleApiRequest {
   contents: Array<{ platform: string; label: string; content: string; carouselSlides?: string[] }>;
   scheduledAt: string;

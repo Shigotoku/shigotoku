@@ -144,26 +144,38 @@ defaultDestinationUrl, lineCustomerTags[]
 3. `defaultPublishMode=auto|meta|gbp` 時は自動予約
 4. **配信モード自動最適化** — リーチ重視は Meta+GBP、CV重視は LINE セグメント
 
-### 3.5 LINE セグメント配信（Pro / Growth OS）
+### 3.5 LINE CRM（Lステップ完全代替・Pro / Growth OS）
 
-- 顧客タグ管理（来店頻度・最終来店日・年代・興味）
-- セグメント条件ビルダー（GUI）
-- ステップ配信（登録後 N日）
-- 配信前コスト推定 `¥X,XXX → 推定CV Y件`
+LINE Messaging API + Narrowcast + Audience Group + Rich Menu API を直結し、
+Lステップ ¥21,780 / Liny ¥43,780 を **BuzzIt 内に内包**。詳細は `docs/LSTEP-REPLACEMENT.md`。
 
-### 3.6 HPB トラッキング（Growth OS）
+- **顧客タグ管理** — 手動 + 自動付与ルール（follow / postback / クリック計測）
+- **流入経路分析** — `/r/line/{sourceId}` 短縮URL + Webhook で経路別追加数を計測
+- **セグメント配信** — Narrowcast Audience Group で属性 / タグ / スコア別配信
+- **ステップ配信** — Cloud Scheduler `buzzitLineStepWorker` でシナリオ実行
+- **リッチメニュー** — 画像 + エリア定義、セグメント別自動切替
+- **クイックリプライ / Flex / カルーセル** — メッセージビルダー
+- **アンケート（postback 回答収集）** — タグ自動付与
+- **配信効果分析** — `/v2/bot/insight/*` を集約
+- **配信前コスト推定** — 2026秋料金改定対応
+
+### 3.6 LINE セグメント配信（Pro / Growth OS）— v5.4 統合
+
+> v5.4 以降、本機能は §3.5 LINE CRM に統合。
+
+### 3.7 HPB トラッキング（Growth OS）
 
 - 計測リンク生成時に HPB予約UTM 自動付与
 - 投稿別「HPB予約寄与度」可視化
 - 売上ファネルに HPB予約数を統合
 
-### 3.7 MEOダッシュボード（Growth OS / Enterprise）
+### 3.8 MEOダッシュボード（Growth OS / Enterprise）
 
 - GBP閲覧・経路・順位
 - クチコミ集約・AI返信ドラフト
 - 写真投稿の自動同期
 
-### 3.8 多店舗統合（Enterprise）
+### 3.9 多店舗統合（Enterprise）
 
 - 親→子店舗階層
 - 横断KPI集計
@@ -203,7 +215,14 @@ defaultDestinationUrl, lineCustomerTags[]
 | GET | `/v1/oauth/meta/start` `/callback` | Meta OAuth |
 | GET | `/v1/oauth/google/start` `/callback` | **GBP OAuth（Phase 4）** |
 | POST | `/v1/voice-draft` | **音声→4種下書き生成（Phase 4）** |
-| POST | `/v1/line/segments` | **セグメント作成（Phase 5）** |
+| GET/POST/DELETE | `/v1/line/tags` | **顧客タグ CRUD（Phase 5）** |
+| GET/POST | `/v1/line/sources` | **流入経路URL発行・分析（Phase 5）** |
+| GET | `/r/line/:sourceId` | **流入経路リダイレクト（公開）** |
+| GET/POST | `/v1/line/segments` | **セグメント CRUD（Phase 5）** |
+| POST | `/v1/line/narrowcast` | **Narrowcast 配信実行（Phase 5）** |
+| GET/POST | `/v1/line/steps` | **ステップ配信 CRUD（Phase 5）** |
+| GET/POST | `/v1/line/richmenu` | **リッチメニュー（Phase 5）** |
+| GET | `/v1/line/insights` | **配信インサイト（Phase 5）** |
 | GET | `/v1/line/cost-estimate` | **配信コスト推定** |
 | GET | `/v1/hpb/conversions` | **HPB予約寄与度（Phase 5）** |
 
@@ -307,4 +326,5 @@ npm run deploy:buzzit
 - 競合分析: `buzzit/docs/競合アプリの機能・費用調査.md`
 - 価格戦略: `buzzit/docs/PRICING-STRATEGY.md`
 - 競合対抗ロードマップ: `buzzit/docs/COMPETITIVE-ROADMAP.md`
+- **Lステップ代替戦略: `buzzit/docs/LSTEP-REPLACEMENT.md`**
 - GSC対応: `buzzit/docs/GSC-対応チェックリスト.md`

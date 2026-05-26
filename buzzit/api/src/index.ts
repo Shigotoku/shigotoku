@@ -722,9 +722,246 @@ api.get('/v1/line/cost-estimate', requireAuth, async (req: AuthedRequest, res) =
   });
 });
 
-// --- LINE Customer Tags (Phase 5 skeleton) ---
-api.get('/v1/line/tags', requireAuth, async (_req: AuthedRequest, res) => {
-  res.json({ tags: [] });
+// --- LINE CRM (Lstep Replacement / Phase 5) ---
+
+import {
+  sendLineNarrowcast,
+  createLineAudienceGroup,
+  getLineFollowerInsight,
+  getLineDemographicInsight,
+  createLineRichMenu,
+} from './services/lineMessaging';
+
+const lineCrmDocPath = (uid: string, sub: string, id?: string) =>
+  id ? `users/${uid}/${sub}/${id}` : `users/${uid}/${sub}`;
+
+async function lineCrmCollection<T>(uid: string, sub: string): Promise<Array<T & { id: string }>> {
+  const { getFirestore } = await import('firebase-admin/firestore');
+  const snap = await getFirestore().collection(lineCrmDocPath(uid, sub)).get();
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as T) }));
+}
+
+// 顧客タグ
+api.get('/v1/line/tags', requireAuth, async (req: AuthedRequest, res) => {
+  const tags = await lineCrmCollection<{ name: string; color: string; friendCount: number; ruleType: string }>(
+    req.uid!,
+    'lineTags',
+  );
+  res.json({ tags });
+});
+
+api.post('/v1/line/tags', requireAuth, async (req: AuthedRequest, res) => {
+  const { name, color = '#525252', ruleType = 'manual', autoRule } = req.body as {
+    name?: string; color?: string; ruleType?: 'manual' | 'auto'; autoRule?: unknown;
+  };
+  if (!name?.trim()) {
+    res.status(400).json({ error: 'name が必要です' });
+    return;
+  }
+  const { getFirestore } = await import('firebase-admin/firestore');
+  const ref = await getFirestore().collection(lineCrmDocPath(req.uid!, 'lineTags')).add({
+    name: name.trim(), color, ruleType, autoRule: autoRule ?? null, friendCount: 0,
+    createdAt: new Date().toISOString(),
+  });
+  res.json({ id: ref.id });
+});
+
+api.delete('/v1/line/tags/:id', requireAuth, async (req: AuthedRequest, res) => {
+  const { getFirestore } = await import('firebase-admin/firestore');
+  await getFirestore().doc(lineCrmDocPath(req.uid!, 'lineTags', String(req.params.id))).delete();
+  res.json({ success: true });
+});
+
+// 流入経路（短縮URL発行）
+api.get('/v1/line/sources', requireAuth, async (req: AuthedRequest, res) => {
+  const sources = await lineCrmCollection<{ label: string; addFriendUrl: string; followsCount: number; blocksCount: number }>(
+    req.uid!,
+    'lineSources',
+  );
+  res.json({ sources });
+});
+
+api.post('/v1/line/sources', requireAuth, async (req: AuthedRequest, res) => {
+  const { label, addFriendUrl } = req.body as { label?: string; addFriendUrl?: string };
+  if (!label?.trim() || !addFriendUrl?.trim()) {
+    res.status(400).json({ error: 'label と addFriendUrl が必要です' });
+    return;
+  }
+  const { getFirestore } = await import('firebase-admin/firestore');
+  const ref = await getFirestore().collection(lineCrmDocPath(req.uid!, 'lineSources')).add({
+    label: label.trim(),
+    addFriendUrl: addFriendUrl.trim(),
+    followsCount: 0,
+    blocksCount: 0,
+    createdAt: new Date().toISOString(),
+  });
+  const origin = process.env.BUZZIT_APP_ORIGIN ?? 'https://app.buzzit.shigotoku.com';
+  res.json({
+    id: ref.id,
+    shortUrl: `${origin}/api/r/line/${ref.id}`,
+  });
+});
+
+// 流入経路リダイレクト（公開・クッキー設定）
+api.get('/r/line/:sourceId', async (req, res) => {
+  try {
+    const { getFirestore } = await import('firebase-admin/firestore');
+    const sourceId = String(req.params.sourceId);
+    // 全ユーザーから sourceId 一致を検索（小規模想定。Index 化推奨）
+    const snap = await getFirestore().collectionGroup('lineSources').get();
+    const doc = snap.docs.find((d) => d.id === sourceId);
+    if (!doc) {
+      res.status(404).send('リンクが見つかりません');
+      return;
+    }
+    const data = doc.data() as { addFriendUrl: string };
+    res.cookie('buzz_line_src', sourceId, { maxAge: 60 * 60 * 24 * 1000, httpOnly: false, sameSite: 'lax' });
+    res.redirect(302, data.addFriendUrl);
+  } catch (err) {
+    console.error('line source redirect failed', err);
+    res.status(500).send('リダイレクトに失敗しました');
+  }
+});
+
+// セグメント
+api.get('/v1/line/segments', requireAuth, async (req: AuthedRequest, res) => {
+  const segments = await lineCrmCollection<{ name: string; estimatedReach: number; conditions: unknown[] }>(
+    req.uid!,
+    'lineSegments',
+  );
+  res.json({ segments });
+});
+
+api.post('/v1/line/segments', requireAuth, async (req: AuthedRequest, res) => {
+  const { name, conditions = [] } = req.body as { name?: string; conditions?: unknown[] };
+  if (!name?.trim()) {
+    res.status(400).json({ error: 'name が必要です' });
+    return;
+  }
+  const { getFirestore } = await import('firebase-admin/firestore');
+  const ref = await getFirestore().collection(lineCrmDocPath(req.uid!, 'lineSegments')).add({
+    name: name.trim(), conditions, estimatedReach: 0,
+    createdAt: new Date().toISOString(),
+  });
+  res.json({ id: ref.id });
+});
+
+// Narrowcast 配信
+api.post('/v1/line/narrowcast', requireAuth, async (req: AuthedRequest, res) => {
+  const { segmentId, text, userIds } = req.body as { segmentId?: string; text?: string; userIds?: string[] };
+  if (!text?.trim()) {
+    res.status(400).json({ error: 'text が必要です' });
+    return;
+  }
+  const settings = await getUserSettings(req.uid!);
+  if (!['pro', 'team', 'growth', 'enterprise'].includes(settings.plan)) {
+    res.status(403).json({ error: 'Pro プラン以上が必要です' });
+    return;
+  }
+  if (!settings.lineChannelAccessToken) {
+    res.status(400).json({ error: 'LINE Channel Access Token 未設定' });
+    return;
+  }
+  if (!userIds?.length) {
+    res.status(400).json({ error: 'userIds（最小100名）が必要です' });
+    return;
+  }
+  const ag = await createLineAudienceGroup(
+    settings.lineChannelAccessToken,
+    `buzzit_${segmentId ?? 'manual'}_${Date.now()}`,
+    userIds,
+  );
+  if (!ag.success || !ag.audienceGroupId) {
+    res.status(500).json({ error: ag.message });
+    return;
+  }
+  const result = await sendLineNarrowcast(settings.lineChannelAccessToken, ag.audienceGroupId, text);
+  res.json(result);
+});
+
+// ステップ配信シナリオ
+api.get('/v1/line/steps', requireAuth, async (req: AuthedRequest, res) => {
+  const steps = await lineCrmCollection<{ name: string; status: string; messages: unknown[]; segmentId?: string }>(
+    req.uid!,
+    'lineSteps',
+  );
+  res.json({ steps });
+});
+
+api.post('/v1/line/steps', requireAuth, async (req: AuthedRequest, res) => {
+  const { name, segmentId, messages = [], triggers = [{ kind: 'follow' }] } = req.body as {
+    name?: string; segmentId?: string; messages?: unknown[]; triggers?: unknown[];
+  };
+  if (!name?.trim()) {
+    res.status(400).json({ error: 'name が必要です' });
+    return;
+  }
+  const settings = await getUserSettings(req.uid!);
+  if (!['pro', 'team', 'growth', 'enterprise'].includes(settings.plan)) {
+    res.status(403).json({ error: 'Pro プラン以上が必要です' });
+    return;
+  }
+  const { getFirestore } = await import('firebase-admin/firestore');
+  const ref = await getFirestore().collection(lineCrmDocPath(req.uid!, 'lineSteps')).add({
+    name: name.trim(), segmentId: segmentId ?? null, messages, triggers,
+    status: 'active', createdAt: new Date().toISOString(),
+  });
+  res.json({ id: ref.id });
+});
+
+// リッチメニュー
+api.get('/v1/line/richmenu', requireAuth, async (req: AuthedRequest, res) => {
+  const menus = await lineCrmCollection<{ name: string; lineRichMenuId?: string }>(req.uid!, 'lineRichMenus');
+  res.json({ menus });
+});
+
+api.post('/v1/line/richmenu', requireAuth, async (req: AuthedRequest, res) => {
+  const settings = await getUserSettings(req.uid!);
+  if (!['pro', 'team', 'growth', 'enterprise'].includes(settings.plan)) {
+    res.status(403).json({ error: 'Pro プラン以上が必要です' });
+    return;
+  }
+  if (!settings.lineChannelAccessToken) {
+    res.status(400).json({ error: 'LINE Channel Access Token 未設定' });
+    return;
+  }
+  const { name, chatBarText, size, areas } = req.body as {
+    name?: string; chatBarText?: string; size?: { width: number; height: number };
+    areas?: Array<{ bounds: { x: number; y: number; width: number; height: number }; action: { type: string; uri?: string; data?: string; label?: string } }>;
+  };
+  if (!name || !chatBarText || !size || !areas?.length) {
+    res.status(400).json({ error: 'name, chatBarText, size, areas が必要です' });
+    return;
+  }
+  const result = await createLineRichMenu(settings.lineChannelAccessToken, { name, chatBarText, size, areas });
+  if (!result.success) {
+    res.status(500).json({ error: result.message });
+    return;
+  }
+  const { getFirestore } = await import('firebase-admin/firestore');
+  const ref = await getFirestore().collection(lineCrmDocPath(req.uid!, 'lineRichMenus')).add({
+    name, lineRichMenuId: result.richMenuId, createdAt: new Date().toISOString(),
+  });
+  res.json({ id: ref.id, lineRichMenuId: result.richMenuId });
+});
+
+// インサイト
+api.get('/v1/line/insights', requireAuth, async (req: AuthedRequest, res) => {
+  const settings = await getUserSettings(req.uid!);
+  if (!settings.lineChannelAccessToken) {
+    res.json({ followers: null, demographic: null });
+    return;
+  }
+  const today = new Date();
+  const date = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate() - 1).padStart(2, '0')}`;
+  const [followers, demographic] = await Promise.all([
+    getLineFollowerInsight(settings.lineChannelAccessToken, date),
+    getLineDemographicInsight(settings.lineChannelAccessToken),
+  ]);
+  res.json({
+    followers: followers.success ? { count: followers.followers, targetedReaches: followers.targetedReaches } : null,
+    demographic: demographic.success ? demographic.data : null,
+  });
 });
 
 // --- HPB Conversions (Phase 5 skeleton) ---

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Wand2, BarChart3, Settings, Bell, ExternalLink, LogOut, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Wand2, BarChart3, MessageCircle, Settings, Bell, ExternalLink, LogOut, Menu, X } from 'lucide-react';
 import { BRAND_NAME } from '../constants/brand';
 import { landingPath } from '../lib/urls';
 import { useApp } from '../store/appContext';
@@ -18,12 +18,14 @@ const planLabels = {
 const navItems = [
   { name: '経営コクピット', path: '/dashboard', icon: LayoutDashboard },
   { name: 'マジック・クリエイター', path: '/magic-creator', icon: Wand2 },
+  { name: 'LINE CRM', path: '/line-crm', icon: MessageCircle },
   { name: '分析・売上', path: '/analytics', icon: BarChart3 },
   { name: '設定', path: '/settings', icon: Settings },
 ];
 
 function pageTitle(pathname: string): string {
   if (pathname.startsWith('/magic-creator')) return 'マジック・クリエイター';
+  if (pathname.startsWith('/line-crm')) return 'LINE CRM';
   if (pathname.startsWith('/analytics')) return '分析・売上';
   if (pathname.startsWith('/settings')) return '設定';
   return '経営コクピット';
