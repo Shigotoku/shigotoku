@@ -134,7 +134,7 @@ export default function AnalyticsPage() {
       </div>
 
       <div className="buzz-card-pad">
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5 text-neutral-700" />
             <h3 className="text-lg font-bold">トレンド波乗りエンジン</h3>
@@ -156,7 +156,7 @@ export default function AnalyticsPage() {
             {trends.map((t) => (
               <div
                 key={t.id}
-                className="flex items-start justify-between gap-4 border border-neutral-200 bg-neutral-50 p-4"
+                className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4 border border-neutral-200 bg-neutral-50 p-4"
               >
                 <div>
                   <p className="font-medium">{t.topic}</p>
@@ -180,7 +180,7 @@ export default function AnalyticsPage() {
       </div>
 
       <div className="buzz-card-pad space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
             <FlaskConical className="h-5 w-5 text-neutral-700" />
             <h3 className="text-lg font-bold">A/B テスト自動化</h3>
@@ -219,7 +219,7 @@ export default function AnalyticsPage() {
           )}
           {abTests.map((test) => (
             <div key={test.id} className="space-y-3 border border-neutral-200 bg-neutral-50 p-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className="font-medium">{test.idea}</p>
                 <span
                   className={`rounded-full px-2 py-1 text-xs ${
@@ -282,7 +282,7 @@ export default function AnalyticsPage() {
           {topPosts.map((post) => (
             <div
               key={post.id}
-              className="flex items-center justify-between border border-neutral-200 bg-neutral-50 p-4"
+              className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border border-neutral-200 bg-neutral-50 p-4"
             >
               <div>
                 <p className="font-medium">{post.title}</p>

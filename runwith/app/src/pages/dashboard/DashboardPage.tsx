@@ -163,7 +163,7 @@ export default function DashboardPage() {
       )}
 
       {/* クイックアクション */}
-      <div className="grid grid-cols-4 gap-2.5 sm:grid-cols-8">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 lg:grid-cols-8">
         {quickActions.map((action) => {
           const Icon = action.icon;
           return (

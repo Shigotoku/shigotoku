@@ -2,21 +2,29 @@
 import { appPath } from '../lib/urls';
 
 const loginUrl = appPath('/login');
+
+const navLinks = [
+  { href: '#transform', label: '変化' },
+  { href: '#features', label: '機能' },
+  { href: '#pricing', label: '料金' },
+];
 ---
 
 <header class="fixed top-0 z-50 w-full border-b border-neutral-200/80 bg-[#f5f4f0]/90 backdrop-blur-md">
-  <div class="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 md:px-8">
-    <a href="#top" class="flex items-center gap-2.5">
+  <div class="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-5 md:px-8">
+    <a href="#top" class="flex min-h-[44px] items-center gap-2.5">
       <span class="flex h-8 w-8 items-center justify-center bg-neutral-900 text-xs font-bold text-white">B</span>
       <span class="font-display text-lg font-bold tracking-tight text-neutral-900">BuzzIt</span>
     </a>
+
     <nav class="hidden items-center gap-8 text-sm font-medium text-neutral-600 md:flex">
-      <a href="#transform" class="transition-colors hover:text-neutral-900">変化</a>
-      <a href="#features" class="transition-colors hover:text-neutral-900">機能</a>
-      <a href="#pricing" class="transition-colors hover:text-neutral-900">料金</a>
+      {navLinks.map((link) => (
+        <a href={link.href} class="transition-colors hover:text-neutral-900">{link.label}</a>
+      ))}
     </nav>
-    <div class="flex items-center gap-3">
-      <a href={loginUrl} class="hidden text-sm font-medium text-neutral-600 transition-colors hover:text-neutral-900 sm:block">ログイン</a>
+
+    <div class="hidden items-center gap-3 md:flex">
+      <a href={loginUrl} class="text-sm font-medium text-neutral-600 transition-colors hover:text-neutral-900">ログイン</a>
       <a
         href={loginUrl}
         class="rounded-sm bg-neutral-900 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-neutral-700"
@@ -24,5 +32,66 @@ const loginUrl = appPath('/login');
         無料で始める
       </a>
     </div>
+
+    <button
+      id="buzz-menu-toggle"
+      type="button"
+      class="flex min-h-[44px] min-w-[44px] items-center justify-center rounded text-neutral-700 hover:bg-neutral-200/60 md:hidden"
+      aria-label="メニューを開く"
+      aria-expanded="false"
+      aria-controls="buzz-mobile-menu"
+    >
+      <svg id="buzz-menu-open" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
+      </svg>
+      <svg id="buzz-menu-close" class="hidden h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+  </div>
+
+  <div id="buzz-mobile-menu" class="hidden border-t border-neutral-200 bg-[#f5f4f0] px-4 pb-5 pt-2 md:hidden">
+    {navLinks.map((link) => (
+      <a
+        href={link.href}
+        class="block min-h-[44px] rounded px-2 py-3 text-sm font-medium text-neutral-700 hover:bg-white buzz-mobile-nav-link"
+      >
+        {link.label}
+      </a>
+    ))}
+    <a href={loginUrl} class="mt-1 block min-h-[44px] rounded px-2 py-3 text-sm font-medium text-neutral-600 hover:bg-white">
+      ログイン
+    </a>
+    <a
+      href={loginUrl}
+      class="mt-3 block rounded-sm bg-neutral-900 px-5 py-3.5 text-center text-sm font-semibold text-white"
+    >
+      無料で始める
+    </a>
   </div>
 </header>
+
+<script>
+  const toggle = document.getElementById('buzz-menu-toggle');
+  const menu = document.getElementById('buzz-mobile-menu');
+  const openIcon = document.getElementById('buzz-menu-open');
+  const closeIcon = document.getElementById('buzz-menu-close');
+
+  const setOpen = (open: boolean) => {
+    menu?.classList.toggle('hidden', !open);
+    openIcon?.classList.toggle('hidden', open);
+    closeIcon?.classList.toggle('hidden', !open);
+    toggle?.setAttribute('aria-expanded', open ? 'true' : 'false');
+    toggle?.setAttribute('aria-label', open ? 'メニューを閉じる' : 'メニューを開く');
+    document.body.style.overflow = open ? 'hidden' : '';
+  };
+
+  toggle?.addEventListener('click', () => {
+    const isOpen = !menu?.classList.contains('hidden');
+    setOpen(!isOpen);
+  });
+
+  menu?.querySelectorAll('a').forEach((link) => {
+    link.addEventListener('click', () => setOpen(false));
+  });
+</script>

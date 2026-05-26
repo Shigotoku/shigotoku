@@ -979,7 +979,7 @@ function TrackerTab({
       </div>
 
       {/* パイプラインビュー */}
-      <div className="grid grid-cols-5 gap-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5 lg:gap-2">
         {stages.map((stage) => {
           const items = tracked.filter((s) => appStatus[s.id]?.status === stage);
           return (

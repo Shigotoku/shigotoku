@@ -415,11 +415,11 @@ export default function AppLayout() {
 
         <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 sm:py-8">
           {fromJourney && location.pathname !== "/journey" && (
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <Link
                 to="/journey"
                 state={journeyReturnPhase ? { scrollToPhase: journeyReturnPhase } : undefined}
-                className="inline-flex items-center gap-2 rounded-xl border border-primary-200 bg-primary-50 px-4 py-2 text-sm font-medium text-primary-700 transition-all hover:bg-primary-100"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-primary-200 bg-primary-50 px-4 py-2.5 text-sm font-medium text-primary-700 transition-all hover:bg-primary-100 sm:w-auto"
               >
                 <ArrowLeft className="h-4 w-4" />
                 ジャーニーマップに戻る
@@ -428,10 +428,10 @@ export default function AppLayout() {
                 <Link
                   to={nextStep.path}
                   state={{ fromJourney: true }}
-                  className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 transition-all hover:bg-emerald-100"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700 transition-all hover:bg-emerald-100 sm:w-auto"
                 >
-                  次へ：{nextStep.label}
-                  <ArrowRight className="h-4 w-4" />
+                  <span className="truncate">次へ：{nextStep.label}</span>
+                  <ArrowRight className="h-4 w-4 shrink-0" />
                 </Link>
               )}
             </div>

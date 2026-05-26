@@ -172,7 +172,7 @@ export default function MediaDropzone({ files, onChange, disabled }: MediaDropzo
                   e.stopPropagation();
                   removeFile(item.id);
                 }}
-                className="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                className="absolute right-1 top-1 rounded-full bg-black/60 p-1.5 text-white opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
                 aria-label="削除"
               >
                 <X className="h-3.5 w-3.5" />

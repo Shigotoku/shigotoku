@@ -271,14 +271,14 @@ export default function SettingsPage() {
           placeholder="T01234567"
           className="buzz-input"
         />
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <input
             value={newIdea}
             onChange={(e) => setNewIdea(e.target.value)}
             placeholder="ネタを入力（Slack 風テスト）"
             className="buzz-input flex-1"
           />
-          <button type="button" onClick={handleSubmitIdea} className="buzz-btn-primary shrink-0">
+          <button type="button" onClick={handleSubmitIdea} className="buzz-btn-primary shrink-0 w-full sm:w-auto">
             送信
           </button>
         </div>

@@ -53,10 +53,10 @@ const stats = [
       </div>
 
       <div class="animate-on-scroll slide-up delay-300 mt-12 border-t border-neutral-400/50 pt-8">
-        <div class="grid grid-cols-3 gap-4 md:gap-6">
+        <div class="grid grid-cols-1 gap-6 sm:grid-cols-3 sm:gap-4 md:gap-6">
           {stats.map((stat, i) => (
-            <div class:list={[i < 2 && 'border-r border-neutral-400/50 pr-4 md:pr-6']}>
-              <p class="buzz-stat-value text-3xl md:text-4xl">{stat.value}</p>
+            <div class:list={[i < 2 && 'sm:border-r sm:border-neutral-400/50 sm:pr-4 md:pr-6']}>
+              <p class="buzz-stat-value text-2xl sm:text-3xl md:text-4xl">{stat.value}</p>
               <p class="buzz-stat-label">{stat.label}</p>
             </div>
           ))}

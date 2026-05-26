@@ -18,7 +18,7 @@ import { RUNWITH_LP } from '../lib/urls';
         <a href={RUNWITH_LP} class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors shadow-sm">ランウィズ</a>
       </nav>
 
-      <button id="menu-toggle" type="button" class="md:hidden text-gray-600 hover:text-gray-900" aria-label="メニュー">
+      <button id="menu-toggle" type="button" class="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 md:hidden" aria-label="メニュー" aria-expanded="false" aria-controls="mobile-menu">
         <svg id="menu-icon-open" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
           <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
         </svg>
@@ -31,7 +31,7 @@ import { RUNWITH_LP } from '../lib/urls';
 
   <div id="mobile-menu" class="hidden md:hidden bg-white border-t border-gray-100 px-6 py-4 space-y-1">
     {navItems.map((item) => (
-      <a href={item.href} class="block text-sm font-medium text-gray-600 hover:text-blue-600 py-2">{item.label}</a>
+      <a href={item.href} class="block min-h-[44px] py-3 text-sm font-medium text-gray-600 hover:text-blue-600">{item.label}</a>
     ))}
     <a href={RUNWITH_LP} class="block text-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white mt-2">ランウィズ</a>
   </div>
@@ -48,5 +48,17 @@ import { RUNWITH_LP } from '../lib/urls';
     menu?.classList.toggle('hidden', isOpen);
     openIcon?.classList.toggle('hidden', !isOpen);
     closeIcon?.classList.toggle('hidden', isOpen);
+    toggle?.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
+    document.body.style.overflow = isOpen ? '' : 'hidden';
+  });
+
+  menu?.querySelectorAll('a').forEach((link) => {
+    link.addEventListener('click', () => {
+      menu?.classList.add('hidden');
+      openIcon?.classList.remove('hidden');
+      closeIcon?.classList.add('hidden');
+      toggle?.setAttribute('aria-expanded', 'false');
+      document.body.style.overflow = '';
+    });
   });
 </script>

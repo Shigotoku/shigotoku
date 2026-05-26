@@ -21,7 +21,7 @@ const pricingUrl = sitePath('pricing');
   <head>
     <meta charset="UTF-8" />
     <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content={description} />
     <link rel="icon" type="image/png" href={assetPath('icon.png')} />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -53,8 +53,10 @@ const pricingUrl = sitePath('pricing');
       </div>
 
       <div id="mobile-menu" class="hidden border-t border-slate-100 bg-white px-4 pb-4 pt-2 md:hidden">
-        <a href={pricingUrl} class="block rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">料金プラン</a>
-        <a href={loginUrl} class="mt-2 block rounded-xl bg-primary-600 px-4 py-2.5 text-center text-sm font-semibold text-white">ログイン</a>
+        <a href={featuresUrl} class="block min-h-[44px] rounded-lg px-3 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50">機能</a>
+        <a href={pricingUrl} class="block min-h-[44px] rounded-lg px-3 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50">料金プラン</a>
+        <a href={loginUrl} class="block min-h-[44px] rounded-lg px-3 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50">ログイン</a>
+        <a href={loginUrl} class="mt-2 block min-h-[44px] rounded-xl bg-slate-900 px-4 py-3.5 text-center text-sm font-semibold text-white">無料で始める</a>
       </div>
     </header>
 
@@ -112,6 +114,16 @@ const pricingUrl = sitePath('pricing');
         menu?.classList.toggle('hidden', isOpen);
         openIcon?.classList.toggle('hidden', !isOpen);
         closeIcon?.classList.toggle('hidden', isOpen);
+        document.body.style.overflow = isOpen ? '' : 'hidden';
+      });
+
+      menu?.querySelectorAll('a').forEach((link) => {
+        link.addEventListener('click', () => {
+          menu?.classList.add('hidden');
+          openIcon?.classList.remove('hidden');
+          closeIcon?.classList.add('hidden');
+          document.body.style.overflow = '';
+        });
       });
     </script>
   </body>

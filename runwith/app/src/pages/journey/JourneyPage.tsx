@@ -279,7 +279,8 @@ export default function JourneyPage() {
         </div>
 
         {/* フェーズナビゲーター */}
-        <div className="mt-4 grid grid-cols-9 gap-1">
+        <div className="mt-4 overflow-x-auto pb-1">
+          <div className="grid min-w-[480px] grid-cols-9 gap-1 sm:min-w-0">
           {journeyPhases.map((jp, i) => {
             const { done, total } = getPhaseCounts(jp);
             const isCurrent = i === currentPhaseIndex;
@@ -304,6 +305,7 @@ export default function JourneyPage() {
               </button>
             );
           })}
+          </div>
         </div>
       </div>
 

@@ -11,12 +11,16 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: clip;
 }
 
 body {
   font-family: var(--font-body);
   background: var(--color-buzz-paper);
   color: var(--color-buzz-ink);
+  overflow-x: clip;
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -125,7 +129,23 @@ footer h2 {
 
 /* Hero — collage as full-bleed background */
 .buzz-hero {
-  min-height: clamp(680px, 88vh, 980px);
+  min-height: auto;
+}
+
+@media (min-width: 768px) {
+  .buzz-hero {
+    min-height: clamp(680px, 88vh, 980px);
+  }
+}
+
+@media (max-width: 767px) {
+  .buzz-hero-scrim {
+    background: linear-gradient(
+      180deg,
+      rgba(245, 244, 240, 0.92) 0%,
+      rgba(245, 244, 240, 0.75) 100%
+    );
+  }
 }
 
 .buzz-hero-bg {

@@ -225,7 +225,7 @@ export default function MagicCreator() {
           </div>
         </div>
 
-        <div className="lg:col-span-2 relative min-h-[500px]">
+        <div className="lg:col-span-2 relative min-h-[280px] lg:min-h-[500px]">
           {!results && !isGenerating && (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-neutral-500">
               <div className="mb-4 flex h-16 w-16 items-center justify-center border border-neutral-200 bg-neutral-50">
@@ -295,7 +295,7 @@ export default function MagicCreator() {
                 </div>
               )}
 
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <h3 className="font-medium flex items-center gap-2">
                   <span className="w-6 h-6 border border-neutral-300 bg-neutral-100 text-neutral-700 flex items-center justify-center text-xs font-bold">2</span>
                   生成結果 (Repurpose)
@@ -324,11 +324,11 @@ export default function MagicCreator() {
                         <span className="font-medium text-sm">{item.label}</span>
                       </div>
                       {item.carouselSlides ? (
-                        <div className="flex gap-2 mb-4">
+                        <div className="mb-4 grid grid-cols-2 gap-2 sm:flex sm:gap-2">
                           {item.carouselSlides.map((slide, i) => (
                             <div
                               key={slide}
-                              className="w-1/4 aspect-[4/5] bg-slate-900 rounded-lg border border-neutral-200 flex items-center justify-center text-[10px] text-neutral-500 p-1 text-center overflow-hidden"
+                              className="aspect-[4/5] rounded-lg border border-neutral-200 bg-neutral-50 flex items-center justify-center text-[10px] text-neutral-500 p-1 text-center overflow-hidden sm:w-1/4"
                             >
                               {i === 0 && localMedia[0]?.kind === 'image' ? (
                                 <img src={localMedia[0].previewUrl} alt="" className="w-full h-full object-cover" />
@@ -373,7 +373,7 @@ export default function MagicCreator() {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-md rounded-2xl bg-slate-900 border border-neutral-200 p-6 shadow-2xl"
+              className="w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-2xl border border-neutral-200 bg-white p-6 shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-6">
@@ -393,7 +393,7 @@ export default function MagicCreator() {
               <select
                 value={publishMode}
                 onChange={(e) => setPublishMode(e.target.value as PublishMode)}
-                className="w-full bg-slate-800 border border-neutral-200 rounded-xl px-4 py-3 text-sm mb-4 focus:outline-none focus:border-indigo-500"
+                className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-base sm:text-sm mb-4 focus:outline-none focus:border-neutral-900"
               >
                 <option value="notify">通知リマインダー（Slack/LINE に文案）</option>
                 <option value="approval">承認後投稿（ダッシュボードで承認）</option>
@@ -406,7 +406,7 @@ export default function MagicCreator() {
                 type="datetime-local"
                 value={scheduleDate}
                 onChange={(e) => setScheduleDate(e.target.value)}
-                className="w-full bg-slate-800 border border-neutral-200 rounded-xl px-4 py-3 text-sm mb-6 focus:outline-none focus:border-indigo-500"
+                className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-base sm:text-sm mb-6 focus:outline-none focus:border-neutral-900"
               />
               <button
                 type="button"
