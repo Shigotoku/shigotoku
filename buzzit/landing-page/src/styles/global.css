@@ -1,8 +1,9 @@
 @import "tailwindcss";
 
 @theme {
-  --font-display: "Syne", "Outfit", sans-serif;
-  --font-body: "Plus Jakarta Sans", "Inter", sans-serif;
+  --font-display: "Noto Sans JP", "Noto Sans", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+  --font-body: "Noto Sans JP", "Noto Sans", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+  --font-num: "Noto Sans", "Noto Sans JP", system-ui, sans-serif;
   --color-buzz-ink: #111111;
   --color-buzz-paper: #f5f4f0;
   --color-buzz-muted: #6b6b6b;
@@ -63,18 +64,19 @@ footer h2 {
 .delay-200 { transition-delay: 160ms; }
 .delay-300 { transition-delay: 240ms; }
 
-/* Stats & prices — sans-serif for readable digits (not display font) */
+/* Stats & prices — Noto Sans for highly-readable digits */
 .buzz-stat-value {
-  font-family: var(--font-body);
+  font-family: var(--font-num);
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
   line-height: 1.1;
   color: #111111;
 }
 
 .buzz-stat-label {
+  font-family: var(--font-body);
   color: #6b6b6b;
   font-size: 0.75rem;
   line-height: 1.4;
@@ -85,11 +87,28 @@ footer h2 {
   color: #ffffff;
 }
 
-/* Latin brand names — body font, not display */
+/* Latin brand names — Noto Sans for clean readability */
 .buzz-latin {
-  font-family: var(--font-body);
+  font-family: var(--font-num);
   font-weight: 700;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
+}
+
+/* Mixed JP/EN paragraphs — keep digits/Latin in Noto Sans even inside Noto Sans JP */
+@supports (font-variant-numeric: tabular-nums) {
+  body,
+  p,
+  li,
+  td,
+  th,
+  span,
+  a,
+  button,
+  input,
+  textarea,
+  select {
+    font-feature-settings: "palt" 1;
+  }
 }
 
 /* Full-width photo strip (Before/After → Instagram) */
