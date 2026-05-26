@@ -76,6 +76,58 @@ const {
 
       initHeadlineFit();
       document.addEventListener('astro:page-load', initHeadlineFit);
+
+      const JP_WRAP_SELECTOR = '[data-jp-wrap], main p, main li, footer p, footer li';
+
+      const enhanceJpWrap = (root = document) => {
+        root.querySelectorAll(JP_WRAP_SELECTOR).forEach((el) => {
+          const node = el;
+          if (node.dataset.jpWrapDone || node.closest('[data-jp-wrap-off], [data-headline-fit]')) return;
+          if (!/[ぁ-んァ-ヶ一-龠]/.test(node.textContent ?? '')) return;
+
+          const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT, {
+            acceptNode(textNode) {
+              const tag = textNode.parentElement?.tagName;
+              if (tag === 'SCRIPT' || tag === 'STYLE') return NodeFilter.FILTER_REJECT;
+              return NodeFilter.FILTER_ACCEPT;
+            },
+          });
+
+          const textNodes = [];
+          let current = walker.nextNode();
+          while (current) {
+            textNodes.push(current);
+            current = walker.nextNode();
+          }
+
+          textNodes.forEach((textNode) => {
+            const text = textNode.textContent ?? '';
+            if (!/[、。！？；：]/.test(text)) return;
+
+            const frag = document.createDocumentFragment();
+            let last = 0;
+            const re = /[、。！？；：]/g;
+            let match;
+            while ((match = re.exec(text)) !== null) {
+              const end = match.index + match[0].length;
+              frag.appendChild(document.createTextNode(text.slice(last, end)));
+              frag.appendChild(document.createElement('wbr'));
+              last = end;
+            }
+            if (last >= text.length) {
+              textNode.parentNode?.replaceChild(frag, textNode);
+              return;
+            }
+            frag.appendChild(document.createTextNode(text.slice(last)));
+            textNode.parentNode?.replaceChild(frag, textNode);
+          });
+
+          node.dataset.jpWrapDone = 'true';
+        });
+      };
+
+      enhanceJpWrap();
+      document.addEventListener('astro:page-load', () => enhanceJpWrap());
     </script>
   </body>
 </html>

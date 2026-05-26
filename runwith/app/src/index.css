@@ -70,3 +70,10 @@ input[type="range"] {
     line-height: 1.15;
   }
 }
+
+:where([data-jp-wrap], main p, main li, footer p, footer li):not([data-headline-fit]):not([data-jp-wrap-off]) {
+  word-break: keep-all;
+  line-break: strict;
+  overflow-wrap: break-word;
+  text-wrap: pretty;
+}
