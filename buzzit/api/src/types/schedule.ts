@@ -1,4 +1,4 @@
-export type PublishMode = 'notify' | 'approval' | 'meta' | 'line' | 'ayrshare' | 'auto';
+export type PublishMode = 'notify' | 'approval' | 'meta' | 'line' | 'gbp' | 'ayrshare' | 'auto';
 
 export type ScheduledJobStatus =
   | 'pending_approval'

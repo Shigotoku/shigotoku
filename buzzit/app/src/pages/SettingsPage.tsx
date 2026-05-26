@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Check, Link2, MessageSquare, Zap, Save, BarChart3, Share2 } from 'lucide-react';
+import { Check, Link2, MessageSquare, Zap, Save, BarChart3, Share2, MapPin, Sparkles, Users } from 'lucide-react';
 import { WATERMARK } from '../constants/brand';
 import {
   fetchSettings,
@@ -10,16 +10,52 @@ import {
   approveSlackIdea,
   runAutoMode,
   startMetaOAuth,
+  startGbpOAuth,
+  fetchLineCostEstimate,
+  fetchCustomerTags,
   type PublishMode,
+  type LineCostEstimate,
+  type CustomerTag,
 } from '../lib/api';
 import { useApp } from '../store/appContext';
 import type { PlanTier } from '../types';
 
-const plans: { id: PlanTier; name: string; price: string; features: string[] }[] = [
-  { id: 'starter', name: 'Starter', price: '¥0', features: ['AI台本生成', 'SNS健康診断', `透かし付き（${WATERMARK}）`] },
-  { id: 'pro', name: 'Pro', price: '¥4,980/月', features: ['全SNS自動予約', 'AI処方的提案', '透かし削除'] },
-  { id: 'team', name: 'Team', price: '¥9,800/月', features: ['Slack連携（ネタ会議）', '戦略的通知（朝/昼/夜）', 'チーム承認フロー'] },
-  { id: 'growth', name: 'Growth OS', price: '¥29,800/月', features: ['深い売上トラッキング', 'Auto Mode（完全自動運用）', 'アンバサダーCRM'] },
+const plans: { id: PlanTier; name: string; price: string; tagline: string; features: string[] }[] = [
+  {
+    id: 'free',
+    name: 'Free',
+    price: '¥0',
+    tagline: 'まず5分体験',
+    features: ['AI台本（月5投稿）', 'SNS健康診断', 'ボイスドラフト', `${WATERMARK} 透かし`],
+  },
+  {
+    id: 'starter',
+    name: 'Starter',
+    price: '¥4,980/月',
+    tagline: '個人店向け',
+    features: ['無制限投稿', 'Meta/LINE 自動投稿', 'GBP 自動投稿', 'トレンド波乗り', '透かし削除'],
+  },
+  {
+    id: 'pro',
+    name: 'Pro',
+    price: '¥9,800/月',
+    tagline: '小規模チーム',
+    features: ['Starterの全機能', 'Slack連携', '承認フロー', 'LINEセグメント基本', 'A/Bテスト'],
+  },
+  {
+    id: 'growth',
+    name: 'Growth OS',
+    price: '¥24,800/月',
+    tagline: '美容・多店舗',
+    features: ['Proの全機能', 'Auto Mode', 'HPB予約トラッキング', 'LINEセグメント高度＋ステップ', 'MEOダッシュボード'],
+  },
+  {
+    id: 'enterprise',
+    name: 'Enterprise',
+    price: '要見積',
+    tagline: 'チェーン',
+    features: ['多店舗統合（〜100）', '横断KPI/改ざん検知', '専任CSM・SLA', 'SSO/カスタムAPI'],
+  },
 ];
 
 export default function SettingsPage() {
@@ -42,6 +78,10 @@ export default function SettingsPage() {
   const [newIdea, setNewIdea] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [gbpConnected] = useState(false);
+  const [hpbStoreUrl, setHpbStoreUrl] = useState('');
+  const [lineCost, setLineCost] = useState<LineCostEstimate | null>(null);
+  const [customerTags, setCustomerTags] = useState<CustomerTag[]>([]);
 
   useEffect(() => {
     fetchSettings()
@@ -64,6 +104,12 @@ export default function SettingsPage() {
       .catch(() => {});
     fetchSlackIdeas()
       .then((r) => setSlackIdeas(r.ideas))
+      .catch(() => {});
+    fetchLineCostEstimate()
+      .then(setLineCost)
+      .catch(() => {});
+    fetchCustomerTags()
+      .then((r) => setCustomerTags(r.tags))
       .catch(() => {});
 
     const metaStatus = searchParams.get('meta');
@@ -132,6 +178,15 @@ export default function SettingsPage() {
     }
   };
 
+  const handleGbpConnect = async () => {
+    try {
+      const { url } = await startGbpOAuth();
+      window.location.href = url;
+    } catch {
+      setMessage('Google Business Profile 連携は Phase 4 で提供予定です（OAuth 設定後に有効化されます）');
+    }
+  };
+
   return (
     <div className="buzz-page-narrow">
       <div>
@@ -142,8 +197,11 @@ export default function SettingsPage() {
       {message && <p className="buzz-alert buzz-alert-info">{message}</p>}
 
       <section className="buzz-card-pad">
-        <h3 className="mb-6 text-lg font-bold">プラン</h3>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <h3 className="mb-2 text-lg font-bold">プラン</h3>
+        <p className="mb-6 text-sm text-neutral-600">
+          年払いで2ヶ月分無料。Growth OS は AI-BOUZ + AI-LINE + Lステップの 3本契約相当の機能を ¥24,800 に集約。
+        </p>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {plans.map((p) => (
             <button
               key={p.id}
@@ -155,10 +213,11 @@ export default function SettingsPage() {
                   : 'border-neutral-200 bg-white hover:border-neutral-400'
               }`}
             >
-              <div className="mb-2 flex items-center justify-between">
+              <div className="mb-1 flex items-center justify-between">
                 <span className="font-bold">{p.name}</span>
                 <span className="text-sm text-neutral-600">{p.price}</span>
               </div>
+              <p className="mb-3 text-[10px] uppercase tracking-wider text-neutral-500">{p.tagline}</p>
               <ul className="space-y-1.5">
                 {p.features.map((f) => (
                   <li key={f} className="flex items-center gap-2 text-sm text-neutral-600">
@@ -214,6 +273,7 @@ export default function SettingsPage() {
           <option value="approval">承認後投稿（ダッシュボードで承認）</option>
           <option value="meta">Meta 自動投稿（IG/FB/Threads）</option>
           <option value="line">LINE ブロードキャスト</option>
+          <option value="gbp">Google Business Profile（Phase 4）</option>
           <option value="auto">自動（接続状況に応じて最適化）</option>
           <option value="ayrshare">Ayrshare（レガシー・任意）</option>
         </select>
@@ -351,6 +411,101 @@ export default function SettingsPage() {
             <code className="block break-all text-xs text-neutral-800">{lineWebhookUrl}</code>
           </div>
         )}
+      </section>
+
+      <section className="buzz-card-pad space-y-4">
+        <h3 className="flex items-center gap-2 text-lg font-bold">
+          <MapPin className="h-5 w-5 text-neutral-700" />
+          Google Business Profile（GBP / Googleマップ）
+        </h3>
+        <p className="text-sm text-neutral-600">
+          Instagram と同時に Googleマップへ自動投稿。MEO ダッシュボード（Growth OS）でクチコミ・順位も一元管理できます。
+        </p>
+        <div className="flex items-center justify-between border border-neutral-200 bg-neutral-50 p-4">
+          <span>Googleビジネスプロフィール</span>
+          <span
+            className={`rounded-full px-3 py-1 text-xs ${
+              gbpConnected
+                ? 'border border-neutral-300 bg-white text-neutral-800'
+                : 'bg-neutral-200 text-neutral-600'
+            }`}
+          >
+            {gbpConnected ? '接続済み' : '未接続（Phase 4 で提供）'}
+          </span>
+        </div>
+        <button type="button" onClick={handleGbpConnect} className="buzz-btn-secondary">
+          {gbpConnected ? 'GBP を再連携' : 'GBP で連携する'}
+        </button>
+      </section>
+
+      <section className="buzz-card-pad space-y-4">
+        <h3 className="flex items-center gap-2 text-lg font-bold">
+          <Sparkles className="h-5 w-5 text-neutral-700" />
+          ホットペッパービューティー（HPB）トラッキング
+        </h3>
+        <p className="text-sm text-neutral-600">
+          投稿の計測リンクを HPB 予約導線に自動付与し、「どの投稿が予約に繋がったか」を可視化します（Growth OS）。
+        </p>
+        <label className="buzz-label">HPB 店舗 URL</label>
+        <input
+          value={hpbStoreUrl}
+          onChange={(e) => setHpbStoreUrl(e.target.value)}
+          placeholder="https://beauty.hotpepper.jp/slnH000000000/"
+          className="buzz-input"
+        />
+        <p className="text-xs text-neutral-500">
+          ※ Phase 5 で API 連携が有効化されます。現在は UTM パラメータ自動付与のみ。
+        </p>
+      </section>
+
+      <section className="buzz-card-pad space-y-4">
+        <h3 className="flex items-center gap-2 text-lg font-bold">
+          <Users className="h-5 w-5 text-neutral-700" />
+          LINE セグメント配信（Pro / Growth OS）
+        </h3>
+        <p className="text-sm text-neutral-600">
+          2026年秋の LINE 料金改定で配信コストが最大1.91倍に。「真に必要な顧客にだけ」配信する戦略へ移行しましょう。
+        </p>
+        {lineCost && (
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div className="border border-neutral-200 bg-neutral-50 p-4">
+              <p className="text-xs text-neutral-500">現在の月間配信コスト</p>
+              <p className="buzz-stat-value mt-1 text-xl">¥{lineCost.estimatedCost.toLocaleString()}</p>
+              <p className="mt-1 text-xs text-neutral-500">{lineCost.estimatedRecipients.toLocaleString()} 通 × ¥{lineCost.pricePerMessage}</p>
+            </div>
+            <div className="border border-neutral-900 bg-neutral-900 p-4 text-white">
+              <p className="text-xs text-neutral-300">セグメント配信後</p>
+              <p className="buzz-stat-value buzz-stat-value--light mt-1 text-xl">¥{lineCost.estimatedSegmentCost.toLocaleString()}</p>
+              <p className="mt-1 text-xs text-neutral-300">{lineCost.estimatedSegmentReach.toLocaleString()} 通（高反応セグメントのみ）</p>
+            </div>
+            <div className="border border-neutral-200 bg-neutral-50 p-4">
+              <p className="text-xs text-neutral-500">月コスト削減</p>
+              <p className="buzz-stat-value mt-1 text-xl">−{lineCost.savedPercent}%</p>
+              <p className="mt-1 text-xs text-neutral-500">年間 ¥{((lineCost.estimatedCost - lineCost.estimatedSegmentCost) * 12).toLocaleString()} 削減</p>
+            </div>
+          </div>
+        )}
+        <div className="mt-4">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-neutral-500">顧客タグ</p>
+          <div className="flex flex-wrap gap-2">
+            {customerTags.length === 0 ? (
+              <p className="text-sm text-neutral-500">
+                タグはまだありません。Phase 5 で来店履歴・興味タグの自動生成が有効化されます。
+              </p>
+            ) : (
+              customerTags.map((tag) => (
+                <span
+                  key={tag.id}
+                  className="inline-flex items-center gap-1.5 border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-xs"
+                >
+                  <span className="h-2 w-2 rounded-full" style={{ background: tag.color }} />
+                  {tag.name}
+                  <span className="text-neutral-500">{tag.friendCount}</span>
+                </span>
+              ))
+            )}
+          </div>
+        </div>
       </section>
 
       <section className="buzz-card-pad space-y-4">

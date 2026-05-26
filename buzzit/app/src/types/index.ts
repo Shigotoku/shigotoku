@@ -1,4 +1,4 @@
-export type PlanTier = 'starter' | 'pro' | 'team' | 'growth';
+export type PlanTier = 'free' | 'starter' | 'pro' | 'team' | 'growth' | 'enterprise';
 
 export type Platform = 'reels' | 'carousel' | 'x_thread' | 'line';
 

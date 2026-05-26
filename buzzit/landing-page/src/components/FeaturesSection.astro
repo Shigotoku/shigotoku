@@ -1,5 +1,16 @@
 ---
 import { images } from '../lib/images';
+
+const integrations = [
+  { name: 'Instagram', subtitle: 'Reels / Feed / Stories' },
+  { name: 'Facebook', subtitle: 'Page 自動投稿' },
+  { name: 'Threads', subtitle: 'Meta 公式' },
+  { name: 'LINE 公式', subtitle: 'セグメント・ステップ' },
+  { name: 'Googleマップ', subtitle: 'GBP 同時更新' },
+  { name: 'ホットペッパー', subtitle: '予約トラッキング' },
+  { name: 'Slack', subtitle: 'ネタ会議・通知' },
+  { name: 'X', subtitle: '近日対応' },
+];
 ---
 
 <section id="features" class="bg-[#f5f4f0] py-24 md:py-32">
@@ -10,7 +21,7 @@ import { images } from '../lib/images';
         すべてを繋ぎ、美しく自動化する。
       </h2>
       <p class="mt-4 max-w-2xl text-base leading-relaxed text-neutral-600">
-        SNS運用・企画・売上管理をひとつに。BuzzItが現場の代わりに、自律的に回します。
+        SNS、LINE、Googleマップ、ホットペッパー。バラバラだったツールをBuzzIt一本に。現場の代わりに、自律的に回します。
       </p>
     </div>
 
@@ -33,10 +44,10 @@ import { images } from '../lib/images';
       </article>
 
       <article class="animate-on-scroll slide-up delay-100 flex flex-col border border-neutral-200 bg-white p-8">
-        <p class="mb-6 text-[10px] font-bold uppercase tracking-wider text-neutral-400">UX</p>
-        <h3 class="font-display text-xl font-bold text-neutral-900">思考ゼロのUX</h3>
+        <p class="mb-6 text-[10px] font-bold uppercase tracking-wider text-neutral-400">Voice</p>
+        <h3 class="font-display text-xl font-bold text-neutral-900">ボイスドラフト</h3>
         <p class="mt-3 flex-1 text-sm leading-relaxed text-neutral-600">
-          AIが提示する「今日やること」だけ実行。何を投稿するか悩む時間は、もう終わりです。
+          施術中の会話を録音して送るだけ。Geminiが投稿・LINE台本・キャプションを一度に4種類生成します。
         </p>
       </article>
 
@@ -44,7 +55,7 @@ import { images } from '../lib/images';
         <p class="mb-6 text-[10px] font-bold uppercase tracking-wider text-neutral-400">Automation</p>
         <h3 class="font-display text-xl font-bold text-neutral-900">一気通貫の自動化</h3>
         <p class="mt-3 flex-1 text-sm leading-relaxed text-neutral-600">
-          1本の動画から各SNS向けに最適化。Auto Modeなら完全自動運用も可能です。
+          1本の動画から各SNS・LINE・Googleマップへ最適化。Auto Modeなら完全自動運用も可能です。
         </p>
       </article>
 
@@ -58,12 +69,54 @@ import { images } from '../lib/images';
         <div class="absolute inset-0 bg-neutral-900/55"></div>
         <div class="relative flex h-full flex-col justify-end p-8 md:p-10">
           <span class="mb-3 inline-block text-[10px] font-bold uppercase tracking-wider text-neutral-300">Revenue</span>
-          <h3 class="font-display text-2xl font-bold text-white md:text-3xl">深い売上トラッキング</h3>
+          <h3 class="font-display text-2xl font-bold text-white md:text-3xl">HPB予約まで追える売上ファネル</h3>
           <p class="mt-3 max-w-md text-sm leading-relaxed text-neutral-200 md:text-base">
-            いいねではなく来店・売上にどう繋がったかを可視化。リアル店舗とデジタルの成果を直結させます。
+            「どの投稿がホットペッパー予約に繋がったか」を可視化。いいねではなく来店・売上で経営判断を。
           </p>
         </div>
       </article>
+
+      <article class="animate-on-scroll slide-up delay-200 flex flex-col border border-neutral-200 bg-white p-8 md:col-span-2">
+        <p class="mb-6 text-[10px] font-bold uppercase tracking-wider text-neutral-400">LINE</p>
+        <h3 class="font-display text-xl font-bold text-neutral-900">2026秋 LINE料金改定対策パック</h3>
+        <p class="mt-3 text-sm leading-relaxed text-neutral-600">
+          月20万通まで一律¥3/通の料金改定で、配信コストが最大1.91倍に。BuzzItのセグメント配信・ステップ配信で「本当に必要な人にだけ」届け、配信コストを40〜60%削減します。
+        </p>
+        <div class="mt-5 grid grid-cols-3 gap-3">
+          <div class="border border-neutral-200 bg-neutral-50 p-3">
+            <p class="text-[10px] uppercase tracking-wider text-neutral-500">改定前</p>
+            <p class="buzz-stat-value mt-1 text-base">¥X,XXX</p>
+          </div>
+          <div class="border border-neutral-200 bg-neutral-50 p-3">
+            <p class="text-[10px] uppercase tracking-wider text-neutral-500">改定後</p>
+            <p class="buzz-stat-value mt-1 text-base text-red-700">×1.91倍</p>
+          </div>
+          <div class="border border-neutral-900 bg-neutral-900 p-3 text-white">
+            <p class="text-[10px] uppercase tracking-wider text-neutral-300">BuzzIt後</p>
+            <p class="buzz-stat-value buzz-stat-value--light mt-1 text-base">−60%</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="animate-on-scroll slide-up delay-200 flex flex-col border border-neutral-200 bg-white p-8">
+        <p class="mb-6 text-[10px] font-bold uppercase tracking-wider text-neutral-400">MEO</p>
+        <h3 class="font-display text-xl font-bold text-neutral-900">Googleマップ集約</h3>
+        <p class="mt-3 flex-1 text-sm leading-relaxed text-neutral-600">
+          GBP投稿の同時更新、クチコミAI返信、順位レポートまで標準内包。多店舗はEnterpriseで横断管理。
+        </p>
+      </article>
+    </div>
+
+    <div class="animate-on-scroll slide-up delay-300 mt-16">
+      <p class="mb-5 text-center text-[10px] font-bold uppercase tracking-widest text-neutral-500">Integrations</p>
+      <div class="grid grid-cols-2 gap-px overflow-hidden border border-neutral-200 bg-neutral-200 sm:grid-cols-4">
+        {integrations.map((item) => (
+          <div class="flex flex-col items-center justify-center bg-white p-5 text-center">
+            <p class="font-display text-sm font-bold text-neutral-900">{item.name}</p>
+            <p class="mt-1 text-xs text-neutral-500">{item.subtitle}</p>
+          </div>
+        ))}
+      </div>
     </div>
   </div>
 </section>

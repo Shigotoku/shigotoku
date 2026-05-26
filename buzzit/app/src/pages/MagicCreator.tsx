@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -12,10 +12,12 @@ import {
   Calendar,
   X,
   CloudUpload,
+  Mic,
+  StopCircle,
 } from 'lucide-react';
 import MediaDropzone from '../components/MediaDropzone';
 import { WATERMARK } from '../constants/brand';
-import { repurposeViaApi, scheduleViaApi, type PublishMode } from '../lib/api';
+import { repurposeViaApi, scheduleViaApi, voiceDraft, type PublishMode } from '../lib/api';
 import { checkBrandSafety } from '../services/brandSafety';
 import { generateScript } from '../services/scriptGenerator';
 import { repurposeContent, scheduleToAyrshare } from '../services/repurposeEngine';
@@ -58,6 +60,11 @@ export default function MagicCreator() {
     return d.toISOString().slice(0, 16);
   });
   const [publishMode, setPublishMode] = useState<PublishMode>('notify');
+  const [recording, setRecording] = useState(false);
+  const [voiceMessage, setVoiceMessage] = useState<string | null>(null);
+  const [voiceProcessing, setVoiceProcessing] = useState(false);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
 
   useEffect(() => {
     const fromTrend = searchParams.get('idea');
@@ -71,6 +78,60 @@ export default function MagicCreator() {
   }, [localMedia]);
 
   const canGenerate = idea.trim().length > 0 || localMedia.length > 0;
+
+  const handleStartRecording = async () => {
+    setVoiceMessage(null);
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      setVoiceMessage('お使いのブラウザはマイク録音に対応していません');
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      recordedChunksRef.current = [];
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) recordedChunksRef.current.push(e.data);
+      };
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(recordedChunksRef.current, { type: 'audio/webm' });
+        await handleProcessVoice(blob);
+      };
+      recorder.start();
+      recorderRef.current = recorder;
+      setRecording(true);
+    } catch {
+      setVoiceMessage('マイクへのアクセスが許可されませんでした');
+    }
+  };
+
+  const handleStopRecording = () => {
+    if (recorderRef.current && recording) {
+      recorderRef.current.stop();
+      setRecording(false);
+    }
+  };
+
+  const handleProcessVoice = async (blob: Blob) => {
+    setVoiceProcessing(true);
+    try {
+      const buf = await blob.arrayBuffer();
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+      try {
+        const res = await voiceDraft({ audioBase64: base64, mimeType: blob.type || 'audio/webm', hint: idea });
+        if (res.transcript) setIdea((prev) => (prev ? `${prev}\n\n${res.transcript}` : res.transcript));
+        setVoiceMessage(
+          res.usedGemini
+            ? `音声から ${res.drafts.length} 種類の下書きを生成しました`
+            : '音声の文字起こしが完了しました（Gemini 未接続のためテキストのみ）',
+        );
+      } catch {
+        setVoiceMessage('ボイスドラフトは Phase 4 で API 提供予定です（録音は完了しました）');
+      }
+    } finally {
+      setVoiceProcessing(false);
+    }
+  };
 
   const handleGenerate = async () => {
     if (!canGenerate) return;
@@ -201,6 +262,23 @@ export default function MagicCreator() {
                   className="buzz-input h-24 resize-none"
                   placeholder="例: 新作の春カラーをアピールしたい。透明感があって色落ちしにくいのが特徴。"
                 />
+                <div className="mt-2 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={recording ? handleStopRecording : handleStartRecording}
+                    disabled={voiceProcessing}
+                    className={`inline-flex items-center gap-2 border px-3 py-1.5 text-xs transition-colors ${
+                      recording
+                        ? 'border-red-300 bg-red-50 text-red-700'
+                        : 'border-neutral-300 bg-white text-neutral-700 hover:border-neutral-900'
+                    } disabled:opacity-60`}
+                  >
+                    {recording ? <StopCircle className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
+                    {recording ? '録音停止' : voiceProcessing ? '処理中...' : 'ボイスドラフト'}
+                  </button>
+                  {recording && <span className="text-xs text-red-600">● 録音中</span>}
+                </div>
+                {voiceMessage && <p className="mt-2 text-xs text-neutral-600">{voiceMessage}</p>}
               </div>
 
               <button
@@ -399,6 +477,7 @@ export default function MagicCreator() {
                 <option value="approval">承認後投稿（ダッシュボードで承認）</option>
                 <option value="meta">Meta 自動投稿</option>
                 <option value="line">LINE ブロードキャスト</option>
+                <option value="gbp">Google Business Profile（Phase 4）</option>
                 <option value="auto">自動（接続に応じて）</option>
               </select>
               <label className="text-xs text-neutral-600 mb-1 block">投稿日時</label>

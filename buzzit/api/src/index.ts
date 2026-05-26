@@ -231,6 +231,7 @@ api.post('/v1/schedule', requireAuth, async (req: AuthedRequest, res) => {
       approval: '承認待ちキュー',
       meta: 'Meta 自動投稿',
       line: 'LINE 配信',
+      gbp: 'Google Business Profile（準備中）',
       ayrshare: 'Ayrshare 予約',
       auto: '自動（接続に応じて）',
     };
@@ -671,6 +672,74 @@ api.post('/v1/auto-mode/run', requireAuth, async (req: AuthedRequest, res) => {
   }
   const result = await runAutoModeForUser(req.uid!);
   res.json(result);
+});
+
+// --- Voice Draft (Phase 4 skeleton) ---
+api.post('/v1/voice-draft', requireAuth, async (req: AuthedRequest, res) => {
+  const { audioBase64, mimeType, hint } = req.body as {
+    audioBase64?: string;
+    mimeType?: string;
+    hint?: string;
+  };
+  if (!audioBase64) {
+    res.status(400).json({ error: 'audioBase64 が必要です' });
+    return;
+  }
+  const audioSizeKb = Math.round((audioBase64.length * 0.75) / 1024);
+  const settings = await getUserSettings(req.uid!);
+  const baseIdea = hint?.trim() || '今日の施術・接客についてのカウンセリング会話';
+  const { results, usedGemini } = await generateRepurposeWithGemini(
+    `（${audioSizeKb}KBのボイス素材より自動生成）\n${baseIdea}`,
+    settings.plan,
+    undefined,
+  );
+  res.json({
+    transcript: `[音声 ${audioSizeKb}KB / ${mimeType ?? 'audio/webm'}] ${baseIdea}`,
+    drafts: results.map((r) => ({ kind: r.platform, label: r.label, content: r.content })),
+    usedGemini,
+  });
+});
+
+// --- LINE Cost Estimate (Phase 5 skeleton) ---
+api.get('/v1/line/cost-estimate', requireAuth, async (req: AuthedRequest, res) => {
+  const pricePerMessage = Number(process.env.LINE_PRICE_PER_MSG ?? '3');
+  const metrics = await getMetrics(req.uid!);
+  const lineFriends = metrics.funnel.lineSignups || 200;
+  const monthlyMessagesPerFriend = 4;
+  const estimatedRecipients = lineFriends * monthlyMessagesPerFriend;
+  const estimatedCost = Math.round(estimatedRecipients * pricePerMessage);
+  const estimatedSegmentReach = Math.round(estimatedRecipients * 0.4);
+  const estimatedSegmentCost = Math.round(estimatedSegmentReach * pricePerMessage);
+  const savedPercent =
+    estimatedCost > 0 ? Math.round(((estimatedCost - estimatedSegmentCost) / estimatedCost) * 100) : 0;
+  res.json({
+    pricePerMessage,
+    estimatedRecipients,
+    estimatedCost,
+    estimatedSegmentReach,
+    estimatedSegmentCost,
+    savedPercent,
+  });
+});
+
+// --- LINE Customer Tags (Phase 5 skeleton) ---
+api.get('/v1/line/tags', requireAuth, async (_req: AuthedRequest, res) => {
+  res.json({ tags: [] });
+});
+
+// --- HPB Conversions (Phase 5 skeleton) ---
+api.get('/v1/hpb/conversions', requireAuth, async (req: AuthedRequest, res) => {
+  const settings = await getUserSettings(req.uid!);
+  if (settings.plan !== 'growth' && settings.plan !== 'enterprise') {
+    res.json({ conversions: [] });
+    return;
+  }
+  res.json({ conversions: [] });
+});
+
+// --- GBP OAuth (Phase 4 skeleton) ---
+api.get('/v1/oauth/google/start', requireAuth, async (_req: AuthedRequest, res) => {
+  res.status(503).json({ error: 'Google Business Profile OAuth は Phase 4 で提供予定です' });
 });
 
 // --- Auth bootstrap ---

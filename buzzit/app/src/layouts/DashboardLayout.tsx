@@ -7,10 +7,12 @@ import { useApp } from '../store/appContext';
 import { useAuth } from '../store/authContext';
 
 const planLabels = {
-  starter: 'Starter (無料)',
+  free: 'Free',
+  starter: 'Starter',
   pro: 'Pro',
   team: 'Team',
   growth: 'Growth OS',
+  enterprise: 'Enterprise',
 } as const;
 
 const navItems = [

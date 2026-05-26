@@ -1,8 +1,10 @@
 # BuzzIt（バジット）要件定義書
 
-**版:** 4.0  
-**最終更新:** 2026-05-25  
+**版:** 5.0  
+**最終更新:** 2026-05-26  
 **インフラ方針:** Google Cloud Platform（Firebase）統一 — Supabase は使用しない
+
+> 本版（v5）は競合分析（`buzzit/docs/競合アプリの機能・費用調査.md`）と価格戦略（`PRICING-STRATEGY.md`）、ロードマップ（`COMPETITIVE-ROADMAP.md`）に基づき、プラン体系・機能要件を全面刷新。
 
 ---
 
@@ -13,21 +15,26 @@
 | 項目 | 内容 |
 |------|------|
 | プロダクト名 | **BuzzIt（バジット）** |
-| コンセプト | SNSツールではなく、**組織を動かし売上を作る経営OS** |
+| コンセプト | SNSツールではなく、**店舗の "経営OS" — SNS・LINE・GBP・HPB を1本化** |
 | ビジョン | SNS運用を毎朝5分のルーティンで終わらせ、担当者の孤独をなくし全社員を巻き込む |
+| 経済合理性 | **3本契約から1本へ。** AI-BOUZ + AI-LINE + Lステップ ≒ ¥58,560 → BuzzIt Growth OS **¥24,800**（月¥33,760 削減） |
 
 ### 1.2 ターゲット
 
 - **初期（ボウリングピン）:** 美容室・サロン（1〜数名〜多店舗）
 - **拡張:** 飲食、パーソナルジム、小規模EC、教育系 BtoC
+- **Enterprise:** 50店舗〜のチェーン（カンリー対抗）
 - **ペルソナ:** 時間がない経営者・店長、ネタ出しに疲弊するSNS担当者
 
-### 1.3 提供価値
+### 1.3 提供価値（v5 拡張）
 
-1. **思考ゼロUX** — AIが「今日やること」だけ提示
-2. **一気通貫自動化** — 1素材から全SNSへ Repurpose、Auto Mode で改善サイクル
-3. **全社巻き込み** — Slack ネタ会議・戦略的通知で現場の知見を吸い上げる
-4. **売上可視化** — 投稿→LINE→来店→売上のファネルを経営判断に使える形で表示
+1. **思考ゼロUX** — AIが「今日やること」だけ提示（5分ルーティン）
+2. **音声→全媒体** — ボイスドラフトで AI-BOUZ を超える UX
+3. **一気通貫自動化** — 1素材から Meta（IG/FB/Threads）・LINE・**GBP**・**HPB** へ Repurpose
+4. **全社巻き込み** — Slack ネタ会議・戦略的通知
+5. **売上可視化** — 投稿 → SNS → LINE → **HPB予約** → 売上のファネル
+6. **LINE料金改定対策** — セグメント配信で配信コスト 40〜60% 削減
+7. **PWAファースト** — アプリストア依存ゼロ、商標リスク回避
 
 ---
 
@@ -37,27 +44,27 @@
 
 | レイヤ | 技術 | 用途 |
 |--------|------|------|
-| フロント | React + Vite | Webアプリ `app.buzzit.shigotoku.com` |
+| フロント | React + Vite | Webアプリ `app.buzzit.shigotoku.com`（PWA対応） |
 | LP | Astro | `shigotoku.com/buzzit/` |
 | API | Cloud Functions v2 (Express) | REST API `/api/**` |
 | 認証 | **Firebase Authentication** | Google / メール / 匿名（デモ） |
-| DB | **Cloud Firestore** | ユーザー設定・KPI・投稿・予約ジョブ |
-| ストレージ | **Cloud Storage** | 素材 `uploads/`（Functions 経由のみ書込） |
-| AI | **Gemini API**（Google AI） | 台本生成・Repurpose |
-| スケジュール | **Cloud Scheduler** + Functions | Auto Mode・朝昼夜通知・**5分ごとPublish Worker** |
-| 秘密情報 | Secret Manager / Functions 環境変数 | API キー管理 |
+| DB | **Cloud Firestore** | ユーザー設定・KPI・投稿・予約ジョブ・**顧客タグ**・**HPBトラッキング** |
+| ストレージ | **Cloud Storage** | 素材 `uploads/`・**音声素材** `voice/` |
+| AI | **Gemini API**（Google AI） | 台本生成・Repurpose・**音声→テキスト** |
+| スケジュール | **Cloud Scheduler** + Functions | Auto Mode・通知・5分Publish Worker・**LINEステップ配信** |
+| 秘密情報 | Secret Manager | API キー管理 |
 | 配信 | Firebase Hosting | SPA + API リライト |
-| SNS投稿 | **Meta Graph API（BYO OAuth）** + LINE Messaging API + Slack 通知 | 店舗アカウント直結 |
-| SNS投稿（任意） | **Ayrshare API** | レガシーアダプタ（オプション） |
+| SNS投稿 | **Meta Graph API** + LINE Messaging API + **GBP API**（Phase 4）+ Slack 通知 | 店舗アカウント直結 |
+| HPB連携 | UTMトラッキング + 任意のサーバー側集計（Phase 5） | 売上ファネル |
 | 組織連携 | **Slack Incoming Webhook / Events API** | ネタ会議・戦略的通知 |
 
-### 2.2 投稿パイプライン（v4）
+### 2.2 投稿パイプライン（v5）
 
 ```
-Magic Creator / Auto Mode
+Magic Creator / Auto Mode / ボイスドラフト
         ↓
 Firestore users/{uid}/scheduled/{jobId}
-  publishMode: notify | approval | meta | line | auto | ayrshare
+  publishMode: notify | approval | meta | line | gbp | auto | ayrshare
   status: pending_approval → pending → processing → published | notified | failed
         ↓
 buzzitPublishWorker（5分ごと）
@@ -65,37 +72,41 @@ buzzitPublishWorker（5分ごと）
 executePublish()
   ├─ notify  → Slack Webhook + LINE broadcast（文案リマインダー）
   ├─ meta    → Meta Graph API（IG / FB Page / Threads）
-  ├─ line    → LINE Messaging API broadcast
+  ├─ line    → LINE Messaging API（broadcast / セグメント / ステップ）
+  ├─ gbp     → Google Business Profile API（Phase 4）
   ├─ approval→ ダッシュボード承認後 pending へ
-  ├─ auto    → 接続状況に応じて meta / line / notify
+  ├─ auto    → 接続状況・対象セグメントに応じて meta / line / gbp / notify
   └─ ayrshare→ Ayrshare API（任意・フォールバック）
 ```
-
-**設計方針:** Ayrshare 依存をやめ、Meta 直結 + 自前 Scheduler + BYO モデルを主軸とする。X 自動投稿は後回し。
 
 ### 2.3 非採用
 
 - **Supabase** — 使用しない
 - **スクレイピング** — 禁止。公式API範囲内のみ
+- **ネイティブアプリ初期投入** — 商標重複リスクのため、**PWA を主軸**
 
 ### 2.4 環境変数（Cloud Functions）
 
 | 変数 | 用途 |
 |------|------|
-| `GEMINI_API_KEY` | Gemini 台本生成 |
-| `META_APP_ID` / `META_APP_SECRET` | Meta OAuth（店舗 BYO トークン取得） |
-| `AYRSHARE_API_KEY` | レガシー予約（任意） |
-| `SLACK_SIGNING_SECRET` | Slack Events 署名検証（任意） |
-| `BUZZIT_APP_ORIGIN` | OAuth コールバック元（既定: `https://app.buzzit.shigotoku.com`） |
+| `GEMINI_API_KEY` | Gemini 台本生成・音声処理 |
+| `META_APP_ID` / `META_APP_SECRET` | Meta OAuth |
+| `GOOGLE_OAUTH_CLIENT_ID` / `_SECRET` | GBP OAuth（Phase 4） |
+| `AYRSHARE_API_KEY` | レガシー（任意） |
+| `SLACK_SIGNING_SECRET` | Slack Events 署名検証 |
+| `BUZZIT_APP_ORIGIN` | OAuth コールバック元 |
+| `LINE_PRICE_PER_MSG` | 配信コスト推定（既定 3.0） |
 
 ユーザーごとの設定（Firestore `users/{uid}`）:
 
-- `slackWebhookUrl` — 戦略的通知・投稿リマインダー
-- `lineChannelAccessToken` — LINE 配信・通知
-- `metaAccessToken`, `metaIgUserId`, `metaPageId` — Meta OAuth 連携
-- `defaultPublishMode` — notify / approval / meta / line / auto
-- `autoModeEnabled` — Auto Mode オン/オフ
-- `plan` — starter / pro / team / growth
+```
+plan, slackWebhookUrl, lineChannelAccessToken,
+metaAccessToken, metaIgUserId, metaPageId,
+gbpAccessToken, gbpLocationName,
+hpbStoreUrl, hpbTrackingEnabled,
+defaultPublishMode, autoModeEnabled,
+defaultDestinationUrl, lineCustomerTags[]
+```
 
 ---
 
@@ -103,68 +114,125 @@ executePublish()
 
 ### 3.1 経営コクピット（Dashboard）
 
-- SNS **健康スコア**（0〜100）とトレンド
-- **Today's Mission** — AI 処方的提案
-- **承認待ちキュー** — `pending_approval` ジョブの一覧・ワンクリック承認
-- **売上ファネル** — 投稿 → リーチ → クリック → LINE友だち → 売上
+- **5分ルーティン カード** — 今日のミッション + 承認待ち + 配信結果
+- SNS健康スコア（0〜100）とトレンド
+- **売上ファネル** — リーチ → LINE友だち → **HPB予約** → 推計売上
+- 承認待ちキューのワンクリック承認
+- LINE配信コスト見積りカード（2026秋料金改定対応）
 
 ### 3.2 マジック・クリエイター
 
 - 画像/動画ドロップ → GCP Storage
+- **ボイスドラフト** — Web 上で録音 → Gemini で文字起こし & 4種類の下書き生成
 - Gemini Repurpose
-- **投稿モード選択:** 通知 / 承認後 / Meta 自動 / LINE / 自動
+- 投稿モード選択: 通知 / 承認後 / Meta / LINE / **GBP** / 自動
 - 予約登録 → Firestore + Worker 処理
 
 ### 3.3 設定
 
-- Meta OAuth 連携ボタン
-- LINE Channel Access Token 入力
+- Meta / Google（GBP）OAuth 連携
+- LINE Channel Access Token / Webhook
+- **HPB店舗URL** + トラッキング有効化
 - デフォルト投稿モード
 - Slack / Ayrshare（任意）
+- 顧客タグ管理 / セグメント条件ビルダー（Pro〜）
 
 ### 3.4 Auto Mode（Growth OS）
 
 1. Gemini で投稿案生成
-2. デフォルトは **承認待ちキュー** に登録
-3. `defaultPublishMode=auto|meta` 時は自動予約
+2. 既定は承認待ちキュー
+3. `defaultPublishMode=auto|meta|gbp` 時は自動予約
+4. **配信モード自動最適化** — リーチ重視は Meta+GBP、CV重視は LINE セグメント
+
+### 3.5 LINE セグメント配信（Pro / Growth OS）
+
+- 顧客タグ管理（来店頻度・最終来店日・年代・興味）
+- セグメント条件ビルダー（GUI）
+- ステップ配信（登録後 N日）
+- 配信前コスト推定 `¥X,XXX → 推定CV Y件`
+
+### 3.6 HPB トラッキング（Growth OS）
+
+- 計測リンク生成時に HPB予約UTM 自動付与
+- 投稿別「HPB予約寄与度」可視化
+- 売上ファネルに HPB予約数を統合
+
+### 3.7 MEOダッシュボード（Growth OS / Enterprise）
+
+- GBP閲覧・経路・順位
+- クチコミ集約・AI返信ドラフト
+- 写真投稿の自動同期
+
+### 3.8 多店舗統合（Enterprise）
+
+- 親→子店舗階層
+- 横断KPI集計
+- テンプレ一括配信
+- 改ざん検知 / SSO
 
 ---
 
-## 4. プラン設計
+## 4. プラン設計（v5・5プラン構成）
 
 | プラン | 月額 | 主要機能 |
 |--------|------|----------|
-| Starter | ¥0 | AI台本、健康診断、透かしあり、通知リマインダー |
-| Pro | ¥4,980 | Meta/LINE 自動投稿、透かし削除 |
-| Team | ¥9,800 | Slack連携、承認フロー、戦略的通知 |
-| Growth OS | ¥29,800 | Auto Mode、深い売上トラッキング |
+| **Free** | ¥0 | AI台本、健康診断、月5投稿、透かしあり、**ボイスドラフト** |
+| **Starter** | ¥4,980 | 無制限投稿、Meta/LINE自動、トレンド波乗り、**GBP自動投稿**、透かし削除 |
+| **Pro** | ¥9,800 | Slack連携、承認フロー、戦略的通知、**LINEセグメント（基本）**、A/Bテスト |
+| **Growth OS** | ¥24,800 | Auto Mode、**HPB連携**、**LINEセグメント（高度）+ ステップ配信**、**MEOダッシュ**、売上ファネル詳細 |
+| **Enterprise** | 要見積 | 多店舗（〜100店舗）、専任CSM、SLA、SSO |
+
+### 年払い
+
+- 年払いで **2ヶ月分無料**（実質約17%OFF）
+
+### 紹介・割引
+
+- 紹介プログラム: 紹介者・被紹介者ともに 1ヶ月無料
+- スタートアップ割引: 創業3年未満は初年度30%OFF
 
 ---
 
-## 5. API 一覧（v4 追加分）
+## 5. API 一覧（v5 追加分）
 
 | メソッド | パス | 説明 |
 |---------|------|------|
 | POST | `/v1/schedule` | 予約登録（`publishMode` 対応） |
 | GET | `/v1/scheduled` | 予約ジョブ一覧 |
 | POST | `/v1/scheduled/:id/approve` | 承認待ち → pending |
-| GET | `/v1/oauth/meta/start` | Meta OAuth URL 取得 |
-| GET | `/v1/oauth/meta/callback` | Meta OAuth コールバック |
-
-既存 API（upload, repurpose, dashboard, analytics, settings, slack, trends, ab-tests, auto-mode 等）は v3 と同様。
+| GET | `/v1/oauth/meta/start` `/callback` | Meta OAuth |
+| GET | `/v1/oauth/google/start` `/callback` | **GBP OAuth（Phase 4）** |
+| POST | `/v1/voice-draft` | **音声→4種下書き生成（Phase 4）** |
+| POST | `/v1/line/segments` | **セグメント作成（Phase 5）** |
+| GET | `/v1/line/cost-estimate` | **配信コスト推定** |
+| GET | `/v1/hpb/conversions` | **HPB予約寄与度（Phase 5）** |
 
 ---
 
-## 6. Firestore スキーマ（v4）
+## 6. Firestore スキーマ（v5）
 
 ```
 users/{uid}
-  plan, slackWebhookUrl, lineChannelAccessToken, metaAccessToken, metaIgUserId,
-  metaPageId, defaultPublishMode, autoModeEnabled, ...
+  plan, slackWebhookUrl, lineChannelAccessToken,
+  metaAccessToken, metaIgUserId, metaPageId,
+  gbpAccessToken, gbpLocationName,
+  hpbStoreUrl, hpbTrackingEnabled,
+  defaultPublishMode, autoModeEnabled, ...
 
 users/{uid}/scheduled/{jobId}
   contents, scheduledAt, publishMode, status, mediaUrls,
   trackingLinks, publishResults, errorMessage, createdAt, updatedAt
+  // v5 追加:
+  gbpPostId, hpbReservationCount
+
+users/{uid}/customerTags/{tagId}
+  name, color, friendCount, createdAt
+
+users/{uid}/lineSegments/{segmentId}
+  name, conditions[], estimatedReach, estimatedCost
+
+users/{uid}/lineSteps/{stepId}
+  trigger, dayOffset, messageTemplate, segmentId
 
 oauthStates/{state}
   uid, provider, expiresAt
@@ -177,24 +245,24 @@ oauthStates/{state}
 ## 7. ロードマップと実装状況
 
 ### Phase 0 — 半自動（notify） ✅
-
-- Firestore 予約 + Slack/LINE 文案通知
-
-### Phase 1 — Meta 直結 + Worker ✅
-
-- Meta OAuth、Graph API 投稿、5分 Worker
-
+### Phase 1 — Meta直結 + Worker ✅
 ### Phase 2 — LINE ブロードキャスト ✅
+### Phase 3 — 承認キュー + Auto Mode ✅
 
-- Messaging API broadcast
+### Phase 4 — ボイスドラフト + GBP連携 🔵 着手中
 
-### Phase 3 — 承認キュー + Auto Mode 連携 ✅
+- アプリ内 MediaRecorder 録音 UI（実装）
+- `/v1/voice-draft` API（Gemini マルチモーダル、スケルトン）
+- GBP OAuth UI（実装、API はスケルトン）
+- 設定ページ刷新（GBP / HPB / セグメント追加）
 
-- `pending_approval` → ダッシュボード承認
+### Phase 5 — HPB連携 + LINEセグメント高度化 ⚪ 計画
 
-### Phase 4 — AI エージェント層（将来）
+### Phase 6 — MEOダッシュボード + クチコミ管理 ⚪ 計画
 
-- Gemini 従量のみ
+### Phase 7 — 多店舗統合 / Enterprise ⚪ 構想
+
+### Phase 8 — AIエージェント（Gemini Live） ⚪ 構想
 
 ---
 
@@ -206,6 +274,13 @@ oauthStates/{state}
 2. Instagram Graph API / Pages API を有効化
 3. OAuth リダイレクト: `https://app.buzzit.shigotoku.com/api/v1/oauth/meta/callback`
 4. Secret Manager に `META_APP_ID`, `META_APP_SECRET` を設定
+
+### Google Business Profile（Phase 4）
+
+1. Google Cloud Console で GBP API を有効化
+2. OAuth クライアントを作成
+3. リダイレクト: `https://app.buzzit.shigotoku.com/api/v1/oauth/google/callback`
+4. `GOOGLE_OAUTH_CLIENT_ID` / `_SECRET` を Secret Manager 登録
 
 ### デプロイ
 
@@ -224,3 +299,12 @@ npm run deploy:buzzit
 | アプリ | https://app.buzzit.shigotoku.com/ |
 | API | https://app.buzzit.shigotoku.com/api/ |
 | GCP プロジェクト | shigotoku-prod |
+
+---
+
+## 10. 関連ドキュメント
+
+- 競合分析: `buzzit/docs/競合アプリの機能・費用調査.md`
+- 価格戦略: `buzzit/docs/PRICING-STRATEGY.md`
+- 競合対抗ロードマップ: `buzzit/docs/COMPETITIVE-ROADMAP.md`
+- GSC対応: `buzzit/docs/GSC-対応チェックリスト.md`

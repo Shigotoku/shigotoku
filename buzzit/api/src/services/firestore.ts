@@ -1,7 +1,7 @@
 import type { PublishMode, ScheduledJobStatus, ScheduleContentItem } from '../types/schedule';
 import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
 
-export type PlanTier = 'starter' | 'pro' | 'team' | 'growth';
+export type PlanTier = 'free' | 'starter' | 'pro' | 'team' | 'growth' | 'enterprise';
 
 export interface UserSettings {
   uid: string;

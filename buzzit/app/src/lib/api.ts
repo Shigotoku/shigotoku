@@ -133,7 +133,59 @@ export function repurposeViaApi(body: RepurposeApiRequest) {
   });
 }
 
-export type PublishMode = 'notify' | 'approval' | 'meta' | 'line' | 'ayrshare' | 'auto';
+export type PublishMode = 'notify' | 'approval' | 'meta' | 'line' | 'gbp' | 'ayrshare' | 'auto';
+
+export interface VoiceDraftResponse {
+  transcript: string;
+  drafts: Array<{ kind: 'instagram' | 'line' | 'caption' | 'slack'; label: string; content: string }>;
+  usedGemini: boolean;
+}
+
+export function voiceDraft(body: { audioBase64: string; mimeType: string; hint?: string }) {
+  return request<VoiceDraftResponse>('/v1/voice-draft', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export interface LineCostEstimate {
+  pricePerMessage: number;
+  estimatedRecipients: number;
+  estimatedCost: number;
+  estimatedSegmentReach: number;
+  estimatedSegmentCost: number;
+  savedPercent: number;
+}
+
+export function fetchLineCostEstimate() {
+  return request<LineCostEstimate>('/v1/line/cost-estimate');
+}
+
+export interface CustomerTag {
+  id: string;
+  name: string;
+  color: string;
+  friendCount: number;
+}
+
+export function fetchCustomerTags() {
+  return request<{ tags: CustomerTag[] }>('/v1/line/tags');
+}
+
+export interface HpbConversion {
+  postId: string;
+  title: string;
+  reservations: number;
+  estimatedRevenue: number;
+}
+
+export function fetchHpbConversions() {
+  return request<{ conversions: HpbConversion[] }>('/v1/hpb/conversions');
+}
+
+export function startGbpOAuth() {
+  return request<{ url: string }>('/v1/oauth/google/start');
+}
 
 export interface ScheduleApiRequest {
   contents: Array<{ platform: string; label: string; content: string; carouselSlides?: string[] }>;

@@ -5,35 +5,80 @@ const loginUrl = appPath('/login');
 
 const plans = [
   {
-    name: 'Starter',
+    name: 'Free',
     price: '¥0',
     period: '',
-    features: ['AI台本生成', 'SNS健康診断', 'Powered by BuzzIt 透かし'],
+    tagline: 'まず5分体験',
+    features: [
+      'AI台本生成（月5投稿）',
+      'SNS健康診断',
+      'ボイスドラフト',
+      'Powered by BuzzIt 透かし',
+    ],
     cta: '無料で始める',
     highlight: false,
   },
   {
-    name: 'Pro',
+    name: 'Starter',
     price: '¥4,980',
     period: '/月',
-    features: ['全SNS自動予約', 'AI処方的提案', '透かし削除'],
-    cta: 'Proを試す',
+    tagline: '個人店向け',
+    features: [
+      '無制限投稿',
+      'Meta（IG/FB/Threads）自動投稿',
+      'LINE 配信',
+      'GBP（Googleマップ）自動投稿',
+      'トレンド波乗りエンジン',
+      '透かし削除',
+    ],
+    cta: 'Starterを試す',
     highlight: false,
   },
   {
-    name: 'Team',
+    name: 'Pro',
     price: '¥9,800',
     period: '/月',
-    features: ['Slack連携（ネタ会議）', '戦略的通知（朝/昼/夜）', 'チーム承認フロー'],
-    cta: 'Teamを試す',
+    tagline: '小規模チーム',
+    features: [
+      'Starterの全機能',
+      'Slack 連携（ネタ会議）',
+      'チーム承認フロー',
+      '戦略的通知（朝/昼/夜）',
+      'LINEセグメント配信（基本）',
+      'A/Bテスト自動化',
+    ],
+    cta: 'Proを試す',
     highlight: true,
     badge: 'おすすめ',
   },
   {
     name: 'Growth OS',
-    price: '¥29,800',
+    price: '¥24,800',
     period: '/月',
-    features: ['深い売上トラッキング', 'Auto Mode（完全自動）', 'アンバサダーCRM'],
+    tagline: '美容・多店舗',
+    features: [
+      'Proの全機能',
+      'Auto Mode（完全自動運用）',
+      'HPB予約トラッキング',
+      'LINEセグメント高度＋ステップ配信',
+      'MEOダッシュボード',
+      '深い売上ファネル',
+    ],
+    cta: 'Growth OSを試す',
+    highlight: false,
+  },
+  {
+    name: 'Enterprise',
+    price: '要見積',
+    period: '',
+    tagline: 'チェーン・多店舗',
+    features: [
+      '多店舗統合（〜100店舗）',
+      '横断KPI / 改ざん検知',
+      '専任CSM・SLA',
+      'SSO（Workspace / Entra ID）',
+      'カスタム連携・API拡張',
+    ],
     cta: '相談する',
     highlight: false,
   },
@@ -47,13 +92,37 @@ const plans = [
       <h2 class="font-display text-3xl font-bold md:text-4xl lg:text-5xl" data-headline-fit>
         シンプルな料金プラン
       </h2>
-      <p class="mt-4 text-base text-neutral-600">無料から始めて、組織化・経営OSへ段階的にスケール。</p>
+      <p class="mt-4 text-base text-neutral-600">無料から始めて、組織化・経営OSへ段階的にスケール。年払いで2ヶ月分無料。</p>
     </div>
 
-    <div class="grid grid-cols-1 gap-px overflow-hidden border border-neutral-200 bg-neutral-200 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="animate-on-scroll slide-up delay-100 mb-10 border border-neutral-200 bg-neutral-50 p-6 md:p-8">
+      <p class="text-[10px] font-bold uppercase tracking-widest text-neutral-500">3本契約から1本へ</p>
+      <h3 class="mt-2 font-display text-xl font-bold text-neutral-900 md:text-2xl">
+        美容業界の "3本契約"、まとめて月¥33,760の削減
+      </h3>
+      <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div class="border border-neutral-200 bg-white p-4">
+          <p class="text-xs text-neutral-500">既存3本契約の月額</p>
+          <p class="buzz-stat-value mt-1 text-2xl text-neutral-400 line-through">¥58,560</p>
+          <p class="mt-2 text-xs text-neutral-500">AI-BOUZ + AI-LINE + Lステップ・スタンダード</p>
+        </div>
+        <div class="border border-neutral-900 bg-neutral-900 p-4 text-white">
+          <p class="text-xs text-neutral-300">BuzzIt Growth OS</p>
+          <p class="buzz-stat-value buzz-stat-value--light mt-1 text-2xl">¥24,800</p>
+          <p class="mt-2 text-xs text-neutral-300">Meta・LINE・GBP・HPB・MEO すべて統合</p>
+        </div>
+        <div class="border border-neutral-200 bg-white p-4">
+          <p class="text-xs text-neutral-500">月あたり削減額</p>
+          <p class="buzz-stat-value mt-1 text-2xl">¥33,760</p>
+          <p class="mt-2 text-xs text-neutral-500">年間 ¥405,120 のコスト削減</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-px overflow-hidden border border-neutral-200 bg-neutral-200 sm:grid-cols-2 lg:grid-cols-5">
       {plans.map((plan, i) => (
         <article
-          class={`animate-on-scroll slide-up relative flex flex-col bg-white p-7 ${i === 1 ? 'delay-100' : i === 2 ? 'delay-200' : i === 3 ? 'delay-300' : ''} ${plan.highlight ? 'bg-neutral-900 text-white' : ''}`}
+          class={`animate-on-scroll slide-up relative flex flex-col bg-white p-7 ${i === 1 ? 'delay-100' : i === 2 ? 'delay-200' : i === 3 ? 'delay-300' : i === 4 ? 'delay-300' : ''} ${plan.highlight ? 'bg-neutral-900 text-white' : ''}`}
         >
           {plan.badge && (
             <span class="absolute -top-px left-0 bg-neutral-900 px-3 py-1 text-[10px] font-bold text-white">
@@ -61,7 +130,8 @@ const plans = [
             </span>
           )}
           <h3 class={`font-display text-lg font-bold ${plan.highlight ? 'text-white' : 'text-neutral-900'}`}>{plan.name}</h3>
-          <p class:list={['buzz-stat-value mt-2 text-3xl', plan.highlight && 'buzz-stat-value--light']}>
+          <p class={`text-[11px] uppercase tracking-wider ${plan.highlight ? 'text-neutral-400' : 'text-neutral-500'}`}>{plan.tagline}</p>
+          <p class:list={['buzz-stat-value mt-3 text-3xl', plan.highlight && 'buzz-stat-value--light']}>
             {plan.price}
             {plan.period && <span class={`text-sm font-normal ${plan.highlight ? 'text-neutral-400' : 'text-neutral-500'}`}>{plan.period}</span>}
           </p>
@@ -85,6 +155,21 @@ const plans = [
           </a>
         </article>
       ))}
+    </div>
+
+    <div class="animate-on-scroll slide-up delay-300 mt-10 grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div class="border border-neutral-200 bg-white p-5">
+        <p class="text-[10px] font-bold uppercase tracking-wider text-neutral-500">年払い特典</p>
+        <p class="mt-2 text-sm text-neutral-700">2ヶ月分無料（実質約17%OFF）</p>
+      </div>
+      <div class="border border-neutral-200 bg-white p-5">
+        <p class="text-[10px] font-bold uppercase tracking-wider text-neutral-500">紹介プログラム</p>
+        <p class="mt-2 text-sm text-neutral-700">紹介者・被紹介者ともに1ヶ月無料</p>
+      </div>
+      <div class="border border-neutral-200 bg-white p-5">
+        <p class="text-[10px] font-bold uppercase tracking-wider text-neutral-500">スタートアップ割</p>
+        <p class="mt-2 text-sm text-neutral-700">創業3年未満は初年度30%OFF</p>
+      </div>
     </div>
   </div>
 </section>

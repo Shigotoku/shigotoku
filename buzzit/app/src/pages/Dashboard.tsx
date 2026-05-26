@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, CheckCircle2, TrendingUp, Users, DollarSign, Clock } from 'lucide-react';
+import { ArrowRight, CheckCircle2, TrendingUp, Users, DollarSign, Clock, Sun, Sparkles } from 'lucide-react';
 import { kpiLabels, mockMetrics, mockMission } from '../data/mockDashboard';
-import { fetchDashboard, fetchTrends, fetchScheduledJobs, approveScheduledJob, type TrendTopic, type ScheduledJob } from '../lib/api';
+import { fetchDashboard, fetchTrends, fetchScheduledJobs, approveScheduledJob, fetchLineCostEstimate, fetchHpbConversions, type TrendTopic, type ScheduledJob, type LineCostEstimate, type HpbConversion } from '../lib/api';
 
 export default function Dashboard() {
   const [metrics, setMetrics] = useState(mockMetrics);
@@ -11,6 +11,8 @@ export default function Dashboard() {
   const [trends, setTrends] = useState<TrendTopic[]>([]);
   const [pendingJobs, setPendingJobs] = useState<ScheduledJob[]>([]);
   const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [lineCost, setLineCost] = useState<LineCostEstimate | null>(null);
+  const [hpbConversions, setHpbConversions] = useState<HpbConversion[]>([]);
 
   useEffect(() => {
     fetchDashboard()
@@ -39,6 +41,12 @@ export default function Dashboard() {
     fetchScheduledJobs('pending_approval')
       .then((r) => setPendingJobs(r.jobs))
       .catch(() => {});
+    fetchLineCostEstimate()
+      .then(setLineCost)
+      .catch(() => {});
+    fetchHpbConversions()
+      .then((r) => setHpbConversions(r.conversions))
+      .catch(() => {});
   }, []);
 
   const handleApproveJob = async (jobId: string) => {
@@ -55,6 +63,33 @@ export default function Dashboard() {
   return (
     <div className="buzz-page">
       {loading && <p className="text-sm text-neutral-500">Firestore から KPI を読み込み中...</p>}
+
+      <div className="border border-neutral-200 bg-white p-6 md:p-7">
+        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-neutral-500">
+          <Sun className="h-3.5 w-3.5" />
+          毎朝5分ルーティン
+        </div>
+        <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-4">
+          <div className="border-l-2 border-neutral-900 pl-3">
+            <p className="text-xs text-neutral-500">1. 健康診断</p>
+            <p className="mt-1 text-lg font-bold">スコア {metrics.healthScore}</p>
+          </div>
+          <div className="border-l-2 border-neutral-200 pl-3">
+            <p className="text-xs text-neutral-500">2. 承認待ち</p>
+            <p className="mt-1 text-lg font-bold">{pendingJobs.length} 件</p>
+          </div>
+          <div className="border-l-2 border-neutral-200 pl-3">
+            <p className="text-xs text-neutral-500">3. 今日のトレンド</p>
+            <p className="mt-1 text-lg font-bold">{trends.length} 本</p>
+          </div>
+          <div className="border-l-2 border-neutral-200 pl-3">
+            <p className="text-xs text-neutral-500">4. 配信コスト</p>
+            <p className="mt-1 text-lg font-bold">
+              {lineCost ? `−${lineCost.savedPercent}%` : '—'}
+            </p>
+          </div>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="buzz-card lg:col-span-2">
@@ -155,6 +190,30 @@ export default function Dashboard() {
                 <p className="line-clamp-2 text-sm text-neutral-600">
                   {job.contents.map((c) => c.label).join(' / ')} — {job.contents[0]?.content.slice(0, 120)}
                 </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {hpbConversions.length > 0 && (
+        <div className="buzz-card-pad">
+          <div className="mb-4 flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-neutral-700" />
+            <h2 className="text-lg font-bold">HPB予約に貢献した投稿</h2>
+            <span className="ml-auto text-xs text-neutral-500">Growth OS</span>
+          </div>
+          <div className="space-y-2">
+            {hpbConversions.slice(0, 3).map((c) => (
+              <div
+                key={c.postId}
+                className="flex items-center justify-between border border-neutral-200 bg-neutral-50 p-3 text-sm"
+              >
+                <div className="flex-1">
+                  <p className="font-medium">{c.title}</p>
+                  <p className="text-xs text-neutral-500">HPB予約 {c.reservations} 件</p>
+                </div>
+                <p className="buzz-stat-value text-sm">¥{c.estimatedRevenue.toLocaleString()}</p>
               </div>
             ))}
           </div>
