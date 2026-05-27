@@ -16,6 +16,7 @@ import {
   Camera,
 } from "lucide-react";
 import { useAuthStore } from "../../store/auth";
+import CompanyBillingSection from "../../components/CompanyBillingSection";
 import {
   useCompanyStore,
   MEDICAL_FIELD_LABELS,
@@ -373,6 +374,8 @@ export default function SettingsPage() {
               </div>
             </div>
           </div>
+
+          <CompanyBillingSection />
 
           <div className="rounded-2xl border border-emerald-200 bg-white p-6 shadow-sm">
             <div className="mb-4 flex items-center gap-2">

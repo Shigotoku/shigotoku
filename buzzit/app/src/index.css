@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 @theme {
-  --font-display: "Syne", "Outfit", sans-serif;
-  --font-body: "Plus Jakarta Sans", "Inter", sans-serif;
+  --font-display: "Noto Sans JP", "Noto Sans", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+  --font-body: "Noto Sans JP", "Noto Sans", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
   --color-buzz-ink: #111111;
   --color-buzz-paper: #f5f4f0;
   --color-buzz-muted: #6b6b6b;
@@ -95,7 +95,7 @@
   }
 
   .buzz-stat-value {
-    font-family: var(--font-body);
+    font-family: "Noto Sans", "Noto Sans JP", system-ui, sans-serif;
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum" 1;
     @apply font-bold tracking-tight text-neutral-900;

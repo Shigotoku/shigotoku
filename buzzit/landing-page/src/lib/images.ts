@@ -12,6 +12,9 @@ export const images = {
     'https://images.unsplash.com/photo-1596462502278-27bfdc403348?auto=format&fit=crop&w=900&q=80',
   cafeStore:
     'https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=900&q=80',
+  /** Googleマップ・店舗集客（Features カード背景） */
+  googleMapsLocal:
+    'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80',
 } as const;
 
 /** 全幅フォトストリップ用（生成済み WebP タイル） */

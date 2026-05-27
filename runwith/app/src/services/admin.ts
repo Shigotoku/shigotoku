@@ -130,7 +130,7 @@ export async function fetchAdminUsers(): Promise<AdminUser[]> {
     const subs = await fetchAllSubscriptionsForAdmin();
     const subMap: Record<string, string> = {};
     subs.forEach((s) => {
-      subMap[s.user_id] = s.plan ?? 'free';
+      if (s.user_id) subMap[s.user_id] = s.plan ?? 'free';
     });
 
     const users: AdminUser[] = [];

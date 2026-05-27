@@ -1,6 +1,6 @@
 ---
 import Icon from './Icon.astro';
-import { previewPlans } from '../data/content';
+import { previewPlans, billingSeatSummary } from '../data/content';
 import { appPath } from '../lib/urls';
 
 const loginUrl = appPath('/login');
@@ -11,7 +11,11 @@ const loginUrl = appPath('/login');
     <div class="mb-12 text-center headline-fit-wrap">
       <p class="mb-3 text-sm font-semibold uppercase tracking-widest text-slate-400">Pricing</p>
       <h2 class="text-3xl font-extrabold text-slate-900 sm:text-4xl" data-headline-fit>フェーズに合わせた料金プラン</h2>
-      <p class="mt-3 text-slate-500">会社設立ナビは無料。成長に合わせてアップグレードできます。</p>
+      <p class="mt-3 text-slate-500">会社1件あたりの料金。<strong class="font-semibold text-slate-700">2人まで無料</strong>、3人目以降 +¥980/人・月。</p>
+    </div>
+    <div class="mb-8 rounded-2xl border border-primary-200 bg-primary-50 px-5 py-4 text-sm text-slate-700">
+      <strong class="text-slate-900">{billingSeatSummary.headline}</strong>
+      <span class="ml-2 text-slate-600">{billingSeatSummary.description}</span>
     </div>
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
       {previewPlans.map((plan) => (

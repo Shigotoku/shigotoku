@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Wand2, BarChart3, MessageCircle, Settings, Bell, ExternalLink, LogOut, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Wand2, BarChart3, MessageCircle, Settings, Bell, ExternalLink, LogOut, Menu, X, Users } from 'lucide-react';
 import { BRAND_NAME } from '../constants/brand';
 import { landingPath } from '../lib/urls';
 import { useApp } from '../store/appContext';
 import { useAuth } from '../store/authContext';
+import StoreSwitcher from '../components/StoreSwitcher';
 
 const planLabels = {
   free: 'Free',
+  line_lite: 'LINE CRM Lite',
+  line_pro: 'LINE CRM Pro',
   starter: 'Starter',
   pro: 'Pro',
   team: 'Team',
@@ -20,6 +23,7 @@ const navItems = [
   { name: 'マジック・クリエイター', path: '/magic-creator', icon: Wand2 },
   { name: 'LINE CRM', path: '/line-crm', icon: MessageCircle },
   { name: '分析・売上', path: '/analytics', icon: BarChart3 },
+  { name: 'スタッフ', path: '/team', icon: Users },
   { name: '設定', path: '/settings', icon: Settings },
 ];
 
@@ -27,6 +31,7 @@ function pageTitle(pathname: string): string {
   if (pathname.startsWith('/magic-creator')) return 'マジック・クリエイター';
   if (pathname.startsWith('/line-crm')) return 'LINE CRM';
   if (pathname.startsWith('/analytics')) return '分析・売上';
+  if (pathname.startsWith('/team')) return 'スタッフ管理';
   if (pathname.startsWith('/settings')) return '設定';
   return '経営コクピット';
 }
@@ -160,6 +165,8 @@ export default function DashboardLayout() {
             </button>
             <h2 className="truncate text-base font-semibold text-neutral-800 lg:text-lg">{title}</h2>
           </div>
+          <div className="flex items-center gap-2">
+            <StoreSwitcher />
           <button
             type="button"
             className="relative flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-white hover:text-neutral-900"
@@ -167,6 +174,7 @@ export default function DashboardLayout() {
             <Bell className="h-5 w-5" />
             <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-neutral-900" />
           </button>
+          </div>
         </header>
         <div className="relative z-10 flex-1 overflow-auto p-4 md:p-6 lg:p-8">
           <Outlet />

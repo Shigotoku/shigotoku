@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, Eye, EyeOff, LogIn, Mail } from 'lucide-react';
 import { BRAND_FULL, BRAND_NAME } from '../constants/brand';
 import { landingPath } from '../lib/urls';
@@ -9,6 +9,8 @@ type AuthMode = 'login' | 'signup' | 'reset';
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectTo = searchParams.get('redirect') ?? '/dashboard';
   const {
     user,
     initializing,
@@ -31,9 +33,9 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (user && !initializing) {
-      navigate('/dashboard', { replace: true });
+      navigate(redirectTo, { replace: true });
     }
-  }, [user, initializing, navigate]);
+  }, [user, initializing, navigate, redirectTo]);
 
   const switchMode = (next: AuthMode) => {
     setMode(next);
@@ -58,12 +60,12 @@ export default function LoginPage() {
           return;
         }
         await signUpEmail(email, password, displayName || undefined);
-        navigate('/dashboard', { replace: true });
+        navigate(redirectTo, { replace: true });
         return;
       }
 
       await signInEmail(email, password);
-      navigate('/dashboard', { replace: true });
+      navigate(redirectTo, { replace: true });
     } catch {
       // authError は context 側で設定
     }
@@ -93,7 +95,7 @@ export default function LoginPage() {
         <div>
           <p className="buzz-section-label mb-4">BtoC店舗のための SNS 経営OS</p>
           <div className="headline-fit-wrap">
-            <h1 className="text-4xl font-bold leading-tight sm:text-5xl" data-headline-fit-off>
+            <h1 className="font-display text-4xl font-bold leading-tight sm:text-5xl" data-headline-fit-off>
               <span className="block" data-headline-fit data-headline-max="36">
                 SNS運用を、
               </span>

@@ -1,22 +1,42 @@
 ---
 import { images } from '../lib/images';
+import LineCostSimulator from './LineCostSimulator.astro';
 
 const integrations = [
-  { name: 'Instagram', subtitle: 'Reels / Feed / Stories' },
-  { name: 'Facebook', subtitle: 'Page 自動投稿' },
-  { name: 'Threads', subtitle: 'Meta 公式' },
-  { name: 'LINE 公式', subtitle: 'セグメント・ステップ' },
-  { name: 'Googleマップ', subtitle: 'GBP 同時更新' },
-  { name: 'ホットペッパー', subtitle: '予約トラッキング' },
-  { name: 'Slack', subtitle: 'ネタ会議・通知' },
+  { name: 'Instagram', subtitle: 'リール・投稿・ストーリーズ' },
+  { name: 'Facebook', subtitle: 'ページへの自動投稿' },
+  { name: 'Threads', subtitle: 'Instagram系列' },
+  { name: 'LINE 公式', subtitle: 'メッセージ配信' },
+  { name: 'Googleマップ', subtitle: '店舗情報の同時更新' },
+  { name: 'ホットペッパー', subtitle: '予約の効果測定' },
+  { name: 'Slack', subtitle: '社内チャット連携' },
   { name: 'X', subtitle: '近日対応' },
 ];
+
+function lineAccountCost(messages: number) {
+  if (messages <= 5000) return 5000;
+  return 16500 + (messages - 5000) * 3;
+}
+
+const LSTEP_CRM = 21780;
+const BUZZIT_CRM = 4980;
+
+const costRows = [3000, 5000, 10000, 20000, 50000].map((messages) => {
+  const line = lineAccountCost(messages);
+  const lstep = line + LSTEP_CRM;
+  const buzzit = line + BUZZIT_CRM;
+  return { messages, line, lstepCrm: LSTEP_CRM, buzzitCrm: BUZZIT_CRM, lstep, buzzit, savings: lstep - buzzit };
+});
+
+const example10k = costRows.find((r) => r.messages === 10000)!;
+const example10kSegmentLine = lineAccountCost(4000);
+const example10kSegmentTotal = example10kSegmentLine + BUZZIT_CRM;
 ---
 
 <section id="features" class="bg-[#f5f4f0] py-24 md:py-32">
   <div class="mx-auto max-w-6xl px-5 md:px-8">
     <div class="animate-on-scroll slide-up mb-14 md:mb-16 headline-fit-wrap">
-      <p class="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-neutral-500">Features</p>
+      <p class="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-neutral-500">機能</p>
       <h2 class="font-display text-3xl font-bold md:text-4xl lg:text-5xl" data-headline-fit>
         すべてを繋ぎ、美しく自動化する。
       </h2>
@@ -35,27 +55,27 @@ const integrations = [
         />
         <div class="absolute inset-0 bg-neutral-900/55"></div>
         <div class="relative flex h-full flex-col justify-end p-8 md:p-10">
-          <span class="mb-3 inline-block text-[10px] font-bold uppercase tracking-wider text-neutral-300">Team</span>
+          <span class="mb-3 inline-block text-[10px] font-bold uppercase tracking-wider text-neutral-300">チーム</span>
           <h3 class="font-display text-2xl font-bold text-white md:text-3xl">全社を巻き込む仕組み</h3>
           <p class="mt-3 max-w-md text-sm leading-relaxed text-neutral-200 md:text-base">
-            Slack連携で社員のアイデアを吸い上げ、担当者の孤独をなくす。店舗の熱量をそのままSNSへ。
+            社内チャット（Slack）でスタッフのネタを集め、担当者ひとりに頼り切らない運用へ。店舗の声をそのままSNSへ。
           </p>
         </div>
       </article>
 
       <article class="animate-on-scroll slide-up delay-100 flex flex-col border border-neutral-200 bg-white p-8">
-        <p class="mb-6 text-[10px] font-bold uppercase tracking-wider text-neutral-400">Voice</p>
+        <p class="mb-6 text-[10px] font-bold uppercase tracking-wider text-neutral-400">音声入力</p>
         <h3 class="font-display text-xl font-bold text-neutral-900">ボイスドラフト</h3>
         <p class="mt-3 flex-1 text-sm leading-relaxed text-neutral-600">
-          施術中の会話を録音して送るだけ。Geminiが投稿・LINE台本・キャプションを一度に4種類生成します。
+          施術中の会話を録音して送るだけ。AIがInstagram・LINE用の文章を一度に作ってくれます。
         </p>
       </article>
 
       <article class="animate-on-scroll slide-up delay-100 flex flex-col border border-neutral-200 bg-white p-8">
-        <p class="mb-6 text-[10px] font-bold uppercase tracking-wider text-neutral-400">Automation</p>
+        <p class="mb-6 text-[10px] font-bold uppercase tracking-wider text-neutral-400">自動化</p>
         <h3 class="font-display text-xl font-bold text-neutral-900">一気通貫の自動化</h3>
         <p class="mt-3 flex-1 text-sm leading-relaxed text-neutral-600">
-          1本の動画から各SNS・LINE・Googleマップへ最適化。Auto Modeなら完全自動運用も可能です。
+          1本の動画から、Instagram・LINE・Googleマップ向けにそれぞれ最適な内容へ。完全自動モードにも対応します。
         </p>
       </article>
 
@@ -68,73 +88,117 @@ const integrations = [
         />
         <div class="absolute inset-0 bg-neutral-900/55"></div>
         <div class="relative flex h-full flex-col justify-end p-8 md:p-10">
-          <span class="mb-3 inline-block text-[10px] font-bold uppercase tracking-wider text-neutral-300">Revenue</span>
-          <h3 class="font-display text-2xl font-bold text-white md:text-3xl">HPB予約まで追える売上ファネル</h3>
+          <span class="mb-3 inline-block text-[10px] font-bold uppercase tracking-wider text-neutral-300">売上</span>
+          <h3 class="font-display text-2xl font-bold text-white md:text-3xl">予約サイトまで追える売上の見える化</h3>
           <p class="mt-3 max-w-md text-sm leading-relaxed text-neutral-200 md:text-base">
-            「どの投稿がホットペッパー予約に繋がったか」を可視化。いいねではなく来店・売上で経営判断を。
+            「どの投稿がホットペッパービューティーの予約につながったか」がわかります。いいねではなく、来店と売上で判断できます。
           </p>
         </div>
       </article>
 
-      <article class="animate-on-scroll slide-up delay-200 flex flex-col border border-neutral-200 bg-white p-8 md:col-span-2">
-        <p class="mb-6 text-[10px] font-bold uppercase tracking-wider text-neutral-400">LINE CRM</p>
-        <h3 class="font-display text-xl font-bold text-neutral-900">Lステップ完全代替 — タグ・経路・ステップ・リッチメニューを内包</h3>
-        <p class="mt-3 text-sm leading-relaxed text-neutral-600">
-          LINE 公式 Messaging API 直結。タグ管理・流入経路分析・Narrowcast セグメント配信・ステップ配信・リッチメニュー切替を BuzzIt 内で完結。Lステップ ¥21,780 / Liny ¥43,780 は別契約不要です。
-        </p>
-        <div class="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
-          <div class="border border-neutral-200 bg-neutral-50 p-3">
-            <p class="text-[10px] uppercase tracking-wider text-neutral-500">タグ自動付与</p>
-            <p class="mt-1 text-xs text-neutral-700">follow / postback / クリック</p>
-          </div>
-          <div class="border border-neutral-200 bg-neutral-50 p-3">
-            <p class="text-[10px] uppercase tracking-wider text-neutral-500">流入経路</p>
-            <p class="mt-1 text-xs text-neutral-700">短縮URL × 経路別計測</p>
-          </div>
-          <div class="border border-neutral-200 bg-neutral-50 p-3">
-            <p class="text-[10px] uppercase tracking-wider text-neutral-500">セグメント配信</p>
-            <p class="mt-1 text-xs text-neutral-700">Narrowcast Audience</p>
-          </div>
-          <div class="border border-neutral-200 bg-neutral-50 p-3">
-            <p class="text-[10px] uppercase tracking-wider text-neutral-500">ステップ配信</p>
-            <p class="mt-1 text-xs text-neutral-700">シナリオ × 分岐 × 遅延</p>
-          </div>
-        </div>
-      </article>
-
-      <article class="animate-on-scroll slide-up delay-200 flex flex-col border border-neutral-200 bg-white p-8 md:col-span-3">
-        <p class="mb-6 text-[10px] font-bold uppercase tracking-wider text-neutral-400">LINE 料金改定対策</p>
-        <h3 class="font-display text-xl font-bold text-neutral-900">2026秋 LINE料金改定 — Narrowcast で配信コスト −60%</h3>
-        <p class="mt-3 text-sm leading-relaxed text-neutral-600">
-          月20万通まで一律¥3/通の料金改定で、配信コストが最大1.91倍に。BuzzIt の LINE CRM なら、「本当に必要な人にだけ」届け、配信コストを40〜60%削減します。
-        </p>
-        <div class="mt-5 grid grid-cols-3 gap-3">
-          <div class="border border-neutral-200 bg-neutral-50 p-3">
-            <p class="text-[10px] uppercase tracking-wider text-neutral-500">改定前</p>
-            <p class="buzz-stat-value mt-1 text-base">¥X,XXX</p>
-          </div>
-          <div class="border border-neutral-200 bg-neutral-50 p-3">
-            <p class="text-[10px] uppercase tracking-wider text-neutral-500">改定後</p>
-            <p class="buzz-stat-value mt-1 text-base text-red-700">×1.91倍</p>
-          </div>
-          <div class="border border-neutral-900 bg-neutral-900 p-3 text-white">
-            <p class="text-[10px] uppercase tracking-wider text-neutral-300">BuzzIt後</p>
-            <p class="buzz-stat-value buzz-stat-value--light mt-1 text-base">−60%</p>
-          </div>
+      <article class="animate-on-scroll slide-up delay-200 group relative col-span-1 min-h-[420px] overflow-hidden md:col-span-2">
+        <img
+          src={images.googleMapsLocal}
+          alt="店舗の雰囲気"
+          class="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.02]"
+          loading="lazy"
+        />
+        <div class="absolute inset-0 bg-neutral-900/55"></div>
+        <div class="relative flex h-full flex-col justify-end p-8 md:p-10">
+          <span class="mb-3 inline-block text-[10px] font-bold uppercase tracking-wider text-neutral-300">Googleマップ</span>
+          <h3 class="font-display text-2xl font-bold text-white md:text-3xl">Googleマップもまとめて更新</h3>
+          <p class="mt-3 max-w-md text-sm leading-relaxed text-neutral-200 md:text-base">
+            店舗情報の投稿、口コミへの返信、検索順位のレポートまで対応。複数店舗は上位プランで一括管理できます。
+          </p>
         </div>
       </article>
 
       <article class="animate-on-scroll slide-up delay-200 flex flex-col border border-neutral-200 bg-white p-8">
-        <p class="mb-6 text-[10px] font-bold uppercase tracking-wider text-neutral-400">MEO</p>
-        <h3 class="font-display text-xl font-bold text-neutral-900">Googleマップ集約</h3>
+        <p class="mb-6 text-[10px] font-bold uppercase tracking-wider text-neutral-400">LINE管理</p>
+        <h3 class="font-display text-xl font-bold text-neutral-900">人気のLINE管理ツールの代わりに — タグ・配信・メニューまで内包</h3>
         <p class="mt-3 flex-1 text-sm leading-relaxed text-neutral-600">
-          GBP投稿の同時更新、クチコミAI返信、順位レポートまで標準内包。多店舗はEnterpriseで横断管理。
+          お客様へのタグ付け、どこから登録したかの把握、必要な人だけへの配信、あいさつメッセージ、画面下メニューの切替まで、BuzzItだけで完結。Lステップなど別ツールは不要です。
         </p>
+        <ul class="mt-4 space-y-2 border-t border-neutral-200 pt-4 text-xs leading-relaxed text-neutral-600">
+          <li><span class="font-semibold text-neutral-800">タグ付け</span> — 来店回数・興味など</li>
+          <li><span class="font-semibold text-neutral-800">登録経路</span> — QR・広告ごとに計測</li>
+          <li><span class="font-semibold text-neutral-800">絞り込み配信</span> — 必要な人にだけ送る</li>
+          <li><span class="font-semibold text-neutral-800">あいさつ・メニュー</span> — 登録後の自動メッセージ</li>
+        </ul>
+      </article>
+
+      <article class="animate-on-scroll slide-up delay-200 flex flex-col border border-neutral-200 bg-white p-8 md:col-span-3">
+        <p class="mb-6 text-[10px] font-bold uppercase tracking-wider text-neutral-400">LINE 料金改定対策</p>
+        <h3 class="font-display text-xl font-bold text-neutral-900">2026年秋のLINE値上げ — 無駄な一斉配信をやめてコストを削減</h3>
+        <p class="mt-3 text-sm leading-relaxed text-neutral-600">
+          2026年秋からLINEの配信料金が上がります。BuzzItなら「本当に必要なお客様にだけ」届け、配信コストを40〜60%削減できます。
+        </p>
+        <p class="mt-3 text-xs text-neutral-500">
+          ※ LINE公式アカウントの料金は各店舗へ直接請求されます。下表は LINE料金 + 管理ツール料の月間合計です。
+        </p>
+        <div class="mt-5 overflow-x-auto border border-neutral-200">
+          <table class="w-full min-w-[640px] text-left text-xs">
+            <thead class="bg-neutral-50 text-neutral-500">
+              <tr>
+                <th class="px-3 py-2 font-semibold uppercase tracking-wider">月間通数</th>
+                <th class="px-3 py-2 font-semibold uppercase tracking-wider">LINE公式</th>
+                <th class="px-3 py-2 font-semibold uppercase tracking-wider">他社ツール</th>
+                <th class="px-3 py-2 font-semibold uppercase tracking-wider">BuzzIt</th>
+                <th class="px-3 py-2 font-semibold uppercase tracking-wider">他社合計</th>
+                <th class="px-3 py-2 font-semibold uppercase tracking-wider">BuzzIt合計</th>
+                <th class="px-3 py-2 font-semibold uppercase tracking-wider">差額</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-neutral-200 bg-white">
+              {costRows.map((row) => (
+                <tr>
+                  <td class="px-3 py-2 font-medium">{row.messages.toLocaleString('ja-JP')}通</td>
+                  <td class="px-3 py-2">¥{row.line.toLocaleString('ja-JP')}</td>
+                  <td class="px-3 py-2">¥{row.lstepCrm.toLocaleString('ja-JP')}</td>
+                  <td class="px-3 py-2">¥{row.buzzitCrm.toLocaleString('ja-JP')}</td>
+                  <td class="px-3 py-2">¥{row.lstep.toLocaleString('ja-JP')}</td>
+                  <td class="px-3 py-2 font-medium">¥{row.buzzit.toLocaleString('ja-JP')}</td>
+                  <td class="px-3 py-2 font-medium text-green-700">−¥{row.savings.toLocaleString('ja-JP')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div class="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div class="border border-neutral-200 bg-neutral-50 p-3">
+            <p class="text-[10px] uppercase tracking-wider text-neutral-500">例: 1万通/月（Lステップ利用時）</p>
+            <p class="mt-1 text-xs text-neutral-600">LINE公式 ¥{example10k.line.toLocaleString('ja-JP')}</p>
+            <p class="text-xs text-neutral-600">管理ツール ¥{LSTEP_CRM.toLocaleString('ja-JP')}</p>
+            <p class="buzz-stat-value mt-1 text-base">合計 ¥{example10k.lstep.toLocaleString('ja-JP')}</p>
+          </div>
+          <div class="border border-neutral-900 bg-neutral-900 p-3 text-white">
+            <p class="text-[10px] uppercase tracking-wider text-neutral-300">同条件 BuzzIt</p>
+            <p class="mt-1 text-xs text-neutral-400">LINE公式 ¥{example10k.line.toLocaleString('ja-JP')}</p>
+            <p class="text-xs text-neutral-400">BuzzIt ¥{BUZZIT_CRM.toLocaleString('ja-JP')}</p>
+            <p class="buzz-stat-value buzz-stat-value--light mt-1 text-base">合計 ¥{example10k.buzzit.toLocaleString('ja-JP')}</p>
+          </div>
+          <div class="border border-neutral-200 bg-neutral-50 p-3">
+            <p class="text-[10px] uppercase tracking-wider text-neutral-500">絞り込み配信（4,000通）</p>
+            <p class="mt-1 text-xs text-neutral-600">LINE公式 ¥{example10kSegmentLine.toLocaleString('ja-JP')}</p>
+            <p class="text-xs text-neutral-600">BuzzIt ¥{BUZZIT_CRM.toLocaleString('ja-JP')}</p>
+            <p class="buzz-stat-value mt-1 text-base text-green-700">合計 ¥{example10kSegmentTotal.toLocaleString('ja-JP')}</p>
+          </div>
+        </div>
+
+        <details id="line-simulator" class="buzz-accordion mt-5 border border-neutral-200 bg-neutral-50">
+          <summary class="buzz-accordion-summary">
+            <span class="font-display text-base font-bold text-neutral-900 md:text-lg">
+              月に何通送ると、いくら安くなる？
+            </span>
+            <span class="buzz-accordion-hint text-xs text-neutral-500">タップして詳しい試算を表示</span>
+          </summary>
+          <LineCostSimulator />
+        </details>
       </article>
     </div>
 
     <div class="animate-on-scroll slide-up delay-300 mt-16">
-      <p class="mb-5 text-center text-[10px] font-bold uppercase tracking-widest text-neutral-500">Integrations</p>
+      <p class="mb-5 text-center text-[10px] font-bold uppercase tracking-widest text-neutral-500">連携できるサービス</p>
       <div class="grid grid-cols-2 gap-px overflow-hidden border border-neutral-200 bg-neutral-200 sm:grid-cols-4">
         {integrations.map((item) => (
           <div class="flex flex-col items-center justify-center bg-white p-5 text-center">
@@ -146,3 +210,20 @@ const integrations = [
     </div>
   </div>
 </section>
+
+<script>
+  function openLineSimulatorFromHash() {
+    if (window.location.hash !== '#line-simulator') return;
+    const el = document.getElementById('line-simulator');
+    if (el instanceof HTMLDetailsElement) {
+      el.open = true;
+      requestAnimationFrame(() => {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+  }
+
+  openLineSimulatorFromHash();
+  window.addEventListener('hashchange', openLineSimulatorFromHash);
+  document.addEventListener('astro:page-load', openLineSimulatorFromHash);
+</script>

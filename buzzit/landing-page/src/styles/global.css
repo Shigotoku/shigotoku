@@ -248,3 +248,41 @@ footer h2 {
   overflow-wrap: break-word;
   text-wrap: pretty;
 }
+
+.buzz-accordion {
+  overflow: hidden;
+}
+
+.buzz-accordion-summary {
+  display: flex;
+  cursor: pointer;
+  list-style: none;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1rem 1.25rem;
+  user-select: none;
+}
+
+.buzz-accordion-summary::-webkit-details-marker {
+  display: none;
+}
+
+.buzz-accordion-summary::after {
+  content: '＋ 詳しい試算を開く';
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #404040;
+}
+
+.buzz-accordion[open] .buzz-accordion-summary::after {
+  content: '－ 閉じる';
+}
+
+.buzz-accordion[open] .buzz-accordion-hint {
+  display: none;
+}
+
+.buzz-accordion > :not(summary) {
+  border-top: 1px solid #e5e5e5;
+}

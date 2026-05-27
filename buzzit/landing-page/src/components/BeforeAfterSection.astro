@@ -21,7 +21,7 @@ const comparisons = [
 <section id="transform" class="bg-white py-24 md:py-32">
   <div class="mx-auto max-w-6xl px-5 md:px-8">
     <div class="animate-on-scroll slide-up mb-14 md:mb-16 headline-fit-wrap">
-      <p class="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-neutral-500">Before → After</p>
+      <p class="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-neutral-500">以前 → 導入後</p>
       <h2 class="font-display text-3xl font-bold md:text-4xl lg:text-5xl" data-headline-fit>
         投稿の悩みが、売上の仕組みに変わる。
       </h2>
@@ -34,11 +34,11 @@ const comparisons = [
       {comparisons.map((item, index) => (
         <article class={`animate-on-scroll slide-up bg-white ${index === 1 ? 'delay-100' : index === 2 ? 'delay-200' : ''}`}>
           <div class="border-b border-neutral-100 p-6 md:p-8">
-            <p class="mb-2 text-[10px] font-bold uppercase tracking-wider text-neutral-400">Before</p>
+            <p class="mb-2 text-[10px] font-bold uppercase tracking-wider text-neutral-400">以前</p>
             <p class="text-sm leading-relaxed text-neutral-600">{item.before}</p>
           </div>
           <div class="bg-neutral-900 p-6 text-white md:p-8">
-            <p class="mb-2 text-[10px] font-bold uppercase tracking-wider text-neutral-400">After · BuzzIt</p>
+            <p class="mb-2 text-[10px] font-bold uppercase tracking-wider text-neutral-400">導入後 · BuzzIt</p>
             <p class="text-sm font-medium leading-relaxed text-neutral-100">{item.after}</p>
             <p class="buzz-stat-value mt-6 inline-block border border-neutral-600 px-3 py-1.5 text-sm text-white">
               {item.metric}

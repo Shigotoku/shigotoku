@@ -96,14 +96,28 @@ export const homepageFaqs = [
   { q: '本当に無料で始められますか？', a: 'はい。会社設立ナビ・届出・手続きナビ・事業シミュレーター（基本）など、創業準備に必要な機能はクレジットカード登録なしで利用できます。' },
   { q: '補助金・助成金のマッチングはどう使いますか？', a: '会社情報を入力すると、IT導入補助金やものづくり補助金など、適合可能性の高い制度を自動で一覧化します。Growthプラン以上でご利用いただけます。' },
   { q: '医療スタートアップ向けの機能はありますか？', a: 'はい。Growth・Proプランに医療モード（+¥3,000/月）を追加すると、薬機法ナビ・PMDA対応ガイド・臨床研究ロードマップなどが利用できます。' },
-  { q: 'チームで使えますか？', a: 'はい。メンバー招待・権限管理に対応しています。共同創業者やCFO、外注パートナーと進捗を共有できます。' },
+  { q: 'チームで使えますか？', a: 'はい。1社あたり2人まで無料で、メンバー招待・権限管理に対応しています。3人目以降は1人あたり月額¥980。オーナー・管理者がメンバーを招待できます。' },
 ];
 
 export const previewPlans = [
-  { name: 'Free', price: '¥0', per: '', tag: 'まず試したい方に', tagColor: 'bg-slate-100 text-slate-600', border: 'border-slate-200/60', ctaStyle: 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50', features: ['会社設立ナビ（7ステップ）', '届出・手続きナビ', '銀行口座開設ガイド', '法人カード比較', '事業シミュレーター（基本）'] },
-  { name: 'Growth', price: '¥2,980', per: '/月', tag: '最も人気', tagColor: 'bg-primary-600 text-white', border: 'border-primary-400 ring-2 ring-primary-100', ctaStyle: 'bg-primary-600 text-white shadow-md hover:bg-primary-700', features: ['Freeの全機能', '補助金マッチング', '契約書テンプレート15種', '税務カレンダー', '労務管理ガイド', '知財管理', 'KPIトラッカー', 'ピッチデッキ作成'] },
-  { name: 'Pro', price: '¥9,800', per: '/月', tag: '調達・IPO準備に', tagColor: 'bg-accent-100 text-accent-700', border: 'border-slate-200/60', ctaStyle: 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50', features: ['Growthの全機能', '企業価値評価（DCF/マルチプル）', 'SOシミュレーション', '投資家マッチング', 'DD対策チェックリスト', 'IPOロードマップ'] },
+  { name: 'Free', price: '¥0', per: '', tag: 'まず試したい方に', tagColor: 'bg-slate-100 text-slate-600', border: 'border-slate-200/60', ctaStyle: 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50', features: ['会社設立ナビ（7ステップ）', '届出・手続きナビ', '銀行口座開設ガイド', '法人カード比較', '事業シミュレーター（基本）', '2人まで無料（3人目〜要アップグレード）'] },
+  { name: 'Growth', price: '¥2,980', per: '/月', tag: '最も人気', tagColor: 'bg-primary-600 text-white', border: 'border-primary-400 ring-2 ring-primary-100', ctaStyle: 'bg-primary-600 text-white shadow-md hover:bg-primary-700', features: ['Freeの全機能', '補助金マッチング', '契約書テンプレート15種', '税務カレンダー', '労務管理ガイド', '知財管理', 'KPIトラッカー', 'ピッチデッキ作成', '2人まで無料・3人目以降 +¥980/人'] },
+  { name: 'Pro', price: '¥9,800', per: '/月', tag: '調達・IPO準備に', tagColor: 'bg-accent-100 text-accent-700', border: 'border-slate-200/60', ctaStyle: 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50', features: ['Growthの全機能', '企業価値評価（DCF/マルチプル）', 'SOシミュレーション', '投資家マッチング', 'DD対策チェックリスト', 'IPOロードマップ', '2人まで無料・3人目以降 +¥980/人'] },
 ];
+
+/** LP・料金ページ共通の席課金説明 */
+export const billingSeatSummary = {
+  includedSeats: 2,
+  extraSeatPrice: 980,
+  headline: '会社1件あたりの料金。2人まで無料。',
+  description:
+    '料金は会社ごとに請求されます。各プランの基本料に加え、3人目以降のメンバーは1人あたり月額¥980。Freeプランは2人まで、Growth以上なら人数無制限（追加料金あり）です。',
+  examples: [
+    { label: 'Growth・2人', total: 2980 },
+    { label: 'Growth・3人', total: 3960 },
+    { label: 'Pro・2人', total: 9800 },
+  ],
+};
 
 export const phases = [
   { id: 'idea', num: '01', label: 'アイデア段階', headline: '「やりたいこと」を\n「やれること」に変える。', description: '市場にあなたの居場所はある。競合を分析し、収支を試算し、名前を決める。最初の一歩を、確実に。', tags: ['医療スタートアップ', 'テック系', '地方創生', '社会課題解決'], tools: [{ label: '事業シミュレーション', desc: '60ヶ月の収支を10分で試算', free: true }, { label: 'ネーミング＆商標チェック', desc: '商標・ドメインを一括確認', free: true }, { label: 'ビジネスモデル整理', desc: 'BMCで事業を構造化', free: true }], bg: 'bg-amber-50', accent: 'text-amber-600' },
@@ -121,8 +135,10 @@ export const pricingPlans = [
 
 export const faqs = [
   { q: '無料プランでどこまで使えますか？', a: '会社設立ナビ・届出・手続きナビ・銀行口座ガイド・法人カードガイド・事業シミュレーター（基本）が完全無料でご利用いただけます。クレジットカード登録も不要です。' },
+  { q: '「2人まで無料」とはどういう意味ですか？', a: '料金は会社ごとに請求されます。Free・Growth・Pro いずれも、1社あたり2人まで追加料金なしで利用できます。3人目以降は1人あたり月額¥980が加算されます。Freeプランは2人が上限で、3人目を追加するにはGrowth以上へのアップグレードが必要です。' },
   { q: '途中でプランを変更できますか？', a: 'はい、いつでも変更可能です。アップグレードは即時反映。ダウングレードは翌請求日から適用されます。' },
   { q: '医療モードはどのプランに追加できますか？', a: 'Growth・Proプランに月額+¥3,000で追加できます。薬機法ナビ・臨床研究ロードマップ・PMDA対応ガイドなど医療スタートアップに特化した機能が利用可能です。' },
+  { q: '複数の会社で使えますか？', a: 'はい。1アカウントで複数の会社に所属できます。会社ごとにプランと請求が発生し、画面上部の会社切替でプランが切り替わります。' },
   { q: '法人での契約は可能ですか？', a: 'はい。法人向けの請求書払いにも対応しています。詳細はお問い合わせください。' },
   { q: '解約はいつでもできますか？', a: 'はい、いつでも解約できます。解約した場合、次の請求日以降は課金されません。データは30日間保持されます。' },
 ];

@@ -2,6 +2,47 @@
 import { appPath } from '../lib/urls';
 
 const loginUrl = appPath('/login');
+const loginLineLitePromo = appPath('/login?plan=line_lite&campaign=lstep500');
+const loginLinePro = appPath('/login?plan=line_pro');
+
+const lineCrmPlans = [
+  {
+    name: 'LINE管理ライト',
+    price: '¥500',
+    priceNote: '初回3ヶ月 → 以降 ¥980/月',
+    tagline: 'LINEだけ・小規模店向け',
+    features: [
+      'LINE一斉配信',
+      'お客様タグ（〜10）',
+      '登録経路の把握（〜3）',
+      '友だち500人まで',
+      'Lステップからの乗り換え割引対象',
+      'スタッフ1人',
+    ],
+    cta: '3ヶ月 ¥500 で始める',
+    href: loginLineLitePromo,
+    highlight: true,
+    badge: '乗り換え割引',
+  },
+  {
+    name: 'LINE管理プロ',
+    price: '¥4,980',
+    period: '/月',
+    tagline: '本格的なLINE運用',
+    features: [
+      'ライトの全機能',
+      '必要な人だけへの配信',
+      'あいさつメッセージ（〜3パターン）',
+      '画面下メニュー（5種類）',
+      '配信コストの試算',
+      'Lステップより大幅に安い',
+      'スタッフ3人まで',
+    ],
+    cta: 'LINE管理プロを試す',
+    href: loginLinePro,
+    highlight: false,
+  },
+];
 
 const plans = [
   {
@@ -11,9 +52,10 @@ const plans = [
     tagline: 'まず5分体験',
     features: [
       'AI台本生成（月5投稿）',
-      'SNS健康診断',
-      'ボイスドラフト',
-      'Powered by BuzzIt 透かし',
+      'SNSの健康診断',
+      '音声から文章作成',
+      'BuzzIt透かし付き',
+      'スタッフ1人（オーナーのみ）',
     ],
     cta: '無料で始める',
     highlight: false,
@@ -24,12 +66,13 @@ const plans = [
     period: '/月',
     tagline: '個人店向け',
     features: [
-      '無制限投稿',
-      'Meta（IG/FB/Threads）自動投稿',
+      '投稿数無制限',
+      'Instagram・Facebook等の自動投稿',
       'LINE 配信',
-      'GBP（Googleマップ）自動投稿',
-      'トレンド波乗りエンジン',
+      'Googleマップへの自動投稿',
+      '話題のネタ提案',
       '透かし削除',
+      'スタッフ3人まで',
     ],
     cta: 'Starterを試す',
     highlight: false,
@@ -38,14 +81,15 @@ const plans = [
     name: 'Pro',
     price: '¥9,800',
     period: '/月',
-    tagline: '小規模チーム',
+    tagline: '小さなチーム向け',
     features: [
       'Starterの全機能',
-      'Slack 連携（ネタ会議）',
-      'チーム承認フロー',
-      '戦略的通知（朝/昼/夜）',
-      'LINEセグメント配信（基本）',
-      'A/Bテスト自動化',
+      'Slack連携（社内ネタ共有）',
+      '投稿の承認フロー',
+      '朝・昼・夜の通知',
+      'LINE絞り込み配信',
+      '2パターン比較テスト',
+      '最大2店舗・スタッフ10人',
     ],
     cta: 'Proを試す',
     highlight: true,
@@ -55,14 +99,15 @@ const plans = [
     name: 'Growth OS',
     price: '¥24,800',
     period: '/月',
-    tagline: '美容・多店舗',
+    tagline: '美容サロン・多店舗向け',
     features: [
       'Proの全機能',
-      'Auto Mode（完全自動運用）',
-      'HPB予約トラッキング',
-      'LINEセグメント高度＋ステップ配信',
-      'MEOダッシュボード',
-      '深い売上ファネル',
+      '完全自動運用モード',
+      'ホットペッパービューティー予約の効果測定',
+      'LINE配信の高度な設定',
+      'Googleマップの分析画面',
+      '投稿から売上までの見える化',
+      '最大5店舗・スタッフ無制限',
     ],
     cta: 'Growth OSを試す',
     highlight: false,
@@ -71,13 +116,13 @@ const plans = [
     name: 'Enterprise',
     price: '要見積',
     period: '',
-    tagline: 'チェーン・多店舗',
+    tagline: 'チェーン・多店舗向け',
     features: [
-      '多店舗統合（〜100店舗）',
-      '横断KPI / 改ざん検知',
-      '専任CSM・SLA',
-      'SSO（Workspace / Entra ID）',
-      'カスタム連携・API拡張',
+      '多店舗をまとめて管理（〜100店舗）',
+      '全店舗の数字を一覧',
+      '専任サポート',
+      '会社アカウント連携',
+      'カスタム連携',
     ],
     cta: '相談する',
     highlight: false,
@@ -88,71 +133,105 @@ const plans = [
 <section id="pricing" class="bg-white py-24 md:py-32">
   <div class="mx-auto max-w-6xl px-5 md:px-8">
     <div class="animate-on-scroll slide-up mb-14 headline-fit-wrap">
-      <p class="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-neutral-500">Pricing</p>
+      <p class="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-neutral-500">料金</p>
       <h2 class="font-display text-3xl font-bold md:text-4xl lg:text-5xl" data-headline-fit>
         シンプルな料金プラン
       </h2>
-      <p class="mt-4 text-base text-neutral-600">無料から始めて、組織化・経営OSへ段階的にスケール。年払いで2ヶ月分無料。</p>
+      <p class="mt-4 text-base text-neutral-600">無料から始めて、必要に応じて機能を追加。年払いなら2ヶ月分無料です。2店舗目以降は基本料<strong class="font-semibold text-neutral-800">20%OFF</strong>。</p>
     </div>
 
-    <div class="animate-on-scroll slide-up delay-100 mb-10 border border-neutral-200 bg-neutral-50 p-6 md:p-8">
-      <p class="text-[10px] font-bold uppercase tracking-widest text-neutral-500">3本契約から1本へ</p>
-      <h3 class="mt-2 font-display text-xl font-bold text-neutral-900 md:text-2xl">
-        美容業界の "3本契約"、まとめて月¥33,760の削減
+    <div class="animate-on-scroll slide-up delay-150 mb-10">
+      <h3 class="mb-4 font-display text-2xl font-bold text-neutral-900 md:text-3xl">
+        LINEだけ使う店舗向け
       </h3>
-      <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div class="border border-neutral-200 bg-white p-4">
-          <p class="text-xs text-neutral-500">既存3本契約の月額</p>
-          <p class="buzz-stat-value mt-1 text-2xl text-neutral-400 line-through">¥58,560</p>
-          <p class="mt-2 text-xs text-neutral-500">AI-BOUZ + AI-LINE + <strong>Lステップ・スタンダード</strong></p>
-        </div>
-        <div class="border border-neutral-900 bg-neutral-900 p-4 text-white">
-          <p class="text-xs text-neutral-300">BuzzIt Growth OS</p>
-          <p class="buzz-stat-value buzz-stat-value--light mt-1 text-2xl">¥24,800</p>
-          <p class="mt-2 text-xs text-neutral-300">Meta・<strong>LINE CRM</strong>・GBP・HPB・MEO すべて統合</p>
-        </div>
-        <div class="border border-neutral-200 bg-white p-4">
-          <p class="text-xs text-neutral-500">月あたり削減額</p>
-          <p class="buzz-stat-value mt-1 text-2xl">¥33,760</p>
-          <p class="mt-2 text-xs text-neutral-500">年間 ¥405,120 のコスト削減</p>
-        </div>
-      </div>
-      <p class="mt-4 text-xs text-neutral-600">
-        <strong>Lステップは内包済み。</strong>タグ管理・流入経路分析・セグメント配信・ステップ配信・リッチメニュー切替を、LINE公式 Messaging API 直結で実装。別契約は不要です。
+      <p class="mb-6 max-w-3xl text-sm text-neutral-600">
+        SNSは不要、LINE公式だけ使いたい方向け。LINEの配信料金は今まで通り各店舗へ請求されます。BuzzItは管理ツールの利用料のみです。
       </p>
+      <div class="grid grid-cols-1 gap-px overflow-hidden border border-neutral-200 bg-neutral-200 md:grid-cols-2">
+        {lineCrmPlans.map((plan) => (
+          <article
+            class:list={[
+              'relative z-10 flex flex-col bg-white p-7 text-neutral-900',
+              plan.highlight && 'ring-2 ring-inset ring-neutral-900 shadow-sm',
+            ]}
+          >
+            {plan.badge && (
+              <span class="absolute -top-px left-0 bg-neutral-900 px-3 py-1 text-[10px] font-bold text-white">
+                {plan.badge}
+              </span>
+            )}
+            <h3 class="font-display text-lg font-bold text-neutral-900">{plan.name}</h3>
+            <p class="text-[11px] uppercase tracking-wider text-neutral-500">{plan.tagline}</p>
+            <p class="buzz-stat-value mt-3 text-3xl text-neutral-900">
+              {plan.price}
+              {plan.period && <span class="text-sm font-normal text-neutral-500">{plan.period}</span>}
+            </p>
+            {plan.priceNote && (
+              <p class="mt-1 text-xs text-neutral-500">{plan.priceNote}</p>
+            )}
+            <ul class="mt-6 flex-1 space-y-2.5 text-sm text-neutral-600">
+              {plan.features.map((f) => (
+                <li class="flex items-start gap-2">
+                  <span class="mt-2 h-1 w-1 shrink-0 rounded-full bg-neutral-900"></span>
+                  {f}
+                </li>
+              ))}
+            </ul>
+            <a
+              href={plan.href}
+              class:list={[
+                'mt-8 block py-3 text-center text-sm font-bold transition-colors',
+                plan.highlight
+                  ? 'bg-neutral-900 text-white hover:bg-neutral-800'
+                  : 'border border-neutral-300 text-neutral-900 hover:border-neutral-900',
+              ]}
+            >
+              {plan.cta}
+            </a>
+          </article>
+        ))}
+      </div>
     </div>
 
-    <div class="grid grid-cols-1 gap-px overflow-hidden border border-neutral-200 bg-neutral-200 sm:grid-cols-2 lg:grid-cols-5">
+    <h3 class="animate-on-scroll slide-up delay-150 mb-6 font-display text-2xl font-bold text-neutral-900 md:text-3xl">
+      SNSもまとめて使う — フルプラン
+    </h3>
+    <div class="animate-on-scroll slide-up delay-200 grid grid-cols-1 gap-px overflow-hidden border border-neutral-200 bg-neutral-200 sm:grid-cols-2 lg:grid-cols-5">
       {plans.map((plan, i) => (
         <article
-          class={`animate-on-scroll slide-up relative flex flex-col bg-white p-7 ${i === 1 ? 'delay-100' : i === 2 ? 'delay-200' : i === 3 ? 'delay-300' : i === 4 ? 'delay-300' : ''} ${plan.highlight ? 'bg-neutral-900 text-white' : ''}`}
+          class:list={[
+            'animate-on-scroll slide-up relative z-10 flex flex-col bg-white p-7 text-neutral-900',
+            i === 1 ? 'delay-100' : i === 2 ? 'delay-200' : i === 3 ? 'delay-300' : i === 4 ? 'delay-300' : '',
+            plan.highlight && 'ring-2 ring-inset ring-neutral-900 shadow-sm',
+          ]}
         >
           {plan.badge && (
             <span class="absolute -top-px left-0 bg-neutral-900 px-3 py-1 text-[10px] font-bold text-white">
               {plan.badge}
             </span>
           )}
-          <h3 class={`font-display text-lg font-bold ${plan.highlight ? 'text-white' : 'text-neutral-900'}`}>{plan.name}</h3>
-          <p class={`text-[11px] uppercase tracking-wider ${plan.highlight ? 'text-neutral-400' : 'text-neutral-500'}`}>{plan.tagline}</p>
-          <p class:list={['buzz-stat-value mt-3 text-3xl', plan.highlight && 'buzz-stat-value--light']}>
+          <h3 class="font-display text-lg font-bold text-neutral-900">{plan.name}</h3>
+          <p class="text-[11px] uppercase tracking-wider text-neutral-500">{plan.tagline}</p>
+          <p class="buzz-stat-value mt-3 text-3xl text-neutral-900">
             {plan.price}
-            {plan.period && <span class={`text-sm font-normal ${plan.highlight ? 'text-neutral-400' : 'text-neutral-500'}`}>{plan.period}</span>}
+            {plan.period && <span class="text-sm font-normal text-neutral-500">{plan.period}</span>}
           </p>
-          <ul class={`mt-6 flex-1 space-y-2.5 text-sm ${plan.highlight ? 'text-neutral-300' : 'text-neutral-600'}`}>
+          <ul class="mt-6 flex-1 space-y-2.5 text-sm text-neutral-600">
             {plan.features.map((f) => (
               <li class="flex items-start gap-2">
-                <span class={`mt-2 h-1 w-1 shrink-0 rounded-full ${plan.highlight ? 'bg-white' : 'bg-neutral-900'}`}></span>
+                <span class="mt-2 h-1 w-1 shrink-0 rounded-full bg-neutral-900"></span>
                 {f}
               </li>
             ))}
           </ul>
           <a
             href={loginUrl}
-            class={`mt-8 block py-3 text-center text-sm font-bold transition-colors ${
+            class:list={[
+              'mt-8 block py-3 text-center text-sm font-bold transition-colors',
               plan.highlight
-                ? 'bg-white text-neutral-900 hover:bg-neutral-100'
-                : 'border border-neutral-300 text-neutral-900 hover:border-neutral-900'
-            }`}
+                ? 'bg-neutral-900 text-white hover:bg-neutral-800'
+                : 'border border-neutral-300 text-neutral-900 hover:border-neutral-900',
+            ]}
           >
             {plan.cta}
           </a>
@@ -160,7 +239,11 @@ const plans = [
       ))}
     </div>
 
-    <div class="animate-on-scroll slide-up delay-300 mt-10 grid grid-cols-1 gap-4 md:grid-cols-3">
+    <div class="animate-on-scroll slide-up delay-300 mt-10 grid grid-cols-1 gap-4 md:grid-cols-4">
+      <div class="border border-neutral-200 bg-white p-5">
+        <p class="text-[10px] font-bold uppercase tracking-wider text-neutral-500">多店舗割引</p>
+        <p class="mt-2 text-sm text-neutral-700">2店舗目以降は基本料<strong>20%OFF</strong></p>
+      </div>
       <div class="border border-neutral-200 bg-white p-5">
         <p class="text-[10px] font-bold uppercase tracking-wider text-neutral-500">年払い特典</p>
         <p class="mt-2 text-sm text-neutral-700">2ヶ月分無料（実質約17%OFF）</p>
@@ -173,6 +256,37 @@ const plans = [
         <p class="text-[10px] font-bold uppercase tracking-wider text-neutral-500">スタートアップ割</p>
         <p class="mt-2 text-sm text-neutral-700">創業3年未満は初年度30%OFF</p>
       </div>
+    </div>
+
+    <div class="animate-on-scroll slide-up delay-300 mt-10 border border-neutral-200 bg-neutral-50 p-6 md:p-8">
+      <p class="text-[10px] font-bold uppercase tracking-widest text-neutral-500">複数のツールを1本に</p>
+      <h3 class="mt-2 font-display text-xl font-bold text-neutral-900 md:text-2xl">
+        いくつもの契約をやめて、月¥33,760 節約
+      </h3>
+      <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div class="border border-neutral-200 bg-white p-4">
+          <p class="text-xs text-neutral-500">今、3つ契約している場合の目安</p>
+          <p class="buzz-stat-value mt-1 text-2xl text-neutral-400 line-through">¥58,560</p>
+          <p class="mt-2 text-xs text-neutral-500">AI-BOUZ + AI-LINE + <strong>Lステップ</strong> など</p>
+        </div>
+        <div class="border border-neutral-900 bg-neutral-900 p-4 text-white">
+          <p class="text-xs text-neutral-300">BuzzIt Growth OS 1本</p>
+          <p class="buzz-stat-value buzz-stat-value--light mt-1 text-2xl">¥24,800</p>
+          <p class="mt-2 text-xs text-neutral-300">SNS・LINE・Googleマップ・ホットペッパーまで統合</p>
+        </div>
+        <div class="border border-neutral-200 bg-white p-4">
+          <p class="text-xs text-neutral-500">月あたりの削減目安</p>
+          <p class="buzz-stat-value mt-1 text-2xl">¥33,760</p>
+          <p class="mt-2 text-xs text-neutral-500">年間 約¥40万 の節約</p>
+        </div>
+      </div>
+      <p class="mt-4 text-xs text-neutral-600">
+        <strong>Lステップ相当の機能も内包。</strong>タグ付け・登録経路・絞り込み配信・あいさつメッセージ・画面下メニューまで、BuzzItだけで使えます。
+      </p>
+      <p class="mt-2 text-xs text-neutral-500">
+        <a href="#line-simulator" class="font-medium text-neutral-900 underline underline-offset-2">詳しい料金試算</a>
+        を開いて、月の配信通数から削減額を確認できます。
+      </p>
     </div>
   </div>
 </section>

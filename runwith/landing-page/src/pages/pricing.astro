@@ -1,7 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Icon from '../components/Icon.astro';
-import { pricingPlans, faqs, comparisonRows } from '../data/content';
+import { pricingPlans, faqs, comparisonRows, billingSeatSummary } from '../data/content';
 import { appPath } from '../lib/urls';
 
 const loginUrl = appPath('/login');
@@ -26,6 +26,23 @@ const medicalFeatures = [
 
     <section class="px-4 py-16 sm:px-6 sm:py-20">
       <div class="mx-auto max-w-5xl">
+        <div class="mb-10 overflow-hidden rounded-2xl border border-primary-200 bg-primary-50 p-6 sm:p-8">
+          <p class="text-sm font-semibold uppercase tracking-widest text-primary-600">Team pricing</p>
+          <h2 class="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">{billingSeatSummary.headline}</h2>
+          <p class="mt-3 max-w-3xl text-sm leading-relaxed text-slate-600">{billingSeatSummary.description}</p>
+          <div class="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {billingSeatSummary.examples.map((ex) => (
+              <div class="rounded-xl border border-primary-100 bg-white px-4 py-3">
+                <p class="text-xs text-slate-500">{ex.label}</p>
+                <p class="mt-1 text-xl font-bold text-slate-900">¥{ex.total.toLocaleString()}<span class="text-sm font-normal text-slate-500">/月</span></p>
+              </div>
+            ))}
+          </div>
+          <p class="mt-4 text-xs text-slate-500">
+            ※ 基本料は会社1件あたり。{billingSeatSummary.includedSeats}人まで無料、3人目以降 +¥{billingSeatSummary.extraSeatPrice.toLocaleString()}/人・月
+          </p>
+        </div>
+
         <div class="grid grid-cols-1 gap-5 sm:grid-cols-3">
           {pricingPlans.map((plan) => (
             <div class={`relative flex flex-col rounded-2xl border bg-white p-7 shadow-sm transition-all hover:shadow-md ${plan.border}`}>
@@ -44,6 +61,7 @@ const medicalFeatures = [
                 {plan.price > 0 && (
                   <p class="mt-0.5 text-xs text-slate-400">年払い時 ¥{Math.round(plan.price * 10).toLocaleString()}/月（2ヶ月分お得）</p>
                 )}
+                <p class="mt-1 text-xs font-medium text-primary-700">2人まで無料 · 3人目以降 +¥980/人</p>
               </div>
               <ul class="mb-8 flex-1 space-y-2">
                 {plan.features.map((f) => (

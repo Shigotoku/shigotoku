@@ -21,6 +21,7 @@ import {
   type LineInsights,
   type LineCostEstimate,
 } from '../lib/api';
+import LineCostComparison from '../components/LineCostComparison';
 
 type TabKey = 'friends' | 'sources' | 'segments' | 'steps' | 'richmenu' | 'insights';
 
@@ -265,24 +266,13 @@ export default function LineCrmPage() {
 
       {activeTab === 'segments' && (
         <div className="space-y-6">
-          {lineCost && (
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-              <div className="border border-neutral-200 bg-neutral-50 p-4">
-                <p className="text-xs text-neutral-500">現在の月間配信コスト</p>
-                <p className="buzz-stat-value mt-1 text-xl">¥{lineCost.estimatedCost.toLocaleString()}</p>
-              </div>
-              <div className="border border-neutral-900 bg-neutral-900 p-4 text-white">
-                <p className="text-xs text-neutral-300">セグメント配信後</p>
-                <p className="buzz-stat-value buzz-stat-value--light mt-1 text-xl">
-                  ¥{lineCost.estimatedSegmentCost.toLocaleString()}
-                </p>
-              </div>
-              <div className="border border-neutral-200 bg-neutral-50 p-4">
-                <p className="text-xs text-neutral-500">月コスト削減</p>
-                <p className="buzz-stat-value mt-1 text-xl">−{lineCost.savedPercent}%</p>
-              </div>
-            </div>
-          )}
+          <div className="buzz-card-pad">
+            <h3 className="mb-1 text-lg font-bold">配信コスト試算 — Lステップ vs BuzzIt</h3>
+            <p className="mb-4 text-sm text-neutral-600">
+              月間配信通数を入力すると、LINE公式料金＋CRMツール料の合計を比較できます。
+            </p>
+            <LineCostComparison estimate={lineCost} />
+          </div>
 
           <div className="buzz-card-pad">
             <h3 className="mb-4 text-lg font-bold">セグメント</h3>

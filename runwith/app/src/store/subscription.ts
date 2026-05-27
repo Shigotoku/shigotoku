@@ -2,6 +2,11 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { subscriptionService } from "../services/subscriptions";
 import { isFirebaseConfigured } from "../lib/firebase";
+import {
+  computeMonthlyTotal,
+  computeSeatUsage,
+  type SeatUsage,
+} from "../lib/billing";
 
 export type PlanTier = "free" | "growth" | "pro";
 
@@ -54,27 +59,62 @@ const planLevel = (plan: PlanTier): number =>
 interface SubscriptionState {
   plan: PlanTier;
   medicalAddon: boolean;
+  companyId: string | null;
+  seatUsage: SeatUsage | null;
+  monthlyTotal: number;
   loading: boolean;
 
   setPlan: (plan: PlanTier) => void;
   setMedicalAddon: (enabled: boolean) => void;
   canAccess: (featureId: string) => boolean;
 
-  /** ユーザーIDを渡してDBから取得 */
-  fetchSubscription: (userId: string) => Promise<void>;
-  changePlan: (userId: string, plan: PlanTier) => Promise<void>;
-  toggleMedical: (userId: string, enabled: boolean) => Promise<void>;
+  /** 現在選択中の会社のプラン・席数を取得 */
+  fetchSubscription: (companyId: string | null) => Promise<void>;
+  changePlan: (companyId: string, plan: PlanTier) => Promise<void>;
+  toggleMedical: (companyId: string, enabled: boolean) => Promise<void>;
+}
+
+function applySubscriptionState(
+  set: (partial: Partial<SubscriptionState>) => void,
+  plan: PlanTier,
+  medicalAddon: boolean,
+  companyId: string | null,
+  seatUsage: SeatUsage | null,
+) {
+  const occupied = seatUsage?.occupiedSeats ?? 1;
+  set({
+    plan,
+    medicalAddon,
+    companyId,
+    seatUsage,
+    monthlyTotal: computeMonthlyTotal(plan, occupied, medicalAddon),
+  });
 }
 
 export const useSubscriptionStore = create<SubscriptionState>()(
   persist(
     (set, get) => ({
-      plan: "pro" as PlanTier,
-      medicalAddon: true,
+      plan: "free" as PlanTier,
+      medicalAddon: false,
+      companyId: null,
+      seatUsage: null,
+      monthlyTotal: 0,
       loading: false,
 
-      setPlan: (plan) => set({ plan }),
-      setMedicalAddon: (enabled) => set({ medicalAddon: enabled }),
+      setPlan: (plan) => {
+        const { medicalAddon, seatUsage } = get();
+        applySubscriptionState(
+          set,
+          plan,
+          medicalAddon,
+          get().companyId,
+          seatUsage,
+        );
+      },
+      setMedicalAddon: (enabled) => {
+        const { plan, companyId, seatUsage } = get();
+        applySubscriptionState(set, plan, enabled, companyId, seatUsage);
+      },
 
       canAccess: (featureId: string) => {
         const feature = FEATURE_ACCESS.find((f) => f.id === featureId);
@@ -83,38 +123,59 @@ export const useSubscriptionStore = create<SubscriptionState>()(
         return planLevel(get().plan) >= planLevel(feature.requiredPlan);
       },
 
-      fetchSubscription: async (userId) => {
-        if (!isFirebaseConfigured) return;
+      fetchSubscription: async (companyId) => {
+        if (!companyId || !isFirebaseConfigured) {
+          applySubscriptionState(set, get().plan, get().medicalAddon, companyId, null);
+          return;
+        }
+
         set({ loading: true });
         try {
-          const sub = await subscriptionService.fetchByUser(userId);
-          if (sub) {
-            set({ plan: sub.plan as PlanTier, medicalAddon: sub.medical_addon });
-          }
+          const [sub, usageRaw] = await Promise.all([
+            subscriptionService.fetchByCompany(companyId),
+            subscriptionService.fetchSeatUsage(companyId),
+          ]);
+
+          const plan = (sub?.plan ?? "free") as PlanTier;
+          const medicalAddon = sub?.medical_addon ?? false;
+          const seatUsage = computeSeatUsage(
+            usageRaw.memberCount,
+            usageRaw.pendingInviteCount,
+            plan,
+          );
+
+          applySubscriptionState(set, plan, medicalAddon, companyId, seatUsage);
         } finally {
           set({ loading: false });
         }
       },
 
-      changePlan: async (userId, plan) => {
-        set({ plan });
-        if (!isFirebaseConfigured) return;
+      changePlan: async (companyId, plan) => {
+        if (!isFirebaseConfigured) {
+          applySubscriptionState(set, plan, get().medicalAddon, companyId, get().seatUsage);
+          return;
+        }
+
         set({ loading: true });
         try {
-          const sub = await subscriptionService.updatePlan(userId, plan);
+          const sub = await subscriptionService.updateCompanyPlan(companyId, plan);
+          await get().fetchSubscription(companyId);
           set({ plan: sub.plan as PlanTier });
         } finally {
           set({ loading: false });
         }
       },
 
-      toggleMedical: async (userId, enabled) => {
-        set({ medicalAddon: enabled });
-        if (!isFirebaseConfigured) return;
+      toggleMedical: async (companyId, enabled) => {
+        if (!isFirebaseConfigured) {
+          applySubscriptionState(set, get().plan, enabled, companyId, get().seatUsage);
+          return;
+        }
+
         set({ loading: true });
         try {
-          const sub = await subscriptionService.toggleMedicalAddon(userId, enabled);
-          set({ medicalAddon: sub.medical_addon });
+          await subscriptionService.toggleCompanyMedicalAddon(companyId, enabled);
+          await get().fetchSubscription(companyId);
         } finally {
           set({ loading: false });
         }
@@ -122,7 +183,11 @@ export const useSubscriptionStore = create<SubscriptionState>()(
     }),
     {
       name: "runwith-subscription",
-      partialize: (state) => ({ plan: state.plan, medicalAddon: state.medicalAddon }),
+      partialize: (state) => ({
+        plan: state.plan,
+        medicalAddon: state.medicalAddon,
+        companyId: state.companyId,
+      }),
     }
   )
 );

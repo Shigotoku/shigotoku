@@ -148,17 +148,63 @@ export function voiceDraft(body: { audioBase64: string; mimeType: string; hint?:
   });
 }
 
+export interface LineAccountCost {
+  plan: 'light' | 'standard';
+  planLabel: string;
+  baseFee: number;
+  messageCount: number;
+  overageMessages: number;
+  messageFee: number;
+  lineTotal: number;
+}
+
+export interface StackCost {
+  toolPlan: string;
+  toolFee: number;
+  line: LineAccountCost;
+  total: number;
+}
+
 export interface LineCostEstimate {
   pricePerMessage: number;
+  friendCount: number;
+  monthlyMessages: number;
   estimatedRecipients: number;
   estimatedCost: number;
   estimatedSegmentReach: number;
   estimatedSegmentCost: number;
   savedPercent: number;
+  lineAccount: LineAccountCost;
+  comparison: {
+    lstepStandard: StackCost;
+    lineCrmPro: StackCost;
+    buzzitPro: StackCost;
+    buzzitGrowth: StackCost;
+    savingsLineCrmVsLstepStandard: number;
+    savingsGrowthVsLstepPro: number;
+  };
+  segmentComparison: {
+    segmentMessages: number;
+    lstepStandardTotal: number;
+    lineCrmProTotal: number;
+  };
+  presetComparisons: Array<{
+    monthlyMessages: number;
+    lineTotal: number;
+    lstepCrmFee: number;
+    lineCrmFee: number;
+    lstepTotal: number;
+    lineCrmProTotal: number;
+    savings: number;
+  }>;
 }
 
-export function fetchLineCostEstimate() {
-  return request<LineCostEstimate>('/v1/line/cost-estimate');
+export function fetchLineCostEstimate(monthlyMessages?: number) {
+  const qs =
+    monthlyMessages != null && monthlyMessages > 0
+      ? `?monthlyMessages=${encodeURIComponent(String(monthlyMessages))}`
+      : '';
+  return request<LineCostEstimate>(`/v1/line/cost-estimate${qs}`);
 }
 
 export interface CustomerTag {
@@ -429,4 +475,125 @@ export function trackMetricEvent(event: 'reach' | 'click' | 'line_signup' | 'rev
     method: 'POST',
     body: JSON.stringify({ event, value }),
   });
+}
+
+// --- Stores & billing ---
+export interface StoreRecord {
+  id: string;
+  name: string;
+  ownerId: string;
+  industry?: string;
+  createdAt: string;
+}
+
+export interface BillingResponse {
+  plan: string;
+  storeCount: number;
+  memberCount: number;
+  pendingInviteCount: number;
+  monthlyTotal: number;
+  baseMonthly: number;
+  additionalStoreDiscount: number;
+  maxStores: number;
+  maxStaff: number;
+  staffLimitLabel: string;
+  storeLimitLabel: string;
+  stores: Array<{ id: string; name: string }>;
+  activeStoreId: string | null;
+}
+
+export interface StoreMember {
+  userId: string;
+  role: 'owner' | 'manager' | 'staff';
+  email?: string;
+  displayName?: string;
+  createdAt: string;
+}
+
+export interface StoreInvitation {
+  id: string;
+  storeId: string;
+  email: string;
+  role: 'manager' | 'staff';
+  token: string;
+  invitedBy: string;
+  expiresAt: string;
+  acceptedAt: string | null;
+  createdAt: string;
+}
+
+export function fetchStores() {
+  return request<{ stores: StoreRecord[]; activeStoreId: string | null }>('/v1/stores');
+}
+
+export function createStore(name: string, industry?: string) {
+  return request<StoreRecord>('/v1/stores', {
+    method: 'POST',
+    body: JSON.stringify({ name, industry }),
+  });
+}
+
+export function setActiveStore(storeId: string) {
+  return request<{ success: boolean; activeStoreId: string }>('/v1/stores/active', {
+    method: 'PUT',
+    body: JSON.stringify({ storeId }),
+  });
+}
+
+export function fetchBilling() {
+  return request<BillingResponse>('/v1/billing');
+}
+
+export function fetchStoreMembers(storeId: string) {
+  return request<{ members: StoreMember[]; invitations: StoreInvitation[] }>(
+    `/v1/stores/${encodeURIComponent(storeId)}/members`,
+  );
+}
+
+export function inviteStoreMember(storeId: string, email: string, role: 'manager' | 'staff' = 'staff') {
+  return request<{ token: string; inviteUrl: string }>(`/v1/stores/${encodeURIComponent(storeId)}/invitations`, {
+    method: 'POST',
+    body: JSON.stringify({ email, role }),
+  });
+}
+
+export function revokeStoreInvitation(storeId: string, invitationId: string, token: string) {
+  return request<{ success: boolean }>(
+    `/v1/stores/${encodeURIComponent(storeId)}/invitations/${encodeURIComponent(invitationId)}`,
+    { method: 'DELETE', body: JSON.stringify({ token }) },
+  );
+}
+
+export function removeStoreMember(storeId: string, userId: string) {
+  return request<{ success: boolean }>(
+    `/v1/stores/${encodeURIComponent(storeId)}/members/${encodeURIComponent(userId)}`,
+    { method: 'DELETE' },
+  );
+}
+
+export function updateStoreMemberRole(storeId: string, userId: string, role: 'manager' | 'staff') {
+  return request<{ success: boolean }>(
+    `/v1/stores/${encodeURIComponent(storeId)}/members/${encodeURIComponent(userId)}`,
+    { method: 'PATCH', body: JSON.stringify({ role }) },
+  );
+}
+
+export function transferStoreOwnership(storeId: string, newOwnerId: string) {
+  return request<{ success: boolean }>(
+    `/v1/stores/${encodeURIComponent(storeId)}/transfer-ownership`,
+    { method: 'POST', body: JSON.stringify({ newOwnerId }) },
+  );
+}
+
+export function fetchInvitationByToken(token: string) {
+  return request<{ storeName: string; role: string; expired: boolean }>(
+    `/v1/invitations/${encodeURIComponent(token)}`,
+  );
+}
+
+export function acceptInvitation(token: string) {
+  return request<{ storeId: string; role: string }>(
+    `/v1/invitations/${encodeURIComponent(token)}/accept`,
+    { method: 'POST' },
+  );
 }

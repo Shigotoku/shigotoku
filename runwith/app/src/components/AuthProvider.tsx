@@ -8,7 +8,7 @@ import { Loader2 } from "lucide-react";
 
 export default function AuthProvider({ children }: { children: React.ReactNode }) {
   const { initialize, initialized, user, isAuthenticated, isDemo } = useAuthStore();
-  const { fetchCompanies } = useCompanyStore();
+  const { fetchCompanies, company } = useCompanyStore();
   const { fetchSubscription } = useSubscriptionStore();
 
   useEffect(() => {
@@ -18,14 +18,14 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   useEffect(() => {
     if (!isAuthenticated || !user || isDemo || !isFirebaseConfigured) return;
 
-    // 複数会社を取得 (1ユーザーが複数社に所属可能)
     fetchCompanies(user.id);
-
-    // サブスクリプションはユーザー単位で取得
-    fetchSubscription(user.id);
-
     prefetchNavRoutes();
-  }, [isAuthenticated, user?.id, isDemo, fetchCompanies, fetchSubscription]);
+  }, [isAuthenticated, user?.id, isDemo, fetchCompanies]);
+
+  useEffect(() => {
+    if (!isAuthenticated || isDemo || !isFirebaseConfigured) return;
+    fetchSubscription(company?.id ?? null);
+  }, [isAuthenticated, isDemo, company?.id, fetchSubscription]);
 
   if (!initialized) {
     return (

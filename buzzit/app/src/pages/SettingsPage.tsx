@@ -17,10 +17,30 @@ import {
   type LineCostEstimate,
   type CustomerTag,
 } from '../lib/api';
+import LineCostComparison from '../components/LineCostComparison';
+import StoreBillingSection from '../components/StoreBillingSection';
 import { useApp } from '../store/appContext';
 import type { PlanTier } from '../types';
 
-const plans: { id: PlanTier; name: string; price: string; tagline: string; features: string[] }[] = [
+const lineCrmPlans: { id: PlanTier; name: string; price: string; tagline: string; features: string[]; promo?: string }[] = [
+  {
+    id: 'line_lite',
+    name: 'LINE CRM Lite',
+    price: '¥500/月',
+    promo: '初回3ヶ月 → 以降 ¥980',
+    tagline: 'LINEだけ・小規模',
+    features: ['ブロードキャスト', 'タグ〜10', '流入〜3', '友だち500まで'],
+  },
+  {
+    id: 'line_pro',
+    name: 'LINE CRM Pro',
+    price: '¥4,980/月',
+    tagline: 'Lステップ Standard 代替',
+    features: ['Liteの全機能', 'セグメント配信', 'ステップ〜3', 'リッチメニュー5', '配信コスト試算'],
+  },
+];
+
+const fullStackPlans: { id: PlanTier; name: string; price: string; tagline: string; features: string[] }[] = [
   {
     id: 'free',
     name: 'Free',
@@ -112,6 +132,15 @@ export default function SettingsPage() {
       .then((r) => setCustomerTags(r.tags))
       .catch(() => {});
 
+    const planParam = searchParams.get('plan') as PlanTier | null;
+    const campaign = searchParams.get('campaign');
+    if (planParam && ['line_lite', 'line_pro', 'free', 'starter', 'pro', 'growth', 'enterprise'].includes(planParam)) {
+      setPlan(planParam);
+      if (campaign === 'lstep500' && planParam === 'line_lite') {
+        setMessage('Lステップ解約キャンペーン: LINE CRM Lite 初回3ヶ月 ¥500/月 が適用されます');
+      }
+    }
+
     const metaStatus = searchParams.get('meta');
     if (metaStatus === 'connected') {
       setMessage('Meta（Instagram / Facebook）を連携しました');
@@ -196,13 +225,56 @@ export default function SettingsPage() {
 
       {message && <p className="buzz-alert buzz-alert-info">{message}</p>}
 
+      <StoreBillingSection />
+
       <section className="buzz-card-pad">
-        <h3 className="mb-2 text-lg font-bold">プラン</h3>
+        <h3 className="mb-2 text-lg font-bold">LINE CRM プラン（Lステップ代替）</h3>
+        <p className="mb-4 text-sm text-neutral-600">
+          SNS 不要の店舗向け。LINE 公式の請求は各店舗への直接請求のまま。BuzzIt は CRM ツール代のみ。
+          <a href="https://shigotoku.com/buzzit/#line-simulator" className="ml-1 font-medium text-neutral-900 underline">
+            試算ツール
+          </a>
+        </p>
+        <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2">
+          {lineCrmPlans.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => setPlan(p.id)}
+              className={`border p-5 text-left transition-colors ${
+                plan === p.id
+                  ? 'border-neutral-900 bg-neutral-900 text-white'
+                  : 'border-neutral-200 bg-white hover:border-neutral-400'
+              }`}
+            >
+              <div className="mb-1 flex items-center justify-between">
+                <span className="font-bold">{p.name}</span>
+                <span className={`text-sm ${plan === p.id ? 'text-neutral-300' : 'text-neutral-600'}`}>{p.price}</span>
+              </div>
+              {p.promo && (
+                <p className={`mb-2 text-xs ${plan === p.id ? 'text-neutral-400' : 'text-green-700'}`}>{p.promo}</p>
+              )}
+              <p className={`mb-3 text-[10px] uppercase tracking-wider ${plan === p.id ? 'text-neutral-400' : 'text-neutral-500'}`}>
+                {p.tagline}
+              </p>
+              <ul className="space-y-1.5">
+                {p.features.map((f) => (
+                  <li key={f} className={`flex items-center gap-2 text-sm ${plan === p.id ? 'text-neutral-300' : 'text-neutral-600'}`}>
+                    <Check className={`h-3.5 w-3.5 shrink-0 ${plan === p.id ? 'text-white' : 'text-neutral-800'}`} />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+            </button>
+          ))}
+        </div>
+
+        <h3 className="mb-2 text-lg font-bold">BuzzIt フルスタック</h3>
         <p className="mb-6 text-sm text-neutral-600">
           年払いで2ヶ月分無料。Growth OS は AI-BOUZ + AI-LINE + Lステップの 3本契約相当の機能を ¥24,800 に集約。
         </p>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {plans.map((p) => (
+          {fullStackPlans.map((p) => (
             <button
               key={p.id}
               type="button"
@@ -466,25 +538,7 @@ export default function SettingsPage() {
         <p className="text-sm text-neutral-600">
           2026年秋の LINE 料金改定で配信コストが最大1.91倍に。「真に必要な顧客にだけ」配信する戦略へ移行しましょう。
         </p>
-        {lineCost && (
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <div className="border border-neutral-200 bg-neutral-50 p-4">
-              <p className="text-xs text-neutral-500">現在の月間配信コスト</p>
-              <p className="buzz-stat-value mt-1 text-xl">¥{lineCost.estimatedCost.toLocaleString()}</p>
-              <p className="mt-1 text-xs text-neutral-500">{lineCost.estimatedRecipients.toLocaleString()} 通 × ¥{lineCost.pricePerMessage}</p>
-            </div>
-            <div className="border border-neutral-900 bg-neutral-900 p-4 text-white">
-              <p className="text-xs text-neutral-300">セグメント配信後</p>
-              <p className="buzz-stat-value buzz-stat-value--light mt-1 text-xl">¥{lineCost.estimatedSegmentCost.toLocaleString()}</p>
-              <p className="mt-1 text-xs text-neutral-300">{lineCost.estimatedSegmentReach.toLocaleString()} 通（高反応セグメントのみ）</p>
-            </div>
-            <div className="border border-neutral-200 bg-neutral-50 p-4">
-              <p className="text-xs text-neutral-500">月コスト削減</p>
-              <p className="buzz-stat-value mt-1 text-xl">−{lineCost.savedPercent}%</p>
-              <p className="mt-1 text-xs text-neutral-500">年間 ¥{((lineCost.estimatedCost - lineCost.estimatedSegmentCost) * 12).toLocaleString()} 削減</p>
-            </div>
-          </div>
-        )}
+        <LineCostComparison estimate={lineCost} />
         <div className="mt-4">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-neutral-500">顧客タグ</p>
           <div className="flex flex-wrap gap-2">

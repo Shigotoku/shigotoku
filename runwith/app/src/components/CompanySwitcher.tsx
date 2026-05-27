@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { ChevronDown, Building2, Plus, Check } from "lucide-react";
 import { useCompanyStore } from "../store/company";
+import { useSubscriptionStore } from "../store/subscription";
 import { useNavigate } from "react-router-dom";
 import clsx from "clsx";
 
@@ -10,6 +11,7 @@ interface Props {
 
 export default function CompanySwitcher({ collapsed = false }: Props) {
   const { company, companies, setCompany } = useCompanyStore();
+  const { fetchSubscription } = useSubscriptionStore();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -78,6 +80,7 @@ export default function CompanySwitcher({ collapsed = false }: Props) {
               key={c.id}
               onClick={() => {
                 setCompany(c);
+                fetchSubscription(c.id);
                 setOpen(false);
               }}
               className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition-colors hover:bg-slate-50"

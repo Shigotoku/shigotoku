@@ -1,7 +1,7 @@
 import type { PublishMode, ScheduledJobStatus, ScheduleContentItem } from '../types/schedule';
 import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
 
-export type PlanTier = 'free' | 'starter' | 'pro' | 'team' | 'growth' | 'enterprise';
+export type PlanTier = 'free' | 'line_lite' | 'line_pro' | 'starter' | 'pro' | 'team' | 'growth' | 'enterprise';
 
 export interface UserSettings {
   uid: string;
@@ -31,6 +31,10 @@ export interface UserSettings {
   defaultPublishMode?: 'notify' | 'meta' | 'line' | 'approval' | 'auto';
   /** クリック計測のリダイレクト先（店舗サイト・予約ページ等） */
   defaultDestinationUrl?: string;
+  /** 所属店舗ID一覧 */
+  storeIds?: string[];
+  /** 現在操作中の店舗ID */
+  activeStoreId?: string;
 }
 
 export interface MetricsSummary {
@@ -129,6 +133,8 @@ export async function ensureUser(uid: string, email?: string, displayName?: stri
     await ref.set({ ...settings, createdAt: FieldValue.serverTimestamp() });
     await ref.collection('metrics').doc('summary').set(DEFAULT_METRICS);
     await seedDemoPosts(uid);
+    const { ensureDefaultStore } = await import('./stores');
+    await ensureDefaultStore(uid, displayName);
     return settings;
   }
 

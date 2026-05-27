@@ -6,6 +6,9 @@ import {
   deleteCompanyDoc,
   fetchCompanyMembers,
   getUserRoleInCompany,
+  removeCompanyMember,
+  updateCompanyMemberRole,
+  transferCompanyOwnership,
 } from '../lib/firestore';
 import type { Database } from '../lib/database.types';
 
@@ -45,5 +48,28 @@ export const companyService = {
   async getUserRole(companyId: string, userId: string): Promise<string | null> {
     if (!isFirebaseConfigured) return 'owner';
     return getUserRoleInCompany(companyId, userId);
+  },
+
+  async removeMember(companyId: string, targetUserId: string): Promise<void> {
+    if (!isFirebaseConfigured) throw new Error('Firebase未設定');
+    await removeCompanyMember(companyId, targetUserId);
+  },
+
+  async updateMemberRole(
+    companyId: string,
+    targetUserId: string,
+    role: 'admin' | 'member' | 'viewer',
+  ): Promise<void> {
+    if (!isFirebaseConfigured) throw new Error('Firebase未設定');
+    await updateCompanyMemberRole(companyId, targetUserId, role);
+  },
+
+  async transferOwnership(
+    companyId: string,
+    currentOwnerId: string,
+    newOwnerId: string,
+  ): Promise<void> {
+    if (!isFirebaseConfigured) throw new Error('Firebase未設定');
+    await transferCompanyOwnership(companyId, currentOwnerId, newOwnerId);
   },
 };

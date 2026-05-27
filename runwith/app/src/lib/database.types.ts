@@ -112,9 +112,11 @@ export interface Database {
       subscriptions: {
         Row: {
           id: string;
-          user_id: string;
+          user_id: string | null;
+          company_id: string | null;
           plan: "free" | "growth" | "pro";
           medical_addon: boolean;
+          included_seats: number;
           stripe_customer_id: string | null;
           stripe_subscription_id: string | null;
           stripe_price_id: string | null;
@@ -127,9 +129,11 @@ export interface Database {
         };
         Insert: {
           id?: string;
-          user_id: string;
+          user_id?: string | null;
+          company_id?: string | null;
           plan?: "free" | "growth" | "pro";
           medical_addon?: boolean;
+          included_seats?: number;
           stripe_customer_id?: string | null;
           stripe_subscription_id?: string | null;
           stripe_price_id?: string | null;
@@ -138,6 +142,7 @@ export interface Database {
         Update: {
           plan?: "free" | "growth" | "pro";
           medical_addon?: boolean;
+          included_seats?: number;
           stripe_customer_id?: string | null;
           stripe_subscription_id?: string | null;
           stripe_price_id?: string | null;

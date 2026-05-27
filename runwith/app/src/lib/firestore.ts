@@ -14,9 +14,11 @@ import {
   writeBatch,
   runTransaction,
   arrayUnion,
+  arrayRemove,
   Timestamp,
   type DocumentData,
 } from 'firebase/firestore';
+import { INCLUDED_SEATS } from './billing';
 import { db } from './firebase';
 import type { Database } from './database.types';
 
@@ -78,9 +80,11 @@ function profileFromDoc(id: string, data: DocumentData): ProfileRow {
 function subscriptionFromDoc(id: string, data: DocumentData): SubscriptionRow {
   return {
     id,
-    user_id: data.user_id ?? id,
+    user_id: data.user_id ?? null,
+    company_id: data.company_id ?? null,
     plan: data.plan ?? 'free',
     medical_addon: data.medical_addon ?? false,
+    included_seats: data.included_seats ?? INCLUDED_SEATS,
     stripe_customer_id: data.stripe_customer_id ?? null,
     stripe_subscription_id: data.stripe_subscription_id ?? null,
     stripe_price_id: data.stripe_price_id ?? null,
@@ -113,8 +117,10 @@ export async function ensureUserProfile(
     const subRef = doc(db, COL.users, uid, 'subscription', 'current');
     await setDoc(subRef, {
       user_id: uid,
+      company_id: null,
       plan: 'free',
       medical_addon: false,
+      included_seats: INCLUDED_SEATS,
       status: 'active',
       cancel_at_period_end: false,
       created_at: serverTimestamp(),
@@ -192,6 +198,17 @@ export async function createCompanyWithMember(
     role: 'owner',
     created_at: serverTimestamp(),
   });
+  batch.set(doc(db, COL.companies, companyRef.id, 'subscription', 'current'), {
+    company_id: companyRef.id,
+    user_id: null,
+    plan: 'free',
+    medical_addon: false,
+    included_seats: INCLUDED_SEATS,
+    status: 'active',
+    cancel_at_period_end: false,
+    created_at: serverTimestamp(),
+    updated_at: serverTimestamp(),
+  });
   batch.set(userRef, {
     company_ids: arrayUnion(companyRef.id),
     updated_at: serverTimestamp(),
@@ -253,6 +270,79 @@ export async function fetchSubscription(userId: string): Promise<SubscriptionRow
   return subscriptionFromDoc(userId, snap.data());
 }
 
+export async function fetchCompanySubscription(companyId: string): Promise<SubscriptionRow | null> {
+  const ref = doc(db, COL.companies, companyId, 'subscription', 'current');
+  const snap = await getDoc(ref);
+  if (!snap.exists()) {
+    await setDoc(ref, {
+      company_id: companyId,
+      user_id: null,
+      plan: 'free',
+      medical_addon: false,
+      included_seats: INCLUDED_SEATS,
+      status: 'active',
+      cancel_at_period_end: false,
+      created_at: serverTimestamp(),
+      updated_at: serverTimestamp(),
+    });
+    const created = await getDoc(ref);
+    return subscriptionFromDoc(companyId, created.data()!);
+  }
+  return subscriptionFromDoc(companyId, snap.data());
+}
+
+export async function countCompanySeatUsage(companyId: string): Promise<{
+  memberCount: number;
+  pendingInviteCount: number;
+}> {
+  const [membersSnap, invitesSnap] = await Promise.all([
+    getDocs(collection(db, COL.companies, companyId, 'members')),
+    getDocs(collection(db, COL.companies, companyId, 'invitations')),
+  ]);
+
+  const pendingInviteCount = invitesSnap.docs.filter((d) => !d.data().accepted_at).length;
+
+  return {
+    memberCount: membersSnap.size,
+    pendingInviteCount,
+  };
+}
+
+export async function assertCompanyCanAddMember(companyId: string): Promise<void> {
+  const [sub, usage] = await Promise.all([
+    fetchCompanySubscription(companyId),
+    countCompanySeatUsage(companyId),
+  ]);
+  if (!sub) throw new Error('会社のプラン情報が見つかりません');
+
+  const occupied = usage.memberCount + usage.pendingInviteCount + 1;
+  if (sub.plan === 'free' && occupied > INCLUDED_SEATS) {
+    throw new Error(
+      `Freeプランは${INCLUDED_SEATS}人までです。Growth以上にアップグレードすると追加メンバーを招待できます。`,
+    );
+  }
+}
+
+export async function updateCompanySubscriptionPlan(
+  companyId: string,
+  plan: 'free' | 'growth' | 'pro',
+): Promise<SubscriptionRow> {
+  const ref = doc(db, COL.companies, companyId, 'subscription', 'current');
+  await updateDoc(ref, { plan, updated_at: serverTimestamp() });
+  const snap = await getDoc(ref);
+  return subscriptionFromDoc(companyId, snap.data()!);
+}
+
+export async function toggleCompanyMedicalAddon(
+  companyId: string,
+  enabled: boolean,
+): Promise<SubscriptionRow> {
+  const ref = doc(db, COL.companies, companyId, 'subscription', 'current');
+  await updateDoc(ref, { medical_addon: enabled, updated_at: serverTimestamp() });
+  const snap = await getDoc(ref);
+  return subscriptionFromDoc(companyId, snap.data()!);
+}
+
 export async function updateSubscriptionPlan(
   userId: string,
   plan: 'free' | 'growth' | 'pro',
@@ -279,6 +369,8 @@ export async function createInvitation(params: {
   companyName: string;
   inviterEmail: string;
 }): Promise<{ token: string; inviteUrl: string }> {
+  await assertCompanyCanAddMember(params.companyId);
+
   const invitationRef = doc(collection(db, COL.companies, params.companyId, 'invitations'));
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
@@ -347,18 +439,25 @@ export async function fetchInvitationByToken(token: string) {
 }
 
 export async function acceptInvitation(token: string, userId: string) {
+  const tokenSnap = await getDoc(doc(db, COL.invitationTokens, token));
+  if (!tokenSnap.exists()) throw new Error('招待が見つかりません');
+
+  const tokenData = tokenSnap.data();
+  if (tokenData.accepted_at) throw new Error('この招待は既に使用されています');
+  if (new Date(tokenData.expires_at) < new Date()) throw new Error('招待の有効期限が切れています');
+
+  const companyId = tokenData.company_id as string;
+
   return runTransaction(db, async (tx) => {
     const tokenRef = doc(db, COL.invitationTokens, token);
-    const tokenSnap = await tx.get(tokenRef);
-    if (!tokenSnap.exists()) throw new Error('招待が見つかりません');
+    const freshTokenSnap = await tx.get(tokenRef);
+    if (!freshTokenSnap.exists()) throw new Error('招待が見つかりません');
 
-    const tokenData = tokenSnap.data();
-    if (tokenData.accepted_at) throw new Error('この招待は既に使用されています');
-    if (new Date(tokenData.expires_at) < new Date()) throw new Error('招待の有効期限が切れています');
+    const freshTokenData = freshTokenSnap.data();
+    if (freshTokenData.accepted_at) throw new Error('この招待は既に使用されています');
 
-    const companyId = tokenData.company_id as string;
-    const invitationId = tokenData.invitation_id as string;
-    const role = tokenData.role as string;
+    const invitationId = freshTokenData.invitation_id as string;
+    const role = freshTokenData.role as string;
 
     const memberRef = doc(db, COL.companies, companyId, 'members', userId);
     const memberSnap = await tx.get(memberRef);
@@ -387,6 +486,49 @@ export async function revokeInvitation(companyId: string, invitationId: string, 
   const batch = writeBatch(db);
   batch.delete(doc(db, COL.companies, companyId, 'invitations', invitationId));
   if (token) batch.delete(doc(db, COL.invitationTokens, token));
+  await batch.commit();
+}
+
+export async function removeCompanyMember(companyId: string, targetUserId: string): Promise<void> {
+  const batch = writeBatch(db);
+  batch.delete(doc(db, COL.companies, companyId, 'members', targetUserId));
+  batch.set(
+    doc(db, COL.users, targetUserId),
+    { company_ids: arrayRemove(companyId), updated_at: serverTimestamp() },
+    { merge: true },
+  );
+  await batch.commit();
+}
+
+export async function updateCompanyMemberRole(
+  companyId: string,
+  targetUserId: string,
+  role: 'admin' | 'member' | 'viewer',
+): Promise<void> {
+  await updateDoc(doc(db, COL.companies, companyId, 'members', targetUserId), {
+    role,
+    updated_at: serverTimestamp(),
+  });
+}
+
+export async function transferCompanyOwnership(
+  companyId: string,
+  currentOwnerId: string,
+  newOwnerId: string,
+): Promise<void> {
+  const batch = writeBatch(db);
+  batch.update(doc(db, COL.companies, companyId), {
+    owner_id: newOwnerId,
+    updated_at: serverTimestamp(),
+  });
+  batch.update(doc(db, COL.companies, companyId, 'members', currentOwnerId), {
+    role: 'admin',
+    updated_at: serverTimestamp(),
+  });
+  batch.update(doc(db, COL.companies, companyId, 'members', newOwnerId), {
+    role: 'owner',
+    updated_at: serverTimestamp(),
+  });
   await batch.commit();
 }
 

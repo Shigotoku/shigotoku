@@ -40,6 +40,31 @@ import {
   canUseSlack,
 } from './services/autoMode';
 import {
+  computeMonthlyTotal,
+  MAX_STAFF_BY_PLAN,
+  MAX_STORES_BY_PLAN,
+  PLAN_BASE_MONTHLY,
+  staffLimitLabel,
+  storeLimitLabel,
+  ADDITIONAL_STORE_DISCOUNT,
+} from './services/billing';
+import {
+  listStoresForUser,
+  createStore,
+  setActiveStore,
+  listStoreMembers,
+  createStoreInvitation,
+  listStoreInvitations,
+  revokeStoreInvitation,
+  removeStoreMember,
+  updateStoreMemberRole,
+  transferStoreOwnership,
+  acceptStoreInvitation,
+  getInvitationByToken,
+  getUserRoleInStore,
+  countPendingInvites,
+} from './services/stores';
+import {
   generateTrackingToken,
   trackingClickUrl,
   lineWebhookUrl,
@@ -59,6 +84,13 @@ import {
   evaluateAbTest,
   evaluateAllRunningAbTests,
 } from './services/abTest';
+import {
+  calcCostComparison,
+  calcSegmentComparison,
+  calcLineAccountCost,
+  MESSAGE_PRESETS,
+  LINE_PRICE_PER_MSG,
+} from './services/lineCostEstimate.js';
 import { requireAuth, type AuthedRequest } from './middleware/auth';
 import { functionSecrets } from './config/secrets';
 
@@ -700,25 +732,58 @@ api.post('/v1/voice-draft', requireAuth, async (req: AuthedRequest, res) => {
   });
 });
 
-// --- LINE Cost Estimate (Phase 5 skeleton) ---
+// --- LINE Cost Estimate (Phase 5) ---
 api.get('/v1/line/cost-estimate', requireAuth, async (req: AuthedRequest, res) => {
-  const pricePerMessage = Number(process.env.LINE_PRICE_PER_MSG ?? '3');
+  const pricePerMessage = Number(process.env.LINE_PRICE_PER_MSG ?? String(LINE_PRICE_PER_MSG));
   const metrics = await getMetrics(req.uid!);
   const lineFriends = metrics.funnel.lineSignups || 200;
   const monthlyMessagesPerFriend = 4;
-  const estimatedRecipients = lineFriends * monthlyMessagesPerFriend;
-  const estimatedCost = Math.round(estimatedRecipients * pricePerMessage);
+  const queryMessages = Number(req.query.monthlyMessages);
+  const estimatedRecipients = Number.isFinite(queryMessages) && queryMessages > 0
+    ? Math.round(queryMessages)
+    : lineFriends * monthlyMessagesPerFriend;
+  const lineAccount = calcLineAccountCost(estimatedRecipients, pricePerMessage);
+  const estimatedCost = lineAccount.lineTotal;
   const estimatedSegmentReach = Math.round(estimatedRecipients * 0.4);
-  const estimatedSegmentCost = Math.round(estimatedSegmentReach * pricePerMessage);
+  const segmentLineAccount = calcLineAccountCost(estimatedSegmentReach, pricePerMessage);
+  const estimatedSegmentCost = segmentLineAccount.lineTotal;
   const savedPercent =
     estimatedCost > 0 ? Math.round(((estimatedCost - estimatedSegmentCost) / estimatedCost) * 100) : 0;
+  const comparison = calcCostComparison(estimatedRecipients, pricePerMessage);
+  const segmentComparison = calcSegmentComparison(estimatedRecipients, 0.4, pricePerMessage);
+  const presetComparisons = MESSAGE_PRESETS.map((n) => calcCostComparison(n, pricePerMessage));
   res.json({
     pricePerMessage,
+    friendCount: lineFriends,
+    monthlyMessages: estimatedRecipients,
     estimatedRecipients,
     estimatedCost,
     estimatedSegmentReach,
     estimatedSegmentCost,
     savedPercent,
+    lineAccount,
+    comparison: {
+      lstepStandard: comparison.lstepStandard,
+      lineCrmPro: comparison.lineCrmPro,
+      buzzitPro: comparison.buzzitPro,
+      buzzitGrowth: comparison.buzzitGrowth,
+      savingsLineCrmVsLstepStandard: comparison.savingsLineCrmVsLstepStandard,
+      savingsGrowthVsLstepPro: comparison.savingsGrowthVsLstepPro,
+    },
+    segmentComparison: {
+      segmentMessages: segmentComparison.segmentMessages,
+      lstepStandardTotal: segmentComparison.segment.lstepStandard.total,
+      lineCrmProTotal: segmentComparison.segment.lineCrmPro.total,
+    },
+    presetComparisons: presetComparisons.map((row) => ({
+      monthlyMessages: row.monthlyMessages,
+      lineTotal: row.line.lineTotal,
+      lstepCrmFee: row.lstepStandard.toolFee,
+      lineCrmFee: row.lineCrmPro.toolFee,
+      lstepTotal: row.lstepStandard.total,
+      lineCrmProTotal: row.lineCrmPro.total,
+      savings: row.savingsLineCrmVsLstepStandard,
+    })),
   });
 });
 
@@ -977,6 +1042,202 @@ api.get('/v1/hpb/conversions', requireAuth, async (req: AuthedRequest, res) => {
 // --- GBP OAuth (Phase 4 skeleton) ---
 api.get('/v1/oauth/google/start', requireAuth, async (_req: AuthedRequest, res) => {
   res.status(503).json({ error: 'Google Business Profile OAuth は Phase 4 で提供予定です' });
+});
+
+// --- Stores & billing ---
+api.get('/v1/stores', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const stores = await listStoresForUser(req.uid!);
+    const settings = await getUserSettings(req.uid!);
+    res.json({ stores, activeStoreId: settings.activeStoreId ?? stores[0]?.id ?? null });
+  } catch (err) {
+    console.error('stores list failed', err);
+    res.status(500).json({ error: '店舗一覧の取得に失敗しました' });
+  }
+});
+
+api.post('/v1/stores', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const { name, industry } = req.body as { name?: string; industry?: string };
+    if (!name?.trim()) {
+      res.status(400).json({ error: '店舗名が必要です' });
+      return;
+    }
+    const store = await createStore(req.uid!, name.trim(), industry);
+    res.json(store);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '店舗の作成に失敗しました';
+    res.status(400).json({ error: message });
+  }
+});
+
+api.put('/v1/stores/active', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const { storeId } = req.body as { storeId?: string };
+    if (!storeId) {
+      res.status(400).json({ error: 'storeId が必要です' });
+      return;
+    }
+    await setActiveStore(req.uid!, storeId);
+    res.json({ success: true, activeStoreId: storeId });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '店舗の切替に失敗しました';
+    res.status(400).json({ error: message });
+  }
+});
+
+api.get('/v1/billing', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const settings = await getUserSettings(req.uid!);
+    const plan = settings.plan;
+    const stores = await listStoresForUser(req.uid!);
+    const activeStoreId = settings.activeStoreId ?? stores[0]?.id ?? null;
+    let memberCount = 1;
+    let pendingInviteCount = 0;
+    if (activeStoreId) {
+      const members = await listStoreMembers(activeStoreId);
+      memberCount = members.length;
+      pendingInviteCount = await countPendingInvites(activeStoreId);
+    }
+    res.json({
+      plan,
+      storeCount: stores.length,
+      memberCount,
+      pendingInviteCount,
+      monthlyTotal: computeMonthlyTotal(plan, stores.length),
+      baseMonthly: PLAN_BASE_MONTHLY[plan],
+      additionalStoreDiscount: ADDITIONAL_STORE_DISCOUNT,
+      maxStores: MAX_STORES_BY_PLAN[plan],
+      maxStaff: MAX_STAFF_BY_PLAN[plan],
+      staffLimitLabel: staffLimitLabel(plan),
+      storeLimitLabel: storeLimitLabel(plan),
+      stores: stores.map((s) => ({ id: s.id, name: s.name })),
+      activeStoreId,
+    });
+  } catch (err) {
+    console.error('billing failed', err);
+    res.status(500).json({ error: '請求情報の取得に失敗しました' });
+  }
+});
+
+api.get('/v1/stores/:storeId/members', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const storeId = String(req.params.storeId);
+    const role = await getUserRoleInStore(storeId, req.uid!);
+    if (!role) {
+      res.status(403).json({ error: 'アクセス権がありません' });
+      return;
+    }
+    const members = await listStoreMembers(storeId);
+    const invitations = await listStoreInvitations(storeId);
+    res.json({ members, invitations: invitations.filter((i) => !i.acceptedAt) });
+  } catch (err) {
+    res.status(500).json({ error: 'メンバー一覧の取得に失敗しました' });
+  }
+});
+
+api.post('/v1/stores/:storeId/invitations', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const storeId = String(req.params.storeId);
+    const { email, role } = req.body as { email?: string; role?: 'manager' | 'staff' };
+    if (!email?.trim()) {
+      res.status(400).json({ error: 'メールアドレスが必要です' });
+      return;
+    }
+    const result = await createStoreInvitation({
+      storeId,
+      invitedBy: req.uid!,
+      email: email.trim(),
+      role: role ?? 'staff',
+    });
+    res.json(result);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '招待に失敗しました';
+    res.status(400).json({ error: message });
+  }
+});
+
+api.delete('/v1/stores/:storeId/invitations/:invitationId', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const storeId = String(req.params.storeId);
+    const invitationId = String(req.params.invitationId);
+    const { token } = req.body as { token?: string };
+    const role = await getUserRoleInStore(storeId, req.uid!);
+    if (role !== 'owner' && role !== 'manager') {
+      res.status(403).json({ error: '権限がありません' });
+      return;
+    }
+    await revokeStoreInvitation(storeId, invitationId, token);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(400).json({ error: '招待の取消に失敗しました' });
+  }
+});
+
+api.delete('/v1/stores/:storeId/members/:userId', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    await removeStoreMember(String(req.params.storeId), String(req.params.userId), req.uid!);
+    res.json({ success: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '削除に失敗しました';
+    res.status(400).json({ error: message });
+  }
+});
+
+api.patch('/v1/stores/:storeId/members/:userId', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const { role } = req.body as { role?: 'manager' | 'staff' };
+    if (!role) {
+      res.status(400).json({ error: 'role が必要です' });
+      return;
+    }
+    await updateStoreMemberRole(String(req.params.storeId), String(req.params.userId), role, req.uid!);
+    res.json({ success: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'ロール変更に失敗しました';
+    res.status(400).json({ error: message });
+  }
+});
+
+api.post('/v1/stores/:storeId/transfer-ownership', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const { newOwnerId } = req.body as { newOwnerId?: string };
+    if (!newOwnerId) {
+      res.status(400).json({ error: 'newOwnerId が必要です' });
+      return;
+    }
+    const storeId = String(req.params.storeId);
+    const role = await getUserRoleInStore(storeId, req.uid!);
+    if (role !== 'owner') {
+      res.status(403).json({ error: 'オーナーのみ移譲できます' });
+      return;
+    }
+    await transferStoreOwnership(storeId, req.uid!, newOwnerId);
+    res.json({ success: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '移譲に失敗しました';
+    res.status(400).json({ error: message });
+  }
+});
+
+api.get('/v1/invitations/:token', async (req, res) => {
+  const info = await getInvitationByToken(String(req.params.token));
+  if (!info) {
+    res.status(404).json({ error: '招待が見つかりません' });
+    return;
+  }
+  res.json(info);
+});
+
+api.post('/v1/invitations/:token/accept', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const settings = await getUserSettings(req.uid!);
+    const result = await acceptStoreInvitation(String(req.params.token), req.uid!, settings.email);
+    res.json(result);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '招待の承認に失敗しました';
+    res.status(400).json({ error: message });
+  }
 });
 
 // --- Auth bootstrap ---
