@@ -27,6 +27,8 @@ jobs:
             buzzit/landing-page/package-lock.json
             buzzit/app/package-lock.json
             buzzit/api/package-lock.json
+            clipit/landing-page/package-lock.json
+            clipit/app/package-lock.json
             deploy/package-lock.json
 
       - name: Install dependencies
@@ -37,6 +39,8 @@ jobs:
           npm ci --prefix buzzit/landing-page
           npm ci --prefix buzzit/app
           npm ci --prefix buzzit/api
+          npm ci --prefix clipit/landing-page
+          npm ci --prefix clipit/app
           npm ci --prefix deploy
 
       - name: Deploy to Firebase (BuzzIt + Runwith, both projects)

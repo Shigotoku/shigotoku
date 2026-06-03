@@ -1,0 +1,39 @@
+---
+const steps = [
+  {
+    num: '1',
+    title: 'Chrome拡張で操作を記録',
+    body: 'いつも通り業務画面を操作するだけ。クリックごとにスクショと手順が自動で溜まります。',
+  },
+  {
+    num: '2',
+    title: 'AIが手順文を整える',
+    body: 'クリック位置に赤枠・番号を付与。新人にも伝わる日本語の説明文を自動生成します。',
+  },
+  {
+    num: '3',
+    title: 'PDF・QR・スマホで共有',
+    body: 'A4印刷、現場用QR、スマホ表示。既読確認で「読んだか」も低コストで管理できます。',
+  },
+];
+---
+
+<section id="how-it-works" class="border-y border-slate-100 bg-white py-20">
+  <div class="mx-auto max-w-7xl px-4 sm:px-6">
+    <div class="text-center">
+      <h2 class="text-3xl font-bold tracking-tight text-slate-900">使い方は、3ステップ</h2>
+      <p class="mt-4 text-lg text-slate-600">専門知識は不要。初回マニュアルは最短10分で完成します。</p>
+    </div>
+    <ol class="mt-14 grid gap-8 md:grid-cols-3">
+      {steps.map((s) => (
+        <li class="relative rounded-2xl border border-slate-200 bg-slate-50/50 p-8">
+          <span class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary-500 text-lg font-bold text-white">
+            {s.num}
+          </span>
+          <h3 class="mt-4 text-lg font-bold text-slate-900">{s.title}</h3>
+          <p class="mt-3 text-sm leading-relaxed text-slate-600">{s.body}</p>
+        </li>
+      ))}
+    </ol>
+  </div>
+</section>
