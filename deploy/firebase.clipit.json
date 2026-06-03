@@ -4,7 +4,17 @@
       "target": "clipit-app",
       "public": "dist/clipit-app",
       "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
-      "rewrites": [{ "source": "**", "destination": "/index.html" }],
+      "rewrites": [
+        {
+          "source": "/api/**",
+          "function": {
+            "functionId": "clipitApi",
+            "codebase": "clipit-api",
+            "region": "asia-northeast1"
+          }
+        },
+        { "source": "**", "destination": "/index.html" }
+      ],
       "headers": [
         {
           "source": "**",
@@ -19,6 +29,16 @@
       ]
     }
   ],
+  "functions": [
+    {
+      "source": "functions/clipit-api",
+      "codebase": "clipit-api",
+      "runtime": "nodejs22"
+    }
+  ],
   "storage": { "rules": "storage.clipit.rules" },
-  "firestore": { "rules": "firestore.clipit.rules" }
+  "firestore": {
+    "rules": "firestore.clipit.rules",
+    "indexes": "firestore.clipit.indexes.json"
+  }
 }

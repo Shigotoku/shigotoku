@@ -268,6 +268,43 @@ npm run deploy:web
 
 ---
 
+## Phase 4c — API（Cloud Functions）と Gemini
+
+`deploy:clipit` には **clipitApi**（`/api/**` リライト）が含まれます。
+
+### GEMINI_API_KEY（任意・AI手順生成）
+
+BuzzIt と同様、Secret Manager に登録します。
+
+```powershell
+cd deploy
+# 例: 既存スクリプトを参考に GEMINI_API_KEY を clipit プロジェクトへ
+firebase functions:secrets:set GEMINI_API_KEY --project shigotoku-clipit-prod-ad9ee
+```
+
+未設定でも API は動作し、ルールベースのフォールバックで手順文を生成します。
+
+### API のみ再デプロイ
+
+```powershell
+npm run deploy:clipit-api
+```
+
+### Chrome 拡張（開発者モード）
+
+```powershell
+cd clipit/extension
+npm run build
+```
+
+Chrome → `chrome://extensions` → **パッケージ化されていない拡張機能** → `clipit/extension/dist` を指定。
+
+1. アプリの編集画面で **拡張と連携**
+2. 業務画面のタブで拡張ポップアップから **記録開始**
+3. 操作後 **記録停止・取り込み**
+
+---
+
 ## Phase 5 — 動作確認
 
 ### 5-1. ローカル

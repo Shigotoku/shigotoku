@@ -3,6 +3,7 @@ import { LayoutDashboard, FilePlus2, LayoutTemplate, Users, Settings, LogOut, Ex
 import { useAuth } from "../components/AuthProvider";
 import { signOutUser } from "../lib/firebase";
 import { landingPath } from "../lib/urls";
+import { useOrg } from "../context/OrgContext";
 
 const nav = [
   { to: "/dashboard", label: "ダッシュボード", icon: LayoutDashboard },
@@ -14,6 +15,7 @@ const nav = [
 
 export default function AppLayout() {
   const { user, demoMode } = useAuth();
+  const { error: orgError, loading: orgLoading } = useOrg();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -66,8 +68,34 @@ export default function AppLayout() {
         </div>
       </aside>
 
-      <main className="flex-1 overflow-x-clip">
-        <Outlet />
+      <nav className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-slate-200 bg-white/95 backdrop-blur md:hidden">
+        {nav.slice(0, 4).map(({ to, label, icon: Icon }) => (
+          <NavLink
+            key={to}
+            to={to}
+            className={({ isActive }) =>
+              `flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-semibold ${
+                isActive ? "text-primary-600" : "text-slate-500"
+              }`
+            }
+          >
+            <Icon size={20} />
+            {label.replace("ダッシュボード", "ホーム").replace("新しく作る", "作成")}
+          </NavLink>
+        ))}
+      </nav>
+
+      <main className="flex-1 overflow-x-clip pb-16 md:pb-0">
+        {orgError && (
+          <div className="border-b border-danger-200 bg-danger-50 px-4 py-2 text-sm text-danger-700">{orgError}</div>
+        )}
+        {orgLoading ? (
+          <div className="flex h-40 items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary-200 border-t-primary-500" />
+          </div>
+        ) : (
+          <Outlet />
+        )}
       </main>
     </div>
   );

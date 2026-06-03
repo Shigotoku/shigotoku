@@ -13,9 +13,12 @@
     "copy:storage-rules": "node scripts/copy-storage-rules.mjs",
     "deploy:buzzit": "npm run build && npm run build:buzzit-api && firebase deploy --project buzzit --config firebase.buzzit.json --only hosting,functions:buzzit-api,storage,firestore",
     "deploy:runwith": "npm run build && firebase deploy --project runwith --config firebase.runwith.json --only hosting,storage,firestore",
-    "deploy:clipit": "npm run build && firebase deploy --project clipit --config firebase.clipit.json --only hosting,storage,firestore",
+    "build:clipit-api": "npm ci --prefix ../clipit/api && npm run build --prefix ../clipit/api && node scripts/prepare-clipit-api.mjs",
+    "deploy:clipit-api": "npm run build:clipit-api && firebase deploy --project clipit --config firebase.clipit.json --only functions:clipit-api",
+    "deploy:clipit": "npm run build && npm run build:clipit-api && firebase deploy --project clipit --config firebase.clipit.json --only hosting,functions:clipit-api,storage,firestore",
     "deploy:all": "npm run deploy:buzzit && npm run deploy:runwith",
-    "deploy:all-with-api": "npm run deploy:buzzit && npm run deploy:runwith"
+    "deploy:all-with-api": "npm run deploy:buzzit && npm run deploy:runwith",
+    "deploy:all-with-clipit": "npm run deploy:buzzit && npm run deploy:runwith && npm run deploy:web && npm run deploy:clipit"
   },
   "devDependencies": {
     "firebase-tools": "^14.0.0"

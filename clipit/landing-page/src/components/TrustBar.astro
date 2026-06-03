@@ -1,0 +1,19 @@
+---
+const stats = [
+  { value: '5分', label: '初回マニュアル完成' },
+  { value: '2,980円', label: '主力プラン（月額）' },
+  { value: '0円', label: '初期費用' },
+  { value: 'A4·QR', label: '紙文化に最適' },
+];
+---
+
+<section class="border-y border-slate-200 bg-white py-10">
+  <div class="mx-auto grid max-w-7xl grid-cols-2 gap-8 px-4 sm:grid-cols-4 sm:px-6">
+    {stats.map((s) => (
+      <div class="text-center">
+        <p class="text-2xl font-extrabold text-primary-600 sm:text-3xl">{s.value}</p>
+        <p class="mt-1 text-sm text-slate-500">{s.label}</p>
+      </div>
+    ))}
+  </div>
+</section>

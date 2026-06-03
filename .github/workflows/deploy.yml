@@ -29,6 +29,7 @@ jobs:
             buzzit/api/package-lock.json
             clipit/landing-page/package-lock.json
             clipit/app/package-lock.json
+            clipit/api/package-lock.json
             deploy/package-lock.json
 
       - name: Install dependencies
@@ -41,10 +42,11 @@ jobs:
           npm ci --prefix buzzit/api
           npm ci --prefix clipit/landing-page
           npm ci --prefix clipit/app
+          npm ci --prefix clipit/api
           npm ci --prefix deploy
 
-      - name: Deploy to Firebase (BuzzIt + Runwith, both projects)
+      - name: Deploy to Firebase (BuzzIt + Runwith + ClipIt)
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
           PUBLIC_GA_MEASUREMENT_ID: ${{ secrets.PUBLIC_GA_MEASUREMENT_ID }}
-        run: npm run deploy:all-with-api --prefix deploy
+        run: npm run deploy:all-with-clipit --prefix deploy

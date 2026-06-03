@@ -34,3 +34,25 @@ body {
   -moz-osx-font-smoothing: grayscale;
   overflow-x: clip;
 }
+
+/* 共有マニュアル A4 印刷 */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+  body {
+    background: white;
+  }
+  .shared-manual .no-print {
+    display: none !important;
+  }
+  .shared-manual {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+  .shared-manual ol li {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

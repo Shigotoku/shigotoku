@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "クリッピット - 操作記録",
+  "version": "0.1.0",
+  "description": "操作するだけで業務マニュアルが完成。ClipIt 記録拡張",
+  "permissions": ["activeTab", "storage", "scripting", "tabs"],
+  "host_permissions": [
+    "https://app.clipit.shigotoku.com/*",
+    "http://localhost/*",
+    "<all_urls>"
+  ],
+  "action": {
+    "default_title": "クリッピット",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "commands": {
+    "force-capture": {
+      "suggested_key": {
+        "default": "Alt+Shift+S",
+        "mac": "Alt+Shift+S"
+      },
+      "description": "強制スクリーンショット（クリック不要）"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://app.clipit.shigotoku.com/*",
+        "http://localhost:5173/*",
+        "http://localhost:5176/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

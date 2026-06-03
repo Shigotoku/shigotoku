@@ -10,6 +10,7 @@ import TemplatesPage from "./pages/TemplatesPage";
 import TeamPage from "./pages/TeamPage";
 import SettingsPage from "./pages/SettingsPage";
 import SharedManualPage from "./pages/SharedManualPage";
+import AcceptInvitePage from "./pages/AcceptInvitePage";
 
 function P({ children }: { children: React.ReactNode }) {
   return <ProtectedRoute>{children}</ProtectedRoute>;
@@ -22,6 +23,7 @@ export default function App() {
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/m/:token" element={<SharedManualPage />} />
+      <Route path="/invite/:token" element={<AcceptInvitePage />} />
 
       {/* 認証必須（ダッシュボードレイアウト） */}
       <Route element={<AppLayout />}>

@@ -1,6 +1,10 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import HeroSection from '../components/HeroSection.astro';
+import TrustBar from '../components/TrustBar.astro';
 import HowItWorksSection from '../components/HowItWorksSection.astro';
+import ComparisonSection from '../components/ComparisonSection.astro';
+import TestimonialsSection from '../components/TestimonialsSection.astro';
 import FaqSection from '../components/FaqSection.astro';
 import { appPath, sitePath } from '../lib/urls';
 
@@ -9,83 +13,68 @@ const pricingUrl = sitePath('pricing');
 
 const features = [
   {
+    icon: '01',
     title: 'Chrome拡張で操作を記録',
-    body: 'いつも通り画面を操作するだけ。クリックごとにスクショと手順を自動で取得します。',
+    body: 'いつも通り画面を操作するだけ。クリックごとにスクショと手順を自動取得。Alt+Shift+Sで強制キャプチャも。',
   },
   {
+    icon: '02',
     title: 'AIが日本語の手順文を生成',
-    body: 'クリックした要素やページから、新人にも伝わる自然な日本語の説明文を自動作成。',
+    body: 'かんたん・丁寧・業務マニュアル風。新人・管理者・患者向けなど対象者に合わせた文案。',
   },
   {
+    icon: '03',
     title: '赤枠・番号を自動で付与',
-    body: 'クリック位置に赤枠と番号を自動表示。迷わないマニュアルに仕上がります。',
+    body: 'クリック位置に赤枠と番号。現場で「どこを押すか」が一目でわかります。',
   },
   {
+    icon: '04',
     title: '手動マスキングで個人情報を保護',
-    body: 'ドラッグで黒塗り・モザイク。公開前に「隠し忘れ確認」を必ず通します。',
+    body: '黒塗り・モザイク。共有・印刷の直前に「隠し忘れ確認」を必ず通します。',
   },
   {
+    icon: '05',
     title: 'A4印刷・QR・スマホ表示',
-    body: '紙に貼るA4 PDF、現場で読み取るQRコード、スマホ縦スクロール表示に最適化。',
+    body: '紙に貼る印刷、現場のQR読み取り、縦スクロールのスマホ閲覧に最適化。',
   },
   {
+    icon: '06',
     title: '既読確認で教育管理',
-    body: '「確認しました」ボタンと履歴で、誰が読んだかを低価格で管理できます。',
+    body: '「確認しました」と履歴。スタンダードプランから低価格で教育管理。',
   },
 ];
 
 const audiences = [
-  { tag: 'クリニック', body: '電子カルテ・受付・会計・予約システムの操作を、教える手間なく共有。' },
-  { tag: '中小企業', body: '請求書発行・経費精算・入退社手続きの属人化を解消。' },
-  { tag: 'スタートアップ', body: 'SaaSのヘルプページや管理画面の説明を爆速で生成。' },
+  { tag: 'クリニック', body: '電子カルテ・受付・会計・予約。院内引き継ぎと紙運用に最適。', color: 'bg-rose-50 text-rose-700' },
+  { tag: '中小企業', body: '請求・経費・入退社。属人化した業務手順を誰でも再現できる形に。', color: 'bg-sky-50 text-sky-700' },
+  { tag: 'スタートアップ', body: 'SaaSのヘルプ・管理画面。リリース差分の更新も素早く。', color: 'bg-violet-50 text-violet-700' },
 ];
 ---
 
 <Layout title="クリッピット (ClipIt) - 操作するだけで、業務マニュアルが完成">
-  <!-- Hero -->
-  <section class="relative overflow-hidden bg-gradient-to-b from-primary-50 to-white">
-    <div class="mx-auto max-w-7xl px-4 py-20 text-center sm:px-6 sm:py-28">
-      <span class="inline-flex items-center rounded-full bg-primary-100 px-4 py-1.5 text-sm font-semibold text-primary-700">
-        小さな会社のための“業務の教え方”SaaS
-      </span>
-      <h1 class="mx-auto mt-6 max-w-3xl text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl">
-        操作するだけ。<br />教える手間が、マニュアルに変わる。
-      </h1>
-      <p class="mx-auto mt-6 max-w-2xl text-lg text-slate-600">
-        Chrome拡張で記録 → AIが日本語の手順を生成 → A4 PDF・QR・スマホで共有。
-        新人に何度も同じことを教える時間を、クリッピットがなくします。
-      </p>
-      <div class="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
-        <a href={loginUrl} class="w-full rounded-xl bg-primary-500 px-8 py-4 text-base font-semibold text-white shadow-lg shadow-primary-500/30 transition-all hover:bg-primary-600 sm:w-auto">
-          無料で始める
-        </a>
-        <a href={pricingUrl} class="w-full rounded-xl border border-slate-300 bg-white px-8 py-4 text-base font-semibold text-slate-700 transition-all hover:border-slate-400 sm:w-auto">
-          料金を見る
-        </a>
-      </div>
-      <p class="mt-4 text-sm text-slate-400">初期費用0円 / 主力プラン 月額2,980円 / 5分で初回作成</p>
-    </div>
-  </section>
-
+  <HeroSection />
+  <TrustBar />
   <HowItWorksSection />
 
-  <!-- Features -->
   <section id="features" class="mx-auto max-w-7xl px-4 py-20 sm:px-6">
     <div class="text-center">
       <h2 class="text-3xl font-bold tracking-tight text-slate-900">迷わない。止まらない。間違えにくい。</h2>
-      <p class="mt-4 text-lg text-slate-600">高機能より「現場で使える」を優先したマニュアル作成SaaSです。</p>
+      <p class="mt-4 text-lg text-slate-600">高機能より「現場で使える」を優先。専門用語を使わないUI設計です。</p>
     </div>
     <div class="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
       {features.map((f) => (
-        <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:border-primary-200 hover:shadow-md">
-          <h3 class="text-lg font-bold text-slate-900">{f.title}</h3>
+        <div class="group rounded-2xl border border-slate-200 bg-white p-6 transition-all hover:border-primary-300 hover:shadow-lg hover:shadow-primary-500/5">
+          <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary-100 text-sm font-bold text-primary-700">{f.icon}</span>
+          <h3 class="mt-4 text-lg font-bold text-slate-900">{f.title}</h3>
           <p class="mt-3 text-sm leading-relaxed text-slate-600">{f.body}</p>
         </div>
       ))}
     </div>
   </section>
 
-  <!-- Audiences -->
+  <ComparisonSection />
+  <TestimonialsSection />
+
   <section class="bg-slate-50 py-20">
     <div class="mx-auto max-w-7xl px-4 sm:px-6">
       <div class="text-center">
@@ -93,8 +82,8 @@ const audiences = [
       </div>
       <div class="mt-12 grid gap-6 sm:grid-cols-3">
         {audiences.map((a) => (
-          <div class="rounded-2xl bg-white p-8 shadow-sm">
-            <span class="inline-flex rounded-full bg-primary-100 px-3 py-1 text-sm font-semibold text-primary-700">{a.tag}</span>
+          <div class="rounded-2xl bg-white p-8 shadow-sm ring-1 ring-slate-200/80">
+            <span class={`inline-flex rounded-full px-3 py-1 text-sm font-semibold ${a.color}`}>{a.tag}</span>
             <p class="mt-4 text-sm leading-relaxed text-slate-600">{a.body}</p>
           </div>
         ))}
@@ -104,12 +93,25 @@ const audiences = [
 
   <FaqSection />
 
-  <!-- CTA -->
-  <section class="mx-auto max-w-4xl px-4 py-24 text-center sm:px-6">
-    <h2 class="text-3xl font-bold tracking-tight text-slate-900">まずは1本、作ってみてください。</h2>
-    <p class="mt-4 text-lg text-slate-600">登録からマニュアル完成まで、最短10分。閲覧する側はログインも拡張も不要です。</p>
-    <a href={loginUrl} class="mt-8 inline-flex rounded-xl bg-primary-500 px-10 py-4 text-base font-semibold text-white shadow-lg shadow-primary-500/30 transition-all hover:bg-primary-600">
-      無料で始める
-    </a>
+  <section class="relative overflow-hidden bg-slate-950 py-24 text-center">
+    <div class="clipit-cta-glow pointer-events-none absolute inset-0" aria-hidden="true"></div>
+    <div class="relative mx-auto max-w-3xl px-4 sm:px-6">
+      <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">まずは1本、作ってみてください。</h2>
+      <p class="mt-4 text-lg text-slate-400">登録から完成まで最短10分。閲覧する側はログインも拡張も不要です。</p>
+      <div class="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
+        <a href={loginUrl} class="inline-flex rounded-xl bg-primary-500 px-10 py-4 text-base font-bold text-white transition-all hover:bg-primary-400">
+          無料で始める
+        </a>
+        <a href={pricingUrl} class="inline-flex rounded-xl border border-white/20 px-10 py-4 text-base font-semibold text-slate-200 hover:border-white/40 hover:text-white">
+          料金プラン
+        </a>
+      </div>
+    </div>
   </section>
 </Layout>
+
+<style>
+  .clipit-cta-glow {
+    background: radial-gradient(ellipse 70% 60% at 50% 100%, rgba(249, 115, 22, 0.25), transparent);
+  }
+</style>

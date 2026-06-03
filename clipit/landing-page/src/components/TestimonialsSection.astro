@@ -1,0 +1,33 @@
+---
+const quotes = [
+  {
+    role: 'クリニック・事務長',
+    text: '電子カルテの操作を、口頭で何度も説明する時間が半分になりました。紙にQRを貼れば、パートさんも自分のペースで確認できます。',
+  },
+  {
+    role: '中小企業・総務',
+    text: '請求書発行の手順を、属人化せず共有できました。マスキング確認があるので、安心して共有できます。',
+  },
+  {
+    role: 'スタートアップ・CS',
+    text: '管理画面のヘルプを、操作記録からすぐ作れるのが強み。海外ツールより日本語の自然さが段違いです。',
+  },
+];
+---
+
+<section class="py-20">
+  <div class="mx-auto max-w-7xl px-4 sm:px-6">
+    <div class="text-center">
+      <h2 class="text-3xl font-bold tracking-tight text-slate-900">現場の声</h2>
+      <p class="mt-4 text-lg text-slate-600">医療・中小・スタートアップ — 教える側の負担を減らすツールです。</p>
+    </div>
+    <div class="mt-14 grid gap-6 md:grid-cols-3">
+      {quotes.map((q) => (
+        <blockquote class="flex flex-col rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+          <p class="flex-1 text-sm leading-relaxed text-slate-600">「{q.text}」</p>
+          <footer class="mt-6 text-xs font-semibold text-primary-700">{q.role}</footer>
+        </blockquote>
+      ))}
+    </div>
+  </div>
+</section>

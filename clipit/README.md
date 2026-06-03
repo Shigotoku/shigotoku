@@ -45,7 +45,8 @@ npm run deploy:web          # LP（shigotoku.com/clipit/）+ コーポレート�
 npm run deploy:clipit       # アプリ一式（hosting + storage + firestore）
 ```
 
-> **残タスク:** Auth / Firestore / Storage / Hosting（`shigotoku-clipit-app-ad9ee` + `app.clipit.shigotoku.com`）、
+> **MVP 実装済み:** Firestore CRUD / 共有・QR / 公開閲覧 / **Cloud Functions API**（AI・ingest）/ **Chrome拡張（記録）** / マスキングUI（編集画面）  
+> **残タスク:** 拡張のウェブストア公開 / サーバーPDF / Stripe / スタッフ招待メール
 > `npm run deploy:clipit`（CLI は `meditoku.jp@gmail.com` でログイン）、CI への組み込み。
 
 詳細は [`docs/クリッピット要件定義書.md`](./docs/クリッピット要件定義書.md)。

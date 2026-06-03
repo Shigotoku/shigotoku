@@ -84,6 +84,7 @@ export const projectEnv = {
     VITE_FIREBASE_APP_ID: BUZZIT_FIREBASE.appId,
   },
   'clipit-app': {
+    VITE_API_URL: `${CLIPIT_APP_URL}/api`,
     VITE_LANDING_URL: CLIPIT_LP_URL,
     VITE_FIREBASE_API_KEY: CLIPIT_FIREBASE.apiKey,
     VITE_FIREBASE_AUTH_DOMAIN: CLIPIT_FIREBASE.authDomain,
