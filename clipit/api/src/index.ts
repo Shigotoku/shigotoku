@@ -32,24 +32,27 @@ api.post('/v1/ai/generate-step', requireAuth, async (req: AuthedRequest, res) =>
     res.status(429).json({ error: 'リクエストが多すぎます。しばらく待ってください。' });
     return;
   }
-  const { step, tone = 'simple', audience = 'new_staff', organizationId } = req.body as {
+  const { step, tone = 'simple', audience = 'new_staff', organizationId, useAi = false } = req.body as {
     step?: StepInput;
     tone?: InstructionTone;
     audience?: TargetAudience;
     organizationId?: string;
+    useAi?: boolean;
   };
   if (!step || !organizationId) {
     res.status(400).json({ error: 'step と organizationId が必要です' });
     return;
   }
-  try {
-    await assertAiQuota(organizationId, 1);
-  } catch (e) {
-    const err = e as { status?: number; message?: string };
-    res.status(err.status ?? 429).json({ error: err.message });
-    return;
+  if (useAi) {
+    try {
+      await assertAiQuota(organizationId, 1);
+    } catch (e) {
+      const err = e as { status?: number; message?: string };
+      res.status(err.status ?? 429).json({ error: err.message });
+      return;
+    }
   }
-  const result = await generateStepInstruction(step, tone, audience);
+  const result = await generateStepInstruction(step, tone, audience, useAi);
   res.json(result);
 });
 
@@ -58,24 +61,27 @@ api.post('/v1/ai/generate-steps', requireAuth, async (req: AuthedRequest, res) =
     res.status(429).json({ error: 'リクエストが多すぎます。しばらく待ってください。' });
     return;
   }
-  const { steps, tone = 'simple', audience = 'new_staff', organizationId } = req.body as {
+  const { steps, tone = 'simple', audience = 'new_staff', organizationId, useAi = false } = req.body as {
     steps?: StepInput[];
     tone?: InstructionTone;
     audience?: TargetAudience;
     organizationId?: string;
+    useAi?: boolean;
   };
   if (!steps?.length || !organizationId) {
     res.status(400).json({ error: 'steps と organizationId が必要です' });
     return;
   }
-  try {
-    await assertAiQuota(organizationId, steps.length);
-  } catch (e) {
-    const err = e as { status?: number; message?: string };
-    res.status(err.status ?? 429).json({ error: err.message });
-    return;
+  if (useAi) {
+    try {
+      await assertAiQuota(organizationId, steps.length);
+    } catch (e) {
+      const err = e as { status?: number; message?: string };
+      res.status(err.status ?? 429).json({ error: err.message });
+      return;
+    }
   }
-  const result = await generateAllStepInstructions(steps, tone, audience);
+  const result = await generateAllStepInstructions(steps, tone, audience, useAi);
   res.json(result);
 });
 

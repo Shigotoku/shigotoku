@@ -2,14 +2,18 @@
 import Layout from '../layouts/Layout.astro';
 import HeroSection from '../components/HeroSection.astro';
 import TrustBar from '../components/TrustBar.astro';
+import ProblemSection from '../components/ProblemSection.astro';
 import HowItWorksSection from '../components/HowItWorksSection.astro';
 import ComparisonSection from '../components/ComparisonSection.astro';
 import TestimonialsSection from '../components/TestimonialsSection.astro';
+import PricingPreviewSection from '../components/PricingPreviewSection.astro';
+import SecuritySection from '../components/SecuritySection.astro';
 import FaqSection from '../components/FaqSection.astro';
 import { appPath, sitePath } from '../lib/urls';
 
 const loginUrl = appPath('/login');
 const pricingUrl = sitePath('pricing');
+const howUrl = `${import.meta.env.BASE_URL}#how-it-works`;
 
 const features = [
   {
@@ -54,11 +58,13 @@ const audiences = [
 <Layout title="クリッピット (ClipIt) - 操作するだけで、業務マニュアルが完成">
   <HeroSection />
   <TrustBar />
+  <ProblemSection />
   <HowItWorksSection />
 
   <section id="features" class="mx-auto max-w-7xl px-4 py-20 sm:px-6">
     <div class="text-center">
-      <h2 class="text-3xl font-bold tracking-tight text-slate-900">迷わない。止まらない。間違えにくい。</h2>
+      <p class="text-sm font-semibold uppercase tracking-widest text-primary-600">Features</p>
+      <h2 class="mt-3 text-3xl font-bold tracking-tight text-slate-900">迷わない。止まらない。間違えにくい。</h2>
       <p class="mt-4 text-lg text-slate-600">高機能より「現場で使える」を優先。専門用語を使わないUI設計です。</p>
     </div>
     <div class="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -70,15 +76,20 @@ const audiences = [
         </div>
       ))}
     </div>
+    <p class="mt-10 text-center">
+      <a href={howUrl} class="text-sm font-semibold text-primary-600 hover:underline">使い方（3ステップ）を見る →</a>
+    </p>
   </section>
 
   <ComparisonSection />
+  <PricingPreviewSection />
   <TestimonialsSection />
 
-  <section class="bg-slate-50 py-20">
+  <section id="use-cases" class="bg-slate-50 py-20">
     <div class="mx-auto max-w-7xl px-4 sm:px-6">
       <div class="text-center">
         <h2 class="text-3xl font-bold tracking-tight text-slate-900">こんな現場で使われています</h2>
+        <p class="mt-4 text-slate-600">医療・中小・スタートアップ — 教える側の負担を減らす共通の課題に応えます。</p>
       </div>
       <div class="mt-12 grid gap-6 sm:grid-cols-3">
         {audiences.map((a) => (
@@ -91,19 +102,20 @@ const audiences = [
     </div>
   </section>
 
+  <SecuritySection />
   <FaqSection />
 
   <section class="relative overflow-hidden bg-slate-950 py-24 text-center">
     <div class="clipit-cta-glow pointer-events-none absolute inset-0" aria-hidden="true"></div>
     <div class="relative mx-auto max-w-3xl px-4 sm:px-6">
       <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">まずは1本、作ってみてください。</h2>
-      <p class="mt-4 text-lg text-slate-400">登録から完成まで最短10分。閲覧する側はログインも拡張も不要です。</p>
+      <p class="mt-4 text-lg text-slate-400">Googleログインで登録。クレジットカード不要。最短10分で初回マニュアルが完成します。</p>
       <div class="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
         <a href={loginUrl} class="inline-flex rounded-xl bg-primary-500 px-10 py-4 text-base font-bold text-white transition-all hover:bg-primary-400">
           無料で始める
         </a>
         <a href={pricingUrl} class="inline-flex rounded-xl border border-white/20 px-10 py-4 text-base font-semibold text-slate-200 hover:border-white/40 hover:text-white">
-          料金プラン
+          料金プランの詳細
         </a>
       </div>
     </div>

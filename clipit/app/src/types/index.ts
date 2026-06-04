@@ -7,13 +7,29 @@ export type ManualStatus = 'draft' | 'published' | 'archived';
 export type TargetAudience = 'new_staff' | 'admin' | 'patient' | 'customer' | 'developer';
 export type StepType = 'normal' | 'warning' | 'ng_example' | 'check';
 
+export type MaskStyle = 'black' | 'blur' | 'pixelate';
+
 export interface MaskRect {
   id: string;
   x: number;
   y: number;
   width: number;
   height: number;
-  type: 'black' | 'blur' | 'pixelate';
+  type: MaskStyle;
+}
+
+export interface StepAnnotation {
+  id: string;
+  kind: 'circle' | 'text' | 'arrow';
+  /** 位置（%）— 円・テキストは中心/左上、矢印は始点 */
+  x: number;
+  y: number;
+  /** 円の直径（%） */
+  size?: number;
+  text?: string;
+  /** 矢印の終点（%） */
+  endX?: number;
+  endY?: number;
 }
 
 export interface ClipitOrganization {
@@ -72,10 +88,12 @@ export interface ManualStep {
   pageTitle: string;
   pageUrl: string;
   elementText: string;
+  elementRole?: string;
   /** ビューポートに対するクリック位置（0–100%） */
   clickX?: number;
   clickY?: number;
   masks?: MaskRect[];
+  annotations?: StepAnnotation[];
 }
 
 export interface ShareStepSnapshot {

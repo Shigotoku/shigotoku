@@ -14,3 +14,6 @@ export function assetPath(path: string) {
   const normalized = path.startsWith('/') ? path.slice(1) : path;
   return `${import.meta.env.BASE_URL}${normalized}`;
 }
+
+/** 透過 PNG（キャッシュ bust 付き） */
+export const clipitIconPath = `${import.meta.env.BASE_URL}icon.png?v=4`;

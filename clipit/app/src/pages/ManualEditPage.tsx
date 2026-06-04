@@ -1,12 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ChevronDown, ChevronUp, Plus, Sparkles, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Eye, GripVertical, ImagePlus, Plus, Sparkles, Trash2 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import {
-  addStep,
   deleteManual,
   deleteStep,
   getManual,
+  insertStepAt,
   listSteps,
   polishInstruction,
   reorderSteps,
@@ -14,10 +14,14 @@ import {
   updateStep,
 } from "../services/manuals";
 import { generateAllStepsWithApi, generateStepWithApi } from "../services/ai";
+import { buildInstructionFromStep } from "../lib/instructionRules";
 import { syncExtensionSession, extensionInstallUrl } from "../lib/extensionBridge";
-import StepMaskEditor from "../components/StepMaskEditor";
+import { uploadStepScreenshot } from "../lib/uploadStepScreenshot";
+import { useStepDraft } from "../hooks/useStepDraft";
+import StepScreenEditor from "../components/StepScreenEditor";
+import { useEditLayoutColumns, ResizeGutter } from "../hooks/useEditLayoutColumns";
 import StepScreenshotPreview from "../components/StepScreenshotPreview";
-import type { Manual, ManualStep, MaskRect, StepType, TargetAudience } from "../types";
+import type { Manual, ManualStep, StepType, TargetAudience } from "../types";
 
 export default function ManualEditPage() {
   const { id } = useParams<{ id: string }>();
@@ -26,9 +30,14 @@ export default function ManualEditPage() {
   const [steps, setSteps] = useState<ManualStep[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
   const [extSynced, setExtSynced] = useState(false);
+  const [imgBusy, setImgBusy] = useState(false);
+  const [dragStepId, setDragStepId] = useState<string | null>(null);
+  const [showAddMenu, setShowAddMenu] = useState(false);
+  const [screenEditOpen, setScreenEditOpen] = useState(false);
+  const layoutRef = useRef<HTMLDivElement>(null);
+  const { widths, dragSteps, dragEdit } = useEditLayoutColumns();
 
   const load = useCallback(async () => {
     if (!id || id.startsWith("demo")) {
@@ -55,7 +64,7 @@ export default function ManualEditPage() {
     const s = await listSteps(id);
     setManual(m);
     setSteps(s);
-    setActiveId(s[0]?.id ?? null);
+    setActiveId((cur) => (cur && s.some((x) => x.id === cur) ? cur : s[0]?.id ?? null));
     setLoading(false);
   }, [id, navigate]);
 
@@ -65,12 +74,29 @@ export default function ManualEditPage() {
 
   const active = steps.find((s) => s.id === activeId) ?? steps[0];
 
+  const saveDraftFields = useCallback(
+    async (fields: { title: string; instruction: string; note: string }) => {
+      if (!id || !active || id.startsWith("demo")) return;
+      await updateStep(id, active.id, fields);
+      setSteps((cur) =>
+        cur.map((s) => (s.id === active.id ? { ...s, ...fields } : s)),
+      );
+    },
+    [id, active?.id],
+  );
+
+  const { draft, update: updateDraft, saveState } = useStepDraft(
+    active?.id,
+    active
+      ? { title: active.title, instruction: active.instruction, note: active.note ?? "" }
+      : undefined,
+    saveDraftFields,
+  );
+
   const patchActive = async (patch: Partial<ManualStep>) => {
     if (!id || !active || id.startsWith("demo")) return;
-    setSaving(true);
     await updateStep(id, active.id, patch);
     setSteps((cur) => cur.map((s) => (s.id === active.id ? { ...s, ...patch } : s)));
-    setSaving(false);
   };
 
   const move = async (stepId: string, dir: -1 | 1) => {
@@ -84,13 +110,28 @@ export default function ManualEditPage() {
     setSteps(reordered);
   };
 
-  const handleAddStep = async () => {
+  const reorderByDrag = async (fromId: string, toId: string) => {
+    if (fromId === toId || !id || id.startsWith("demo")) return;
+    const ids = steps.map((s) => s.id);
+    const from = ids.indexOf(fromId);
+    const to = ids.indexOf(toId);
+    if (from < 0 || to < 0) return;
+    ids.splice(from, 1);
+    ids.splice(to, 0, fromId);
+    await reorderSteps(id, ids);
+    const reordered = ids.map((sid, i) => ({ ...steps.find((s) => s.id === sid)!, order: i + 1 }));
+    setSteps(reordered);
+  };
+
+  const handleInsertStep = async (mode: "end" | "before" | "after") => {
     if (!id || id.startsWith("demo")) return;
-    const order = steps.length + 1;
-    const newId = await addStep(id, {
-      order,
+    setShowAddMenu(false);
+    let position = steps.length + 1;
+    if (mode === "before" && active) position = active.order;
+    if (mode === "after" && active) position = active.order + 1;
+    const newId = await insertStepAt(id, position, {
       type: "normal",
-      title: `手順 ${order}`,
+      title: `手順 ${position}`,
       instruction: "",
       note: "",
       screenshotUrl: "",
@@ -113,6 +154,15 @@ export default function ManualEditPage() {
 
   const audience = (manual?.targetAudience?.[0] ?? "new_staff") as TargetAudience;
 
+  const applyRuleInstruction = async (tone: "simple" | "formal" | "manual" = "simple") => {
+    if (!active || !id) return;
+    const text = buildInstructionFromStep(active, tone, audience);
+    updateDraft({ instruction: text });
+    if (id.startsWith("demo")) return;
+    await updateStep(id, active.id, { instruction: text });
+    setSteps((cur) => cur.map((s) => (s.id === active.id ? { ...s, instruction: text } : s)));
+  };
+
   const handleAiPolish = async (tone: "simple" | "formal" | "manual" | "detailed") => {
     if (!active) return;
     setAiBusy(true);
@@ -122,7 +172,10 @@ export default function ManualEditPage() {
       const text = await generateStepWithApi(active, tone, audience, orgId).catch(() =>
         polishInstruction(active, tone === "manual" || tone === "detailed" ? "formal" : tone === "formal" ? "formal" : "simple"),
       );
-      await patchActive({ instruction: text });
+      updateDraft({ instruction: text });
+      if (!id || !active) return;
+      await updateStep(id, active.id, { instruction: text });
+      setSteps((cur) => cur.map((s) => (s.id === active.id ? { ...s, instruction: text } : s)));
     } finally {
       setAiBusy(false);
     }
@@ -152,6 +205,15 @@ export default function ManualEditPage() {
     setExtSynced(ok);
   };
 
+  const saveLabel =
+    saveState === "saving"
+      ? "保存中…"
+      : saveState === "pending"
+        ? "保存待ち…"
+        : saveState === "saved"
+          ? "保存しました"
+          : "自動保存";
+
   if (loading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
@@ -166,9 +228,18 @@ export default function ManualEditPage() {
     <>
       <PageHeader
         title={manual.title}
-        description="手順の並び替え・文言の編集・共有の準備"
+        description="手順の並び替え・文言の編集・共有の準備（編集は自動保存）"
         action={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-slate-400">{saveLabel}</span>
+            {id && !id.startsWith("demo") && (
+              <Link
+                to={`/manuals/${id}/preview`}
+                className="inline-flex items-center gap-1 rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                <Eye size={16} /> プレビュー
+              </Link>
+            )}
             <Link
               to={`/manuals/${id}/share`}
               className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
@@ -209,36 +280,72 @@ export default function ManualEditPage() {
             onClick={handleAiAll}
             className="ml-auto inline-flex items-center gap-1 rounded-lg bg-primary-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-600 disabled:opacity-50"
           >
-            <Sparkles size={12} /> 全手順をAI生成
+            <Sparkles size={12} /> 全手順をAI生成（Gemini）
           </button>
         </div>
       )}
 
-      <div className="grid min-h-[calc(100vh-8rem)] grid-cols-1 gap-0 lg:grid-cols-12">
-        {/* ステップ一覧 */}
-        <aside className="border-b border-slate-200 bg-white lg:col-span-3 lg:border-b-0 lg:border-r">
-          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-            <span className="text-xs font-bold text-slate-500">手順 ({steps.length})</span>
+      <div ref={layoutRef} className="flex min-h-[calc(100vh-8rem)] flex-col lg:flex-row">
+        <aside
+          className="shrink-0 border-b border-slate-200 bg-white lg:border-b-0 lg:border-r"
+          style={{ width: widths.steps }}
+        >
+          <div className="relative flex items-center justify-between border-b border-slate-100 px-4 py-3">
+            <span className="text-xs font-bold text-slate-500">手順 ({steps.length}) · ドラッグで並べ替え</span>
             <button
               type="button"
-              onClick={handleAddStep}
-              className="inline-flex items-center gap-1 rounded-lg text-xs font-semibold text-primary-600 hover:bg-primary-50 px-2 py-1"
+              onClick={() => setShowAddMenu((v) => !v)}
+              className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-primary-600 hover:bg-primary-50"
             >
               <Plus size={14} /> 追加
             </button>
+            {showAddMenu && (
+              <div className="absolute right-4 top-12 z-20 min-w-[180px] rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+                <button type="button" className="block w-full px-4 py-2 text-left text-xs hover:bg-slate-50" onClick={() => handleInsertStep("end")}>
+                  末尾に追加
+                </button>
+                <button
+                  type="button"
+                  disabled={!active}
+                  className="block w-full px-4 py-2 text-left text-xs hover:bg-slate-50 disabled:opacity-40"
+                  onClick={() => handleInsertStep("before")}
+                >
+                  「{active?.title || "選択中"}」の前に挿入
+                </button>
+                <button
+                  type="button"
+                  disabled={!active}
+                  className="block w-full px-4 py-2 text-left text-xs hover:bg-slate-50 disabled:opacity-40"
+                  onClick={() => handleInsertStep("after")}
+                >
+                  「{active?.title || "選択中"}」の後に挿入
+                </button>
+              </div>
+            )}
           </div>
           <ul className="max-h-[60vh] overflow-y-auto lg:max-h-none">
             {steps.map((s, i) => (
-              <li key={s.id}>
+              <li
+                key={s.id}
+                draggable={!id?.startsWith("demo")}
+                onDragStart={() => setDragStepId(s.id)}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => {
+                  if (dragStepId) void reorderByDrag(dragStepId, s.id);
+                  setDragStepId(null);
+                }}
+                onDragEnd={() => setDragStepId(null)}
+              >
                 <button
                   type="button"
                   onClick={() => setActiveId(s.id)}
-                  className={`flex w-full items-start gap-2 border-l-4 px-4 py-3 text-left text-sm transition-colors ${
+                  className={`flex w-full items-start gap-2 border-l-4 px-2 py-3 text-left text-sm transition-colors ${
                     active?.id === s.id
                       ? "border-primary-500 bg-primary-50/80"
                       : "border-transparent hover:bg-slate-50"
                   }`}
                 >
+                  <GripVertical size={14} className="mt-1 shrink-0 text-slate-300" aria-hidden />
                   <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary-500 text-xs font-bold text-white">
                     {i + 1}
                   </span>
@@ -249,26 +356,65 @@ export default function ManualEditPage() {
           </ul>
         </aside>
 
-        {/* プレビュー */}
-        <section className="border-b border-slate-200 bg-slate-100 p-4 lg:col-span-5 lg:border-b-0 lg:border-r">
+        <ResizeGutter
+          onDrag={(dx) => {
+            const w = layoutRef.current?.clientWidth ?? 1200;
+            dragSteps(dx, w);
+          }}
+        />
+
+        <section className="min-w-0 flex-1 border-b border-slate-200 bg-slate-100 p-4 lg:border-b-0 lg:border-r">
           {active ? (
-            <div className="mx-auto max-w-md">
+            <div className="mx-auto w-full max-w-4xl">
               <StepScreenshotPreview
                 screenshotUrl={active.screenshotUrl}
                 stepIndex={steps.findIndex((s) => s.id === active.id) + 1}
                 clickX={active.clickX}
                 clickY={active.clickY}
                 stepType={active.type}
+                imageLoading="eager"
               />
               <p className="mt-2 text-center text-xs text-slate-500">{active.pageTitle || active.pageUrl || "—"}</p>
+              {id && !id.startsWith("demo") && (
+                <label className="mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:border-primary-400 hover:text-primary-700">
+                  <ImagePlus size={14} />
+                  {imgBusy ? "アップロード中…" : "画像を差し替え・挿入"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    disabled={imgBusy}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = "";
+                      if (!file || !id || !active) return;
+                      setImgBusy(true);
+                      try {
+                        const url = await uploadStepScreenshot(id, active.id, file);
+                        await patchActive({ screenshotUrl: url });
+                      } catch (err) {
+                        alert(err instanceof Error ? err.message : "画像のアップロードに失敗しました");
+                      } finally {
+                        setImgBusy(false);
+                      }
+                    }}
+                  />
+                </label>
+              )}
             </div>
           ) : (
-            <p className="text-center text-sm text-slate-500 py-20">手順を追加してください</p>
+            <p className="py-20 text-center text-sm text-slate-500">手順を追加してください</p>
           )}
         </section>
 
-        {/* 編集パネル */}
-        <section className="bg-white p-4 lg:col-span-4">
+        <ResizeGutter
+          onDrag={(dx) => {
+            const w = layoutRef.current?.clientWidth ?? 1200;
+            dragEdit(dx, w);
+          }}
+        />
+
+        <section className="shrink-0 bg-white p-4" style={{ width: widths.edit }}>
           {active ? (
             <div className="space-y-4">
               <div className="flex gap-2">
@@ -291,8 +437,8 @@ export default function ManualEditPage() {
               <div>
                 <label className="text-xs font-semibold text-slate-600">手順タイトル</label>
                 <input
-                  value={active.title}
-                  onChange={(e) => patchActive({ title: e.target.value })}
+                  value={draft.title}
+                  onChange={(e) => updateDraft({ title: e.target.value })}
                   className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                 />
               </div>
@@ -300,18 +446,29 @@ export default function ManualEditPage() {
                 <label className="text-xs font-semibold text-slate-600">説明文</label>
                 <textarea
                   rows={5}
-                  value={active.instruction}
-                  onChange={(e) => patchActive({ instruction: e.target.value })}
+                  value={draft.instruction}
+                  onChange={(e) => updateDraft({ instruction: e.target.value })}
                   className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                 />
+                <p className="mt-1 text-[11px] text-slate-400">
+                  入力は自動保存されます（約0.6秒後）。「自動作成」は無料（ルールベース）。Gemini AI は月間回数を消費します。
+                </p>
                 <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={aiBusy}
+                    onClick={() => void applyRuleInstruction("simple")}
+                    className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-800 hover:bg-slate-200 disabled:opacity-50"
+                  >
+                    説明を自動作成（無料）
+                  </button>
                   <button
                     type="button"
                     disabled={aiBusy}
                     onClick={() => handleAiPolish("simple")}
                     className="inline-flex items-center gap-1 rounded-lg bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 disabled:opacity-50"
                   >
-                    <Sparkles size={12} /> AI（かんたん）
+                    <Sparkles size={12} /> AI Gemini（かんたん）
                   </button>
                   <button
                     type="button"
@@ -347,16 +504,42 @@ export default function ManualEditPage() {
               <div>
                 <label className="text-xs font-semibold text-slate-600">注意メモ</label>
                 <input
-                  value={active.note}
-                  onChange={(e) => patchActive({ note: e.target.value })}
+                  value={draft.note}
+                  onChange={(e) => updateDraft({ note: e.target.value })}
                   className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                 />
               </div>
-              <StepMaskEditor
-                masks={active.masks ?? []}
-                onChange={(masks: MaskRect[]) => patchActive({ masks })}
-              />
-              {(saving || aiBusy) && <p className="text-xs text-slate-400">{aiBusy ? "AI生成中…" : "保存中…"}</p>}
+              <div>
+                <p className="text-xs font-semibold text-slate-600">画面編集</p>
+                <p className="mt-0.5 text-[11px] text-slate-400">黒塗り・モザイク・ぼかし・丸・矢印・テキスト（保存後は画像に焼き込み）</p>
+                <button
+                  type="button"
+                  disabled={!active.screenshotUrl}
+                  onClick={() => setScreenEditOpen(true)}
+                  className="mt-2 w-full rounded-lg border border-primary-300 bg-primary-50 px-3 py-2 text-sm font-semibold text-primary-800 hover:bg-primary-100 disabled:opacity-40"
+                >
+                  全画面で画面編集を開く
+                </button>
+              </div>
+              {screenEditOpen && active.screenshotUrl && id && (
+                <StepScreenEditor
+                  screenshotUrl={active.screenshotUrl}
+                  manualId={id}
+                  stepId={active.id}
+                  masks={active.masks ?? []}
+                  annotations={active.annotations ?? []}
+                  onSave={(result) => {
+                    void patchActive({
+                      screenshotUrl: result.screenshotUrl,
+                      masks: result.masks,
+                      annotations: result.annotations,
+                    });
+                    setScreenEditOpen(false);
+                  }}
+                  onClose={() => setScreenEditOpen(false)}
+                />
+              )}
+              {aiBusy && <p className="text-xs text-slate-400">AI生成中…</p>}
             </div>
           ) : null}
         </section>

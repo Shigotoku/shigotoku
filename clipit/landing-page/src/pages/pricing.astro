@@ -1,6 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { appPath } from '../lib/urls';
+import { appPath, clipitIconPath } from '../lib/urls';
 
 const loginUrl = appPath('/login');
 
@@ -40,7 +40,10 @@ const plans = [
   <section class="relative overflow-hidden bg-slate-950 py-20 text-center">
     <div class="clipit-pricing-glow pointer-events-none absolute inset-0" aria-hidden="true"></div>
     <div class="relative mx-auto max-w-3xl px-4 sm:px-6">
-      <h1 class="text-4xl font-extrabold tracking-tight text-white sm:text-5xl">シンプルな料金</h1>
+      <span class="clipit-icon-frame clipit-icon-frame--hero mx-auto shadow-lg shadow-primary-500/30">
+        <img src={clipitIconPath} alt="" class="clipit-brand-icon" width="96" height="96" />
+      </span>
+      <h1 class="mt-6 text-4xl font-extrabold tracking-tight text-white sm:text-5xl">シンプルな料金</h1>
       <p class="mt-4 text-lg text-slate-400">席課金なし。1施設・1社単位。年払いは2ヶ月分無料。</p>
     </div>
   </section>

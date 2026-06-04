@@ -2,7 +2,7 @@
 import '../styles/global.css';
 import Seo from '../components/Seo.astro';
 import Analytics from '../components/Analytics.astro';
-import { appPath, sitePath, assetPath } from '../lib/urls';
+import { appPath, sitePath, assetPath, clipitIconPath } from '../lib/urls';
 
 interface Props {
   title: string;
@@ -15,10 +15,12 @@ const {
 } = Astro.props;
 const loginUrl = appPath('/login');
 const homeUrl = import.meta.env.BASE_URL;
-const featuresUrl = `${homeUrl}#features`;
 const howUrl = `${homeUrl}#how-it-works`;
+const featuresUrl = `${homeUrl}#features`;
+const pricingAnchorUrl = `${homeUrl}#pricing`;
 const faqUrl = `${homeUrl}#faq`;
 const pricingUrl = sitePath('pricing');
+const contactUrl = 'https://shigotoku.com/';
 ---
 
 <!doctype html>
@@ -28,7 +30,8 @@ const pricingUrl = sitePath('pricing');
     <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content={description} />
-    <link rel="icon" type="image/svg+xml" href={assetPath('favicon.svg')} />
+    <link rel="icon" type="image/png" href={new URL(clipitIconPath, Astro.site)} />
+    <link rel="apple-touch-icon" href={new URL(clipitIconPath, Astro.site)} />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -40,14 +43,17 @@ const pricingUrl = sitePath('pricing');
     <header class="sticky top-0 z-50 border-b border-slate-200/60 bg-white/95 backdrop-blur-xl">
       <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-6">
         <a href={homeUrl} class="flex items-center gap-2.5 transition-opacity hover:opacity-80">
-          <img src={assetPath('favicon.svg')} alt="クリッピット" class="h-8 w-8 object-contain" />
+          <span class="clipit-icon-frame clipit-icon-frame--header">
+            <img src={clipitIconPath} alt="クリッピット" class="clipit-brand-icon" width="36" height="36" />
+          </span>
           <span class="text-base font-bold tracking-tight text-slate-900">クリッピット</span>
         </a>
 
         <nav class="hidden items-center gap-6 md:flex">
-          <a href={featuresUrl} class="text-sm font-medium text-slate-500 transition-colors hover:text-slate-900">機能</a>
           <a href={howUrl} class="text-sm font-medium text-slate-500 transition-colors hover:text-slate-900">使い方</a>
-          <a href={pricingUrl} class="text-sm font-medium text-slate-500 transition-colors hover:text-slate-900">料金</a>
+          <a href={featuresUrl} class="text-sm font-medium text-slate-500 transition-colors hover:text-slate-900">機能</a>
+          <a href={pricingAnchorUrl} class="text-sm font-medium text-slate-500 transition-colors hover:text-slate-900">料金</a>
+          <a href={faqUrl} class="text-sm font-medium text-slate-500 transition-colors hover:text-slate-900">FAQ</a>
           <a href={loginUrl} class="text-sm font-medium text-slate-500 transition-colors hover:text-slate-900">ログイン</a>
           <a href={loginUrl} class="rounded-lg bg-primary-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-primary-600">無料で始める</a>
         </nav>
@@ -59,9 +65,9 @@ const pricingUrl = sitePath('pricing');
       </div>
 
       <div id="mobile-menu" class="hidden border-t border-slate-100 bg-white px-4 pb-4 pt-2 md:hidden">
-        <a href={featuresUrl} class="block min-h-[44px] rounded-lg px-3 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50">機能</a>
         <a href={howUrl} class="block min-h-[44px] rounded-lg px-3 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50">使い方</a>
-        <a href={pricingUrl} class="block min-h-[44px] rounded-lg px-3 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50">料金プラン</a>
+        <a href={featuresUrl} class="block min-h-[44px] rounded-lg px-3 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50">機能</a>
+        <a href={pricingAnchorUrl} class="block min-h-[44px] rounded-lg px-3 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50">料金</a>
         <a href={faqUrl} class="block min-h-[44px] rounded-lg px-3 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50">FAQ</a>
         <a href={loginUrl} class="block min-h-[44px] rounded-lg px-3 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50">ログイン</a>
         <a href={loginUrl} class="mt-2 block min-h-[44px] rounded-xl bg-primary-500 px-4 py-3.5 text-center text-sm font-semibold text-white">無料で始める</a>
@@ -75,19 +81,31 @@ const pricingUrl = sitePath('pricing');
     <footer class="border-t border-slate-200/60 bg-white/50 py-12">
       <div class="mx-auto max-w-7xl px-4 sm:px-6">
         <div class="grid grid-cols-2 gap-8 sm:grid-cols-4">
+          <div class="col-span-2 sm:col-span-1">
+            <a href={homeUrl} class="inline-flex items-center gap-2.5">
+              <span class="clipit-icon-frame clipit-icon-frame--footer">
+                <img src={clipitIconPath} alt="" class="clipit-brand-icon" width="40" height="40" />
+              </span>
+              <span class="text-sm font-bold text-slate-900">クリッピット</span>
+            </a>
+            <p class="mt-3 max-w-xs text-sm leading-relaxed text-slate-500">
+              操作するだけで業務マニュアルが完成。Chrome拡張で記録し、共有・印刷まで。
+            </p>
+          </div>
           <div>
             <h3 class="text-sm font-semibold text-slate-900">プロダクト</h3>
             <ul class="mt-3 space-y-2">
+              <li><a href={howUrl} class="text-sm text-slate-500 hover:text-slate-700">使い方</a></li>
+              <li><a href={featuresUrl} class="text-sm text-slate-500 hover:text-slate-700">機能</a></li>
               <li><a href={pricingUrl} class="text-sm text-slate-500 hover:text-slate-700">料金プラン</a></li>
-              <li><span class="text-sm text-slate-500">Chrome拡張で記録</span></li>
-              <li><span class="text-sm text-slate-500">QR・PDF共有</span></li>
+              <li><a href={faqUrl} class="text-sm text-slate-500 hover:text-slate-700">よくある質問</a></li>
             </ul>
           </div>
           <div>
             <h3 class="text-sm font-semibold text-slate-900">サポート</h3>
             <ul class="mt-3 space-y-2">
-              <li><span class="text-sm text-slate-500">ヘルプセンター</span></li>
-              <li><span class="text-sm text-slate-500">お問い合わせ</span></li>
+              <li><a href={loginUrl} class="text-sm text-slate-500 hover:text-slate-700">ログイン</a></li>
+              <li><a href={contactUrl} class="text-sm text-slate-500 hover:text-slate-700">お問い合わせ（運営会社）</a></li>
             </ul>
           </div>
           <div>

@@ -1,0 +1,44 @@
+---
+const pairs = [
+  {
+    before: '同じ操作を何度も口頭で説明し、教える側の時間が消えていく',
+    after: '操作を記録するだけで、日本語の手順マニュアルが自動でできる',
+  },
+  {
+    before: 'スクショを貼って説明を書く作業が重く、更新が追いつかない',
+    after: 'AIが文案を整え、並び替え・修正だけで公開まで進められる',
+  },
+  {
+    before: '紙・QR・スマホで見せたいが、ツールが高額で複雑',
+    after: '月額2,980円から。A4印刷・QR・既読確認まで一式',
+  },
+];
+---
+
+<section id="problem" class="border-b border-slate-100 bg-white py-20">
+  <div class="mx-auto max-w-4xl px-4 sm:px-6">
+    <div class="text-center">
+      <p class="text-sm font-semibold uppercase tracking-widest text-primary-600">課題と解決</p>
+      <h2 class="mt-3 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+        「教える手間」が、現場のボトルネックになっていませんか？
+      </h2>
+      <p class="mx-auto mt-4 max-w-xl text-slate-600">
+        クリッピットは、マニュアル作成ではなく<strong class="font-semibold text-slate-800">教える時間を減らす</strong>ことに特化したSaaSです。
+      </p>
+    </div>
+    <div class="mt-12 space-y-4">
+      {pairs.map((p) => (
+        <div class="grid overflow-hidden rounded-2xl border border-slate-200 sm:grid-cols-2">
+          <div class="flex gap-3 bg-slate-50 px-5 py-4 sm:px-6 sm:py-5">
+            <span class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-bold text-slate-500">✕</span>
+            <p class="text-sm leading-relaxed text-slate-600">{p.before}</p>
+          </div>
+          <div class="flex gap-3 border-t border-slate-200 bg-white px-5 py-4 sm:border-l sm:border-t-0 sm:px-6 sm:py-5">
+            <span class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-bold text-primary-700">✓</span>
+            <p class="text-sm font-medium leading-relaxed text-slate-800">{p.after}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>

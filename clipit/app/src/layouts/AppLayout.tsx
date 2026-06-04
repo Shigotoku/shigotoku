@@ -27,7 +27,9 @@ export default function AppLayout() {
     <div className="flex min-h-screen bg-slate-50">
       <aside className="hidden w-60 shrink-0 flex-col border-r border-slate-200 bg-white md:flex">
         <div className="flex items-center gap-2.5 px-5 py-5">
-          <img src="/favicon.svg" alt="クリッピット" className="h-8 w-8" />
+          <span className="clipit-icon-frame h-9 w-9 shrink-0">
+            <img src="/icon.png" alt="クリッピット" className="clipit-brand-icon h-full w-full object-contain" />
+          </span>
           <span className="text-base font-bold tracking-tight text-slate-900">クリッピット</span>
         </div>
         <nav className="flex-1 space-y-1 px-3">

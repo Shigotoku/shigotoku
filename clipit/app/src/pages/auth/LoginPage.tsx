@@ -42,7 +42,9 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-primary-50 to-white px-4">
       <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="flex flex-col items-center">
-          <img src="/favicon.svg" alt="クリッピット" className="h-12 w-12" />
+          <span className="clipit-icon-frame h-16 w-16 shadow-md shadow-primary-500/20">
+            <img src="/icon.png" alt="クリッピット" className="clipit-brand-icon h-full w-full object-contain" />
+          </span>
           <h1 className="mt-4 text-xl font-bold tracking-tight text-slate-900">クリッピットにログイン</h1>
           <p className="mt-1 text-sm text-slate-500">操作するだけで、業務マニュアルが完成。</p>
         </div>

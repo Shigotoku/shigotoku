@@ -4,6 +4,11 @@
   "type": "module",
   "scripts": {
     "build": "node build.mjs",
+    "build:clipit-web": "node scripts/build-clipit-web.mjs",
+    "prepare:clipit-icon": "node scripts/prepare-clipit-icon.mjs",
+    "patch:clipit-lp": "node scripts/patch-clipit-lp-dist.mjs",
+    "deploy:clipit-web": "npm run build:clipit-web && firebase deploy --project buzzit --config firebase.buzzit.json --only hosting:shigotoku-web",
+    "deploy:corporate-web": "node scripts/build-clipit-web.mjs --corporate-only && firebase deploy --project buzzit --config firebase.buzzit.json --only hosting:shigotoku-web",
     "deploy:web": "npm run build && firebase deploy --project buzzit --config firebase.buzzit.json --only hosting:shigotoku-web",
     "deploy:runwith-app": "npm run build && firebase deploy --project runwith --config firebase.runwith.json --only hosting:runwith-app",
     "deploy:clipit-app": "npm run build && firebase deploy --project clipit --config firebase.clipit.json --only hosting:clipit-app",

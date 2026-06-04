@@ -6,6 +6,7 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    minify: false,
     rollupOptions: {
       input: {
         background: resolve(__dirname, 'src/background.ts'),
@@ -24,6 +25,8 @@ export default defineConfig({
       closeBundle() {
         cpSync(resolve(__dirname, 'manifest.json'), resolve(__dirname, 'dist/manifest.json'));
         cpSync(resolve(__dirname, 'popup.html'), resolve(__dirname, 'dist/popup.html'));
+        cpSync(resolve(__dirname, 'popup.js'), resolve(__dirname, 'dist/popup.js'));
+        cpSync(resolve(__dirname, 'public/icon.png'), resolve(__dirname, 'dist/icon.png'));
       },
     },
   ],

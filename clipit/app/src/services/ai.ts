@@ -23,6 +23,7 @@ export async function generateStepWithApi(
       },
       tone,
       audience,
+      useAi: true,
     }),
   });
   return res.instruction;
@@ -47,6 +48,7 @@ export async function generateAllStepsWithApi(
       })),
       tone,
       audience,
+      useAi: true,
     }),
   });
   return res.instructions;

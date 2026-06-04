@@ -65,6 +65,25 @@ export async function publishShareToken(input: {
   return token;
 }
 
+/** 既存の共有URLの内容を最新の手順に更新（手順を増やしたあと必須） */
+export async function refreshShareSnapshot(token: string, manualId: string, title: string): Promise<void> {
+  const steps = await listSteps(manualId);
+  await updateDoc(doc(db, 'clipit_shareTokens', token), {
+    title,
+    steps: steps.map((s) => ({
+      order: s.order,
+      type: s.type,
+      title: s.title,
+      instruction: s.instruction,
+      note: s.note,
+      screenshotUrl: s.screenshotUrl,
+      clickX: s.clickX,
+      clickY: s.clickY,
+    })),
+    refreshedAt: serverTimestamp(),
+  });
+}
+
 export async function getShareByToken(token: string): Promise<(ShareTokenDoc & { id: string }) | null> {
   const snap = await getDoc(doc(db, 'clipit_shareTokens', token));
   if (!snap.exists()) return null;
@@ -74,10 +93,15 @@ export async function getShareByToken(token: string): Promise<(ShareTokenDoc & {
 }
 
 export async function getLatestShareTokenForManual(manualId: string): Promise<string | null> {
-  const q = query(collection(db, 'clipit_shareTokens'), where('manualId', '==', manualId), limit(5));
+  const q = query(collection(db, 'clipit_shareTokens'), where('manualId', '==', manualId), limit(20));
   const snap = await getDocs(q);
   if (snap.empty) return null;
-  return snap.docs[0]!.id;
+  const sorted = [...snap.docs].sort((a, b) => {
+    const ta = (a.data().refreshedAt ?? a.data().createdAt)?.toMillis?.() ?? 0;
+    const tb = (b.data().refreshedAt ?? b.data().createdAt)?.toMillis?.() ?? 0;
+    return tb - ta;
+  });
+  return sorted[0]!.id;
 }
 
 export async function recordReadConfirmation(manualId: string, input: ReadConfirmationInput) {

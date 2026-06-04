@@ -1,5 +1,7 @@
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
+import { saveScreenshotObject } from '../lib/storageImage.js';
+import { buildInstruction } from './instructionRules.js';
 
 export interface IngestStepPayload {
   title?: string;
@@ -40,21 +42,30 @@ export async function ingestSteps(manualId: string, uid: string, steps: IngestSt
     if (step.screenshotBase64?.startsWith('data:image')) {
       const base64 = step.screenshotBase64.replace(/^data:image\/\w+;base64,/, '');
       const buffer = Buffer.from(base64, 'base64');
-      const path = `clipit/manuals/${manualId}/step-${order}.jpg`;
-      const file = bucket.file(path);
-      await file.save(buffer, { contentType: 'image/jpeg', resumable: false });
-      const [signed] = await file.getSignedUrl({
-        action: 'read',
-        expires: Date.now() + 10 * 365 * 24 * 60 * 60 * 1000,
-      });
-      screenshotUrl = signed;
+      screenshotUrl = await saveScreenshotObject(
+        bucket,
+        `clipit/manuals/${manualId}/step-${order}`,
+        buffer,
+      );
     }
+
+    const stepInput = {
+      title: step.title,
+      elementText: step.elementText,
+      elementRole: step.elementRole,
+      pageTitle: step.pageTitle,
+      pageUrl: step.pageUrl,
+      note: step.note,
+    };
+
     const ref = manualRef.collection('steps').doc();
     batch.set(ref, {
       order,
       type: 'normal',
       title: step.title || `手順 ${order}`,
-      instruction: step.instruction || '',
+      instruction:
+        step.instruction?.trim() ||
+        buildInstruction(stepInput, 'simple'),
       note: step.note || '',
       screenshotUrl,
       pageTitle: step.pageTitle || '',

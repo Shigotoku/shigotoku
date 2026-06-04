@@ -14,6 +14,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { buildInstructionFromStep } from '../lib/instructionRules';
 import type { Manual, ManualStep, ManualStatus, TargetAudience } from '../types';
 import { assertCanCreateManual } from './usage';
 
@@ -106,6 +107,39 @@ export async function addStep(
   return ref.id;
 }
 
+/** 指定位置（1始まり）に手順を挿入し、以降の order をずらす */
+export async function insertStepAt(
+  manualId: string,
+  position: number,
+  step: Omit<ManualStep, 'id' | 'order'>,
+): Promise<string> {
+  const steps = await listSteps(manualId);
+  const insertOrder = Math.max(1, Math.min(position, steps.length + 1));
+  const batch = writeBatch(db);
+  for (const s of steps) {
+    if (s.order >= insertOrder) {
+      batch.update(doc(db, 'clipit_manuals', manualId, 'steps', s.id), {
+        order: s.order + 1,
+        updatedAt: serverTimestamp(),
+      });
+    }
+  }
+  const newRef = doc(stepsCol(manualId));
+  batch.set(newRef, {
+    ...step,
+    order: insertOrder,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  await batch.commit();
+  const all = await listSteps(manualId);
+  await updateDoc(doc(db, 'clipit_manuals', manualId), {
+    stepCount: all.length,
+    updatedAt: serverTimestamp(),
+  });
+  return newRef.id;
+}
+
 export async function updateStep(manualId: string, stepId: string, patch: Partial<ManualStep>) {
   await updateDoc(doc(db, 'clipit_manuals', manualId, 'steps', stepId), {
     ...patch,
@@ -186,11 +220,7 @@ export async function addDemoSteps(manualId: string, title: string) {
   }
 }
 
-/** ルール上の簡易 AI：テンプレートベースで手順文を整える */
+/** ルールベースで手順文を整える（AI 不使用） */
 export function polishInstruction(step: ManualStep, tone: 'simple' | 'formal'): string {
-  const base = step.instruction.trim() || step.title;
-  if (tone === 'formal') {
-    return `【手順】${base}（${step.elementText || '対象要素'}を操作します）`;
-  }
-  return base.endsWith('。') ? base : `${base}。`;
+  return buildInstructionFromStep(step, tone === 'formal' ? 'formal' : 'simple');
 }

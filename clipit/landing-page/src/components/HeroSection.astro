@@ -1,8 +1,9 @@
 ---
-import { appPath, sitePath } from '../lib/urls';
+import { appPath, sitePath, clipitIconPath } from '../lib/urls';
 
 const loginUrl = appPath('/login');
 const pricingUrl = sitePath('pricing');
+const howUrl = `${import.meta.env.BASE_URL}#how-it-works`;
 ---
 
 <section class="clipit-hero relative overflow-hidden bg-slate-950">
@@ -16,8 +17,10 @@ const pricingUrl = sitePath('pricing');
   <div class="relative mx-auto max-w-7xl px-4 pb-16 pt-16 sm:px-6 sm:pb-24 sm:pt-24">
     <div class="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
       <div class="text-center lg:text-left">
-        <div class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-sm font-medium text-slate-300">
-          <span class="h-2 w-2 animate-pulse rounded-full bg-primary-400"></span>
+        <div class="inline-flex items-center gap-2.5 rounded-full border border-white/10 bg-white/5 py-1.5 pl-1.5 pr-4 text-sm font-medium text-slate-300">
+          <span class="clipit-icon-frame clipit-icon-frame--badge">
+            <img src={clipitIconPath} alt="" class="clipit-brand-icon" width="32" height="32" />
+          </span>
           小さな会社のための“業務の教え方”SaaS
         </div>
         <h1 class="mt-6 text-4xl font-extrabold leading-[1.12] tracking-tight text-white sm:text-5xl lg:text-[3.25rem]">
@@ -39,10 +42,10 @@ const pricingUrl = sitePath('pricing');
             </svg>
           </a>
           <a
-            href={pricingUrl}
+            href={howUrl}
             class="inline-flex w-full items-center justify-center rounded-xl border border-white/15 px-8 py-4 text-base font-semibold text-slate-200 transition-all hover:border-white/30 hover:text-white sm:w-auto"
           >
-            料金を見る
+            使い方を見る
           </a>
         </div>
         <p class="mt-5 text-sm text-slate-500">初期費用0円 · 主力プラン 月額2,980円 · 5分で初回作成</p>
@@ -93,8 +96,12 @@ const pricingUrl = sitePath('pricing');
       radial-gradient(ellipse 60% 40% at 100% 50%, rgba(251, 146, 60, 0.15), transparent),
       radial-gradient(ellipse 50% 30% at 0% 80%, rgba(234, 88, 12, 0.12), transparent);
   }
-  .clipit-hero-mock {
+  .clipit-hero-icon {
+    filter: drop-shadow(0 20px 40px rgba(249, 115, 22, 0.35));
     animation: clipit-float 6s ease-in-out infinite;
+  }
+  .clipit-hero-mock {
+    animation: clipit-float 6s ease-in-out infinite 0.4s;
   }
   @keyframes clipit-float {
     0%, 100% { transform: translateY(0); }

@@ -1,16 +1,14 @@
 const GEMINI_URL =
   'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
-export type InstructionTone = 'simple' | 'formal' | 'manual' | 'short' | 'detailed';
-export type TargetAudience = 'new_staff' | 'admin' | 'patient' | 'customer' | 'developer';
+import {
+  buildInstruction,
+  type InstructionTone,
+  type StepInput,
+  type TargetAudience,
+} from './instructionRules.js';
 
-export interface StepInput {
-  title?: string;
-  elementText?: string;
-  pageTitle?: string;
-  pageUrl?: string;
-  note?: string;
-}
+export type { InstructionTone, TargetAudience, StepInput };
 
 const TONE_LABEL: Record<InstructionTone, string> = {
   simple: 'かんたんな日本語',
@@ -32,10 +30,15 @@ export async function generateStepInstruction(
   step: StepInput,
   tone: InstructionTone,
   audience: TargetAudience,
+  useAi = false,
 ): Promise<{ instruction: string; usedGemini: boolean }> {
-  const fallback = buildFallback(step, tone);
+  const ruleBased = buildInstruction(step, tone, audience);
+  if (!useAi) {
+    return { instruction: ruleBased, usedGemini: false };
+  }
+
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return { instruction: fallback, usedGemini: false };
+  if (!apiKey) return { instruction: ruleBased, usedGemini: false };
 
   const prompt = `あなたは日本の現場向け業務マニュアル作成の専門家です。
 次の操作情報から、1ステップ分の説明文だけを書いてください。
@@ -69,7 +72,7 @@ export async function generateStepInstruction(
     return { instruction: text.replace(/^["']|["']$/g, ''), usedGemini: true };
   } catch (err) {
     console.warn('Gemini fallback:', err);
-    return { instruction: fallback, usedGemini: false };
+    return { instruction: ruleBased, usedGemini: false };
   }
 }
 
@@ -77,19 +80,14 @@ export async function generateAllStepInstructions(
   steps: StepInput[],
   tone: InstructionTone,
   audience: TargetAudience,
+  useAi = false,
 ): Promise<{ instructions: string[]; usedGemini: boolean }> {
   const results: string[] = [];
   let usedGemini = false;
   for (const step of steps) {
-    const r = await generateStepInstruction(step, tone, audience);
+    const r = await generateStepInstruction(step, tone, audience, useAi);
     results.push(r.instruction);
     if (r.usedGemini) usedGemini = true;
   }
   return { instructions: results, usedGemini };
-}
-
-function buildFallback(step: StepInput, tone: InstructionTone): string {
-  const el = step.elementText || step.title || '画面の要素';
-  if (tone === 'formal') return `【手順】${el}を操作してください。`;
-  return `${el}をクリック（または操作）します。`;
 }

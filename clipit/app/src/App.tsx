@@ -6,6 +6,7 @@ import DashboardPage from "./pages/DashboardPage";
 import ManualNewPage from "./pages/ManualNewPage";
 import ManualEditPage from "./pages/ManualEditPage";
 import ManualSharePage from "./pages/ManualSharePage";
+import ManualPreviewPage from "./pages/ManualPreviewPage";
 import TemplatesPage from "./pages/TemplatesPage";
 import TeamPage from "./pages/TeamPage";
 import SettingsPage from "./pages/SettingsPage";
@@ -30,6 +31,7 @@ export default function App() {
         <Route path="/dashboard" element={<P><DashboardPage /></P>} />
         <Route path="/manuals/new" element={<P><ManualNewPage /></P>} />
         <Route path="/manuals/:id/edit" element={<P><ManualEditPage /></P>} />
+        <Route path="/manuals/:id/preview" element={<P><ManualPreviewPage /></P>} />
         <Route path="/manuals/:id/share" element={<P><ManualSharePage /></P>} />
         <Route path="/templates" element={<P><TemplatesPage /></P>} />
         <Route path="/team" element={<P><TeamPage /></P>} />

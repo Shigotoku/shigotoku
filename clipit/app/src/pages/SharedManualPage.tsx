@@ -74,7 +74,9 @@ export default function SharedManualPage() {
       )}
 
       <header className="no-print flex items-center gap-2.5">
-        <img src="/favicon.svg" alt="" className="h-7 w-7" />
+        <span className="clipit-icon-frame h-8 w-8 shrink-0">
+          <img src="/icon.png" alt="" className="clipit-brand-icon h-full w-full object-contain" />
+        </span>
         <span className="text-sm font-bold tracking-tight text-slate-900">クリッピット</span>
       </header>
 
@@ -94,9 +96,8 @@ export default function SharedManualPage() {
               <StepScreenshotPreview
                 screenshotUrl={s.screenshotUrl}
                 stepIndex={i + 1}
-                clickX={s.clickX}
-                clickY={s.clickY}
                 stepType={s.type}
+                showClickMarker={false}
               />
             </div>
             <p className="mt-3 text-[15px] leading-relaxed text-slate-700">{s.instruction}</p>
