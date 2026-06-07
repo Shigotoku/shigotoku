@@ -4,6 +4,9 @@ import AppLayout from "./layouts/AppLayout";
 import LoginPage from "./pages/auth/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
 import ManualNewPage from "./pages/ManualNewPage";
+import ManualRecordCreatePage from "./pages/ManualRecordCreatePage";
+import ManualTalkCreatePage from "./pages/ManualTalkCreatePage";
+import ManualScreenshotCreatePage from "./pages/ManualScreenshotCreatePage";
 import ManualEditPage from "./pages/ManualEditPage";
 import ManualSharePage from "./pages/ManualSharePage";
 import ManualPreviewPage from "./pages/ManualPreviewPage";
@@ -30,6 +33,9 @@ export default function App() {
       <Route element={<AppLayout />}>
         <Route path="/dashboard" element={<P><DashboardPage /></P>} />
         <Route path="/manuals/new" element={<P><ManualNewPage /></P>} />
+        <Route path="/manuals/new/record" element={<P><ManualRecordCreatePage /></P>} />
+        <Route path="/manuals/new/talk" element={<P><ManualTalkCreatePage /></P>} />
+        <Route path="/manuals/new/screenshots" element={<P><ManualScreenshotCreatePage /></P>} />
         <Route path="/manuals/:id/edit" element={<P><ManualEditPage /></P>} />
         <Route path="/manuals/:id/preview" element={<P><ManualPreviewPage /></P>} />
         <Route path="/manuals/:id/share" element={<P><ManualSharePage /></P>} />

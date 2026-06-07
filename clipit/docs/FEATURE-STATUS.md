@@ -29,6 +29,10 @@
 | プラン上限 | ✅ |
 | 賞味期限180日フィールド | ✅ 作成時 `expiresAt` |
 | ロゴアップロード | ✅ 設定画面 |
+| **話して作成**（Meet文字起こし+スクショ→AI統合） | ✅ `/manuals/new/talk`, `POST /v1/ai/merge-talk-steps` |
+| 作成方法の3本柱（記録/話して/スクショ） | ✅ `/manuals/new` |
+| 用語辞書（組織設定） | ✅ 設定画面 → AI統合時に適用 |
+| マニュアル健康診断 | ✅ 編集画面 `ManualHealthPanel` |
 
 ## MVP 優先 — 一部
 
@@ -42,9 +46,9 @@
 
 - サーバー PDF（Puppeteer）
 - マスク焼き込み API `/v1/steps/:id/apply-masks`
-- AI 健康診断・FAQ・候補マスキング
+- AI FAQ・候補マスキング（健康診断のルールベース版は ✅）
 - Stripe 課金
-- 音声メモ・話しながら文字起こし（Phase 1.5 — `PRODUCT-VISION-ROADMAP.md`）
+- Meet API / Drive 自動取り込み（Phase 2 — `TALK-CREATE.md`）
 - 取り込み直後の自動文案（全手順）
 - Word/Markdown/動画
 - Chrome ウェブストア公開（拡張は `dist/` ビルドまで完了）
@@ -52,3 +56,4 @@
 ## LP
 
 - ダークヒーロー・製品モック・信頼バー・競合比較・お客様の声・料金ページ刷新 ✅
+- 「話して作成」セクション（`TalkCreateSection`） ✅

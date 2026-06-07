@@ -32,12 +32,16 @@ export interface StepAnnotation {
   endY?: number;
 }
 
+export type ManualCreationSource = 'extension' | 'talk' | 'screenshot' | 'template' | 'demo';
+
 export interface ClipitOrganization {
   id: string;
   name: string;
   type: OrgType;
   plan: PlanId;
   logoUrl?: string;
+  /** 話して作成・AI整形時の用語補正（1行1語） */
+  termGlossary?: string[];
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
@@ -75,6 +79,7 @@ export interface Manual {
   stepCount?: number;
   readCount?: number;
   expiresAt?: Timestamp;
+  creationSource?: ManualCreationSource;
 }
 
 export interface ManualStep {

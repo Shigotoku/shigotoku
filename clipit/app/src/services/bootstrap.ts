@@ -76,3 +76,10 @@ export async function updateOrganizationLogo(orgId: string, logoUrl: string) {
     updatedAt: serverTimestamp(),
   });
 }
+
+export async function updateOrganizationGlossary(orgId: string, termGlossary: string[]) {
+  await updateDoc(doc(db, 'clipit_organizations', orgId), {
+    termGlossary,
+    updatedAt: serverTimestamp(),
+  });
+}

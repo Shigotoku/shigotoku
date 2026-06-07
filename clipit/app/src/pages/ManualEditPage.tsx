@@ -21,6 +21,7 @@ import { useStepDraft } from "../hooks/useStepDraft";
 import StepScreenEditor from "../components/StepScreenEditor";
 import { useEditLayoutColumns, ResizeGutter } from "../hooks/useEditLayoutColumns";
 import StepScreenshotPreview from "../components/StepScreenshotPreview";
+import ManualHealthPanel from "../components/ManualHealthPanel";
 import type { Manual, ManualStep, StepType, TargetAudience } from "../types";
 
 export default function ManualEditPage() {
@@ -260,6 +261,12 @@ export default function ManualEditPage() {
           </div>
         }
       />
+
+      {manual && steps.length > 0 && (
+        <div className="mx-6 mb-4">
+          <ManualHealthPanel manual={manual} steps={steps} />
+        </div>
+      )}
 
       {id && !id.startsWith("demo") && (
         <div className="mx-6 mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-primary-200 bg-primary-50/60 px-4 py-3 text-sm">

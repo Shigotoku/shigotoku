@@ -15,7 +15,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { buildInstructionFromStep } from '../lib/instructionRules';
-import type { Manual, ManualStep, ManualStatus, TargetAudience } from '../types';
+import type { Manual, ManualCreationSource, ManualStep, ManualStatus, TargetAudience } from '../types';
 import { assertCanCreateManual } from './usage';
 
 function manualsCol() {
@@ -41,6 +41,7 @@ export async function createManual(input: {
   createdBy: string;
   description?: string;
   category?: string;
+  creationSource?: ManualCreationSource;
 }): Promise<string> {
   await assertCanCreateManual(input.organizationId);
   const expiresAt = Timestamp.fromDate(new Date(Date.now() + 180 * 86_400_000));
@@ -56,6 +57,7 @@ export async function createManual(input: {
     stepCount: 0,
     readCount: 0,
     expiresAt,
+    creationSource: input.creationSource ?? 'extension',
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });

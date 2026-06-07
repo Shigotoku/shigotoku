@@ -5,9 +5,11 @@ import { initializeApp, getApps } from 'firebase-admin/app';
 import { requireAuth, type AuthedRequest } from './middleware/auth.js';
 import { generateAllStepInstructions, generateStepInstruction } from './services/gemini.js';
 import type { InstructionTone, TargetAudience, StepInput } from './services/gemini.js';
+import { getFirestore } from 'firebase-admin/firestore';
 import { assertManualAccess, ingestSteps } from './services/manuals.js';
 import { rateLimit } from './middleware/rateLimit.js';
 import { assertAiQuota } from './services/usage.js';
+import { mergeTalkSteps } from './services/talkMerge.js';
 
 const limitAi = rateLimit(30);
 
@@ -83,6 +85,67 @@ api.post('/v1/ai/generate-steps', requireAuth, async (req: AuthedRequest, res) =
   }
   const result = await generateAllStepInstructions(steps, tone, audience, useAi);
   res.json(result);
+});
+
+api.post('/v1/ai/merge-talk-steps', requireAuth, async (req: AuthedRequest, res) => {
+  if (!limitAi(req.uid)) {
+    res.status(429).json({ error: 'リクエストが多すぎます。しばらく待ってください。' });
+    return;
+  }
+  const {
+    organizationId,
+    transcript,
+    screenshots,
+    tone = 'simple',
+    audience = 'new_staff',
+    useAi = true,
+  } = req.body as {
+    organizationId?: string;
+    transcript?: string;
+    screenshots?: Array<{ imageBase64: string; timestamp?: string; label?: string }>;
+    tone?: InstructionTone;
+    audience?: TargetAudience;
+    useAi?: boolean;
+  };
+  if (!organizationId || !transcript || !screenshots?.length) {
+    res.status(400).json({ error: 'organizationId, transcript, screenshots が必要です' });
+    return;
+  }
+  const member = await getFirestore()
+    .collection('clipit_organizations')
+    .doc(organizationId)
+    .collection('members')
+    .doc(req.uid!)
+    .get();
+  if (!member.exists) {
+    res.status(403).json({ error: '組織へのアクセスがありません' });
+    return;
+  }
+  if (useAi) {
+    try {
+      await assertAiQuota(organizationId, Math.min(screenshots.length, 20));
+    } catch (e) {
+      const err = e as { status?: number; message?: string };
+      res.status(err.status ?? 429).json({ error: err.message });
+      return;
+    }
+  }
+  const org = await getFirestore().collection('clipit_organizations').doc(organizationId).get();
+  const glossary = (org.data()?.termGlossary as string[] | undefined) ?? [];
+  try {
+    const result = await mergeTalkSteps({
+      transcript,
+      screenshots,
+      tone,
+      audience,
+      glossary,
+      useAi,
+    });
+    res.json(result);
+  } catch (e) {
+    const err = e as { status?: number; message?: string };
+    res.status(err.status ?? 500).json({ error: err.message ?? 'merge failed' });
+  }
 });
 
 api.post('/v1/manuals/:manualId/ingest', requireAuth, async (req: AuthedRequest, res) => {

@@ -14,6 +14,7 @@ export interface IngestStepPayload {
   screenshotBase64?: string;
   clickX?: number;
   clickY?: number;
+  type?: 'normal' | 'warning' | 'ng_example' | 'check';
 }
 
 export async function assertManualAccess(manualId: string, uid: string) {
@@ -61,7 +62,7 @@ export async function ingestSteps(manualId: string, uid: string, steps: IngestSt
     const ref = manualRef.collection('steps').doc();
     batch.set(ref, {
       order,
-      type: 'normal',
+      type: step.type && ['normal', 'warning', 'ng_example', 'check'].includes(step.type) ? step.type : 'normal',
       title: step.title || `手順 ${order}`,
       instruction:
         step.instruction?.trim() ||

@@ -4,6 +4,7 @@ import HeroSection from '../components/HeroSection.astro';
 import TrustBar from '../components/TrustBar.astro';
 import ProblemSection from '../components/ProblemSection.astro';
 import HowItWorksSection from '../components/HowItWorksSection.astro';
+import TalkCreateSection from '../components/TalkCreateSection.astro';
 import ComparisonSection from '../components/ComparisonSection.astro';
 import TestimonialsSection from '../components/TestimonialsSection.astro';
 import PricingPreviewSection from '../components/PricingPreviewSection.astro';
@@ -23,6 +24,11 @@ const features = [
   },
   {
     icon: '02',
+    title: '話して作成（Google Meet連携）',
+    body: '画面共有で説明 → 文字起こし貼り付け → スクショとAI統合。暗黙知やNG例も残せます。',
+  },
+  {
+    icon: '02b',
     title: 'AIが日本語の手順文を生成',
     body: 'かんたん・丁寧・業務マニュアル風。新人・管理者・患者向けなど対象者に合わせた文案。',
   },
@@ -60,6 +66,7 @@ const audiences = [
   <TrustBar />
   <ProblemSection />
   <HowItWorksSection />
+  <TalkCreateSection />
 
   <section id="features" class="mx-auto max-w-7xl px-4 py-20 sm:px-6">
     <div class="text-center">

@@ -1,0 +1,57 @@
+---
+import { appPath } from '../lib/urls';
+
+const signupUrl = appPath('/manuals/new/talk');
+---
+
+<section id="talk-create" class="bg-gradient-to-b from-primary-50/80 to-white py-20">
+  <div class="mx-auto max-w-7xl px-4 sm:px-6">
+    <div class="grid items-center gap-12 lg:grid-cols-2">
+      <div>
+        <p class="text-sm font-semibold uppercase tracking-widest text-primary-600">Differentiator</p>
+        <h2 class="mt-3 text-3xl font-bold tracking-tight text-slate-900">話して作成</h2>
+        <p class="mt-4 text-lg leading-relaxed text-slate-600">
+          クリックだけでは伝わらない「なぜそうするか」「ここは絶対NG」——
+          Google Meet で画面共有しながら説明し、文字起こしとスクショを AI が1本の手順書に統合します。
+        </p>
+        <ol class="mt-6 space-y-3 text-sm text-slate-700">
+          <li class="flex gap-3">
+            <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-500 text-xs font-bold text-white">1</span>
+            Meet で業務画面を見せながら説明
+          </li>
+          <li class="flex gap-3">
+            <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-500 text-xs font-bold text-white">2</span>
+            Google ドキュメントの文字起こしを貼り付け
+          </li>
+          <li class="flex gap-3">
+            <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-500 text-xs font-bold text-white">3</span>
+            タイミングのスクショをアップロード → AI が手順化
+          </li>
+        </ol>
+        <a
+          href={signupUrl}
+          class="mt-8 inline-flex rounded-xl bg-primary-500 px-8 py-3.5 text-sm font-semibold text-white shadow-lg shadow-primary-500/20 hover:bg-primary-600"
+        >
+          話して作成を試す
+        </a>
+      </div>
+      <div class="rounded-2xl border border-primary-200 bg-white p-8 shadow-xl shadow-primary-500/5">
+        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">3つの作り方</p>
+        <ul class="mt-4 space-y-4">
+          <li class="rounded-xl border border-slate-200 p-4">
+            <p class="font-bold text-slate-900">クリックで記録</p>
+            <p class="mt-1 text-sm text-slate-600">拡張で操作 → 自動スクショ</p>
+          </li>
+          <li class="rounded-xl border border-primary-300 bg-primary-50/50 p-4 ring-1 ring-primary-200">
+            <p class="font-bold text-primary-800">話して作成</p>
+            <p class="mt-1 text-sm text-slate-600">Meet 文字起こし + スクショ統合</p>
+          </li>
+          <li class="rounded-xl border border-slate-200 p-4">
+            <p class="font-bold text-slate-900">スクショから</p>
+            <p class="mt-1 text-sm text-slate-600">撮っておいた画像を並べるだけ</p>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>

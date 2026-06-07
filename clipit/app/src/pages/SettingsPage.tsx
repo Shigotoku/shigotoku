@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import PageHeader from "../components/PageHeader";
 import { useOrg } from "../context/OrgContext";
 import { useAuth } from "../components/AuthProvider";
-import { updateOrganizationName, updateOrganizationLogo } from "../services/bootstrap";
+import { updateOrganizationName, updateOrganizationLogo, updateOrganizationGlossary } from "../services/bootstrap";
+import { DEFAULT_TERM_GLOSSARY, formatGlossaryLines, parseGlossaryText } from "../lib/termGlossary";
 import { uploadOrganizationLogo } from "../lib/uploadLogo";
 import { PLAN_LIMITS, planLabel, PLAN_PRICE_JPY } from "../lib/plans";
 import { countManualsCreatedThisMonth } from "../services/usage";
@@ -27,6 +28,12 @@ export default function SettingsPage() {
   const [msg, setMsg] = useState("");
   const [manualsThisMonth, setManualsThisMonth] = useState<number | null>(null);
   const [logoBusy, setLogoBusy] = useState(false);
+  const [glossaryText, setGlossaryText] = useState(formatGlossaryLines(organization?.termGlossary));
+  const [glossaryBusy, setGlossaryBusy] = useState(false);
+
+  useEffect(() => {
+    setGlossaryText(formatGlossaryLines(organization?.termGlossary));
+  }, [organization?.termGlossary]);
 
   useEffect(() => {
     if (!organization?.id || demoMode) return;
@@ -100,6 +107,41 @@ export default function SettingsPage() {
             }}
           />
           <p className="mt-2 text-xs text-slate-500">2MB以下の PNG / JPG / WebP</p>
+        </section>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-6">
+          <h2 className="text-sm font-bold text-slate-900">用語辞書（話して作成・AI整形）</h2>
+          <p className="mt-2 text-xs text-slate-500">
+            1行1語。音声認識の誤変換を補正し、社内固有名詞を正しく残します。未設定時はデフォルト（{DEFAULT_TERM_GLOSSARY.length}語）を使用。
+          </p>
+          <textarea
+            value={glossaryText}
+            onChange={(e) => setGlossaryText(e.target.value)}
+            rows={8}
+            disabled={demoMode}
+            className="mt-3 w-full rounded-xl border border-slate-300 px-4 py-3 font-mono text-sm"
+          />
+          <button
+            type="button"
+            disabled={glossaryBusy || demoMode || !organization}
+            onClick={async () => {
+              if (!organization) return;
+              setGlossaryBusy(true);
+              setMsg("");
+              try {
+                await updateOrganizationGlossary(organization.id, parseGlossaryText(glossaryText));
+                await refresh();
+                setMsg("用語辞書を保存しました");
+              } catch (e) {
+                setMsg((e as Error).message);
+              } finally {
+                setGlossaryBusy(false);
+              }
+            }}
+            className="mt-4 rounded-xl bg-primary-500 px-6 py-2.5 text-sm font-semibold text-white hover:bg-primary-600 disabled:opacity-50"
+          >
+            用語辞書を保存
+          </button>
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-6">
