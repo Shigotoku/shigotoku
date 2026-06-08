@@ -98,6 +98,37 @@ export interface Manual {
   /** 一括更新後に既読をリセットするための版番号 */
   confirmationVersion?: number;
   parentManualId?: string;
+  /** フォルダ未設定は null / 未設定 */
+  folderId?: string | null;
+}
+
+export interface ManualFolder {
+  id: string;
+  organizationId: string;
+  name: string;
+  sortOrder: number;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+}
+
+export interface FolderManualSnapshot {
+  manualId: string;
+  title: string;
+  steps: ShareStepSnapshot[];
+  confirmationVersion: number;
+}
+
+export interface FolderShareTokenDoc {
+  folderId: string;
+  organizationId: string;
+  folderName: string;
+  manuals: FolderManualSnapshot[];
+  expiresAt: Timestamp | null;
+  watermark?: boolean;
+  updateNotice?: string;
+  createdAt?: Timestamp;
+  refreshedAt?: Timestamp;
+  createdBy: string;
 }
 
 export interface ManualStep {

@@ -1,4 +1,5 @@
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import { appendFolderQuery } from "../lib/folderContext";
 import { Chrome, ImageUp, MessageCircle, ListOrdered } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 
@@ -34,6 +35,9 @@ const methods = [
 ];
 
 export default function ManualNewPage() {
+  const [searchParams] = useSearchParams();
+  const folderId = searchParams.get("folder");
+
   return (
     <>
       <PageHeader
@@ -49,7 +53,7 @@ export default function ManualNewPage() {
           {methods.map((m) => (
             <Link
               key={m.to}
-              to={m.to}
+              to={appendFolderQuery(m.to, folderId)}
               className="group relative rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-primary-300 hover:shadow-md"
             >
               {m.badge && (

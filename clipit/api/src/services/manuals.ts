@@ -3,10 +3,12 @@ import { getStorage } from 'firebase-admin/storage';
 import { saveScreenshotObject } from '../lib/storageImage.js';
 import { buildInstruction } from './instructionRules.js';
 import { distributeVoiceToSteps } from './voiceNotes.js';
+import { generateStepInstruction } from './gemini.js';
 
 export interface IngestStepPayload {
   title?: string;
   instruction?: string;
+  voiceSegment?: string;
   elementText?: string;
   elementRole?: string;
   pageTitle?: string;
@@ -34,6 +36,7 @@ export async function ingestSteps(
   uid: string,
   steps: IngestStepPayload[],
   voiceTranscript?: string,
+  polishWithAi = false,
 ) {
   const { manualRef } = await assertManualAccess(manualId, uid);
   const db = getFirestore();
@@ -60,24 +63,33 @@ export async function ingestSteps(
       );
     }
 
+    const voiceSeg = step.voiceSegment?.trim();
     const stepInput = {
       title: step.title,
       elementText: step.elementText,
       elementRole: step.elementRole,
       pageTitle: step.pageTitle,
       pageUrl: step.pageUrl,
-      note: step.note,
+      note: step.note?.trim() || voiceSeg || voiceNotes[order - 1] || '',
     };
+
+    let instruction =
+      step.instruction?.trim() ||
+      voiceSeg ||
+      buildInstruction(stepInput, 'simple');
+
+    if (polishWithAi && voiceSeg) {
+      const polished = await generateStepInstruction(stepInput, 'manual', 'new_staff', true);
+      if (polished.usedGemini) instruction = polished.instruction;
+    }
 
     const ref = manualRef.collection('steps').doc();
     batch.set(ref, {
       order,
       type: step.type && ['normal', 'warning', 'ng_example', 'check'].includes(step.type) ? step.type : 'normal',
       title: step.title || `手順 ${order}`,
-      instruction:
-        step.instruction?.trim() ||
-        buildInstruction(stepInput, 'simple'),
-      note: step.note?.trim() || voiceNotes[order - 1] || '',
+      instruction,
+      note: step.note?.trim() || (voiceSeg ? '' : voiceNotes[order - 1] || ''),
       screenshotUrl,
       pageTitle: step.pageTitle || '',
       pageUrl: step.pageUrl || '',

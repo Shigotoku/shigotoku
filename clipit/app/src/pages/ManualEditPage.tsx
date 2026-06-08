@@ -41,6 +41,7 @@ export default function ManualEditPage() {
   const [loading, setLoading] = useState(true);
   const [aiBusy, setAiBusy] = useState(false);
   const [extSynced, setExtSynced] = useState(false);
+  const [polishVoiceWithAi, setPolishVoiceWithAi] = useState(true);
   const [imgBusy, setImgBusy] = useState(false);
   const [dragStepId, setDragStepId] = useState<string | null>(null);
   const [showAddMenu, setShowAddMenu] = useState(false);
@@ -210,7 +211,7 @@ export default function ManualEditPage() {
 
   const handleExtensionSync = async () => {
     if (!id || id.startsWith("demo")) return;
-    const ok = await syncExtensionSession(id);
+    const ok = await syncExtensionSession(id, { polishVoiceWithAi });
     setExtSynced(ok);
   };
 
@@ -307,6 +308,17 @@ export default function ManualEditPage() {
             >
               {extSynced ? "連携済み" : "拡張と連携"}
             </button>
+            <label className="flex items-center gap-1.5 text-xs text-slate-600">
+              <input
+                type="checkbox"
+                checked={polishVoiceWithAi}
+                onChange={(e) => setPolishVoiceWithAi(e.target.checked)}
+              />
+              取り込み後に音声説明をAIで整える
+            </label>
+            <span className="text-xs text-slate-500">
+              記録中は拡張パネルの「音声説明」で喋ると、各手順の説明文に入ります
+            </span>
             <a href={extensionInstallUrl()} target="_blank" rel="noreferrer" className="text-xs text-primary-600 hover:underline">
               拡張をインストール
             </a>

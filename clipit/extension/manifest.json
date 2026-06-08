@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "クリッピット - 操作記録",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "操作するだけで業務マニュアルが完成。ClipIt 記録拡張",
   "permissions": ["activeTab", "storage", "scripting", "tabs", "webNavigation"],
   "host_permissions": [

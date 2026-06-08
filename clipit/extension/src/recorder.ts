@@ -3,6 +3,10 @@
 let recording = false;
 let paused = false;
 let stepCount = 0;
+let voiceListening = false;
+let voiceTranscript = '';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let recognition: any = null;
 
 const PANEL_ID = 'clipit-recorder-panel';
 const TOAST_ID = 'clipit-pii-toast';
@@ -50,6 +54,10 @@ function ensurePanel() {
     </style>
     <div class="row"><span class="dot"></span><span id="clipit-status-text">記録中</span></div>
     <div class="row" style="font-size:11px;color:#94a3b8">ステップ <span id="clipit-step-n">0</span> · Alt+Shift+S</div>
+    <div class="row" style="font-size:11px;color:#94a3b8;flex-wrap:wrap">
+      <button type="button" id="clipit-voice-btn" style="flex:1;background:#1e293b;color:#e2e8f0;border-radius:8px;padding:6px 8px;font-size:11px;font-weight:600;cursor:pointer;border:none">🎤 音声説明</button>
+      <span id="clipit-voice-status" style="font-size:10px;color:#64748b">オフ</span>
+    </div>
     <div class="row">
       <button type="button" class="pause" id="clipit-pause-btn">一時停止</button>
       <button type="button" class="stop" id="clipit-stop-btn">停止</button>
@@ -69,8 +77,84 @@ function ensurePanel() {
   });
 
   document.getElementById('clipit-stop-btn')?.addEventListener('click', () => {
+    stopVoiceRecognition();
     sendBg({ type: 'CLIPIT_STOP' });
   });
+
+  document.getElementById('clipit-voice-btn')?.addEventListener('click', () => {
+    if (voiceListening) stopVoiceRecognition();
+    else startVoiceRecognition();
+  });
+}
+
+function pushVoiceToBackground() {
+  sendBg({ type: 'CLIPIT_VOICE_UPDATE', transcript: voiceTranscript });
+}
+
+function startVoiceRecognition() {
+  const w = window as Window & { SpeechRecognition?: new () => SpeechRecognition; webkitSpeechRecognition?: new () => SpeechRecognition };
+  const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
+  if (!SR) {
+    const st = document.getElementById('clipit-voice-status');
+    if (st) st.textContent = '非対応';
+    return;
+  }
+  voiceListening = true;
+  voiceTranscript = '';
+  recognition = new SR();
+  recognition.lang = 'ja-JP';
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.onresult = (e: { resultIndex: number; results: { length: number; [i: number]: { isFinal: boolean; 0: { transcript: string } } } }) => {
+    let finalText = '';
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) finalText += t;
+      else interim += t;
+    }
+    if (finalText) voiceTranscript += finalText;
+    pushVoiceToBackground();
+    const preview = voiceTranscript + interim;
+    const st = document.getElementById('clipit-voice-status');
+    if (st) st.textContent = preview.slice(-12) || '聞き取り中…';
+  };
+  recognition.onend = () => {
+    if (voiceListening && recording && !paused) {
+      try {
+        recognition?.start();
+      } catch {
+        /* ignore */
+      }
+    }
+  };
+  recognition.onerror = () => {
+    const st = document.getElementById('clipit-voice-status');
+    if (st) st.textContent = 'マイク確認';
+  };
+  try {
+    recognition.start();
+    const st = document.getElementById('clipit-voice-status');
+    if (st) st.textContent = '聞き取り中…';
+    const btn = document.getElementById('clipit-voice-btn');
+    if (btn) btn.textContent = '🎤 音声ON';
+  } catch {
+    voiceListening = false;
+  }
+}
+
+function stopVoiceRecognition() {
+  voiceListening = false;
+  try {
+    recognition?.stop();
+  } catch {
+    /* ignore */
+  }
+  recognition = null;
+  const st = document.getElementById('clipit-voice-status');
+  if (st) st.textContent = 'オフ';
+  const btn = document.getElementById('clipit-voice-btn');
+  if (btn) btn.textContent = '🎤 音声説明';
 }
 
 function showPanel(active: boolean) {
@@ -134,10 +218,12 @@ function captureStep(e?: MouseEvent, force = false) {
 }
 
 function applyRecordingState(msg: { active?: boolean; paused?: boolean; stepCount?: number }) {
+  const wasRecording = recording;
   recording = Boolean(msg.active);
   if (typeof msg.paused === 'boolean') paused = msg.paused;
   if (typeof msg.stepCount === 'number') stepCount = msg.stepCount;
   showPanel(recording);
+  if (wasRecording && !recording) stopVoiceRecognition();
 }
 
 chrome.runtime.onMessage.addListener((msg) => {

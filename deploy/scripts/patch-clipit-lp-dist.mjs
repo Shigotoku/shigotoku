@@ -19,9 +19,13 @@ const ICON_CSS = `
 .clipit-icon-frame--header{width:2.25rem;height:2.25rem}
 .clipit-icon-frame--footer{width:2.5rem;height:2.5rem}
 .clipit-icon-frame--badge{width:2rem;height:2rem}
-.clipit-icon-frame--hero{width:8rem;height:8rem}
-@media(min-width:40rem){.clipit-icon-frame--hero{width:9rem;height:9rem}}
+.clipit-icon-frame--hero{width:6.5rem;height:6.5rem}
+@media(min-width:40rem){.clipit-icon-frame--hero{width:8rem;height:8rem}}
+@media(min-width:64rem){.clipit-icon-frame--hero{width:9rem;height:9rem}}
 .clipit-icon-frame img,.clipit-brand-icon{width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain}
+.clipit-compare-table{display:none}
+.clipit-compare-cards{display:block}
+@media(min-width:768px){.clipit-compare-table{display:block}.clipit-compare-cards{display:none}}
 `;
 
 const HEADER_FRAME =

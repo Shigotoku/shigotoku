@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, Check, History, Loader2, RefreshCw, Search, Sparkles } from "lucide-react";
 import PageHeader from "../components/PageHeader";
+import BulkUpdateScopePicker, { type BulkScope, manualsInScope } from "../components/BulkUpdateScopePicker";
 import { useOrg } from "../context/OrgContext";
 import { useAuth } from "../components/AuthProvider";
+import { listManuals } from "../services/manuals";
+import { listFolders } from "../services/folders";
 import {
   applyBulkChanges,
   listBulkBatches,
@@ -11,7 +14,9 @@ import {
   scanBulkMatches,
   type BulkBatch,
   type BulkChangeProposal,
+  type BulkUpdateScope,
 } from "../services/bulkUpdate";
+import type { Manual, ManualFolder } from "../types";
 
 const PRESETS = [
   "会社名・外注先を変更したい",
@@ -35,6 +40,25 @@ export default function BulkUpdatePage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [msg, setMsg] = useState("");
+  const [folders, setFolders] = useState<ManualFolder[]>([]);
+  const [manuals, setManuals] = useState<Manual[]>([]);
+  const [scope, setScope] = useState<BulkScope>({
+    mode: "all",
+    folderIds: [],
+    manualIds: [],
+    includeUncategorized: true,
+  });
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+
+  const apiScope = (): BulkUpdateScope | undefined =>
+    scope.mode === "all"
+      ? undefined
+      : {
+          mode: "selected",
+          folderIds: scope.folderIds,
+          manualIds: scope.manualIds,
+          includeUncategorized: scope.includeUncategorized,
+        };
 
   const loadHistory = async () => {
     if (!organization || demoMode) return;
@@ -46,12 +70,20 @@ export default function BulkUpdatePage() {
     loadHistory().catch(() => {});
   }, [organization?.id, demoMode]);
 
+  useEffect(() => {
+    if (!organization?.id || demoMode) return;
+    Promise.all([listManuals(organization.id), listFolders(organization.id)]).then(([ms, fs]) => {
+      setManuals(ms);
+      setFolders(fs);
+    });
+  }, [organization?.id, demoMode]);
+
   const searchOnly = async () => {
     if (!organization || !keyword.trim()) return;
     setBusy(true);
     setError("");
     try {
-      const { matches, count } = await scanBulkMatches(organization.id, keyword.trim());
+      const { matches, count } = await scanBulkMatches(organization.id, keyword.trim(), apiScope());
       setMatchCount(count);
       setProposals(
         matches.map((m) => ({
@@ -88,6 +120,7 @@ export default function BulkUpdatePage() {
         replaceFrom: replaceFrom.trim() || undefined,
         replaceTo: replaceTo,
         useAi: useAi && !demoMode,
+        scope: apiScope(),
       });
       setProposals(result.proposals.map((p) => ({ ...p, excluded: false })));
       setMatchCount(result.matchCount);
@@ -159,6 +192,29 @@ export default function BulkUpdatePage() {
 
         {error && <p className="rounded-lg bg-danger-50 px-4 py-3 text-sm text-danger-600">{error}</p>}
         {msg && <p className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{msg}</p>}
+
+        {!demoMode && manuals.length > 0 && (
+          <BulkUpdateScopePicker
+            folders={folders}
+            manuals={manuals}
+            scope={scope}
+            onChange={setScope}
+            expandedFolders={expandedFolders}
+            onToggleFolderExpand={(id) =>
+              setExpandedFolders((cur) => {
+                const next = new Set(cur);
+                if (next.has(id)) next.delete(id);
+                else next.add(id);
+                return next;
+              })
+            }
+          />
+        )}
+        {scope.mode === "selected" && manuals.length > 0 && (
+          <p className="text-xs text-slate-500">
+            選択範囲: {manualsInScope(manuals, scope).map((m) => m.title).join("、") || "（なし）"}
+          </p>
+        )}
 
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-sm font-bold text-slate-900">何を変更しますか？</h2>

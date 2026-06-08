@@ -1,16 +1,18 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { FilePlus2, QrCode, AlertCircle, Eye, Clock, Users, RefreshCw, Bot, Bell } from "lucide-react";
+import { FilePlus2, QrCode, AlertCircle, Eye, Clock, Users, RefreshCw, Bot, Bell, Folder, FolderPlus } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import OnboardingBanner from "../components/OnboardingBanner";
+import ManualActionsMenu from "../components/ManualActionsMenu";
 import { useOrg } from "../context/OrgContext";
 import { useAuth } from "../components/AuthProvider";
 import { listManuals, listSteps } from "../services/manuals";
+import { createFolder, listFolders } from "../services/folders";
 import { listRecentReadConfirmations, listManualsWithoutReads } from "../services/readStats";
 import { scanOrgStaleInfo, type StaleAlert } from "../lib/staleInfoDetection";
 import { listOrgNotifications } from "../services/notifications";
 import { formatRelativeTime } from "../lib/format";
-import type { Manual } from "../types";
+import type { Manual, ManualFolder } from "../types";
 
 export default function DashboardPage() {
   const { organization } = useOrg();
@@ -21,6 +23,9 @@ export default function DashboardPage() {
   const [unreadPublished, setUnreadPublished] = useState<{ id: string; title: string }[]>([]);
   const [staleAlerts, setStaleAlerts] = useState<StaleAlert[]>([]);
   const [notifications, setNotifications] = useState<Array<{ id: string; message: string; manualId?: string; type?: string }>>([]);
+  const [folders, setFolders] = useState<ManualFolder[]>([]);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [creatingFolder, setCreatingFolder] = useState(false);
 
   useEffect(() => {
     if (demoMode) {
@@ -32,9 +37,10 @@ export default function DashboardPage() {
       return;
     }
     if (!organization?.id) return;
-    listManuals(organization.id)
-      .then(async (ms) => {
+    Promise.all([listManuals(organization.id), listFolders(organization.id)])
+      .then(async ([ms, fs]) => {
         setManuals(ms);
+        setFolders(fs);
         const alerts = await scanOrgStaleInfo(ms, listSteps);
         setStaleAlerts(alerts.slice(0, 8));
       })
@@ -58,6 +64,22 @@ export default function DashboardPage() {
   const drafts = manuals.filter((m) => m.status === "draft");
   const published = manuals.filter((m) => m.status === "published");
   const topRead = [...manuals].sort((a, b) => (b.readCount ?? 0) - (a.readCount ?? 0))[0];
+
+  const countInFolder = (folderId: string) => manuals.filter((m) => m.folderId === folderId).length;
+  const uncategorizedCount = manuals.filter((m) => !m.folderId).length;
+
+  const handleCreateFolder = async () => {
+    if (!organization?.id || !newFolderName.trim() || demoMode) return;
+    setCreatingFolder(true);
+    try {
+      await createFolder(organization.id, newFolderName.trim());
+      setNewFolderName("");
+      const fs = await listFolders(organization.id);
+      setFolders(fs);
+    } finally {
+      setCreatingFolder(false);
+    }
+  };
 
   const todayTasks = [
     stale.length > 0
@@ -167,12 +189,79 @@ export default function DashboardPage() {
           </section>
         )}
 
+        <section className="rounded-2xl border border-slate-200 bg-white p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="flex items-center gap-2 text-sm font-bold text-slate-900">
+              <Folder size={16} className="text-primary-500" />
+              マニュアル集（フォルダ）
+            </h2>
+            <Link to="/manuals" className="text-xs font-semibold text-primary-600 hover:underline">
+              一覧で管理 →
+            </Link>
+          </div>
+          <p className="mt-1 text-xs text-slate-500">フォルダでマニュアルをまとめ、フォルダ単位で共有できます。</p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <Link
+              to="/manuals"
+              className="rounded-xl border border-slate-200 p-4 transition-colors hover:border-primary-200 hover:bg-primary-50/30"
+            >
+              <p className="text-xs font-semibold text-slate-500">すべて</p>
+              <p className="mt-1 text-lg font-bold text-slate-900">{manuals.length} 件</p>
+            </Link>
+            <Link
+              to="/manuals?folder=none"
+              className="rounded-xl border border-slate-200 p-4 transition-colors hover:border-primary-200 hover:bg-primary-50/30"
+            >
+              <p className="text-xs font-semibold text-slate-500">未分類</p>
+              <p className="mt-1 text-lg font-bold text-slate-900">{uncategorizedCount} 件</p>
+            </Link>
+            {folders.map((f) => (
+              <Link
+                key={f.id}
+                to={`/manuals?folder=${f.id}`}
+                className="rounded-xl border border-primary-100 bg-primary-50/40 p-4 transition-colors hover:border-primary-200"
+              >
+                <p className="flex items-center gap-1 text-xs font-semibold text-primary-700">
+                  <Folder size={12} />
+                  {f.name}
+                </p>
+                <p className="mt-1 text-lg font-bold text-slate-900">{countInFolder(f.id)} 件</p>
+              </Link>
+            ))}
+          </div>
+          {!demoMode && (
+            <div className="mt-4 flex gap-2">
+              <input
+                type="text"
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && void handleCreateFolder()}
+                placeholder="新しいフォルダ名"
+                className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm"
+              />
+              <button
+                type="button"
+                disabled={!newFolderName.trim() || creatingFolder}
+                onClick={() => void handleCreateFolder()}
+                className="inline-flex items-center gap-1 rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
+              >
+                <FolderPlus size={16} />
+                作成
+              </button>
+            </div>
+          )}
+        </section>
+
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Link to="/manuals/new" className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-5 transition-all hover:border-primary-200 hover:shadow-md">
             <FilePlus2 className="text-primary-500" size={22} />
             <span className="text-sm font-semibold text-slate-800">新しく作る</span>
           </Link>
-          <Link to="/bulk-update" className="flex items-center gap-3 rounded-2xl border border-primary-200 bg-primary-50/50 p-5 transition-all hover:shadow-md">
+          <Link to="/templates" className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-5 transition-all hover:border-primary-200 hover:shadow-md">
+            <FilePlus2 className="text-primary-500" size={22} />
+            <span className="text-sm font-semibold text-slate-800">テンプレートから作る</span>
+          </Link>
+          <Link to="/bulk-update" className="flex items-center gap-3 rounded-2xl border border-primary-200 bg-primary-50/50 p-5 transition-all hover:shadow-md sm:col-span-2 lg:col-span-1">
             <RefreshCw className="text-primary-600" size={22} />
             <span className="text-sm font-semibold text-slate-800">まとめて修正</span>
           </Link>
@@ -188,7 +277,12 @@ export default function DashboardPage() {
 
         <section className="rounded-2xl border border-slate-200 bg-white">
           <div className="border-b border-slate-100 px-5 py-4">
-            <h2 className="text-sm font-bold text-slate-900">最近のマニュアル</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-bold text-slate-900">最近のマニュアル</h2>
+              <Link to="/manuals" className="text-xs font-semibold text-primary-600 hover:underline">
+                一覧へ
+              </Link>
+            </div>
           </div>
           {loading ? (
             <p className="px-5 py-8 text-center text-sm text-slate-400">読み込み中…</p>
@@ -204,20 +298,16 @@ export default function DashboardPage() {
               {manuals.slice(0, 12).map((m) => (
                 <li key={m.id} className="flex items-center justify-between gap-3 px-5 py-4">
                   <div className="min-w-0">
-                    <Link to={`/manuals/${m.id}/edit`} className="truncate text-sm font-semibold text-slate-900 hover:text-primary-600">
-                      {m.title}
-                    </Link>
+                    <p className="truncate text-sm font-semibold text-slate-900">{m.title}</p>
                     <p className="mt-0.5 text-xs text-slate-400">
                       更新 {formatRelativeTime(m.updatedAt)} · 閲覧 {m.readCount ?? 0}
                       {m.status === "published" ? " · 公開" : " · 下書き"}
+                      {m.folderId && folders.find((f) => f.id === m.folderId) && (
+                        <> · {folders.find((f) => f.id === m.folderId)!.name}</>
+                      )}
                     </p>
                   </div>
-                  <Link
-                    to={`/manuals/${m.id}/share`}
-                    className="shrink-0 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-                  >
-                    共有
-                  </Link>
+                  <ManualActionsMenu manualId={m.id} compact />
                 </li>
               ))}
             </ul>

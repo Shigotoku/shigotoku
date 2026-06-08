@@ -8,6 +8,7 @@ window.addEventListener('message', (event) => {
       manualId: event.data.manualId,
       idToken: event.data.idToken,
       apiBase: event.data.apiBase,
+      polishVoiceWithAi: Boolean(event.data.polishVoiceWithAi),
     });
     return;
   }

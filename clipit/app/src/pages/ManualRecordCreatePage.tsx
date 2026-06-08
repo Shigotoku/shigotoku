@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { folderIdFromSearch } from "../lib/folderContext";
 import { Chrome, ListOrdered } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import { useOrg } from "../context/OrgContext";
@@ -11,6 +12,8 @@ import type { TargetAudience } from "../types";
 
 export default function ManualRecordCreatePage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const presetFolderId = folderIdFromSearch(searchParams);
   const { profile, organization } = useOrg();
   const { user, demoMode } = useAuth();
   const [title, setTitle] = useState("");
@@ -38,6 +41,7 @@ export default function ManualRecordCreatePage() {
         targetAudience: audiences.length ? audiences : ["new_staff"],
         createdBy: user.uid,
         creationSource: withDemo ? "demo" : "extension",
+        folderId: presetFolderId,
       });
       if (withDemo) await addDemoSteps(id, title.trim());
       navigate(`/manuals/${id}/edit`);

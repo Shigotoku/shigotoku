@@ -7,7 +7,11 @@ interface RecordedStep {
   clickX?: number;
   clickY?: number;
   screenshotBase64?: string;
+  voiceSegment?: string;
 }
+
+let voiceTranscriptFull = '';
+let voiceAtLastClick = 0;
 
 let recording = false;
 let paused = false;
@@ -202,6 +206,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     recording = true;
     paused = false;
     steps.length = 0;
+    voiceTranscriptFull = '';
+    voiceAtLastClick = 0;
     chrome.tabs.query({ active: true, currentWindow: true }, (queryTabs) => {
       void (async () => {
         const tab = queryTabs[0];
@@ -277,6 +283,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         return;
       }
       const isForce = String(msg.step.elementText || '').startsWith('【強制キャプチャ】');
+      const voiceSegment = voiceTranscriptFull.slice(voiceAtLastClick).trim();
+      voiceAtLastClick = voiceTranscriptFull.length;
       steps.push({
         title: isForce ? `強制キャプチャ ${steps.length + 1}` : `手順 ${steps.length + 1}`,
         elementText: msg.step.elementText,
@@ -286,6 +294,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         clickX: msg.step.clickX,
         clickY: msg.step.clickY,
         screenshotBase64: dataUrl,
+        ...(voiceSegment ? { voiceSegment } : {}),
       });
       void persistRecordingMeta();
       void tabMessage(tabId, {
@@ -304,6 +313,15 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
 
+  if (msg.type === 'CLIPIT_VOICE_UPDATE' && recording) {
+    if (typeof msg.transcript === 'string') {
+      voiceTranscriptFull = msg.transcript;
+      void chrome.storage.local.set({ voiceTranscript: voiceTranscriptFull });
+    }
+    sendResponse({ ok: true });
+    return true;
+  }
+
   return false;
 });
 
@@ -318,11 +336,12 @@ chrome.commands.onCommand.addListener((command) => {
 });
 
 async function finishIngest(): Promise<{ ok: boolean; message?: string }> {
-  const { manualId, idToken, apiBase, voiceTranscript } = await chrome.storage.local.get([
+  const { manualId, idToken, apiBase, voiceTranscript, polishVoiceWithAi } = await chrome.storage.local.get([
     'manualId',
     'idToken',
     'apiBase',
     'voiceTranscript',
+    'polishVoiceWithAi',
   ]);
   if (!manualId || !idToken) {
     return { ok: false, message: 'アプリの編集画面で「拡張と連携」を押してください' };
@@ -347,6 +366,7 @@ async function finishIngest(): Promise<{ ok: boolean; message?: string }> {
         ...(typeof voiceTranscript === 'string' && voiceTranscript.trim()
           ? { voiceTranscript: voiceTranscript.trim() }
           : {}),
+        ...(polishVoiceWithAi ? { polishWithAi: true } : {}),
       }),
     });
     const data = await res.json().catch(() => ({}));

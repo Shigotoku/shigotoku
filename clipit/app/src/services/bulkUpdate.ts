@@ -37,10 +37,17 @@ export interface BulkBatch {
   createdAt?: { seconds: number };
 }
 
-export async function scanBulkMatches(organizationId: string, keyword: string) {
+export type BulkUpdateScope = {
+  mode?: 'all' | 'selected';
+  folderIds?: string[];
+  manualIds?: string[];
+  includeUncategorized?: boolean;
+};
+
+export async function scanBulkMatches(organizationId: string, keyword: string, scope?: BulkUpdateScope) {
   return apiFetch<{ matches: BulkMatch[]; count: number }>('/v1/bulk-update/scan', {
     method: 'POST',
-    body: JSON.stringify({ organizationId, keyword }),
+    body: JSON.stringify({ organizationId, keyword, scope }),
   });
 }
 
@@ -51,6 +58,7 @@ export async function proposeBulkChanges(input: {
   replaceFrom?: string;
   replaceTo?: string;
   useAi?: boolean;
+  scope?: BulkUpdateScope;
 }) {
   return apiFetch<{ proposals: BulkChangeProposal[]; matchCount: number }>('/v1/bulk-update/propose', {
     method: 'POST',

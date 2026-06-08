@@ -52,6 +52,7 @@ interface StepRow {
   manualId: string;
   manualTitle: string;
   manualDescription: string;
+  folderId?: string | null;
   stepId: string;
   stepOrder: number;
   stepTitle: string;
@@ -59,6 +60,27 @@ interface StepRow {
   note: string;
   screenshotUrl?: string;
   type?: string;
+}
+
+export interface BulkUpdateScope {
+  mode?: 'all' | 'selected';
+  folderIds?: string[];
+  manualIds?: string[];
+  includeUncategorized?: boolean;
+}
+
+function filterRowsByScope(rows: StepRow[], scope?: BulkUpdateScope): StepRow[] {
+  if (!scope || scope.mode !== 'selected') return rows;
+  const folderSet = new Set(scope.folderIds ?? []);
+  const manualSet = new Set(scope.manualIds ?? []);
+  const includeNone = scope.includeUncategorized !== false;
+
+  return rows.filter((row) => {
+    if (manualSet.has(row.manualId)) return true;
+    if (!row.folderId && includeNone) return true;
+    if (row.folderId && folderSet.has(row.folderId)) return true;
+    return false;
+  });
 }
 
 async function assertOrgMember(orgId: string, uid: string) {
@@ -91,6 +113,7 @@ export async function loadOrgSteps(orgId: string): Promise<StepRow[]> {
         manualId: m.id,
         manualTitle: String(data.title ?? ''),
         manualDescription: String(data.description ?? ''),
+        folderId: (data.folderId as string | null | undefined) ?? null,
         stepId: s.id,
         stepOrder: Number(st.order ?? 0),
         stepTitle: String(st.title ?? ''),
@@ -238,9 +261,14 @@ ${JSON.stringify(items.slice(0, 40), null, 0)}
   });
 }
 
-export async function scanBulkUpdate(orgId: string, uid: string, keyword: string): Promise<BulkMatch[]> {
+export async function scanBulkUpdate(
+  orgId: string,
+  uid: string,
+  keyword: string,
+  scope?: BulkUpdateScope,
+): Promise<BulkMatch[]> {
   await assertOrgMember(orgId, uid);
-  const rows = await loadOrgSteps(orgId);
+  const rows = filterRowsByScope(await loadOrgSteps(orgId), scope);
   return collectMatches(rows, keyword);
 }
 
@@ -252,9 +280,10 @@ export async function proposeBulkUpdate(input: {
   replaceFrom?: string;
   replaceTo?: string;
   useAi?: boolean;
+  scope?: BulkUpdateScope;
 }): Promise<{ proposals: BulkChangeProposal[]; matchCount: number }> {
   await assertOrgMember(input.organizationId, input.uid);
-  const rows = await loadOrgSteps(input.organizationId);
+  const rows = filterRowsByScope(await loadOrgSteps(input.organizationId), input.scope);
   const org = await getFirestore().collection('clipit_organizations').doc(input.organizationId).get();
   const orgData = org.data() ?? {};
   const glossary = (orgData.termGlossary as string[] | undefined) ?? [];

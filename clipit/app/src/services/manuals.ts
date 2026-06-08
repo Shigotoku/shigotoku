@@ -44,6 +44,7 @@ export async function createManual(input: {
   creationSource?: ManualCreationSource;
   contentType?: 'manual' | 'material';
   editionLabel?: string;
+  folderId?: string | null;
 }): Promise<string> {
   await assertCanCreateManual(input.organizationId);
   const expiresAt = Timestamp.fromDate(new Date(Date.now() + 180 * 86_400_000));
@@ -63,6 +64,7 @@ export async function createManual(input: {
     contentType: input.contentType ?? 'manual',
     editionLabel: input.editionLabel ?? '',
     confirmationVersion: 1,
+    folderId: input.folderId ?? null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
@@ -71,7 +73,7 @@ export async function createManual(input: {
 
 export async function updateManual(
   manualId: string,
-  patch: Partial<Pick<Manual, 'title' | 'description' | 'status' | 'targetAudience'>>,
+  patch: Partial<Pick<Manual, 'title' | 'description' | 'status' | 'targetAudience' | 'folderId'>>,
 ) {
   await updateDoc(doc(db, 'clipit_manuals', manualId), {
     ...patch,

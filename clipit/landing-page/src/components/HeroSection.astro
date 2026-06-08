@@ -14,20 +14,20 @@ const howUrl = `${import.meta.env.BASE_URL}#how-it-works`;
     aria-hidden="true"
   ></div>
 
-  <div class="relative mx-auto max-w-7xl px-4 pb-16 pt-16 sm:px-6 sm:pb-24 sm:pt-24">
-    <div class="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
-      <div class="text-center lg:text-left">
-        <div class="inline-flex items-center gap-2.5 rounded-full border border-white/10 bg-white/5 py-1.5 pl-1.5 pr-4 text-sm font-medium text-slate-300">
-          <span class="clipit-icon-frame clipit-icon-frame--badge">
+  <div class="relative mx-auto max-w-7xl px-4 pb-12 pt-12 sm:px-6 sm:pb-24 sm:pt-24">
+    <div class="clipit-grid-safe grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
+      <div class="min-w-0 text-center lg:text-left">
+        <div class="clipit-hero-badge inline-flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 py-1.5 pl-1.5 pr-3 text-sm font-medium text-slate-300 sm:justify-start sm:pr-4 lg:justify-start">
+          <span class="clipit-icon-frame clipit-icon-frame--badge shrink-0">
             <img src={clipitIconPath} alt="" class="clipit-brand-icon" width="32" height="32" />
           </span>
-          AIで作って、AIで更新できるマニュアル・教材管理
+          <span data-jp-wrap>AIで作って、AIで更新できるマニュアル・教材管理</span>
         </div>
-        <h1 class="mt-6 text-4xl font-extrabold leading-[1.12] tracking-tight text-white sm:text-5xl lg:text-[3.25rem]">
+        <h1 class="clipit-h1 mt-5 text-[1.625rem] font-extrabold leading-[1.35] tracking-tight text-white sm:mt-6 sm:text-4xl sm:leading-[1.12] lg:text-[3.25rem]" data-jp-heading>
           作る。直す。教える。<br />
           <span class="text-primary-400">ぜんぶ ClipIt で。</span>
         </h1>
-        <p class="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-slate-400 lg:mx-0">
+        <p class="clipit-lead mx-auto mt-5 max-w-xl text-base leading-relaxed text-slate-400 sm:mt-6 sm:text-lg lg:mx-0" data-jp-wrap>
           操作記録・話して作成で手順を作り、<strong class="font-semibold text-slate-300">まとめて修正</strong>で古くならない。
           クリニック・中小企業・先生・個人まで——一度作った資料が、ずっと資産になります。
         </p>
@@ -48,21 +48,21 @@ const howUrl = `${import.meta.env.BASE_URL}#how-it-works`;
             使い方を見る
           </a>
         </div>
-        <p class="mt-5 text-sm text-slate-500">初期費用0円 · 主力プラン 月額2,980円 · 5分で初回作成</p>
-        <div class="mt-8 flex flex-wrap items-center justify-center gap-6 text-xs text-slate-500 lg:justify-start">
+        <p class="mt-5 text-xs leading-relaxed text-slate-500 sm:text-sm" data-jp-wrap>初期費用0円 · 主力プラン 月額2,980円 · 5分で初回作成</p>
+        <div class="mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[11px] text-slate-500 sm:mt-8 sm:gap-6 sm:text-xs lg:justify-start">
           <span class="flex items-center gap-1.5"><span class="text-primary-400">✓</span> Googleログイン</span>
           <span class="flex items-center gap-1.5"><span class="text-primary-400">✓</span> 閲覧者はログイン不要</span>
           <span class="flex items-center gap-1.5"><span class="text-primary-400">✓</span> 手動マスキング</span>
         </div>
       </div>
 
-      <div class="relative mx-auto w-full max-w-lg lg:max-w-none">
-        <div class="clipit-hero-mock rounded-2xl border border-white/10 bg-white/5 p-4 shadow-2xl backdrop-blur-sm sm:p-5">
-          <div class="flex items-center gap-2 border-b border-white/10 pb-3">
-            <span class="h-3 w-3 rounded-full bg-red-400/80"></span>
-            <span class="h-3 w-3 rounded-full bg-amber-400/80"></span>
-            <span class="h-3 w-3 rounded-full bg-emerald-400/80"></span>
-            <span class="ml-2 text-xs font-medium text-slate-400">新患受付の手順 — 記録中</span>
+      <div class="relative mx-auto w-full min-w-0 max-w-lg lg:max-w-none">
+        <div class="clipit-hero-mock rounded-2xl border border-white/10 bg-white/5 p-3 shadow-2xl backdrop-blur-sm sm:p-5">
+          <div class="flex min-w-0 items-center gap-2 border-b border-white/10 pb-3">
+            <span class="h-3 w-3 shrink-0 rounded-full bg-red-400/80"></span>
+            <span class="h-3 w-3 shrink-0 rounded-full bg-amber-400/80"></span>
+            <span class="h-3 w-3 shrink-0 rounded-full bg-emerald-400/80"></span>
+            <span class="ml-1 min-w-0 truncate text-[11px] font-medium text-slate-400 sm:ml-2 sm:text-xs" data-jp-wrap>新患受付の手順 — 記録中</span>
           </div>
           <div class="mt-4 space-y-3">
             <div class="relative overflow-hidden rounded-xl bg-slate-800/80 aspect-[16/10]">
@@ -74,10 +74,11 @@ const howUrl = `${import.meta.env.BASE_URL}#how-it-works`;
                 「受付」ボタンをクリックして、新患登録画面を開きます。
               </p>
             </div>
-            <div class="flex gap-2">
-              <span class="rounded-lg bg-primary-500/20 px-3 py-1.5 text-xs font-semibold text-primary-300">● 記録中</span>
-              <span class="rounded-lg bg-white/5 px-3 py-1.5 text-xs text-slate-400">ステップ 3</span>
-              <span class="ml-auto rounded-lg bg-white/10 px-3 py-1.5 text-xs text-slate-300">Alt+Shift+S 強制キャプチャ</span>
+            <div class="clipit-hero-mock-tags flex gap-2">
+              <span class="rounded-lg bg-primary-500/20 px-2.5 py-1 text-[11px] font-semibold text-primary-300 sm:px-3 sm:py-1.5 sm:text-xs">● 記録中</span>
+              <span class="rounded-lg bg-white/5 px-2.5 py-1 text-[11px] text-slate-400 sm:px-3 sm:py-1.5 sm:text-xs">ステップ 3</span>
+              <span class="clipit-tag-long ml-auto rounded-lg bg-white/10 px-2.5 py-1 text-[11px] text-slate-300 sm:px-3 sm:py-1.5 sm:text-xs">Alt+Shift+S 強制キャプチャ</span>
+              <span class="clipit-tag-short ml-auto rounded-lg bg-white/10 px-2.5 py-1 text-[11px] text-slate-300">強制キャプチャ</span>
             </div>
           </div>
         </div>

@@ -159,13 +159,17 @@ api.post('/v1/ai/merge-talk-steps', requireAuth, async (req: AuthedRequest, res)
 });
 
 api.post('/v1/bulk-update/scan', requireAuth, async (req: AuthedRequest, res) => {
-  const { organizationId, keyword } = req.body as { organizationId?: string; keyword?: string };
+  const { organizationId, keyword, scope } = req.body as {
+    organizationId?: string;
+    keyword?: string;
+    scope?: import('./services/bulkUpdate.js').BulkUpdateScope;
+  };
   if (!organizationId || !keyword?.trim()) {
     res.status(400).json({ error: 'organizationId と keyword が必要です' });
     return;
   }
   try {
-    const matches = await scanBulkUpdate(organizationId, req.uid!, keyword.trim());
+    const matches = await scanBulkUpdate(organizationId, req.uid!, keyword.trim(), scope);
     res.json({ matches, count: matches.length });
   } catch (e) {
     const err = e as { status?: number; message?: string };
@@ -178,13 +182,14 @@ api.post('/v1/bulk-update/propose', requireAuth, async (req: AuthedRequest, res)
     res.status(429).json({ error: 'リクエストが多すぎます。' });
     return;
   }
-  const { organizationId, instruction, keyword, replaceFrom, replaceTo, useAi = false } = req.body as {
+  const { organizationId, instruction, keyword, replaceFrom, replaceTo, useAi = false, scope } = req.body as {
     organizationId?: string;
     instruction?: string;
     keyword?: string;
     replaceFrom?: string;
     replaceTo?: string;
     useAi?: boolean;
+    scope?: import('./services/bulkUpdate.js').BulkUpdateScope;
   };
   if (!organizationId || !instruction?.trim()) {
     res.status(400).json({ error: 'organizationId と instruction が必要です' });
@@ -208,6 +213,7 @@ api.post('/v1/bulk-update/propose', requireAuth, async (req: AuthedRequest, res)
       replaceFrom,
       replaceTo,
       useAi,
+      scope,
     });
     res.json(result);
   } catch (e) {
@@ -287,16 +293,17 @@ api.post('/v1/bulk-update/batches/:batchId/rollback', requireAuth, async (req: A
 
 api.post('/v1/manuals/:manualId/ingest', requireAuth, async (req: AuthedRequest, res) => {
   const manualId = String(req.params.manualId);
-  const { steps, voiceTranscript } = req.body as {
+  const { steps, voiceTranscript, polishWithAi } = req.body as {
     steps?: Parameters<typeof ingestSteps>[2];
     voiceTranscript?: string;
+    polishWithAi?: boolean;
   };
   if (!steps?.length) {
     res.status(400).json({ error: 'steps が必要です' });
     return;
   }
   try {
-    const result = await ingestSteps(manualId, req.uid!, steps, voiceTranscript);
+    const result = await ingestSteps(manualId, req.uid!, steps, voiceTranscript, Boolean(polishWithAi));
     res.json({ ok: true, ...result });
   } catch (e) {
     const err = e as { status?: number; message?: string };

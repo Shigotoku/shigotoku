@@ -37,19 +37,19 @@ const plans = [
 ---
 
 <Layout title="料金プラン - クリッピット (ClipIt)" description="初期費用0円・無料あり・主力プラン月額2,980円。1施設1社のわかりやすい定額。">
-  <section class="relative overflow-hidden bg-slate-950 py-20 text-center">
+  <section class="relative overflow-hidden bg-slate-950 py-14 text-center sm:py-20">
     <div class="clipit-pricing-glow pointer-events-none absolute inset-0" aria-hidden="true"></div>
     <div class="relative mx-auto max-w-3xl px-4 sm:px-6">
       <span class="clipit-icon-frame clipit-icon-frame--hero mx-auto shadow-lg shadow-primary-500/30">
         <img src={clipitIconPath} alt="" class="clipit-brand-icon" width="96" height="96" />
       </span>
-      <h1 class="mt-6 text-4xl font-extrabold tracking-tight text-white sm:text-5xl">シンプルな料金</h1>
-      <p class="mt-4 text-lg text-slate-400">席課金なし。1施設・1社単位。年払いは2ヶ月分無料。</p>
+      <h1 class="clipit-h1 mt-5 text-2xl font-extrabold tracking-tight text-white sm:mt-6 sm:text-4xl lg:text-5xl" data-jp-heading>シンプルな料金</h1>
+      <p class="clipit-lead mt-3 text-base text-slate-400 sm:mt-4 sm:text-lg" data-jp-wrap>席課金なし。1施設・1社単位。年払いは2ヶ月分無料。</p>
     </div>
   </section>
 
-  <section class="mx-auto max-w-7xl px-4 py-16 sm:px-6">
-    <div class="grid gap-6 lg:grid-cols-4">
+  <section class="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16">
+    <div class="clipit-grid-safe grid gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
       {plans.map((p) => (
         <div class={`flex flex-col rounded-2xl border bg-white p-6 ${p.highlight ? 'border-primary-400 shadow-xl shadow-primary-500/10 ring-2 ring-primary-200 lg:scale-[1.02]' : 'border-slate-200 shadow-sm'}`}>
           {p.highlight && (

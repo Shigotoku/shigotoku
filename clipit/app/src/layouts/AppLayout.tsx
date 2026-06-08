@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { LayoutDashboard, FilePlus2, LayoutTemplate, Users, Settings, LogOut, ExternalLink, RefreshCw } from "lucide-react";
+import { LayoutDashboard, FilePlus2, LayoutTemplate, Users, Settings, LogOut, ExternalLink, RefreshCw, FolderOpen } from "lucide-react";
 import { useAuth } from "../components/AuthProvider";
 import { signOutUser } from "../lib/firebase";
 import { landingPath } from "../lib/urls";
@@ -7,6 +7,7 @@ import { useOrg } from "../context/OrgContext";
 
 const nav = [
   { to: "/dashboard", label: "ダッシュボード", icon: LayoutDashboard },
+  { to: "/manuals", label: "マニュアル一覧", icon: FolderOpen },
   { to: "/manuals/new", label: "新しく作る", icon: FilePlus2 },
   { to: "/bulk-update", label: "まとめて修正", icon: RefreshCw },
   { to: "/templates", label: "テンプレート", icon: LayoutTemplate },

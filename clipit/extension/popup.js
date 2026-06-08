@@ -15,6 +15,16 @@ function refreshStatus() {
   });
 }
 
+const polishEl = document.getElementById('polish-ai');
+if (polishEl) {
+  chrome.storage.local.get(['polishVoiceWithAi'], (r) => {
+    if (typeof r.polishVoiceWithAi === 'boolean') polishEl.checked = r.polishVoiceWithAi;
+  });
+  polishEl.addEventListener('change', () => {
+    chrome.storage.local.set({ polishVoiceWithAi: polishEl.checked });
+  });
+}
+
 document.getElementById('start')?.addEventListener('click', () => {
   sendBg({ type: 'CLIPIT_START' }, (r) => {
     status.textContent = r?.ok

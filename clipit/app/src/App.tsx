@@ -3,6 +3,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import AppLayout from "./layouts/AppLayout";
 import LoginPage from "./pages/auth/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
+import ManualsListPage from "./pages/ManualsListPage";
 import ManualNewPage from "./pages/ManualNewPage";
 import ManualRecordCreatePage from "./pages/ManualRecordCreatePage";
 import ManualTalkCreatePage from "./pages/ManualTalkCreatePage";
@@ -16,6 +17,7 @@ import TemplatesPage from "./pages/TemplatesPage";
 import TeamPage from "./pages/TeamPage";
 import SettingsPage from "./pages/SettingsPage";
 import SharedManualPage from "./pages/SharedManualPage";
+import SharedFolderPage from "./pages/SharedFolderPage";
 import AcceptInvitePage from "./pages/AcceptInvitePage";
 
 function P({ children }: { children: React.ReactNode }) {
@@ -29,11 +31,13 @@ export default function App() {
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/m/:token" element={<SharedManualPage />} />
+      <Route path="/f/:token" element={<SharedFolderPage />} />
       <Route path="/invite/:token" element={<AcceptInvitePage />} />
 
       {/* 認証必須（ダッシュボードレイアウト） */}
       <Route element={<AppLayout />}>
         <Route path="/dashboard" element={<P><DashboardPage /></P>} />
+        <Route path="/manuals" element={<P><ManualsListPage /></P>} />
         <Route path="/manuals/new" element={<P><ManualNewPage /></P>} />
         <Route path="/manuals/new/record" element={<P><ManualRecordCreatePage /></P>} />
         <Route path="/manuals/new/talk" element={<P><ManualTalkCreatePage /></P>} />

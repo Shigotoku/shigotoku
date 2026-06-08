@@ -1,5 +1,6 @@
-import { useCallback, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useCallback, useMemo, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { folderIdFromSearch } from "../lib/folderContext";
 import { Camera, ChevronDown, ChevronUp, Loader2, MessageCircle, Sparkles, Video } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import { useOrg } from "../context/OrgContext";
@@ -9,6 +10,7 @@ import { createManual } from "../services/manuals";
 import { ingestTalkSteps, mergeTalkStepsWithApi, type MergedTalkStep, type TalkScreenshotPayload } from "../services/talkCreate";
 import type { InstructionTone } from "../services/ai";
 import type { TargetAudience } from "../types";
+import { parseMeetTranscript, suggestLabelsFromTranscript } from "../lib/meetTranscript";
 
 type ShotItem = TalkScreenshotPayload & { id: string; previewUrl: string };
 
@@ -28,12 +30,14 @@ function fileToBase64(file: File): Promise<string> {
 const MEET_STEPS = [
   "Google Meet で会議を開始し、画面共有で業務画面を見せながら説明します。",
   "会議後、Google ドキュメントの「文字起こし」タブから全文をコピーして下の欄に貼り付けます。",
-  "説明のタイミングで Alt+Shift+S（拡張）または OS のスクショを撮り、下にアップロードします。",
-  "各画像に Meet のタイムスタンプ（例: 03:42）を入れると、AI が説明と画像を対応づけやすくなります。",
+  "説明の順にスクショを撮り、下にアップロードします（Alt+Shift+S または OS のスクショ）。",
+  "Meet の文字起こしは冒頭に1つだけ時刻があり、詳細なタイムスタンプは付きません。各画像に「この画面で説明したこと」を一言入れると、AI が画像と説明を対応づけやすくなります。",
 ];
 
 export default function ManualTalkCreatePage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const presetFolderId = folderIdFromSearch(searchParams);
   const { organization } = useOrg();
   const { user, demoMode } = useAuth();
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -48,6 +52,22 @@ export default function ManualTalkCreatePage() {
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<MergedTalkStep[] | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
+
+  const parsedTranscript = useMemo(
+    () => (transcript.trim() ? parseMeetTranscript(transcript, shots.length) : null),
+    [transcript, shots.length],
+  );
+
+  const applySuggestedLabels = () => {
+    if (!transcript.trim() || !shots.length) return;
+    const suggested = suggestLabelsFromTranscript(transcript, shots.length);
+    setShots((cur) =>
+      cur.map((s, i) => ({
+        ...s,
+        label: s.label?.trim() ? s.label : (suggested[i] ?? s.label),
+      })),
+    );
+  };
 
   const toggle = (label: string) =>
     setSelected((cur) => (cur.includes(label) ? cur.filter((x) => x !== label) : [...cur, label]));
@@ -126,6 +146,7 @@ export default function ManualTalkCreatePage() {
         targetAudience: audiences.length ? audiences : ["new_staff"],
         createdBy: user.uid,
         creationSource: "talk",
+        folderId: presetFolderId,
       });
       await ingestTalkSteps(
         manualId,
@@ -240,9 +261,30 @@ export default function ManualTalkCreatePage() {
                 value={transcript}
                 onChange={(e) => setTranscript(e.target.value)}
                 rows={12}
-                placeholder="00:12 まず受付リストを開いて…&#10;03:45 ここで黒塗りしないとダメです…"
+                placeholder="Google ドキュメントの文字起こしをそのまま貼り付け（Meet 形式で OK）"
                 className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 font-mono text-sm"
               />
+              {parsedTranscript && parsedTranscript.body && (
+                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                  <p className="font-semibold text-slate-800">
+                    検出した操作説明: {parsedTranscript.segments.length} 件
+                    {parsedTranscript.durationSec != null && (
+                      <span className="ml-2 font-normal text-slate-500">
+                        （会議内 {Math.floor(parsedTranscript.durationSec / 60)} 分程度）
+                      </span>
+                    )}
+                  </p>
+                  {parsedTranscript.segments.length > 0 ? (
+                    <ol className="mt-2 list-decimal space-y-1 pl-5 text-xs leading-relaxed">
+                      {parsedTranscript.segments.map((seg) => (
+                        <li key={seg}>{seg}</li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <p className="mt-1 text-xs text-slate-500">操作の区切りを自動検出できませんでした。画像の画面メモを入れてください。</p>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-white p-6">
@@ -257,6 +299,15 @@ export default function ManualTalkCreatePage() {
                 className="mt-3 block w-full text-sm"
                 onChange={(e) => onFiles(e.target.files)}
               />
+              {shots.length > 0 && transcript.trim() && parsedTranscript && parsedTranscript.segments.length > 0 && (
+                <button
+                  type="button"
+                  onClick={applySuggestedLabels}
+                  className="mt-3 rounded-lg border border-primary-300 bg-primary-50 px-3 py-2 text-xs font-semibold text-primary-700 hover:bg-primary-100"
+                >
+                  文字起こしから画面メモを自動提案
+                </button>
+              )}
               <div className="mt-4 space-y-3">
                 {shots.map((s, idx) => (
                   <div key={s.id} className="flex gap-3 rounded-xl border border-slate-200 p-3">
@@ -264,16 +315,16 @@ export default function ManualTalkCreatePage() {
                     <div className="min-w-0 flex-1 space-y-2">
                       <p className="text-xs font-semibold text-slate-500">画像 {idx + 1}</p>
                       <input
-                        placeholder="タイムスタンプ（03:42）"
-                        value={s.timestamp ?? ""}
-                        onChange={(e) => updateShot(s.id, { timestamp: e.target.value })}
-                        className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-sm"
-                      />
-                      <input
-                        placeholder="メモ（任意・この画面で何を説明したか）"
+                        placeholder="この画面で説明したこと（例：診察券作成を押す）"
                         value={s.label ?? ""}
                         onChange={(e) => updateShot(s.id, { label: e.target.value })}
                         className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-sm"
+                      />
+                      <input
+                        placeholder="タイムスタンプ（任意・行ごとに時刻がある場合のみ）"
+                        value={s.timestamp ?? ""}
+                        onChange={(e) => updateShot(s.id, { timestamp: e.target.value })}
+                        className="w-full rounded-lg border border-slate-100 px-3 py-1 text-xs text-slate-500"
                       />
                     </div>
                     <button type="button" onClick={() => removeShot(s.id)} className="text-xs text-danger-600">

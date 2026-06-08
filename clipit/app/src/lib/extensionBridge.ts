@@ -1,7 +1,10 @@
 import { auth } from './firebase';
 
 /** Webアプリ → Chrome拡張へ manualId / トークンを渡す */
-export async function syncExtensionSession(manualId: string): Promise<boolean> {
+export async function syncExtensionSession(
+  manualId: string,
+  options?: { polishVoiceWithAi?: boolean },
+): Promise<boolean> {
   const user = auth.currentUser;
   if (!user) return false;
   const token = await user.getIdToken();
@@ -11,6 +14,7 @@ export async function syncExtensionSession(manualId: string): Promise<boolean> {
       manualId,
       idToken: token,
       apiBase: import.meta.env.VITE_API_URL ?? 'https://app.clipit.shigotoku.com/api',
+      polishVoiceWithAi: options?.polishVoiceWithAi ?? false,
     },
     window.location.origin,
   );
