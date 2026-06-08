@@ -1,0 +1,45 @@
+---
+const features = [
+  {
+    icon: '01',
+    title: '操作を記録するだけ',
+    body: 'Chrome拡張でクリックごとにスクショと手順を自動取得。赤枠・番号付きで「どこを押すか」が一目です。',
+  },
+  {
+    icon: '02',
+    title: 'AIが日本語の手順文を生成',
+    body: 'かんたん・丁寧・業務マニュアル風。新人向け・患者向けなど、読む人に合わせた文案に整えます。',
+  },
+  {
+    icon: '03',
+    title: 'まとめて修正で古くならない',
+    body: 'システム名や連絡先が変わっても、全マニュアルを横断検索してAIが変更候補を提案。確認してから一括適用。',
+  },
+  {
+    icon: '04',
+    title: '印刷・QR・スマホで現場に届く',
+    body: 'A4印刷、QRコード、スマホ閲覧。個人情報はマスキングし、公開前に隠し忘れ確認を通します。',
+  },
+];
+---
+
+<section id="features" class="clipit-section border-b border-slate-100 bg-slate-50/50 py-10 sm:py-14">
+  <div class="mx-auto max-w-7xl px-4 sm:px-6">
+    <div class="text-center">
+      <p class="text-sm font-semibold uppercase tracking-widest text-primary-600">Features</p>
+      <h2 class="clipit-h2 mt-3 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl" data-jp-heading>ClipIt の4つの特徴</h2>
+      <p class="clipit-lead mt-3 text-base text-slate-600" data-jp-wrap>作る・直す・届ける。マニュアル管理に必要なことだけ、シンプルに。</p>
+    </div>
+    <div class="clipit-grid-safe mt-8 grid gap-4 sm:grid-cols-2 sm:gap-5">
+      {features.map((f) => (
+        <div class="group min-w-0 rounded-2xl border border-slate-200 bg-white p-5 transition-shadow hover:border-primary-200 hover:shadow-md sm:p-6">
+          <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-primary-100 text-xs font-bold text-primary-700">
+            {f.icon}
+          </span>
+          <h3 class="clipit-h3 mt-3 text-base font-bold text-slate-900 sm:text-lg" data-jp-heading>{f.title}</h3>
+          <p class="clipit-body mt-2 text-sm leading-relaxed text-slate-600" data-jp-wrap>{f.body}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>

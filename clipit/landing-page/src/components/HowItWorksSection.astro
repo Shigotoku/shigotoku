@@ -3,35 +3,45 @@ const steps = [
   {
     num: '1',
     title: 'マニュアルの作り方を選ぶ',
-    body: 'Chrome拡張での操作記録、Google Meetでの話して作成、スクショのアップロード、テンプレート——現場に合った方法を選ぶだけで手順のたたき台ができます。',
+    body: '記録・Meet・スクショ・テンプレートからスタート',
+    href: '#step-create',
   },
   {
     num: '2',
     title: '手順を整えて完成させる',
-    body: 'AIが日本語の説明文を整え、スクショには赤枠・番号を付与。文言の修正と画像の差し替えだけで、読みやすいマニュアルに仕上がります。',
+    body: 'AI文案・赤枠番号・編集で仕上げ',
+    href: '#step-edit',
   },
   {
     num: '3',
     title: '共有して、ずっと新しく',
-    body: 'PDF・QR・A4印刷・スマホ表示で現場に届けます。システムや連絡先が変わっても、まとめて修正で横断更新できます。',
+    body: 'PDF・QR・まとめて修正で常に最新',
+    href: '#step-share',
   },
 ];
 ---
 
-<section id="how-it-works" class="clipit-section border-y border-slate-100 bg-white py-12 sm:py-20">
+<section id="how-it-works" class="clipit-section border-b border-slate-100 bg-white py-10 sm:py-14">
   <div class="mx-auto max-w-7xl px-4 sm:px-6">
     <div class="text-center">
-      <h2 class="clipit-h2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl" data-jp-heading>使い方は、3ステップ</h2>
-      <p class="clipit-lead mt-3 text-base text-slate-600 sm:mt-4 sm:text-lg" data-jp-wrap>作り方を選ぶ → 整える → 届ける。どの方法でも同じ流れで進められます。</p>
+      <p class="text-sm font-semibold uppercase tracking-widest text-primary-600">How it works</p>
+      <h2 class="clipit-h2 mt-3 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl" data-jp-heading>使い方は、3ステップ</h2>
+      <p class="clipit-lead mt-3 text-base text-slate-600 sm:mt-4" data-jp-wrap>作り方を選ぶ → 整える → 届ける。どの方法でも同じ流れで進められます。</p>
     </div>
-    <ol class="clipit-grid-safe mt-10 grid gap-5 sm:mt-14 sm:gap-8 md:grid-cols-3">
+    <ol class="clipit-grid-safe mt-8 grid gap-4 sm:mt-10 sm:grid-cols-3 sm:gap-5">
       {steps.map((s) => (
-        <li class="relative rounded-2xl border border-slate-200 bg-slate-50/50 p-5 sm:p-8">
-          <span class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary-500 text-lg font-bold text-white">
-            {s.num}
-          </span>
-          <h3 class="clipit-h3 mt-4 text-base font-bold text-slate-900 sm:text-lg" data-jp-heading>{s.title}</h3>
-          <p class="clipit-body mt-3 text-sm leading-relaxed text-slate-600" data-jp-wrap>{s.body}</p>
+        <li>
+          <a
+            href={s.href}
+            class="group flex h-full flex-col rounded-2xl border border-slate-200 bg-slate-50/40 p-5 transition-all hover:border-primary-300 hover:bg-primary-50/30 hover:shadow-md sm:p-6"
+          >
+            <span class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary-500 text-lg font-bold text-white transition-transform group-hover:scale-105">
+              {s.num}
+            </span>
+            <h3 class="clipit-h3 mt-4 text-base font-bold text-slate-900 sm:text-lg" data-jp-heading>{s.title}</h3>
+            <p class="clipit-body mt-2 flex-1 text-sm leading-relaxed text-slate-600" data-jp-wrap>{s.body}</p>
+            <span class="mt-4 text-xs font-semibold text-primary-600 group-hover:underline">詳しく見る →</span>
+          </a>
         </li>
       ))}
     </ol>
