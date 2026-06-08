@@ -29,6 +29,8 @@ export default function TemplatesPage() {
         createdBy: user.uid,
         description: tpl.description,
         category: tpl.category,
+        contentType: tpl.category === 'education' ? 'material' : 'manual',
+        creationSource: 'template',
       });
       for (let i = 0; i < tpl.steps.length; i++) {
         const s = tpl.steps[i]!;
@@ -57,7 +59,7 @@ export default function TemplatesPage() {
         {MANUAL_TEMPLATES.map((t) => (
           <article key={t.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <span className="rounded-full bg-primary-100 px-2 py-0.5 text-xs font-semibold text-primary-700">
-              {t.category === "clinic" ? "クリニック" : "中小企業"}
+              {t.category === "clinic" ? "クリニック" : t.category === "education" ? "教育・教材" : "中小企業"}
             </span>
             <h2 className="mt-3 font-bold text-slate-900">{t.title}</h2>
             <p className="mt-2 text-sm text-slate-600">{t.description}</p>

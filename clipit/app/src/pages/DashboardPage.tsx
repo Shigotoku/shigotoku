@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { FilePlus2, QrCode, LayoutTemplate, AlertCircle, Eye, Clock, Users } from "lucide-react";
+import { FilePlus2, QrCode, AlertCircle, Eye, Clock, Users, RefreshCw, Bot, Bell } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import OnboardingBanner from "../components/OnboardingBanner";
 import { useOrg } from "../context/OrgContext";
 import { useAuth } from "../components/AuthProvider";
-import { listManuals } from "../services/manuals";
+import { listManuals, listSteps } from "../services/manuals";
 import { listRecentReadConfirmations, listManualsWithoutReads } from "../services/readStats";
+import { scanOrgStaleInfo, type StaleAlert } from "../lib/staleInfoDetection";
+import { listOrgNotifications } from "../services/notifications";
 import { formatRelativeTime } from "../lib/format";
 import type { Manual } from "../types";
 
@@ -17,6 +19,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [recentReads, setRecentReads] = useState<{ viewerName: string; manualTitle: string }[]>([]);
   const [unreadPublished, setUnreadPublished] = useState<{ id: string; title: string }[]>([]);
+  const [staleAlerts, setStaleAlerts] = useState<StaleAlert[]>([]);
+  const [notifications, setNotifications] = useState<Array<{ id: string; message: string }>>([]);
 
   useEffect(() => {
     if (demoMode) {
@@ -29,8 +33,15 @@ export default function DashboardPage() {
     }
     if (!organization?.id) return;
     listManuals(organization.id)
-      .then(setManuals)
+      .then(async (ms) => {
+        setManuals(ms);
+        const alerts = await scanOrgStaleInfo(ms, listSteps);
+        setStaleAlerts(alerts.slice(0, 8));
+      })
       .finally(() => setLoading(false));
+    listOrgNotifications(organization.id)
+      .then((r) => setNotifications(r.notifications.slice(0, 5)))
+      .catch(() => {});
     listRecentReadConfirmations(organization.id, 5).then((rows) =>
       setRecentReads(rows.map((r) => ({ viewerName: r.viewerName, manualTitle: r.manualTitle }))),
     );
@@ -50,7 +61,10 @@ export default function DashboardPage() {
 
   const todayTasks = [
     stale.length > 0
-      ? { icon: Clock, text: `${stale.length}件が更新期限を過ぎています（180日）`, tone: "text-amber-700" }
+      ? { icon: Clock, text: `${stale.length}件が更新期限を過ぎています（180日）`, tone: "text-amber-700", link: "/bulk-update" }
+      : null,
+    staleAlerts.length > 0
+      ? { icon: AlertCircle, text: `古い情報の可能性: ${staleAlerts.length}件 — まとめて修正を検討`, tone: "text-amber-700", link: "/bulk-update" }
       : null,
     unreadPublished.length > 0
       ? { icon: Users, text: `公開中で未確認: ${unreadPublished.map((m) => m.title).join("、")}`, tone: "text-primary-700" }
@@ -61,7 +75,7 @@ export default function DashboardPage() {
     manuals.length === 0
       ? { icon: AlertCircle, text: "まずはマニュアルを1本作成しましょう", tone: "text-danger-600" }
       : null,
-  ].filter(Boolean) as { icon: typeof AlertCircle; text: string; tone: string }[];
+  ].filter(Boolean) as { icon: typeof AlertCircle; text: string; tone: string; link?: string }[];
 
   return (
     <>
@@ -106,7 +120,13 @@ export default function DashboardPage() {
               {todayTasks.map((t, i) => (
                 <li key={i} className={`flex items-start gap-2.5 text-sm ${t.tone}`}>
                   <t.icon size={16} className="mt-0.5 shrink-0" />
-                  {t.text}
+                  {t.link ? (
+                    <Link to={t.link} className="hover:underline">
+                      {t.text}
+                    </Link>
+                  ) : (
+                    t.text
+                  )}
                 </li>
               ))}
             </ul>
@@ -126,14 +146,31 @@ export default function DashboardPage() {
           </section>
         )}
 
-        <section className="grid gap-4 sm:grid-cols-3">
+        {notifications.length > 0 && (
+          <section className="rounded-2xl border border-primary-200 bg-primary-50/40 p-5">
+            <h2 className="flex items-center gap-2 text-sm font-bold text-primary-900">
+              <Bell size={16} /> 更新のお知らせ
+            </h2>
+            <ul className="mt-2 space-y-1 text-sm text-primary-900">
+              {notifications.map((n) => (
+                <li key={n.id}>{n.message}</li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Link to="/manuals/new" className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-5 transition-all hover:border-primary-200 hover:shadow-md">
             <FilePlus2 className="text-primary-500" size={22} />
             <span className="text-sm font-semibold text-slate-800">新しく作る</span>
           </Link>
-          <Link to="/templates" className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-5 transition-all hover:border-primary-200 hover:shadow-md">
-            <LayoutTemplate className="text-primary-500" size={22} />
-            <span className="text-sm font-semibold text-slate-800">テンプレート</span>
+          <Link to="/bulk-update" className="flex items-center gap-3 rounded-2xl border border-primary-200 bg-primary-50/50 p-5 transition-all hover:shadow-md">
+            <RefreshCw className="text-primary-600" size={22} />
+            <span className="text-sm font-semibold text-slate-800">まとめて修正</span>
+          </Link>
+          <Link to="/assistant" className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-5 transition-all hover:border-primary-200 hover:shadow-md">
+            <Bot className="text-primary-500" size={22} />
+            <span className="text-sm font-semibold text-slate-800">アシスタント</span>
           </Link>
           <Link to="/team" className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-5 transition-all hover:border-primary-200 hover:shadow-md">
             <QrCode className="text-primary-500" size={22} />

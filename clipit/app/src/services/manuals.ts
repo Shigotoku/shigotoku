@@ -42,6 +42,8 @@ export async function createManual(input: {
   description?: string;
   category?: string;
   creationSource?: ManualCreationSource;
+  contentType?: 'manual' | 'material';
+  editionLabel?: string;
 }): Promise<string> {
   await assertCanCreateManual(input.organizationId);
   const expiresAt = Timestamp.fromDate(new Date(Date.now() + 180 * 86_400_000));
@@ -58,6 +60,9 @@ export async function createManual(input: {
     readCount: 0,
     expiresAt,
     creationSource: input.creationSource ?? 'extension',
+    contentType: input.contentType ?? 'manual',
+    editionLabel: input.editionLabel ?? '',
+    confirmationVersion: 1,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
@@ -220,6 +225,36 @@ export async function addDemoSteps(manualId: string, title: string) {
   for (const step of demos) {
     await addStep(manualId, step);
   }
+}
+
+/** 年度版などとしてマニュアルを複製 */
+export async function duplicateManual(
+  sourceId: string,
+  input: { title: string; editionLabel?: string; createdBy: string },
+): Promise<string> {
+  const source = await getManual(sourceId);
+  if (!source) throw new Error('マニュアルが見つかりません');
+  const steps = await listSteps(sourceId);
+  const newId = await createManual({
+    organizationId: source.organizationId,
+    title: input.title,
+    targetAudience: source.targetAudience,
+    createdBy: input.createdBy,
+    description: source.description,
+    category: source.category,
+    creationSource: 'template',
+    contentType: source.contentType ?? 'manual',
+    editionLabel: input.editionLabel ?? '',
+  });
+  await updateDoc(doc(db, 'clipit_manuals', newId), {
+    parentManualId: sourceId,
+    version: (source.version ?? 1) + 1,
+  });
+  for (const s of steps) {
+    const { id: _id, ...rest } = s;
+    await addStep(newId, { ...rest });
+  }
+  return newId;
 }
 
 /** ルールベースで手順文を整える（AI 不使用） */

@@ -7,6 +7,8 @@ import ManualNewPage from "./pages/ManualNewPage";
 import ManualRecordCreatePage from "./pages/ManualRecordCreatePage";
 import ManualTalkCreatePage from "./pages/ManualTalkCreatePage";
 import ManualScreenshotCreatePage from "./pages/ManualScreenshotCreatePage";
+import BulkUpdatePage from "./pages/BulkUpdatePage";
+import AssistantPage from "./pages/AssistantPage";
 import ManualEditPage from "./pages/ManualEditPage";
 import ManualSharePage from "./pages/ManualSharePage";
 import ManualPreviewPage from "./pages/ManualPreviewPage";
@@ -39,6 +41,8 @@ export default function App() {
         <Route path="/manuals/:id/edit" element={<P><ManualEditPage /></P>} />
         <Route path="/manuals/:id/preview" element={<P><ManualPreviewPage /></P>} />
         <Route path="/manuals/:id/share" element={<P><ManualSharePage /></P>} />
+        <Route path="/bulk-update" element={<P><BulkUpdatePage /></P>} />
+        <Route path="/assistant" element={<P><AssistantPage /></P>} />
         <Route path="/templates" element={<P><TemplatesPage /></P>} />
         <Route path="/team" element={<P><TeamPage /></P>} />
         <Route path="/settings" element={<P><SettingsPage /></P>} />

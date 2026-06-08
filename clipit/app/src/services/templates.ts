@@ -35,6 +35,30 @@ export const MANUAL_TEMPLATES: ManualTemplate[] = [
     ],
   },
   {
+    id: 'edu-print',
+    title: '授業プリント（確認問題付き）',
+    category: 'education',
+    targetAudience: ['new_staff'],
+    description: '教材モード — 授業用プリントのひな形',
+    steps: [
+      { type: 'normal', title: '学習目標', instruction: '本時の学習目標を記載します。{{年度}} {{講座名}}' },
+      { type: 'normal', title: '解説', instruction: 'ポイントをわかりやすく説明します。図やスクショを挿入してください。' },
+      { type: 'check', title: '確認問題', instruction: '理解度を確かめる問題を3問用意します。' },
+    ],
+  },
+  {
+    id: 'edu-parent',
+    title: '保護者向け案内',
+    category: 'education',
+    targetAudience: ['patient'],
+    description: '保護者向けの丁寧な案内文テンプレート',
+    steps: [
+      { type: 'normal', title: 'ご挨拶', instruction: '保護者の皆様への挨拶と目的を丁寧に記載します。' },
+      { type: 'normal', title: 'お願い事項', instruction: '持ち物・提出期限などを箇条書きで記載します。' },
+      { type: 'normal', title: 'お問い合わせ', instruction: '{{snippet:contact}}' },
+    ],
+  },
+  {
     id: 'smb-expense',
     title: '経費精算の申請',
     category: 'smb',

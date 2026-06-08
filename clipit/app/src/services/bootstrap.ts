@@ -29,6 +29,11 @@ export async function ensureUserBootstrapped(user: User): Promise<ClipitUserProf
     name: displayName,
     type: 'smb',
     plan: 'free',
+    orgVariables: {
+      会社名: displayName,
+      問い合わせ先: 'support@example.com',
+      受付時間: '平日 9:00〜18:00',
+    },
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
@@ -80,6 +85,20 @@ export async function updateOrganizationLogo(orgId: string, logoUrl: string) {
 export async function updateOrganizationGlossary(orgId: string, termGlossary: string[]) {
   await updateDoc(doc(db, 'clipit_organizations', orgId), {
     termGlossary,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function updateOrganizationContent(
+  orgId: string,
+  patch: {
+    orgVariables?: Record<string, string>;
+    snippets?: Array<{ id: string; name: string; body: string }>;
+    rulebook?: string;
+  },
+) {
+  await updateDoc(doc(db, 'clipit_organizations', orgId), {
+    ...patch,
     updatedAt: serverTimestamp(),
   });
 }

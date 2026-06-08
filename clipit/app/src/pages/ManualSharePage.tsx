@@ -71,7 +71,7 @@ export default function ManualSharePage() {
     setBusy(true);
     setRefreshMsg("");
     try {
-      await refreshShareSnapshot(token, id, title);
+      await refreshShareSnapshot(token, id, title, organization?.id);
       const steps = await listSteps(id);
       setStepCount(steps.length);
       setRefreshMsg(`共有内容を更新しました（全 ${steps.length} 手順）。同じURLのまま閲覧・印刷できます。`);

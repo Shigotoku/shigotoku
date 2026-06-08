@@ -33,6 +33,13 @@ export interface StepAnnotation {
 }
 
 export type ManualCreationSource = 'extension' | 'talk' | 'screenshot' | 'template' | 'demo';
+export type ContentType = 'manual' | 'material';
+
+export interface OrgSnippet {
+  id: string;
+  name: string;
+  body: string;
+}
 
 export interface ClipitOrganization {
   id: string;
@@ -42,6 +49,12 @@ export interface ClipitOrganization {
   logoUrl?: string;
   /** 話して作成・AI整形時の用語補正（1行1語） */
   termGlossary?: string[];
+  /** {{キー}} 形式で全マニュアルに展開 */
+  orgVariables?: Record<string, string>;
+  /** 共通パーツ（{{snippet:id}} で埋め込み） */
+  snippets?: OrgSnippet[];
+  /** 社内ルールブック（AI一括更新・文体統一の参照） */
+  rulebook?: string;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
@@ -80,6 +93,11 @@ export interface Manual {
   readCount?: number;
   expiresAt?: Timestamp;
   creationSource?: ManualCreationSource;
+  contentType?: ContentType;
+  editionLabel?: string;
+  /** 一括更新後に既読をリセットするための版番号 */
+  confirmationVersion?: number;
+  parentManualId?: string;
 }
 
 export interface ManualStep {
@@ -119,6 +137,8 @@ export interface ShareTokenDoc {
   steps: ShareStepSnapshot[];
   expiresAt: Timestamp | null;
   watermark?: boolean;
+  confirmationVersion?: number;
+  updateNotice?: string;
   createdAt?: Timestamp;
   createdBy: string;
 }

@@ -10,6 +10,14 @@ import { assertManualAccess, ingestSteps } from './services/manuals.js';
 import { rateLimit } from './middleware/rateLimit.js';
 import { assertAiQuota } from './services/usage.js';
 import { mergeTalkSteps } from './services/talkMerge.js';
+import {
+  applyBulkUpdate,
+  listBulkBatches,
+  proposeBulkUpdate,
+  rollbackBulkBatch,
+  scanBulkUpdate,
+} from './services/bulkUpdate.js';
+import { listOrgNotifications } from './services/notifications.js';
 
 const limitAi = rateLimit(30);
 
@@ -145,6 +153,133 @@ api.post('/v1/ai/merge-talk-steps', requireAuth, async (req: AuthedRequest, res)
   } catch (e) {
     const err = e as { status?: number; message?: string };
     res.status(err.status ?? 500).json({ error: err.message ?? 'merge failed' });
+  }
+});
+
+api.post('/v1/bulk-update/scan', requireAuth, async (req: AuthedRequest, res) => {
+  const { organizationId, keyword } = req.body as { organizationId?: string; keyword?: string };
+  if (!organizationId || !keyword?.trim()) {
+    res.status(400).json({ error: 'organizationId と keyword が必要です' });
+    return;
+  }
+  try {
+    const matches = await scanBulkUpdate(organizationId, req.uid!, keyword.trim());
+    res.json({ matches, count: matches.length });
+  } catch (e) {
+    const err = e as { status?: number; message?: string };
+    res.status(err.status ?? 500).json({ error: err.message });
+  }
+});
+
+api.post('/v1/bulk-update/propose', requireAuth, async (req: AuthedRequest, res) => {
+  if (!limitAi(req.uid)) {
+    res.status(429).json({ error: 'リクエストが多すぎます。' });
+    return;
+  }
+  const { organizationId, instruction, keyword, replaceFrom, replaceTo, useAi = false } = req.body as {
+    organizationId?: string;
+    instruction?: string;
+    keyword?: string;
+    replaceFrom?: string;
+    replaceTo?: string;
+    useAi?: boolean;
+  };
+  if (!organizationId || !instruction?.trim()) {
+    res.status(400).json({ error: 'organizationId と instruction が必要です' });
+    return;
+  }
+  if (useAi) {
+    try {
+      await assertAiQuota(organizationId, 5);
+    } catch (e) {
+      const err = e as { status?: number; message?: string };
+      res.status(err.status ?? 429).json({ error: err.message });
+      return;
+    }
+  }
+  try {
+    const result = await proposeBulkUpdate({
+      organizationId,
+      uid: req.uid!,
+      instruction: instruction.trim(),
+      keyword,
+      replaceFrom,
+      replaceTo,
+      useAi,
+    });
+    res.json(result);
+  } catch (e) {
+    const err = e as { status?: number; message?: string };
+    res.status(err.status ?? 500).json({ error: err.message });
+  }
+});
+
+api.post('/v1/bulk-update/apply', requireAuth, async (req: AuthedRequest, res) => {
+  const { organizationId, instruction, changes } = req.body as {
+    organizationId?: string;
+    instruction?: string;
+    changes?: Parameters<typeof applyBulkUpdate>[0]['changes'];
+  };
+  if (!organizationId || !instruction?.trim() || !changes?.length) {
+    res.status(400).json({ error: 'organizationId, instruction, changes が必要です' });
+    return;
+  }
+  try {
+    const result = await applyBulkUpdate({
+      organizationId,
+      uid: req.uid!,
+      instruction: instruction.trim(),
+      changes,
+    });
+    res.json(result);
+  } catch (e) {
+    const err = e as { status?: number; message?: string };
+    res.status(err.status ?? 500).json({ error: err.message });
+  }
+});
+
+api.get('/v1/bulk-update/batches', requireAuth, async (req: AuthedRequest, res) => {
+  const organizationId = String(req.query.organizationId ?? '');
+  if (!organizationId) {
+    res.status(400).json({ error: 'organizationId が必要です' });
+    return;
+  }
+  try {
+    const batches = await listBulkBatches(organizationId, req.uid!);
+    res.json({ batches });
+  } catch (e) {
+    const err = e as { status?: number; message?: string };
+    res.status(err.status ?? 500).json({ error: err.message });
+  }
+});
+
+api.get('/v1/notifications', requireAuth, async (req: AuthedRequest, res) => {
+  const organizationId = String(req.query.organizationId ?? '');
+  if (!organizationId) {
+    res.status(400).json({ error: 'organizationId が必要です' });
+    return;
+  }
+  try {
+    const items = await listOrgNotifications(organizationId, req.uid!);
+    res.json({ notifications: items });
+  } catch (e) {
+    const err = e as { status?: number; message?: string };
+    res.status(err.status ?? 500).json({ error: err.message });
+  }
+});
+
+api.post('/v1/bulk-update/batches/:batchId/rollback', requireAuth, async (req: AuthedRequest, res) => {
+  const { organizationId } = req.body as { organizationId?: string };
+  if (!organizationId) {
+    res.status(400).json({ error: 'organizationId が必要です' });
+    return;
+  }
+  try {
+    const result = await rollbackBulkBatch(String(req.params.batchId), organizationId, req.uid!);
+    res.json(result);
+  } catch (e) {
+    const err = e as { status?: number; message?: string };
+    res.status(err.status ?? 500).json({ error: err.message });
   }
 });
 

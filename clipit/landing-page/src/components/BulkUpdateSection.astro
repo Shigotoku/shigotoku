@@ -1,0 +1,49 @@
+---
+import { appPath } from '../lib/urls';
+
+const bulkUrl = appPath('/bulk-update');
+---
+
+<section id="bulk-update" class="bg-slate-950 py-20 text-white">
+  <div class="mx-auto max-w-7xl px-4 sm:px-6">
+    <div class="grid items-center gap-12 lg:grid-cols-2">
+      <div>
+        <p class="text-sm font-semibold uppercase tracking-widest text-primary-400">継続課金の核</p>
+        <h2 class="mt-3 text-3xl font-bold tracking-tight">一度作ったマニュアルを、ずっと新しく。</h2>
+        <p class="mt-4 text-lg leading-relaxed text-slate-400">
+          予約システムが変わった。請求ソフトが変わった。問い合わせ先が変わった——
+          普通は全マニュアルを1つずつ開いて直します。ClipIt なら <strong class="text-white">まとめて修正</strong> で横断検索し、
+          AI が文脈を読んで変更候補を出し、確認してから一括適用。履歴から元に戻せます。
+        </p>
+        <ul class="mt-6 space-y-2 text-sm text-slate-300">
+          <li>✓ 全マニュアル横断検索</li>
+          <li>✓ AI文脈理解型の修正提案</li>
+          <li>✓ 変更前後の差分・1件ずつ除外</li>
+          <li>✓ スクショ差し替え要確認の表示</li>
+          <li>✓ 共通パーツ・変数で LP20枚と同じ発想</li>
+        </ul>
+        <a
+          href={bulkUrl}
+          class="mt-8 inline-flex rounded-xl bg-primary-500 px-8 py-3.5 text-sm font-bold text-white hover:bg-primary-400"
+        >
+          まとめて修正を開く
+        </a>
+      </div>
+      <div class="rounded-2xl border border-white/10 bg-white/5 p-6 font-mono text-xs text-slate-300">
+        <p class="text-slate-500">// 変更候補の例</p>
+        <div class="mt-4 space-y-4">
+          <div class="rounded-lg border border-white/10 p-4">
+            <p class="text-primary-300">請求書発行 / 手順2</p>
+            <p class="mt-2 line-through text-red-300/80">freeeにログインします</p>
+            <p class="mt-1 text-emerald-300">マネーフォワードにログインします</p>
+            <span class="mt-2 inline-block rounded bg-amber-500/20 px-2 py-0.5 text-[10px] text-amber-200">スクショ要確認</span>
+          </div>
+          <div class="rounded-lg border border-white/10 p-4">
+            <p class="text-primary-300">変数 {{`{{問い合わせ先}}`}} を1回変更</p>
+            <p class="mt-2 text-slate-400">→ 全マニュアルの問い合わせ表記が一括反映</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

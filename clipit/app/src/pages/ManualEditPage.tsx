@@ -5,6 +5,7 @@ import PageHeader from "../components/PageHeader";
 import {
   deleteManual,
   deleteStep,
+  duplicateManual,
   getManual,
   insertStepAt,
   listSteps,
@@ -22,11 +23,17 @@ import StepScreenEditor from "../components/StepScreenEditor";
 import { useEditLayoutColumns, ResizeGutter } from "../hooks/useEditLayoutColumns";
 import StepScreenshotPreview from "../components/StepScreenshotPreview";
 import ManualHealthPanel from "../components/ManualHealthPanel";
+import StepQuizPanel from "../components/StepQuizPanel";
+import { useOrg } from "../context/OrgContext";
+import { useAuth } from "../components/AuthProvider";
+import { expandOrgContent } from "../lib/orgContent";
 import type { Manual, ManualStep, StepType, TargetAudience } from "../types";
 
 export default function ManualEditPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { organization } = useOrg();
+  const { user } = useAuth();
   const [manual, setManual] = useState<Manual | null>(null);
   const [steps, setSteps] = useState<ManualStep[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -247,6 +254,25 @@ export default function ManualEditPage() {
             >
               共有へ
             </Link>
+            {user && (
+              <button
+                type="button"
+                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                onClick={async () => {
+                  if (!id || id.startsWith("demo") || !manual) return;
+                  const label = prompt("新しい版の名前（例: 2027年度版）", `${manual.title}（改訂版）`);
+                  if (!label?.trim()) return;
+                  const newId = await duplicateManual(id, {
+                    title: label.trim(),
+                    editionLabel: label.trim(),
+                    createdBy: user.uid,
+                  });
+                  navigate(`/manuals/${newId}/edit`);
+                }}
+              >
+                改訂版を複製
+              </button>
+            )}
             <button
               type="button"
               onClick={async () => {
@@ -263,8 +289,9 @@ export default function ManualEditPage() {
       />
 
       {manual && steps.length > 0 && (
-        <div className="mx-6 mb-4">
+        <div className="mx-6 mb-4 space-y-3">
           <ManualHealthPanel manual={manual} steps={steps} />
+          {(manual.contentType === "material" || steps.length >= 2) && <StepQuizPanel steps={steps} />}
         </div>
       )}
 
@@ -460,6 +487,29 @@ export default function ManualEditPage() {
                 <p className="mt-1 text-[11px] text-slate-400">
                   入力は自動保存されます（約0.6秒後）。「自動作成」は無料（ルールベース）。Gemini AI は月間回数を消費します。
                 </p>
+                {organization?.snippets && organization.snippets.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {organization.snippets.map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        className="rounded-full border border-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-600 hover:bg-primary-50"
+                        onClick={() =>
+                          updateDraft({
+                            instruction: `${draft.instruction}\n{{snippet:${s.id}}}`.trim(),
+                          })
+                        }
+                      >
+                        + {s.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {draft.instruction.includes("{{") && organization && (
+                  <p className="mt-1 text-[11px] text-primary-600">
+                    プレビュー: {expandOrgContent(draft.instruction, organization.orgVariables, organization.snippets)}
+                  </p>
+                )}
                 <div className="mt-2 flex flex-wrap gap-2">
                   <button
                     type="button"

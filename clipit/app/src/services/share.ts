@@ -16,6 +16,7 @@ import { db } from '../lib/firebase';
 import type { ReadConfirmationInput, ShareTokenDoc } from '../types';
 import { listSteps } from './manuals';
 import { getOrganization } from './bootstrap';
+import { expandOrgContent } from '../lib/orgContent';
 import { PLAN_LIMITS } from '../lib/plans';
 import type { PlanId } from '../types';
 
@@ -34,8 +35,11 @@ export async function publishShareToken(input: {
 }): Promise<string> {
   const steps = await listSteps(input.manualId);
   const org = await getOrganization(input.organizationId);
+  const manualSnap = await getDoc(doc(db, 'clipit_manuals', input.manualId));
+  const confirmationVersion = (manualSnap.data()?.confirmationVersion as number | undefined) ?? 1;
   const plan = (org?.plan ?? 'free') as PlanId;
   const watermark = PLAN_LIMITS[plan].watermark;
+  const expand = (t: string) => expandOrgContent(t, org?.orgVariables, org?.snippets);
   const token = randomToken();
   const expiresAt =
     input.expiresInDays != null && input.expiresInDays > 0
@@ -49,13 +53,14 @@ export async function publishShareToken(input: {
     steps: steps.map((s) => ({
       order: s.order,
       type: s.type,
-      title: s.title,
-      instruction: s.instruction,
-      note: s.note,
+      title: expand(s.title),
+      instruction: expand(s.instruction),
+      note: expand(s.note),
       screenshotUrl: s.screenshotUrl,
       clickX: s.clickX,
       clickY: s.clickY,
     })),
+    confirmationVersion,
     expiresAt,
     watermark,
     createdBy: input.createdBy,
@@ -66,16 +71,26 @@ export async function publishShareToken(input: {
 }
 
 /** 既存の共有URLの内容を最新の手順に更新（手順を増やしたあと必須） */
-export async function refreshShareSnapshot(token: string, manualId: string, title: string): Promise<void> {
+export async function refreshShareSnapshot(
+  token: string,
+  manualId: string,
+  title: string,
+  organizationId?: string,
+): Promise<void> {
   const steps = await listSteps(manualId);
+  const org = organizationId ? await getOrganization(organizationId) : null;
+  const manualSnap = await getDoc(doc(db, 'clipit_manuals', manualId));
+  const confirmationVersion = (manualSnap.data()?.confirmationVersion as number | undefined) ?? 1;
+  const expand = (t: string) => expandOrgContent(t, org?.orgVariables, org?.snippets);
   await updateDoc(doc(db, 'clipit_shareTokens', token), {
     title,
+    confirmationVersion,
     steps: steps.map((s) => ({
       order: s.order,
       type: s.type,
-      title: s.title,
-      instruction: s.instruction,
-      note: s.note,
+      title: expand(s.title),
+      instruction: expand(s.instruction),
+      note: expand(s.note),
       screenshotUrl: s.screenshotUrl,
       clickX: s.clickX,
       clickY: s.clickY,

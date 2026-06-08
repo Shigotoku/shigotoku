@@ -2,8 +2,20 @@ import { useEffect, useState } from "react";
 import PageHeader from "../components/PageHeader";
 import { useOrg } from "../context/OrgContext";
 import { useAuth } from "../components/AuthProvider";
-import { updateOrganizationName, updateOrganizationLogo, updateOrganizationGlossary } from "../services/bootstrap";
+import {
+  updateOrganizationName,
+  updateOrganizationLogo,
+  updateOrganizationGlossary,
+  updateOrganizationContent,
+} from "../services/bootstrap";
 import { DEFAULT_TERM_GLOSSARY, formatGlossaryLines, parseGlossaryText } from "../lib/termGlossary";
+import {
+  DEFAULT_SNIPPETS,
+  DEFAULT_VARIABLES,
+  formatVariablesText,
+  parseVariablesText,
+  type OrgSnippet,
+} from "../lib/orgContent";
 import { uploadOrganizationLogo } from "../lib/uploadLogo";
 import { PLAN_LIMITS, planLabel, PLAN_PRICE_JPY } from "../lib/plans";
 import { countManualsCreatedThisMonth } from "../services/usage";
@@ -30,10 +42,19 @@ export default function SettingsPage() {
   const [logoBusy, setLogoBusy] = useState(false);
   const [glossaryText, setGlossaryText] = useState(formatGlossaryLines(organization?.termGlossary));
   const [glossaryBusy, setGlossaryBusy] = useState(false);
+  const [variablesText, setVariablesText] = useState(
+    formatVariablesText(organization?.orgVariables ?? DEFAULT_VARIABLES),
+  );
+  const [snippets, setSnippets] = useState<OrgSnippet[]>(organization?.snippets ?? DEFAULT_SNIPPETS);
+  const [rulebook, setRulebook] = useState(organization?.rulebook ?? "");
+  const [contentBusy, setContentBusy] = useState(false);
 
   useEffect(() => {
     setGlossaryText(formatGlossaryLines(organization?.termGlossary));
-  }, [organization?.termGlossary]);
+    setVariablesText(formatVariablesText(organization?.orgVariables ?? DEFAULT_VARIABLES));
+    setSnippets(organization?.snippets ?? DEFAULT_SNIPPETS);
+    setRulebook(organization?.rulebook ?? "");
+  }, [organization?.termGlossary, organization?.orgVariables, organization?.snippets, organization?.rulebook]);
 
   useEffect(() => {
     if (!organization?.id || demoMode) return;
@@ -141,6 +162,87 @@ export default function SettingsPage() {
             className="mt-4 rounded-xl bg-primary-500 px-6 py-2.5 text-sm font-semibold text-white hover:bg-primary-600 disabled:opacity-50"
           >
             用語辞書を保存
+          </button>
+        </section>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-6">
+          <h2 className="text-sm font-bold text-slate-900">変数（{'{{キー}}'} 形式）</h2>
+          <p className="mt-2 text-xs text-slate-500">
+            1行1項目（キー=値）。問い合わせ先や会社名を変えると、マニュアル内の変数が一括で反映されます。
+          </p>
+          <textarea
+            value={variablesText}
+            onChange={(e) => setVariablesText(e.target.value)}
+            rows={6}
+            disabled={demoMode}
+            className="mt-3 w-full rounded-xl border border-slate-300 px-4 py-3 font-mono text-sm"
+          />
+        </section>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-6">
+          <h2 className="text-sm font-bold text-slate-900">共通パーツ</h2>
+          <p className="mt-2 text-xs text-slate-500">
+            マニュアルに {'{{snippet:contact}}'} のように埋め込めます。1回直せば全マニュアルに反映。
+          </p>
+          <div className="mt-3 space-y-3">
+            {snippets.map((s, i) => (
+              <div key={s.id} className="rounded-xl border border-slate-200 p-3">
+                <input
+                  value={s.name}
+                  onChange={(e) =>
+                    setSnippets((cur) => cur.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))
+                  }
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold"
+                />
+                <p className="mt-1 text-[10px] text-slate-400">ID: {s.id}</p>
+                <textarea
+                  value={s.body}
+                  onChange={(e) =>
+                    setSnippets((cur) => cur.map((x, j) => (j === i ? { ...x, body: e.target.value } : x)))
+                  }
+                  rows={3}
+                  className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-6">
+          <h2 className="text-sm font-bold text-slate-900">ルールブック（社内の書き方ルール）</h2>
+          <p className="mt-2 text-xs text-slate-500">AI一括更新・文体統一の参照。1行1ルール。</p>
+          <textarea
+            value={rulebook}
+            onChange={(e) => setRulebook(e.target.value)}
+            rows={6}
+            placeholder={"患者さんという表記を使う（お客様とは書かない）\n個人情報が映るスクショは必ず黒塗りする"}
+            disabled={demoMode}
+            className="mt-3 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm"
+          />
+          <button
+            type="button"
+            disabled={contentBusy || demoMode || !organization}
+            onClick={async () => {
+              if (!organization) return;
+              setContentBusy(true);
+              setMsg("");
+              try {
+                await updateOrganizationContent(organization.id, {
+                  orgVariables: parseVariablesText(variablesText),
+                  snippets,
+                  rulebook,
+                });
+                await refresh();
+                setMsg("変数・共通パーツ・ルールブックを保存しました");
+              } catch (e) {
+                setMsg((e as Error).message);
+              } finally {
+                setContentBusy(false);
+              }
+            }}
+            className="mt-4 rounded-xl bg-primary-500 px-6 py-2.5 text-sm font-semibold text-white hover:bg-primary-600 disabled:opacity-50"
+          >
+            変数・共通パーツを保存
           </button>
         </section>
 

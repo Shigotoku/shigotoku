@@ -16,6 +16,8 @@ export default function SharedManualPage() {
   const [confirmed, setConfirmed] = useState(false);
   const [name, setName] = useState("");
   const [feedbackSent, setFeedbackSent] = useState(false);
+  const [updateNotice, setUpdateNotice] = useState("");
+  const [confirmVersion, setConfirmVersion] = useState(1);
 
   useEffect(() => {
     if (!token) return;
@@ -29,16 +31,22 @@ export default function SharedManualPage() {
         setSteps([...doc.steps].sort((a, b) => a.order - b.order));
         setManualId(doc.manualId);
         setWatermark(Boolean(doc.watermark));
+        setUpdateNotice(doc.updateNotice ?? "");
+        setConfirmVersion(doc.confirmationVersion ?? 1);
       })
       .catch(() => setError("読み込みに失敗しました。"))
       .finally(() => setLoading(false));
   }, [token]);
 
   const handleConfirm = async () => {
-    if (!manualId) return;
+    if (!manualId || !token) return;
     await recordReadConfirmation(manualId, { viewerName: name });
+    localStorage.setItem(`clipit-confirmed-${token}`, String(confirmVersion));
     setConfirmed(true);
   };
+
+  const prevConfirmed =
+    token && localStorage.getItem(`clipit-confirmed-${token}`) === String(confirmVersion);
 
   const sendFeedback = async (type: FeedbackType) => {
     if (!manualId) return;
@@ -80,6 +88,12 @@ export default function SharedManualPage() {
         <span className="text-sm font-bold tracking-tight text-slate-900">クリッピット</span>
       </header>
 
+      {updateNotice && (
+        <div className="no-print mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <strong>更新がありました。</strong> {updateNotice} 内容を確認してください。
+        </div>
+      )}
+
       <h1 className="mt-6 text-xl font-bold leading-snug text-slate-900 print:mt-0">{title}</h1>
       <p className="mt-1 text-xs text-slate-400">{steps.length} 手順 · スマホは縦スクロールでご覧ください</p>
 
@@ -112,6 +126,9 @@ export default function SharedManualPage() {
       </ol>
 
       <div className="no-print mt-8 space-y-3">
+        {prevConfirmed && !confirmed && (
+          <p className="rounded-lg bg-slate-100 px-3 py-2 text-xs text-slate-600">この版は確認済みです。更新があれば再度「確認しました」を押してください。</p>
+        )}
         <button
           type="button"
           onClick={() => window.print()}
