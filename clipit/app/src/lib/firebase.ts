@@ -16,13 +16,30 @@ import {
   type UserCredential,
 } from 'firebase/auth';
 
+/** 本番既定値（deploy/build.config.mjs の CLIPIT_FIREBASE と同一） */
+const CLIPIT_FIREBASE_DEFAULTS = {
+  apiKey: 'AIzaSyApVwjoPSTnnciLZ30xm6g5xjF4T_10BvQ',
+  authDomain: 'shigotoku-clipit-prod-ad9ee.firebaseapp.com',
+  projectId: 'shigotoku-clipit-prod-ad9ee',
+  storageBucket: 'shigotoku-clipit-prod-ad9ee.firebasestorage.app',
+  messagingSenderId: '40045424162',
+  appId: '1:40045424162:web:ecae24ef2b4ae6b211e47b',
+} as const;
+
+function envOrDefault(value: string | undefined, fallback: string): string {
+  return value && value.length > 0 ? value : fallback;
+}
+
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY ?? '',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ?? 'shigotoku-clipit-prod-ad9ee.firebaseapp.com',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID ?? 'shigotoku-clipit-prod-ad9ee',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET ?? 'shigotoku-clipit-prod-ad9ee.firebasestorage.app',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID ?? '',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID ?? '',
+  apiKey: envOrDefault(import.meta.env.VITE_FIREBASE_API_KEY, CLIPIT_FIREBASE_DEFAULTS.apiKey),
+  authDomain: envOrDefault(import.meta.env.VITE_FIREBASE_AUTH_DOMAIN, CLIPIT_FIREBASE_DEFAULTS.authDomain),
+  projectId: envOrDefault(import.meta.env.VITE_FIREBASE_PROJECT_ID, CLIPIT_FIREBASE_DEFAULTS.projectId),
+  storageBucket: envOrDefault(import.meta.env.VITE_FIREBASE_STORAGE_BUCKET, CLIPIT_FIREBASE_DEFAULTS.storageBucket),
+  messagingSenderId: envOrDefault(
+    import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    CLIPIT_FIREBASE_DEFAULTS.messagingSenderId,
+  ),
+  appId: envOrDefault(import.meta.env.VITE_FIREBASE_APP_ID, CLIPIT_FIREBASE_DEFAULTS.appId),
 };
 
 export const isFirebaseConfigured = Boolean(firebaseConfig.apiKey && firebaseConfig.appId);
