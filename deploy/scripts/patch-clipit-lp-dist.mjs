@@ -67,9 +67,18 @@ function patchHtml(file) {
   console.log('✓ patched', file);
 }
 
-for (const name of ['index.html', 'pricing/index.html']) {
+const htmlTargets = ['index.html', 'pricing/index.html'];
+let patchedAny = false;
+for (const name of htmlTargets) {
   const file = join(lpOut, name);
-  if (existsSync(file)) patchHtml(file);
+  if (existsSync(file)) {
+    patchHtml(file);
+    patchedAny = true;
+  }
+}
+if (!patchedAny) {
+  console.error('clipit LP index.html not found — build clipit-landing before deploy');
+  process.exit(1);
 }
 
 const astroDir = join(lpOut, '_astro');
