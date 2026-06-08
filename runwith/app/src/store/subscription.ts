@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { subscriptionService } from "../services/subscriptions";
 import { isFirebaseConfigured } from "../lib/firebase";
+import { hasFullAccess } from "../lib/admin";
 import {
   computeMonthlyTotal,
   computeSeatUsage,
@@ -63,7 +64,9 @@ interface SubscriptionState {
   seatUsage: SeatUsage | null;
   monthlyTotal: number;
   loading: boolean;
+  userEmail: string | null;
 
+  setUserEmail: (email: string | null) => void;
   setPlan: (plan: PlanTier) => void;
   setMedicalAddon: (enabled: boolean) => void;
   canAccess: (featureId: string) => boolean;
@@ -100,6 +103,9 @@ export const useSubscriptionStore = create<SubscriptionState>()(
       seatUsage: null,
       monthlyTotal: 0,
       loading: false,
+      userEmail: null,
+
+      setUserEmail: (email) => set({ userEmail: email }),
 
       setPlan: (plan) => {
         const { medicalAddon, seatUsage } = get();
@@ -117,6 +123,7 @@ export const useSubscriptionStore = create<SubscriptionState>()(
       },
 
       canAccess: (featureId: string) => {
+        if (hasFullAccess(get().userEmail)) return true;
         const feature = FEATURE_ACCESS.find((f) => f.id === featureId);
         if (!feature) return true;
         if (feature.id === "medical-mode") return get().medicalAddon;

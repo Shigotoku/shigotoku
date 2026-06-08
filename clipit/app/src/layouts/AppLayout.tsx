@@ -53,6 +53,8 @@ export default function AppLayout() {
         <div className="border-t border-slate-200 p-3">
           <a
             href={landingPath("/")}
+            target="_blank"
+            rel="noopener noreferrer"
             className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-500 hover:bg-slate-100"
           >
             <ExternalLink size={18} />

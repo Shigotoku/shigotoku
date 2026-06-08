@@ -1,5 +1,6 @@
 import { collection, getCountFromServer, query, where, Timestamp } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, auth } from '../lib/firebase';
+import { effectivePlanId } from '../lib/internalAccess';
 import { PLAN_LIMITS, planLabel, type PlanLimits } from '../lib/plans';
 import type { PlanId } from '../types';
 import { getOrganization } from './bootstrap';
@@ -23,7 +24,7 @@ export async function countManualsCreatedThisMonth(orgId: string): Promise<numbe
 
 export async function assertCanCreateManual(orgId: string): Promise<PlanLimits> {
   const org = await getOrganization(orgId);
-  const plan = (org?.plan ?? 'free') as PlanId;
+  const plan = effectivePlanId((org?.plan ?? 'free') as PlanId, auth.currentUser?.email);
   const limits = PLAN_LIMITS[plan];
   const used = await countManualsCreatedThisMonth(orgId);
   if (used >= limits.manualsPerMonth) {

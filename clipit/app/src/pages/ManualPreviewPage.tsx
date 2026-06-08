@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Copy, Download, ExternalLink, Loader2, Printer } from "lucide-react";
+import { ArrowLeft, Copy, Download, ExternalLink, Loader2, Printer } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import StepScreenshotPreview from "../components/StepScreenshotPreview";
 import { getManual, listSteps } from "../services/manuals";
@@ -10,6 +10,8 @@ import { exportToGoogleDocsForCurrentUser } from "../lib/exportGoogleDoc";
 import { generateManualPdf } from "../services/exportApi";
 import type { ManualStep } from "../types";
 
+type FallbackDownload = { label: string; url: string; filename: string };
+
 export default function ManualPreviewPage() {
   const { id } = useParams<{ id: string }>();
   const [title, setTitle] = useState("");
@@ -18,6 +20,8 @@ export default function ManualPreviewPage() {
   const [loading, setLoading] = useState(true);
   const [exportBusy, setExportBusy] = useState<string | null>(null);
   const [exportError, setExportError] = useState("");
+  const [exportOk, setExportOk] = useState("");
+  const [fallbackDownload, setFallbackDownload] = useState<FallbackDownload | null>(null);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -38,18 +42,41 @@ export default function ManualPreviewPage() {
 
   const runExport = async (kind: "word" | "html" | "gdoc" | "pdf") => {
     setExportError("");
+    setExportOk("");
+    setFallbackDownload(null);
+    if (steps.length === 0) {
+      setExportError("手順がありません。編集画面で手順を追加してからエクスポートしてください。");
+      return;
+    }
     setExportBusy(kind);
     try {
-      if (kind === "word") await downloadAsWordDoc(title, steps);
-      if (kind === "html") await downloadAsHtml(title, steps);
-      if (kind === "gdoc") {
+      if (kind === "word") {
+        const { filename, fallbackUrl } = await downloadAsWordDoc(title, steps);
+        setExportOk(`Wordファイル（${filename}）のダウンロードを開始しました。`);
+        setFallbackDownload({ label: "Wordを再度ダウンロード", url: fallbackUrl, filename });
+      } else if (kind === "html") {
+        const { filename, fallbackUrl } = await downloadAsHtml(title, steps);
+        setExportOk(`HTMLファイル（${filename}）のダウンロードを開始しました。`);
+        setFallbackDownload({ label: "HTMLを再度ダウンロード", url: fallbackUrl, filename });
+      } else if (kind === "gdoc") {
         const url = await exportToGoogleDocsForCurrentUser(title, steps);
-        window.open(url, "_blank", "noopener");
-      }
-      if (kind === "pdf") {
+        const opened = window.open(url, "_blank", "noopener");
+        if (!opened) {
+          setExportOk("Googleドキュメントを作成しました。下のリンクから開いてください。");
+          setFallbackDownload({ label: "Googleドキュメントを開く", url, filename: "" });
+        } else {
+          setExportOk("Googleドキュメントを新しいタブで開きました。");
+        }
+      } else if (kind === "pdf") {
         if (!id) throw new Error("マニュアルIDがありません");
         const { pdfUrl } = await generateManualPdf(id);
-        window.open(pdfUrl, "_blank", "noopener");
+        const opened = window.open(pdfUrl, "_blank", "noopener");
+        if (!opened) {
+          setExportOk("PDFを生成しました。下のリンクからダウンロードしてください。");
+          setFallbackDownload({ label: "PDFを開く", url: pdfUrl, filename: "" });
+        } else {
+          setExportOk("PDFを新しいタブで開きました。");
+        }
       }
     } catch (e) {
       setExportError(e instanceof Error ? e.message : "エクスポートに失敗しました");
@@ -75,6 +102,13 @@ export default function ManualPreviewPage() {
         description="完成イメージの確認・印刷・Word/Googleドキュメントへの書き出し"
         action={
           <div className="flex flex-wrap gap-2">
+            <Link
+              to="/manuals"
+              className="inline-flex items-center gap-1 rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              <ArrowLeft size={16} />
+              一覧に戻る
+            </Link>
             <Link
               to={`/manuals/${id}/edit`}
               className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
@@ -115,7 +149,7 @@ export default function ManualPreviewPage() {
             <button
               type="button"
               disabled={exportBusy != null}
-              onClick={() => runExport("word")}
+              onClick={() => void runExport("word")}
               className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
             >
               {exportBusy === "word" ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
@@ -124,7 +158,7 @@ export default function ManualPreviewPage() {
             <button
               type="button"
               disabled={exportBusy != null}
-              onClick={() => runExport("html")}
+              onClick={() => void runExport("html")}
               className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
             >
               {exportBusy === "html" ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
@@ -133,7 +167,7 @@ export default function ManualPreviewPage() {
             <button
               type="button"
               disabled={exportBusy != null}
-              onClick={() => runExport("gdoc")}
+              onClick={() => void runExport("gdoc")}
               className="inline-flex items-center gap-2 rounded-lg bg-slate-800 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-900 disabled:opacity-50"
             >
               {exportBusy === "gdoc" ? <Loader2 size={14} className="animate-spin" /> : <ExternalLink size={14} />}
@@ -142,7 +176,7 @@ export default function ManualPreviewPage() {
             <button
               type="button"
               disabled={exportBusy != null || !id}
-              onClick={() => runExport("pdf")}
+              onClick={() => void runExport("pdf")}
               className="inline-flex items-center gap-2 rounded-lg border border-primary-300 bg-primary-50 px-3 py-2 text-xs font-semibold text-primary-800 hover:bg-primary-100 disabled:opacity-50"
             >
               {exportBusy === "pdf" ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
@@ -164,6 +198,19 @@ export default function ManualPreviewPage() {
               を「テストユーザー」に追加しておくとスムーズです。本番公開後はこの警告は出なくなります。
             </p>
           </details>
+          {exportOk && <p className="text-xs text-success-700">{exportOk}</p>}
+          {fallbackDownload && (
+            <a
+              href={fallbackDownload.url}
+              download={fallbackDownload.filename || undefined}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-primary-600 hover:underline"
+            >
+              <Download size={12} />
+              {fallbackDownload.label}
+            </a>
+          )}
           {exportError && <p className="text-xs text-danger-600">{exportError}</p>}
         </div>
 

@@ -17,6 +17,7 @@ import type { ReadConfirmationInput, ShareTokenDoc } from '../types';
 import { listSteps } from './manuals';
 import { getOrganization } from './bootstrap';
 import { expandOrgContent } from '../lib/orgContent';
+import { effectivePlanId } from '../lib/internalAccess';
 import { PLAN_LIMITS } from '../lib/plans';
 import type { PlanId } from '../types';
 
@@ -32,12 +33,13 @@ export async function publishShareToken(input: {
   title: string;
   createdBy: string;
   expiresInDays?: number;
+  userEmail?: string | null;
 }): Promise<string> {
   const steps = await listSteps(input.manualId);
   const org = await getOrganization(input.organizationId);
   const manualSnap = await getDoc(doc(db, 'clipit_manuals', input.manualId));
   const confirmationVersion = (manualSnap.data()?.confirmationVersion as number | undefined) ?? 1;
-  const plan = (org?.plan ?? 'free') as PlanId;
+  const plan = effectivePlanId((org?.plan ?? 'free') as PlanId, input.userEmail);
   const watermark = PLAN_LIMITS[plan].watermark;
   const expand = (t: string) => expandOrgContent(t, org?.orgVariables, org?.snippets);
   const token = randomToken();

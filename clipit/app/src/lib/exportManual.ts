@@ -14,16 +14,18 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
-function downloadBlob(blob: Blob, filename: string) {
+export function downloadBlob(blob: Blob, filename: string): string {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
   a.download = filename;
+  a.rel = 'noopener';
   a.style.display = 'none';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  return url;
 }
 
 function safeFilename(title: string) {
@@ -151,16 +153,20 @@ ${s.note ? `<p style="margin:0;padding:8px 12px;background:#fffbeb;font-size:10p
 </head><body><h1>${escapeHtml(title)}</h1><p style="color:#64748b;font-size:9pt">クリッピット</p>${parts.join('')}</body></html>`;
 }
 
-export async function downloadAsWordDoc(title: string, steps: ManualStep[]) {
+export async function downloadAsWordDoc(title: string, steps: ManualStep[]): Promise<{ filename: string; fallbackUrl: string }> {
   const html = await buildWordHtml(title, steps);
   const blob = new Blob(['\ufeff', html], { type: 'application/msword;charset=utf-8' });
-  downloadBlob(blob, `${safeFilename(title)}.doc`);
+  const filename = `${safeFilename(title)}.doc`;
+  const fallbackUrl = downloadBlob(blob, filename);
+  return { filename, fallbackUrl };
 }
 
-export async function downloadAsHtml(title: string, steps: ManualStep[]) {
+export async function downloadAsHtml(title: string, steps: ManualStep[]): Promise<{ filename: string; fallbackUrl: string }> {
   const html = await stepsToHtml(title, steps, true);
   const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-  downloadBlob(blob, `${safeFilename(title)}.html`);
+  const filename = `${safeFilename(title)}.html`;
+  const fallbackUrl = downloadBlob(blob, filename);
+  return { filename, fallbackUrl };
 }
 
 export function buildExportHtml(title: string, steps: ManualStep[]): Promise<string> {

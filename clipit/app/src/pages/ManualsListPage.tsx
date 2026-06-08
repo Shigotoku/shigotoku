@@ -184,6 +184,7 @@ export default function ManualsListPage() {
         organizationId: organization.id,
         createdBy: user.uid,
         expiresInDays,
+        userEmail: user.email,
       });
       setShareToken(t);
       setShareMsg("フォルダ共有URLを発行しました。");
@@ -490,6 +491,7 @@ export default function ManualsListPage() {
                     <div className="flex shrink-0 flex-wrap items-center gap-2">
                       <Link
                         to={`/manuals/${m.id}/preview`}
+                        state={{ from: "manuals" }}
                         className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                       >
                         <Eye size={14} />

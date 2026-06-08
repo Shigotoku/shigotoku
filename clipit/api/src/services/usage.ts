@@ -1,4 +1,5 @@
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { effectivePlanKey } from '../lib/internalAccess.js';
 
 const PLAN_AI_LIMIT: Record<string, number> = {
   free: 30,
@@ -14,10 +15,10 @@ function monthKey() {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
-export async function assertAiQuota(orgId: string, steps = 1) {
+export async function assertAiQuota(orgId: string, steps = 1, userEmail?: string | null) {
   const db = getFirestore();
   const org = await db.collection('clipit_organizations').doc(orgId).get();
-  const plan = (org.data()?.plan as string) ?? 'free';
+  const plan = effectivePlanKey((org.data()?.plan as string) ?? 'free', userEmail);
   const limit = PLAN_AI_LIMIT[plan] ?? 30;
   const ref = db.collection('clipit_usage').doc(orgId).collection('months').doc(monthKey());
   const snap = await ref.get();

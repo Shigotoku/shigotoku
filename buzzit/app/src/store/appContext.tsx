@@ -1,4 +1,6 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { hasFullAccess } from '../lib/internalAccess';
+import { useAuth } from './authContext';
 import type { PlanTier } from '../types';
 
 interface AppContextValue {
@@ -10,10 +12,15 @@ const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [plan, setPlan] = useState<PlanTier>('starter');
+  const { user } = useAuth();
 
-  return (
-    <AppContext.Provider value={{ plan, setPlan }}>{children}</AppContext.Provider>
-  );
+  useEffect(() => {
+    if (user?.email && hasFullAccess(user.email)) {
+      setPlan('enterprise');
+    }
+  }, [user?.email]);
+
+  return <AppContext.Provider value={{ plan, setPlan }}>{children}</AppContext.Provider>;
 }
 
 export function useApp() {

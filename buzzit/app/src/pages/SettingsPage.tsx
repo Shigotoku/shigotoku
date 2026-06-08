@@ -20,6 +20,8 @@ import {
 import LineCostComparison from '../components/LineCostComparison';
 import StoreBillingSection from '../components/StoreBillingSection';
 import { useApp } from '../store/appContext';
+import { hasFullAccess } from '../lib/internalAccess';
+import { useAuth } from '../store/authContext';
 import type { PlanTier } from '../types';
 
 const lineCrmPlans: { id: PlanTier; name: string; price: string; tagline: string; features: string[]; promo?: string }[] = [
@@ -80,6 +82,7 @@ const fullStackPlans: { id: PlanTier; name: string; price: string; tagline: stri
 
 export default function SettingsPage() {
   const { plan, setPlan } = useApp();
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [slackWebhookUrl, setSlackWebhookUrl] = useState('');
   const [ayrshareProfileKey, setAyrshareProfileKey] = useState('');
@@ -104,9 +107,16 @@ export default function SettingsPage() {
   const [customerTags, setCustomerTags] = useState<CustomerTag[]>([]);
 
   useEffect(() => {
+    if (user?.email && hasFullAccess(user.email)) {
+      setPlan('enterprise');
+    }
+  }, [user?.email, setPlan]);
+
+  useEffect(() => {
     fetchSettings()
       .then((s) => {
-        setPlan(s.plan as PlanTier);
+        const loaded = s.plan as PlanTier;
+        setPlan(user?.email && hasFullAccess(user.email) ? 'enterprise' : loaded);
         setSlackWebhookUrl(s.slackWebhookUrl ?? '');
         setAyrshareProfileKey(s.ayrshareProfileKey ?? '');
         setSlackTeamId(s.slackTeamId ?? '');

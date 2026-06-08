@@ -57,7 +57,7 @@ api.post('/v1/ai/generate-step', requireAuth, async (req: AuthedRequest, res) =>
   }
   if (useAi) {
     try {
-      await assertAiQuota(organizationId, 1);
+      await assertAiQuota(organizationId, 1, req.email);
     } catch (e) {
       const err = e as { status?: number; message?: string };
       res.status(err.status ?? 429).json({ error: err.message });
@@ -86,7 +86,7 @@ api.post('/v1/ai/generate-steps', requireAuth, async (req: AuthedRequest, res) =
   }
   if (useAi) {
     try {
-      await assertAiQuota(organizationId, steps.length);
+      await assertAiQuota(organizationId, steps.length, req.email);
     } catch (e) {
       const err = e as { status?: number; message?: string };
       res.status(err.status ?? 429).json({ error: err.message });
@@ -133,7 +133,7 @@ api.post('/v1/ai/merge-talk-steps', requireAuth, async (req: AuthedRequest, res)
   }
   if (useAi) {
     try {
-      await assertAiQuota(organizationId, Math.min(screenshots.length, 20));
+      await assertAiQuota(organizationId, Math.min(screenshots.length, 20), req.email);
     } catch (e) {
       const err = e as { status?: number; message?: string };
       res.status(err.status ?? 429).json({ error: err.message });
@@ -197,7 +197,7 @@ api.post('/v1/bulk-update/propose', requireAuth, async (req: AuthedRequest, res)
   }
   if (useAi) {
     try {
-      await assertAiQuota(organizationId, 5);
+      await assertAiQuota(organizationId, 5, req.email);
     } catch (e) {
       const err = e as { status?: number; message?: string };
       res.status(err.status ?? 429).json({ error: err.message });

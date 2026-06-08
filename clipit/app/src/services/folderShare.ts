@@ -13,6 +13,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { expandOrgContent } from '../lib/orgContent';
+import { effectivePlanId } from '../lib/internalAccess';
 import { PLAN_LIMITS } from '../lib/plans';
 import type { FolderShareTokenDoc, PlanId } from '../types';
 import { getOrganization } from './bootstrap';
@@ -60,9 +61,10 @@ export async function publishFolderShareToken(input: {
   organizationId: string;
   createdBy: string;
   expiresInDays?: number;
+  userEmail?: string | null;
 }): Promise<string> {
   const org = await getOrganization(input.organizationId);
-  const plan = (org?.plan ?? 'free') as PlanId;
+  const plan = effectivePlanId((org?.plan ?? 'free') as PlanId, input.userEmail);
   const watermark = PLAN_LIMITS[plan].watermark;
   const manuals = await buildFolderSnapshots(input.folderId, input.organizationId);
   const token = randomToken();

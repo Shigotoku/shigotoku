@@ -1,4 +1,10 @@
-import { GoogleAuthProvider, reauthenticateWithPopup, type User } from 'firebase/auth';
+import {
+  GoogleAuthProvider,
+  reauthenticateWithPopup,
+  signInWithPopup,
+  type User,
+  type UserCredential,
+} from 'firebase/auth';
 import { auth } from './firebase';
 import { buildExportHtml } from './exportManual';
 import type { ManualStep } from '../types';
@@ -15,10 +21,36 @@ function googleProviderWithDrive() {
   return p;
 }
 
-export async function ensureGoogleDriveAccess(user: User): Promise<string> {
-  const result = await reauthenticateWithPopup(user, googleProviderWithDrive());
+function accessTokenFromResult(result: UserCredential) {
   const credential = GoogleAuthProvider.credentialFromResult(result);
-  const token = credential?.accessToken;
+  return credential?.accessToken ?? null;
+}
+
+export async function ensureGoogleDriveAccess(user: User): Promise<string> {
+  const provider = googleProviderWithDrive();
+  let token: string | null = null;
+  try {
+    token = accessTokenFromResult(await reauthenticateWithPopup(user, provider));
+  } catch (e) {
+    const code = (e as { code?: string }).code ?? '';
+    if (code === 'auth/popup-closed-by-user') {
+      throw new Error('ポップアップが閉じられました。もう一度お試しください。');
+    }
+    if (code === 'auth/popup-blocked') {
+      throw new Error('ポップアップがブロックされています。ブラウザの設定で許可してください。');
+    }
+    try {
+      token = accessTokenFromResult(await signInWithPopup(auth, provider));
+    } catch (e2) {
+      const code2 = (e2 as { code?: string }).code ?? '';
+      if (code2 === 'auth/popup-closed-by-user') {
+        throw new Error('ポップアップが閉じられました。Drive へのアクセス許可が必要です。');
+      }
+      throw new Error(
+        'Google のアクセス許可が取得できませんでした。Googleアカウントでログインし、Drive へのアクセスを「許可」してください。',
+      );
+    }
+  }
   if (!token) {
     throw new Error(
       'Google のアクセス許可が取得できませんでした。ポップアップを許可し、Drive へのアクセスを「許可」してください。',

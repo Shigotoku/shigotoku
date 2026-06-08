@@ -6,6 +6,7 @@ import PublishSafetyCheck from "../components/PublishSafetyCheck";
 import { useOrg } from "../context/OrgContext";
 import { useAuth } from "../components/AuthProvider";
 import { getManual, listSteps } from "../services/manuals";
+import { effectivePlanId } from "../lib/internalAccess";
 import { PLAN_LIMITS } from "../lib/plans";
 import type { PlanId } from "../types";
 import {
@@ -46,7 +47,10 @@ export default function ManualSharePage() {
   }, [id]);
 
   const shareUrl = token ? buildShareUrl(token) : "";
-  const watermark = organization ? PLAN_LIMITS[organization.plan as PlanId].watermark : true;
+  const effectivePlan = organization
+    ? effectivePlanId(organization.plan as PlanId, user?.email)
+    : ("free" as PlanId);
+  const watermark = organization ? PLAN_LIMITS[effectivePlan].watermark : true;
 
   const publish = async () => {
     if (!id || !profile || !organization || !user || !checked) return;
@@ -58,6 +62,7 @@ export default function ManualSharePage() {
         title,
         createdBy: user.uid,
         expiresInDays,
+        userEmail: user.email,
       });
       setToken(t);
       setRefreshMsg("");

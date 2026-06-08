@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useAuthStore } from "../store/auth";
 import { useCompanyStore } from "../store/company";
 import { useSubscriptionStore } from "../store/subscription";
+import { hasFullAccess } from "../lib/admin";
 import { isFirebaseConfigured } from "../lib/firebase";
 import { prefetchNavRoutes } from "../lib/routePrefetch";
 import { Loader2 } from "lucide-react";
@@ -9,7 +10,7 @@ import { Loader2 } from "lucide-react";
 export default function AuthProvider({ children }: { children: React.ReactNode }) {
   const { initialize, initialized, user, isAuthenticated, isDemo } = useAuthStore();
   const { fetchCompanies, company } = useCompanyStore();
-  const { fetchSubscription } = useSubscriptionStore();
+  const { fetchSubscription, setUserEmail, setPlan, setMedicalAddon } = useSubscriptionStore();
 
   useEffect(() => {
     initialize();
@@ -21,6 +22,14 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     fetchCompanies(user.id);
     prefetchNavRoutes();
   }, [isAuthenticated, user?.id, isDemo, fetchCompanies]);
+
+  useEffect(() => {
+    setUserEmail(user?.email ?? null);
+    if (user?.email && hasFullAccess(user.email)) {
+      setPlan("pro");
+      setMedicalAddon(true);
+    }
+  }, [user?.email, setUserEmail, setPlan, setMedicalAddon]);
 
   useEffect(() => {
     if (!isAuthenticated || isDemo || !isFirebaseConfigured) return;
