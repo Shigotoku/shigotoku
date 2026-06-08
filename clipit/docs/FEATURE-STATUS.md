@@ -1,6 +1,6 @@
 # クリッピット 機能実装状況（要件定義書対照）
 
-**更新:** 2026-06-04
+**更新:** 2026-06-08
 
 ## MVP 必須 — 実装済み
 
@@ -49,12 +49,12 @@
 |------|------|
 | 未読者一覧 | ✅ チーム・ダッシュボード |
 | テンプレート | ✅ |
-| 賞味期限通知 | ⏳ フィールドのみ（メール/Scheduler は Phase 2） |
+| 賞味期限通知 | ✅ Cloud Scheduler（毎朝9時）+ ダッシュボード通知 |
+| 音声メモ（記録中） | ✅ Web Speech API → ingest 時に手順メモへ配分 |
+| サーバー PDF | ✅ `POST /v1/manuals/:id/pdf`（pdf-lib + 日本語フォント） |
+| マスク焼き込み API | ✅ `POST /v1/steps/:id/apply-masks`（sharp） |
 
 ## Phase 2 以降（未実装）
-
-- サーバー PDF（Puppeteer）
-- マスク焼き込み API `/v1/steps/:id/apply-masks`
 - AI FAQ・候補マスキング（健康診断のルールベース版は ✅）
 - Stripe 課金
 - Meet API / Drive 自動取り込み（Phase 2 — `TALK-CREATE.md`）

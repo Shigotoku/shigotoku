@@ -318,10 +318,11 @@ chrome.commands.onCommand.addListener((command) => {
 });
 
 async function finishIngest(): Promise<{ ok: boolean; message?: string }> {
-  const { manualId, idToken, apiBase } = await chrome.storage.local.get([
+  const { manualId, idToken, apiBase, voiceTranscript } = await chrome.storage.local.get([
     'manualId',
     'idToken',
     'apiBase',
+    'voiceTranscript',
   ]);
   if (!manualId || !idToken) {
     return { ok: false, message: 'アプリの編集画面で「拡張と連携」を押してください' };
@@ -341,7 +342,12 @@ async function finishIngest(): Promise<{ ok: boolean; message?: string }> {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${idToken}`,
       },
-      body: JSON.stringify({ steps }),
+      body: JSON.stringify({
+        steps,
+        ...(typeof voiceTranscript === 'string' && voiceTranscript.trim()
+          ? { voiceTranscript: voiceTranscript.trim() }
+          : {}),
+      }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -349,6 +355,7 @@ async function finishIngest(): Promise<{ ok: boolean; message?: string }> {
     }
     const count = (data as { stepCount?: number }).stepCount ?? steps.length;
     steps.length = 0;
+    await chrome.storage.local.remove('voiceTranscript');
     await persistRecordingMeta();
     chrome.tabs.create({ url: `https://app.clipit.shigotoku.com/manuals/${manualId}/edit` });
     return { ok: true, message: `${count} 手順を取り込みました` };

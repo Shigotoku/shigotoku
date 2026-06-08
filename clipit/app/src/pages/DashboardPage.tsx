@@ -20,7 +20,7 @@ export default function DashboardPage() {
   const [recentReads, setRecentReads] = useState<{ viewerName: string; manualTitle: string }[]>([]);
   const [unreadPublished, setUnreadPublished] = useState<{ id: string; title: string }[]>([]);
   const [staleAlerts, setStaleAlerts] = useState<StaleAlert[]>([]);
-  const [notifications, setNotifications] = useState<Array<{ id: string; message: string }>>([]);
+  const [notifications, setNotifications] = useState<Array<{ id: string; message: string; manualId?: string; type?: string }>>([]);
 
   useEffect(() => {
     if (demoMode) {
@@ -153,7 +153,15 @@ export default function DashboardPage() {
             </h2>
             <ul className="mt-2 space-y-1 text-sm text-primary-900">
               {notifications.map((n) => (
-                <li key={n.id}>{n.message}</li>
+                <li key={n.id}>
+                  {n.manualId ? (
+                    <Link to={`/manuals/${n.manualId}/edit`} className="hover:underline">
+                      {n.message}
+                    </Link>
+                  ) : (
+                    n.message
+                  )}
+                </li>
               ))}
             </ul>
           </section>

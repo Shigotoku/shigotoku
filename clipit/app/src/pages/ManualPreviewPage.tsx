@@ -7,6 +7,7 @@ import { getManual, listSteps } from "../services/manuals";
 import { buildShareUrl, getLatestShareTokenForManual } from "../services/share";
 import { downloadAsHtml, downloadAsWordDoc, formatStepsForClipboard } from "../lib/exportManual";
 import { exportToGoogleDocsForCurrentUser } from "../lib/exportGoogleDoc";
+import { generateManualPdf } from "../services/exportApi";
 import type { ManualStep } from "../types";
 
 export default function ManualPreviewPage() {
@@ -35,7 +36,7 @@ export default function ManualPreviewPage() {
     })();
   }, [id]);
 
-  const runExport = async (kind: "word" | "html" | "gdoc") => {
+  const runExport = async (kind: "word" | "html" | "gdoc" | "pdf") => {
     setExportError("");
     setExportBusy(kind);
     try {
@@ -44,6 +45,11 @@ export default function ManualPreviewPage() {
       if (kind === "gdoc") {
         const url = await exportToGoogleDocsForCurrentUser(title, steps);
         window.open(url, "_blank", "noopener");
+      }
+      if (kind === "pdf") {
+        if (!id) throw new Error("マニュアルIDがありません");
+        const { pdfUrl } = await generateManualPdf(id);
+        window.open(pdfUrl, "_blank", "noopener");
       }
     } catch (e) {
       setExportError(e instanceof Error ? e.message : "エクスポートに失敗しました");
@@ -132,6 +138,15 @@ export default function ManualPreviewPage() {
             >
               {exportBusy === "gdoc" ? <Loader2 size={14} className="animate-spin" /> : <ExternalLink size={14} />}
               Googleドキュメントに保存
+            </button>
+            <button
+              type="button"
+              disabled={exportBusy != null || !id}
+              onClick={() => runExport("pdf")}
+              className="inline-flex items-center gap-2 rounded-lg border border-primary-300 bg-primary-50 px-3 py-2 text-xs font-semibold text-primary-800 hover:bg-primary-100 disabled:opacity-50"
+            >
+              {exportBusy === "pdf" ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+              PDF（サーバー生成・A4）
             </button>
           </div>
           <p className="text-[11px] text-slate-500">

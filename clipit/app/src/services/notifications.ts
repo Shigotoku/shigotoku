@@ -5,6 +5,7 @@ export interface OrgNotification {
   organizationId: string;
   type: string;
   message: string;
+  manualId?: string;
   manualIds?: string[];
   appliedCount?: number;
   batchId?: string;

@@ -20,3 +20,8 @@ export async function syncExtensionSession(manualId: string): Promise<boolean> {
 export function extensionInstallUrl(): string {
   return 'https://chrome.google.com/webstore/category/extensions';
 }
+
+/** 記録中の音声メモを拡張へ渡す（ingest 時に voiceTranscript として送信） */
+export function syncVoiceTranscript(transcript: string): void {
+  window.postMessage({ type: 'CLIPIT_VOICE', transcript }, window.location.origin);
+}

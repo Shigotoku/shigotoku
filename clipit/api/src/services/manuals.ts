@@ -2,6 +2,7 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { saveScreenshotObject } from '../lib/storageImage.js';
 import { buildInstruction } from './instructionRules.js';
+import { distributeVoiceToSteps } from './voiceNotes.js';
 
 export interface IngestStepPayload {
   title?: string;
@@ -28,13 +29,22 @@ export async function assertManualAccess(manualId: string, uid: string) {
   return { manualRef, orgId, manual: manual.data()! };
 }
 
-export async function ingestSteps(manualId: string, uid: string, steps: IngestStepPayload[]) {
+export async function ingestSteps(
+  manualId: string,
+  uid: string,
+  steps: IngestStepPayload[],
+  voiceTranscript?: string,
+) {
   const { manualRef } = await assertManualAccess(manualId, uid);
   const db = getFirestore();
   const bucket = getStorage().bucket();
   const batch = db.batch();
   const existing = await manualRef.collection('steps').get();
   existing.docs.forEach((d) => batch.delete(d.ref));
+
+  const voiceNotes = voiceTranscript?.trim()
+    ? distributeVoiceToSteps(voiceTranscript.trim(), steps.length)
+    : [];
 
   let order = 0;
   for (const step of steps) {
@@ -67,7 +77,7 @@ export async function ingestSteps(manualId: string, uid: string, steps: IngestSt
       instruction:
         step.instruction?.trim() ||
         buildInstruction(stepInput, 'simple'),
-      note: step.note || '',
+      note: step.note?.trim() || voiceNotes[order - 1] || '',
       screenshotUrl,
       pageTitle: step.pageTitle || '',
       pageUrl: step.pageUrl || '',

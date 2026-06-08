@@ -17,6 +17,7 @@ import {
 import { generateAllStepsWithApi, generateStepWithApi } from "../services/ai";
 import { buildInstructionFromStep } from "../lib/instructionRules";
 import { syncExtensionSession, extensionInstallUrl } from "../lib/extensionBridge";
+import VoiceMemoPanel from "../components/VoiceMemoPanel";
 import { uploadStepScreenshot } from "../lib/uploadStepScreenshot";
 import { useStepDraft } from "../hooks/useStepDraft";
 import StepScreenEditor from "../components/StepScreenEditor";
@@ -296,26 +297,29 @@ export default function ManualEditPage() {
       )}
 
       {id && !id.startsWith("demo") && (
-        <div className="mx-6 mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-primary-200 bg-primary-50/60 px-4 py-3 text-sm">
-          <span className="font-semibold text-slate-800">Chrome拡張で記録</span>
-          <button
-            type="button"
-            onClick={handleExtensionSync}
-            className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-primary-700 shadow-sm hover:bg-primary-50"
-          >
-            {extSynced ? "連携済み" : "拡張と連携"}
-          </button>
-          <a href={extensionInstallUrl()} target="_blank" rel="noreferrer" className="text-xs text-primary-600 hover:underline">
-            拡張をインストール
-          </a>
-          <button
-            type="button"
-            disabled={aiBusy || steps.length === 0}
-            onClick={handleAiAll}
-            className="ml-auto inline-flex items-center gap-1 rounded-lg bg-primary-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-600 disabled:opacity-50"
-          >
-            <Sparkles size={12} /> 全手順をAI生成（Gemini）
-          </button>
+        <div className="mx-6 mb-4 space-y-3">
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-primary-200 bg-primary-50/60 px-4 py-3 text-sm">
+            <span className="font-semibold text-slate-800">Chrome拡張で記録</span>
+            <button
+              type="button"
+              onClick={handleExtensionSync}
+              className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-primary-700 shadow-sm hover:bg-primary-50"
+            >
+              {extSynced ? "連携済み" : "拡張と連携"}
+            </button>
+            <a href={extensionInstallUrl()} target="_blank" rel="noreferrer" className="text-xs text-primary-600 hover:underline">
+              拡張をインストール
+            </a>
+            <button
+              type="button"
+              disabled={aiBusy || steps.length === 0}
+              onClick={handleAiAll}
+              className="ml-auto inline-flex items-center gap-1 rounded-lg bg-primary-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-600 disabled:opacity-50"
+            >
+              <Sparkles size={12} /> 全手順をAI生成（Gemini）
+            </button>
+          </div>
+          <VoiceMemoPanel />
         </div>
       )}
 

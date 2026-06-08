@@ -18,6 +18,8 @@ import {
   scanBulkUpdate,
 } from './services/bulkUpdate.js';
 import { listOrgNotifications } from './services/notifications.js';
+import { applyStepMasks } from './services/stepMasks.js';
+import { generateManualPdf } from './services/pdfExport.js';
 
 const limitAi = rateLimit(30);
 
@@ -285,17 +287,47 @@ api.post('/v1/bulk-update/batches/:batchId/rollback', requireAuth, async (req: A
 
 api.post('/v1/manuals/:manualId/ingest', requireAuth, async (req: AuthedRequest, res) => {
   const manualId = String(req.params.manualId);
-  const { steps } = req.body as { steps?: Parameters<typeof ingestSteps>[2] };
+  const { steps, voiceTranscript } = req.body as {
+    steps?: Parameters<typeof ingestSteps>[2];
+    voiceTranscript?: string;
+  };
   if (!steps?.length) {
     res.status(400).json({ error: 'steps が必要です' });
     return;
   }
   try {
-    const result = await ingestSteps(manualId, req.uid!, steps);
+    const result = await ingestSteps(manualId, req.uid!, steps, voiceTranscript);
     res.json({ ok: true, ...result });
   } catch (e) {
     const err = e as { status?: number; message?: string };
     res.status(err.status ?? 500).json({ error: err.message ?? 'ingest failed' });
+  }
+});
+
+api.post('/v1/steps/:stepId/apply-masks', requireAuth, async (req: AuthedRequest, res) => {
+  const stepId = String(req.params.stepId);
+  const { manualId, masks } = req.body as { manualId?: string; masks?: Parameters<typeof applyStepMasks>[3] };
+  if (!manualId) {
+    res.status(400).json({ error: 'manualId が必要です' });
+    return;
+  }
+  try {
+    const result = await applyStepMasks(manualId, stepId, req.uid!, masks);
+    res.json(result);
+  } catch (e) {
+    const err = e as { status?: number; message?: string };
+    res.status(err.status ?? 500).json({ error: err.message ?? 'apply-masks failed' });
+  }
+});
+
+api.post('/v1/manuals/:manualId/pdf', requireAuth, async (req: AuthedRequest, res) => {
+  const manualId = String(req.params.manualId);
+  try {
+    const result = await generateManualPdf(manualId, req.uid!);
+    res.json(result);
+  } catch (e) {
+    const err = e as { status?: number; message?: string };
+    res.status(err.status ?? 500).json({ error: err.message ?? 'pdf failed' });
   }
 });
 
@@ -313,6 +345,8 @@ app.use('/api', api);
 
 /** GEMINI_API_KEY は Secret 登録後に secrets: ['GEMINI_API_KEY'] を追加して再デプロイ */
 export const clipitApi = onRequest(
-  { region: 'asia-northeast1', memory: '1GiB', timeoutSeconds: 120 },
+  { region: 'asia-northeast1', memory: '2GiB', timeoutSeconds: 180 },
   app,
 );
+
+export { clipitExpiryWorker } from './scheduler.js';

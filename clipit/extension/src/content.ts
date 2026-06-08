@@ -3,11 +3,16 @@ const ALLOWED = ['https://app.clipit.shigotoku.com', 'http://localhost:5176', 'h
 
 window.addEventListener('message', (event) => {
   if (!ALLOWED.some((o) => event.origin === o || event.origin.startsWith('http://localhost:'))) return;
-  if (event.data?.type !== 'CLIPIT_SYNC') return;
-  chrome.storage.local.set({
-    manualId: event.data.manualId,
-    idToken: event.data.idToken,
-    apiBase: event.data.apiBase,
-  });
+  if (event.data?.type === 'CLIPIT_SYNC') {
+    chrome.storage.local.set({
+      manualId: event.data.manualId,
+      idToken: event.data.idToken,
+      apiBase: event.data.apiBase,
+    });
+    return;
+  }
+  if (event.data?.type === 'CLIPIT_VOICE' && typeof event.data.transcript === 'string') {
+    chrome.storage.local.set({ voiceTranscript: event.data.transcript });
+  }
 });
 
