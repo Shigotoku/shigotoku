@@ -82,9 +82,11 @@ export default function TemplatesPage() {
           type: s.type,
           title: s.title,
           instruction: s.instruction,
-          note: "",
-          screenshotUrl: "",
-          pageTitle: "",
+          note: s.note ?? "",
+          screenshotUrl: s.screenshotUrl ?? "",
+          clickX: s.clickX,
+          clickY: s.clickY,
+          pageTitle: tpl.title,
           pageUrl: "",
           elementText: "",
         });
@@ -100,7 +102,7 @@ export default function TemplatesPage() {
 
   return (
     <>
-      <PageHeader title="テンプレート" description="ひな形を選んで、スクショを入れるだけで完成" />
+      <PageHeader title="テンプレート" description="説明文・画面イメージ入りのひな形。スクショを差し替えればすぐ使えます" />
       <div className="space-y-4 p-6">
         {error && (
           <div className="rounded-xl border border-danger-200 bg-danger-50 px-4 py-3 text-sm text-danger-700">
@@ -189,7 +191,7 @@ export default function TemplatesPage() {
 
         <p className="text-center text-xs text-slate-400">
           <FileText size={12} className="mr-1 inline" />
-          テンプレートを選ぶと編集画面が開きます。各手順にスクショを入れて完成させてください。
+          テンプレートを選ぶと、手順の説明文・補足・画面イメージが入った状態で編集画面が開きます。実際のスクショに差し替えれば完成です。
         </p>
       </div>
     </>
