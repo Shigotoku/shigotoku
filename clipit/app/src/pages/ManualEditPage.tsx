@@ -28,7 +28,8 @@ import StepQuizPanel from "../components/StepQuizPanel";
 import { useOrg } from "../context/OrgContext";
 import { useAuth } from "../components/AuthProvider";
 import { expandOrgContent } from "../lib/orgContent";
-import type { Manual, ManualStep, StepType, TargetAudience } from "../types";
+import { manualWorkStatus, WORK_STATUS_LABEL } from "../lib/manualWorkStatus";
+import type { Manual, ManualStep, ManualWorkStatus, StepType, TargetAudience } from "../types";
 
 export default function ManualEditPage() {
   const { id } = useParams<{ id: string }>();
@@ -289,6 +290,35 @@ export default function ManualEditPage() {
           </div>
         }
       />
+
+      {id && !id.startsWith("demo") && manual && (
+        <div className="mx-6 mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+          <span className="text-sm font-semibold text-slate-700">作成状態</span>
+          {(["in_progress", "completed"] as ManualWorkStatus[]).map((ws) => (
+            <button
+              key={ws}
+              type="button"
+              onClick={async () => {
+                if (!id) return;
+                await updateManual(id, { workStatus: ws });
+                setManual({ ...manual, workStatus: ws });
+              }}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                manualWorkStatus(manual) === ws
+                  ? "bg-primary-500 text-white"
+                  : "border border-slate-300 bg-white text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              {WORK_STATUS_LABEL[ws]}
+            </button>
+          ))}
+          <span className="text-xs text-slate-500">
+            {manualWorkStatus(manual) === "in_progress"
+              ? "ダッシュボードの「作成中」に表示されます"
+              : "作成が完了したら「作成済み」に切り替えてください"}
+          </span>
+        </div>
+      )}
 
       {manual && steps.length > 0 && (
         <div className="mx-6 mb-4 space-y-3">

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { ImageIcon, Search } from "lucide-react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { FileText, Search } from "lucide-react";
 import { folderIdFromSearch } from "../lib/folderContext";
 import PageHeader from "../components/PageHeader";
 import { useOrg } from "../context/OrgContext";
@@ -15,6 +15,15 @@ import {
 
 const ALL = "all" as const;
 
+const CATEGORY_ICON: Record<TemplateCategory, string> = {
+  clinic: "🏥",
+  education: "📚",
+  smb: "🏢",
+  web: "🌐",
+  hospitality: "☕",
+  general: "📋",
+};
+
 export default function TemplatesPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -22,6 +31,7 @@ export default function TemplatesPage() {
   const { organization } = useOrg();
   const { user, demoMode } = useAuth();
   const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState("");
   const [category, setCategory] = useState<typeof ALL | TemplateCategory>(ALL);
   const [query, setQuery] = useState("");
 
@@ -43,11 +53,15 @@ export default function TemplatesPage() {
   const useTemplate = async (templateId: string) => {
     const tpl = MANUAL_TEMPLATES.find((t) => t.id === templateId);
     if (!tpl) return;
+    setError("");
     if (demoMode) {
       navigate("/manuals/demo-1/edit");
       return;
     }
-    if (!organization || !user) return;
+    if (!organization || !user) {
+      setError("ログインと組織の読み込みが完了してからお試しください。");
+      return;
+    }
     setBusy(templateId);
     try {
       const id = await createManual({
@@ -76,6 +90,9 @@ export default function TemplatesPage() {
         });
       }
       navigate(`/manuals/${id}/edit`);
+    } catch (e) {
+      const msg = (e as Error).message ?? "テンプレートからの作成に失敗しました";
+      setError(msg);
     } finally {
       setBusy(null);
     }
@@ -83,17 +100,21 @@ export default function TemplatesPage() {
 
   return (
     <>
-      <PageHeader
-        title="テンプレート"
-        description="ひな形を選び、編集画面でスクショを入れるだけでマニュアルが完成します"
-      />
+      <PageHeader title="テンプレート" description="ひな形を選んで、スクショを入れるだけで完成" />
       <div className="space-y-4 p-6">
-        <p className="rounded-xl border border-primary-200 bg-primary-50/60 px-4 py-3 text-sm text-slate-700">
-          <ImageIcon size={16} className="mr-1 inline text-primary-600" />
-          テンプレート作成後、各手順の説明にある
-          <strong>【ここにスクショまたは画像を挿入】</strong>
-          の位置に画面キャプチャをドラッグ＆ドロップすれば、すぐに公開できるマニュアルになります。
-        </p>
+        {error && (
+          <div className="rounded-xl border border-danger-200 bg-danger-50 px-4 py-3 text-sm text-danger-700">
+            <p>{error}</p>
+            {error.includes("プラン") && (
+              <p className="mt-2">
+                <Link to="/settings" className="font-semibold underline">
+                  設定画面
+                </Link>
+                でプランを確認するか、来月までお待ちください。
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="relative min-w-0 flex-1">
@@ -114,7 +135,7 @@ export default function TemplatesPage() {
                 category === ALL ? "bg-primary-500 text-white" : "border border-slate-200 text-slate-600"
               }`}
             >
-              すべて ({MANUAL_TEMPLATES.length})
+              すべて
             </button>
             {(Object.keys(TEMPLATE_CATEGORY_LABELS) as TemplateCategory[]).map((cat) => {
               const n = MANUAL_TEMPLATES.filter((t) => t.category === cat).length;
@@ -128,51 +149,48 @@ export default function TemplatesPage() {
                     category === cat ? "bg-primary-500 text-white" : "border border-slate-200 text-slate-600"
                   }`}
                 >
-                  {TEMPLATE_CATEGORY_LABELS[cat]} ({n})
+                  {TEMPLATE_CATEGORY_LABELS[cat]}
                 </button>
               );
             })}
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {/* フォルダ風コンパクトグリッド */}
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {filtered.map((t) => (
-            <article key={t.id} className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <span className="w-fit rounded-full bg-primary-100 px-2 py-0.5 text-xs font-semibold text-primary-700">
-                {TEMPLATE_CATEGORY_LABELS[t.category]}
+            <button
+              key={t.id}
+              type="button"
+              disabled={busy === t.id}
+              onClick={() => void useTemplate(t.id)}
+              className="group flex min-w-0 flex-col items-center rounded-xl border border-slate-200 bg-white p-3 text-left transition-all hover:border-primary-300 hover:bg-primary-50/40 hover:shadow-sm disabled:opacity-50"
+              title={t.description}
+            >
+              <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-100 text-2xl group-hover:bg-primary-100">
+                {CATEGORY_ICON[t.category]}
               </span>
-              <h2 className="mt-3 font-bold text-slate-900">{t.title}</h2>
-              <p className="mt-2 text-sm text-slate-600">{t.description}</p>
-              <p className="mt-2 text-xs text-primary-700/80">{t.imageHint}</p>
-              <div className="mt-2 flex flex-wrap gap-1">
-                {t.tags.map((tag) => (
-                  <span key={tag} className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">
-                    {tag}
-                  </span>
-                ))}
-              </div>
-              <ul className="mt-3 flex-1 space-y-1 border-t border-slate-100 pt-3 text-xs text-slate-500">
-                {t.steps.map((s, i) => (
-                  <li key={i}>
-                    {i + 1}. {s.title}
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-2 text-xs text-slate-400">{t.steps.length} 手順</p>
-              <button
-                type="button"
-                disabled={busy === t.id}
-                onClick={() => useTemplate(t.id)}
-                className="mt-4 w-full rounded-xl bg-primary-500 py-2.5 text-sm font-semibold text-white hover:bg-primary-600 disabled:opacity-50"
-              >
-                {busy === t.id ? "作成中…" : "このテンプレートで作る"}
-              </button>
-            </article>
+              <span className="mt-2 line-clamp-2 w-full text-center text-xs font-semibold leading-snug text-slate-800">
+                {t.title}
+              </span>
+              <span className="mt-1 text-[10px] text-slate-400">
+                {t.steps.length}手順 · {TEMPLATE_CATEGORY_LABELS[t.category]}
+              </span>
+              {busy === t.id && (
+                <span className="mt-1 text-[10px] font-semibold text-primary-600">作成中…</span>
+              )}
+            </button>
           ))}
         </div>
+
         {filtered.length === 0 && (
           <p className="py-12 text-center text-sm text-slate-500">該当するテンプレートがありません。</p>
         )}
+
+        <p className="text-center text-xs text-slate-400">
+          <FileText size={12} className="mr-1 inline" />
+          テンプレートを選ぶと編集画面が開きます。各手順にスクショを入れて完成させてください。
+        </p>
       </div>
     </>
   );

@@ -4,6 +4,8 @@ export type OrgType = 'clinic' | 'smb' | 'startup' | 'developer' | 'agency';
 export type PlanId = 'free' | 'light' | 'standard' | 'business' | 'developer' | 'agency';
 export type MemberRole = 'owner' | 'admin' | 'editor' | 'viewer';
 export type ManualStatus = 'draft' | 'published' | 'archived';
+/** 編集の進捗（公開状態とは別） */
+export type ManualWorkStatus = 'in_progress' | 'completed';
 export type TargetAudience = 'new_staff' | 'admin' | 'patient' | 'customer' | 'developer';
 export type StepType = 'normal' | 'warning' | 'ng_example' | 'check';
 
@@ -85,6 +87,8 @@ export interface Manual {
   category: string;
   targetAudience: TargetAudience[];
   status: ManualStatus;
+  /** 作成中 / 作成済み（未設定は作成中扱い） */
+  workStatus?: ManualWorkStatus;
   version: number;
   createdBy: string;
   createdAt?: Timestamp;

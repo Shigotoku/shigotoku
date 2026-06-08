@@ -8,19 +8,15 @@ const bulkUrl = appPath('/bulk-update');
   <div class="mx-auto max-w-7xl px-4 sm:px-6">
     <div class="clipit-grid-safe grid items-center gap-8 lg:grid-cols-2 lg:gap-12">
       <div class="min-w-0">
-        <p class="text-sm font-semibold uppercase tracking-widest text-primary-400">継続課金の核</p>
-        <h2 class="clipit-h2 mt-3 text-2xl font-bold tracking-tight sm:text-3xl" data-jp-heading>一度作ったマニュアルを、ずっと新しく。</h2>
-        <p class="clipit-lead mt-3 text-base leading-relaxed text-slate-400 sm:mt-4 sm:text-lg" data-jp-wrap>
-          予約システムが変わった。請求ソフトが変わった。問い合わせ先が変わった——
-          普通は全マニュアルを1つずつ開いて直します。ClipIt なら <strong class="text-white">まとめて修正</strong> で横断検索し、
-          AI が文脈を読んで変更候補を出し、確認してから一括適用。履歴から元に戻せます。
+        <p class="text-sm font-semibold uppercase tracking-widest text-primary-400">まとめて修正</p>
+        <h2 class="clipit-h2 mt-3 text-2xl font-bold tracking-tight sm:text-3xl" data-jp-heading>システムが変わっても、1つずつ開かない。</h2>
+        <p class="clipit-lead mt-3 text-base leading-relaxed text-slate-400 sm:mt-4" data-jp-wrap>
+          予約・会計・連絡先の変更を、全マニュアル横断で検索。AIが文脈を読んで変更候補を出し、確認してから一括適用します。
         </p>
-        <ul class="mt-6 space-y-2 text-sm text-slate-300">
-          <li>✓ 全マニュアル横断検索</li>
-          <li>✓ AI文脈理解型の修正提案</li>
-          <li>✓ 変更前後の差分・1件ずつ除外</li>
+        <ul class="mt-5 space-y-2 text-sm text-slate-300">
+          <li>✓ フォルダ・マニュアル単位で対象を絞れる</li>
+          <li>✓ 差分プレビューと1件ずつ除外</li>
           <li>✓ スクショ差し替え要確認の表示</li>
-          <li>✓ 共通パーツ・変数で LP20枚と同じ発想</li>
         </ul>
         <a
           href={bulkUrl}

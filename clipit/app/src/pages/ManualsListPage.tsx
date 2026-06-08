@@ -12,9 +12,9 @@ import {
   ExternalLink,
   RefreshCw,
   FileText,
+  Eye,
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
-import ManualActionsMenu from "../components/ManualActionsMenu";
 import PublishSafetyCheck from "../components/PublishSafetyCheck";
 import { useOrg } from "../context/OrgContext";
 import { useAuth } from "../components/AuthProvider";
@@ -34,6 +34,7 @@ import {
   refreshFolderShareSnapshot,
 } from "../services/folderShare";
 import { formatRelativeTime } from "../lib/format";
+import { manualWorkStatus, WORK_STATUS_LABEL } from "../lib/manualWorkStatus";
 import type { Manual, ManualFolder } from "../types";
 
 type FolderFilter = "all" | "none" | string;
@@ -463,7 +464,7 @@ export default function ManualsListPage() {
                       <p className="text-sm font-semibold text-slate-900">{m.title}</p>
                       <p className="mt-0.5 text-xs text-slate-400">
                         更新 {formatRelativeTime(m.updatedAt)} · 手順 {m.stepCount ?? 0} · 閲覧 {m.readCount ?? 0}
-                        {m.status === "published" ? " · 公開" : " · 下書き"}
+                        {m.status === "published" ? " · 公開" : " · 下書き"} · {WORK_STATUS_LABEL[manualWorkStatus(m)]}
                       </p>
                     </div>
 
@@ -486,7 +487,22 @@ export default function ManualsListPage() {
                       </select>
                     )}
 
-                    <ManualActionsMenu manualId={m.id} />
+                    <div className="flex shrink-0 flex-wrap items-center gap-2">
+                      <Link
+                        to={`/manuals/${m.id}/preview`}
+                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                      >
+                        <Eye size={14} />
+                        プレビュー
+                      </Link>
+                      <Link
+                        to={`/manuals/${m.id}/edit`}
+                        className="inline-flex items-center gap-1 rounded-lg bg-primary-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-600"
+                      >
+                        <Pencil size={14} />
+                        編集
+                      </Link>
+                    </div>
                   </li>
                 ))}
               </ul>

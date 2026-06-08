@@ -4,62 +4,31 @@ import HeroSection from '../components/HeroSection.astro';
 import TrustBar from '../components/TrustBar.astro';
 import ProblemSection from '../components/ProblemSection.astro';
 import HowItWorksSection from '../components/HowItWorksSection.astro';
-import TalkCreateSection from '../components/TalkCreateSection.astro';
-import ThreePillarsSection from '../components/ThreePillarsSection.astro';
 import BulkUpdateSection from '../components/BulkUpdateSection.astro';
-import ComparisonSection from '../components/ComparisonSection.astro';
-import TestimonialsSection from '../components/TestimonialsSection.astro';
 import PricingPreviewSection from '../components/PricingPreviewSection.astro';
-import SecuritySection from '../components/SecuritySection.astro';
 import FaqSection from '../components/FaqSection.astro';
 import { appPath, sitePath } from '../lib/urls';
 
 const loginUrl = appPath('/login');
 const pricingUrl = sitePath('pricing');
-const howUrl = `${import.meta.env.BASE_URL}#how-it-works`;
 
 const features = [
   {
-    icon: '01',
-    title: 'Chrome拡張で操作を記録',
-    body: 'いつも通り画面を操作するだけ。クリックごとにスクショと手順を自動取得。Alt+Shift+Sで強制キャプチャも。',
+    title: '操作を記録するだけ',
+    body: 'Chrome拡張でクリックごとにスクショと手順を自動取得。赤枠・番号付きで「どこを押すか」が一目です。',
   },
   {
-    icon: '02',
-    title: '話して作成（Google Meet連携）',
-    body: '画面共有で説明 → 文字起こし貼り付け → スクショとAI統合。暗黙知やNG例も残せます。',
-  },
-  {
-    icon: '02b',
     title: 'AIが日本語の手順文を生成',
-    body: 'かんたん・丁寧・業務マニュアル風。新人・管理者・患者向けなど対象者に合わせた文案。',
+    body: 'かんたん・丁寧・業務マニュアル風。新人向け・患者向けなど、読む人に合わせた文案に整えます。',
   },
   {
-    icon: '03',
-    title: '赤枠・番号を自動で付与',
-    body: 'クリック位置に赤枠と番号。現場で「どこを押すか」が一目でわかります。',
+    title: 'まとめて修正で古くならない',
+    body: 'システム名や連絡先が変わっても、全マニュアルを横断検索してAIが変更候補を提案。確認してから一括適用。',
   },
   {
-    icon: '04',
-    title: '手動マスキングで個人情報を保護',
-    body: '黒塗り・モザイク。共有・印刷の直前に「隠し忘れ確認」を必ず通します。',
+    title: '印刷・QR・スマホで現場に届く',
+    body: 'A4印刷、QRコード、スマホ閲覧。個人情報はマスキングし、公開前に隠し忘れ確認を通します。',
   },
-  {
-    icon: '05',
-    title: 'A4印刷・QR・スマホ表示',
-    body: '紙に貼る印刷、現場のQR読み取り、縦スクロールのスマホ閲覧に最適化。',
-  },
-  {
-    icon: '06',
-    title: '既読確認で教育管理',
-    body: '「確認しました」と履歴。スタンダードプランから低価格で教育管理。',
-  },
-];
-
-const audiences = [
-  { tag: 'クリニック', body: '電子カルテ・受付・会計・予約。院内引き継ぎと紙運用に最適。', color: 'bg-rose-50 text-rose-700' },
-  { tag: '中小企業', body: '請求・経費・入退社。属人化した業務手順を誰でも再現できる形に。', color: 'bg-sky-50 text-sky-700' },
-  { tag: 'スタートアップ', body: 'SaaSのヘルプ・管理画面。リリース差分の更新も素早く。', color: 'bg-violet-50 text-violet-700' },
 ];
 ---
 
@@ -68,64 +37,36 @@ const audiences = [
   <TrustBar />
   <ProblemSection />
   <HowItWorksSection />
-  <TalkCreateSection />
-  <ThreePillarsSection />
   <BulkUpdateSection />
 
-  <section id="features" class="clipit-section mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-20">
+  <section id="features" class="clipit-section mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
     <div class="text-center">
-      <p class="text-sm font-semibold uppercase tracking-widest text-primary-600">Features</p>
-      <h2 class="clipit-h2 mt-3 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl" data-jp-heading>迷わない。止まらない。間違えにくい。</h2>
-      <p class="clipit-lead mt-3 text-base text-slate-600 sm:mt-4 sm:text-lg" data-jp-wrap>高機能より「現場で使える」を優先。専門用語を使わないUI設計です。</p>
+      <h2 class="clipit-h2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl" data-jp-heading>ClipIt の4つの特徴</h2>
+      <p class="clipit-lead mt-3 text-base text-slate-600" data-jp-wrap>作る・直す・届ける。マニュアル管理に必要なことだけ、シンプルに。</p>
     </div>
-    <div class="clipit-grid-safe mt-10 grid gap-4 sm:mt-14 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
+    <div class="clipit-grid-safe mt-8 grid gap-4 sm:grid-cols-2 sm:gap-5">
       {features.map((f) => (
-        <div class="group min-w-0 rounded-2xl border border-slate-200 bg-white p-5 transition-all hover:border-primary-300 hover:shadow-lg hover:shadow-primary-500/5 sm:p-6">
-          <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary-100 text-sm font-bold text-primary-700">{f.icon}</span>
-          <h3 class="clipit-h3 mt-4 text-base font-bold text-slate-900 sm:text-lg" data-jp-heading>{f.title}</h3>
-          <p class="clipit-body mt-3 text-sm leading-relaxed text-slate-600" data-jp-wrap>{f.body}</p>
+        <div class="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+          <h3 class="clipit-h3 text-base font-bold text-slate-900 sm:text-lg" data-jp-heading>{f.title}</h3>
+          <p class="clipit-body mt-2 text-sm leading-relaxed text-slate-600" data-jp-wrap>{f.body}</p>
         </div>
       ))}
     </div>
-    <p class="mt-10 text-center">
-      <a href={howUrl} class="text-sm font-semibold text-primary-600 hover:underline">使い方（3ステップ）を見る →</a>
-    </p>
   </section>
 
-  <ComparisonSection />
   <PricingPreviewSection />
-  <TestimonialsSection />
-
-  <section id="use-cases" class="clipit-section bg-slate-50 py-12 sm:py-20">
-    <div class="mx-auto max-w-7xl px-4 sm:px-6">
-      <div class="text-center">
-        <h2 class="clipit-h2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl" data-jp-heading>こんな現場で使われています</h2>
-        <p class="clipit-lead mt-3 text-base text-slate-600 sm:mt-4" data-jp-wrap>医療・中小・スタートアップ — 教える側の負担を減らす共通の課題に応えます。</p>
-      </div>
-      <div class="clipit-grid-safe mt-8 grid gap-4 sm:mt-12 sm:grid-cols-3 sm:gap-6">
-        {audiences.map((a) => (
-          <div class="min-w-0 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200/80 sm:p-8">
-            <span class={`inline-flex rounded-full px-3 py-1 text-sm font-semibold ${a.color}`}>{a.tag}</span>
-            <p class="clipit-body mt-4 text-sm leading-relaxed text-slate-600" data-jp-wrap>{a.body}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  </section>
-
-  <SecuritySection />
   <FaqSection />
 
-  <section class="clipit-section--lg relative overflow-hidden bg-slate-950 py-16 text-center sm:py-24">
+  <section class="clipit-section--lg relative overflow-hidden bg-slate-950 py-14 text-center sm:py-20">
     <div class="clipit-cta-glow pointer-events-none absolute inset-0" aria-hidden="true"></div>
     <div class="relative mx-auto max-w-3xl px-4 sm:px-6">
-      <h2 class="clipit-h2 text-2xl font-bold tracking-tight text-white sm:text-3xl lg:text-4xl" data-jp-heading>まずは1本、作ってみてください。</h2>
-      <p class="clipit-lead mt-3 text-base text-slate-400 sm:mt-4 sm:text-lg" data-jp-wrap>Googleログインで登録。クレジットカード不要。最短10分で初回マニュアルが完成します。</p>
-      <div class="mt-8 flex flex-col items-stretch justify-center gap-3 sm:mt-10 sm:flex-row sm:items-center">
-        <a href={loginUrl} class="inline-flex justify-center rounded-xl bg-primary-500 px-8 py-3.5 text-base font-bold text-white transition-all hover:bg-primary-400 sm:px-10 sm:py-4">
+      <h2 class="clipit-h2 text-2xl font-bold tracking-tight text-white sm:text-3xl" data-jp-heading>まずは1本、作ってみてください。</h2>
+      <p class="clipit-lead mt-3 text-base text-slate-400 sm:text-lg" data-jp-wrap>Googleログインで登録。クレジットカード不要。最短10分で初回マニュアルが完成します。</p>
+      <div class="mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
+        <a href={loginUrl} class="inline-flex justify-center rounded-xl bg-primary-500 px-8 py-3.5 text-base font-bold text-white transition-all hover:bg-primary-400">
           無料で始める
         </a>
-        <a href={pricingUrl} class="inline-flex justify-center rounded-xl border border-white/20 px-8 py-3.5 text-base font-semibold text-slate-200 hover:border-white/40 hover:text-white sm:px-10 sm:py-4">
+        <a href={pricingUrl} class="inline-flex justify-center rounded-xl border border-white/20 px-8 py-3.5 text-base font-semibold text-slate-200 hover:border-white/40 hover:text-white">
           料金プランの詳細
         </a>
       </div>

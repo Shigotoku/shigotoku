@@ -55,6 +55,7 @@ export async function createManual(input: {
     category: input.category ?? 'general',
     targetAudience: input.targetAudience,
     status: 'draft' satisfies ManualStatus,
+    workStatus: 'in_progress',
     version: 1,
     createdBy: input.createdBy,
     stepCount: 0,
@@ -73,7 +74,7 @@ export async function createManual(input: {
 
 export async function updateManual(
   manualId: string,
-  patch: Partial<Pick<Manual, 'title' | 'description' | 'status' | 'targetAudience' | 'folderId'>>,
+  patch: Partial<Pick<Manual, 'title' | 'description' | 'status' | 'workStatus' | 'targetAudience' | 'folderId'>>,
 ) {
   await updateDoc(doc(db, 'clipit_manuals', manualId), {
     ...patch,
