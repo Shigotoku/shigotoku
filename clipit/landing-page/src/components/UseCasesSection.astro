@@ -1,0 +1,111 @@
+---
+const audiences = [
+  {
+    tag: 'クリニック・医療',
+    icon: '🏥',
+    body: '受付・会計・電子カルテ・予約。スタッフ引き継ぎと院内マニュアルを紙・QRで運用。',
+    color: 'border-rose-200 bg-rose-50/80',
+  },
+  {
+    tag: '中小企業・事務所',
+    icon: '🏢',
+    body: '請求・経費・入退社手続き。属人化した業務を、誰でも再現できる手順に。',
+    color: 'border-sky-200 bg-sky-50/80',
+  },
+  {
+    tag: 'スタートアップ・SaaS',
+    icon: '🚀',
+    body: '社内オペレーションとヘルプ記事。リリースのたびにまとめて修正で差分更新。',
+    color: 'border-violet-200 bg-violet-50/80',
+  },
+  {
+    tag: '教育現場・塾・スクール',
+    icon: '📚',
+    body: '操作説明・教材・実習手順。生徒・保護者向けにわかりやすい資料を量産。',
+    color: 'border-amber-200 bg-amber-50/80',
+  },
+  {
+    tag: '飲食・ホテル・接客',
+    icon: '☕',
+    body: 'レジ操作・調理・接客フロー。アルバイトへの教育を口頭からマニュアルへ。',
+    color: 'border-orange-200 bg-orange-50/80',
+  },
+  {
+    tag: '製造・現場・物流',
+    icon: '🏭',
+    body: '検品・梱包・設備操作。現場の写真つき手順でミスと問い合わせを減らす。',
+    color: 'border-slate-300 bg-slate-50',
+  },
+  {
+    tag: '士業・士法人',
+    icon: '⚖️',
+    body: '会計ソフト・届出・顧客対応の型。事務スタッフの教育コストを下げる。',
+    color: 'border-indigo-200 bg-indigo-50/80',
+  },
+  {
+    tag: 'IT・情シス・ヘルプデスク',
+    icon: '💻',
+    body: '社内システムの設定手順・問い合わせ対応。FAQとマニュアルを一元管理。',
+    color: 'border-cyan-200 bg-cyan-50/80',
+  },
+  {
+    tag: '不動産・建設・現場監督',
+    icon: '🏗️',
+    body: '申請・検査・安全確認の手順。写真つきで現場と事務所の認識を揃える。',
+    color: 'border-stone-300 bg-stone-50',
+  },
+  {
+    tag: '美容・サロン・クリニック受付',
+    icon: '✨',
+    body: '予約・会計・物販レジ。新人スタイリスト・受付への教育を標準化。',
+    color: 'border-pink-200 bg-pink-50/80',
+  },
+  {
+    tag: 'NPO・自治体・サークル',
+    icon: '🤝',
+    body: 'ボランティア向けオペレーション、イベント運営、引き継ぎ資料の共有。',
+    color: 'border-emerald-200 bg-emerald-50/80',
+  },
+  {
+    tag: 'フリーランス・個人事業主',
+    icon: '👤',
+    body: 'クライアントへの納品手順、自分用の作業メモ、請求・ツール操作の備忘録。',
+    color: 'border-primary-300 bg-primary-50/80',
+  },
+];
+---
+
+<section id="use-cases" class="clipit-section border-b border-slate-100 bg-slate-50/60 py-10 sm:py-14">
+  <div class="mx-auto max-w-7xl px-4 sm:px-6">
+    <div class="text-center">
+      <p class="text-sm font-semibold uppercase tracking-widest text-primary-600">Use cases</p>
+      <h2 class="clipit-h2 mt-3 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl" data-jp-heading>こんな方・こんな現場に</h2>
+      <p class="clipit-lead mx-auto mt-3 max-w-2xl text-base text-slate-600" data-jp-wrap>
+        会社のマニュアル整備はもちろん、<strong class="font-semibold text-slate-800">個人の作業メモ・副業・在宅ワーク</strong>にも最適です。
+        「また同じ説明をする」時間を、記録と共有に変えられます。
+      </p>
+    </div>
+
+    <div class="mx-auto mt-8 max-w-3xl rounded-2xl border border-primary-200 bg-white px-5 py-4 text-center shadow-sm sm:px-6 sm:py-5">
+      <p class="text-sm font-bold text-primary-800" data-jp-heading>個人利用にもぴったり</p>
+      <p class="clipit-body mt-2 text-sm leading-relaxed text-slate-600" data-jp-wrap>
+        フリープランで月3本まで無料。Chromeの操作手順、ツールの使い方、動画編集の工程——
+        <strong class="font-semibold text-slate-800">「あとで見返す自分用ノート」</strong>としても、会社の正式マニュアルとしても使えます。
+      </p>
+    </div>
+
+    <div class="clipit-grid-safe mt-8 grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+      {audiences.map((a) => (
+        <div class:list={['min-w-0 rounded-2xl border p-4 transition-shadow hover:shadow-md sm:p-5', a.color]}>
+          <div class="flex items-start gap-3">
+            <span class="text-2xl" aria-hidden="true">{a.icon}</span>
+            <div class="min-w-0">
+              <h3 class="text-sm font-bold text-slate-900 sm:text-base" data-jp-heading>{a.tag}</h3>
+              <p class="clipit-body mt-1.5 text-xs leading-relaxed text-slate-600 sm:text-sm" data-jp-wrap>{a.body}</p>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
