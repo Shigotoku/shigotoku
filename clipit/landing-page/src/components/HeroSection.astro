@@ -8,14 +8,14 @@ const heroBgUrl = assetPath('hero-bg.png');
 
 <section class="clipit-hero relative overflow-hidden bg-[#fff9f5]">
   <div class="clipit-hero-bg" aria-hidden="true">
-    <img src={heroBgUrl} alt="" class="clipit-hero-bg-img" width={1920} height={800} loading="eager" decoding="async" />
+    <img src={heroBgUrl} alt="" class="clipit-hero-bg-img" width={1920} height={800} loading="eager" decoding="sync" />
   </div>
-  <div class="clipit-hero-bg-fade pointer-events-none absolute inset-0" aria-hidden="true"></div>
+  <div class="clipit-hero-bg-seam pointer-events-none absolute inset-y-0 hidden lg:block" aria-hidden="true"></div>
 
   <div class="relative z-10 mx-auto max-w-7xl px-4 pb-12 pt-12 sm:px-6 sm:pb-24 sm:pt-24">
     <div class="clipit-grid-safe grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
-      <div class="min-w-0 text-center lg:text-left">
-        <div class="clipit-hero-badge inline-flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full border border-primary-200/80 bg-white/90 py-1.5 pl-1.5 pr-3 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur-sm sm:justify-start sm:pr-4 lg:justify-start">
+      <div class="clipit-hero-copy min-w-0 rounded-2xl bg-[#fff9f5] text-center lg:bg-transparent lg:text-left">
+        <div class="clipit-hero-badge inline-flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full border border-primary-200 bg-white py-1.5 pl-1.5 pr-3 text-sm font-semibold text-slate-700 shadow-sm sm:justify-start sm:pr-4 lg:justify-start">
           <span class="clipit-icon-frame clipit-icon-frame--badge shrink-0">
             <img src={clipitIconPath} alt="" class="clipit-brand-icon" width="32" height="32" />
           </span>
@@ -41,7 +41,7 @@ const heroBgUrl = assetPath('hero-bg.png');
           </a>
           <a
             href={howUrl}
-            class="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white/80 px-8 py-4 text-base font-semibold text-slate-700 shadow-sm transition-all hover:border-primary-300 hover:text-primary-700 sm:w-auto"
+            class="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-8 py-4 text-base font-semibold text-slate-700 shadow-sm transition-all hover:border-primary-300 hover:text-primary-700 sm:w-auto"
           >
             使い方を見る
           </a>
@@ -55,7 +55,7 @@ const heroBgUrl = assetPath('hero-bg.png');
       </div>
 
       <div class="relative mx-auto w-full min-w-0 max-w-lg lg:max-w-none">
-        <div class="clipit-hero-mock rounded-2xl border border-slate-200/80 bg-white/95 p-3 shadow-xl shadow-slate-300/40 backdrop-blur-sm sm:p-5">
+        <div class="clipit-hero-mock rounded-2xl border border-slate-200 bg-white p-3 shadow-xl shadow-slate-300/30 sm:p-5">
           <div class="flex min-w-0 items-center gap-2 border-b border-slate-100 pb-3">
             <span class="h-3 w-3 shrink-0 rounded-full bg-red-400/80"></span>
             <span class="h-3 w-3 shrink-0 rounded-full bg-amber-400/80"></span>
@@ -68,7 +68,7 @@ const heroBgUrl = assetPath('hero-bg.png');
               <div class="absolute left-[38%] top-[42%] flex h-10 w-10 items-center justify-center rounded-full border-4 border-red-500 bg-red-50 text-sm font-bold text-red-600 shadow-lg shadow-red-500/20">
                 1
               </div>
-              <p class="absolute bottom-3 left-3 right-3 rounded-lg bg-white/95 px-3 py-2 text-xs text-slate-700 shadow-sm">
+              <p class="absolute bottom-3 left-3 right-3 rounded-lg bg-white px-3 py-2 text-xs text-slate-700 shadow-sm">
                 「受付」ボタンをクリックして、新患登録画面を開きます。
               </p>
             </div>
@@ -93,35 +93,41 @@ const heroBgUrl = assetPath('hero-bg.png');
     isolation: isolate;
   }
 
+  /* 画像は右カラム背面のみ（テキスト上に重ねない＝ぼけない） */
   .clipit-hero-bg {
-    position: absolute;
-    inset: 0;
-    overflow: hidden;
+    display: none;
     pointer-events: none;
   }
 
-  .clipit-hero-bg-img {
-    position: absolute;
-    top: 0;
-    left: 0;
-    height: 100%;
-    width: 140%;
-    max-width: none;
-    object-fit: cover;
-    object-position: left center;
-    animation: clipit-hero-slide 48s ease-in-out infinite alternate;
-    will-change: transform;
-  }
+  @media (min-width: 1024px) {
+    .clipit-hero-bg {
+      display: block;
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 44%;
+      overflow: hidden;
+    }
 
-  .clipit-hero-bg-fade {
-    background: linear-gradient(
-      90deg,
-      rgba(255, 249, 245, 0.92) 0%,
-      rgba(255, 249, 245, 0.55) 38%,
-      rgba(255, 249, 245, 0.2) 62%,
-      rgba(255, 249, 245, 0.08) 100%
-    );
-    z-index: 1;
+    .clipit-hero-bg-img {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 115%;
+      max-width: none;
+      object-fit: cover;
+      object-position: right center;
+      animation: clipit-hero-slide 50s ease-in-out infinite alternate;
+    }
+
+    .clipit-hero-bg-seam {
+      left: 40%;
+      width: 8%;
+      z-index: 1;
+      background: linear-gradient(90deg, #fff9f5 0%, rgba(255, 249, 245, 0.85) 55%, transparent 100%);
+    }
   }
 
   @keyframes clipit-hero-slide {
@@ -129,7 +135,7 @@ const heroBgUrl = assetPath('hero-bg.png');
       transform: translateX(0);
     }
     100% {
-      transform: translateX(-18%);
+      transform: translateX(-8%);
     }
   }
 
@@ -150,7 +156,6 @@ const heroBgUrl = assetPath('hero-bg.png');
   @media (prefers-reduced-motion: reduce) {
     .clipit-hero-bg-img {
       animation: none;
-      width: 120%;
     }
     .clipit-hero-mock {
       animation: none;
