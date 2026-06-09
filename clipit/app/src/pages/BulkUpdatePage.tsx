@@ -33,7 +33,7 @@ export default function BulkUpdatePage() {
   const [keyword, setKeyword] = useState("");
   const [replaceFrom, setReplaceFrom] = useState("");
   const [replaceTo, setReplaceTo] = useState("");
-  const [useAi, setUseAi] = useState(true);
+  const [useAi, setUseAi] = useState(false);
   const [proposals, setProposals] = useState<BulkChangeProposal[]>([]);
   const [matchCount, setMatchCount] = useState(0);
   const [batches, setBatches] = useState<BulkBatch[]>([]);

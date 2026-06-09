@@ -31,7 +31,6 @@ export async function applyStepMasks(
     bucket,
     `clipit/manuals/${manualId}/${stepId}-masked-${Date.now()}`,
     burned,
-    'jpg',
   );
 
   await stepRef.update({

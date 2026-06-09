@@ -1,11 +1,18 @@
 import { randomUUID } from 'node:crypto';
+import { optimizeScreenshotBuffer, SCREENSHOT_CACHE_CONTROL } from './optimizeScreenshot.js';
 
 type StorageBucket = {
   name: string;
   file: (path: string) => {
     save: (
       buffer: Buffer,
-      opts: { metadata: { contentType: string; metadata: Record<string, string> } },
+      opts: {
+        metadata: {
+          contentType: string;
+          cacheControl?: string;
+          metadata: Record<string, string>;
+        };
+      },
     ) => Promise<void>;
   };
 };
@@ -35,6 +42,7 @@ export async function saveObject(
   await file.save(buffer, {
     metadata: {
       contentType,
+      cacheControl: SCREENSHOT_CACHE_CONTROL,
       metadata: { firebaseStorageDownloadTokens: token },
     },
   });
@@ -45,10 +53,9 @@ export async function saveScreenshotObject(
   bucket: StorageBucket,
   pathPrefix: string,
   buffer: Buffer,
-  ext: 'jpg' | 'jpeg' | 'png' | 'webp' = 'jpg',
 ): Promise<string> {
-  const normalized = ext === 'jpeg' ? 'jpg' : ext;
-  return saveObject(bucket, `${pathPrefix}.${normalized}`, buffer, CONTENT_TYPES[normalized] ?? 'image/jpeg');
+  const optimized = await optimizeScreenshotBuffer(buffer);
+  return saveObject(bucket, `${pathPrefix}.webp`, optimized, 'image/webp');
 }
 
 export async function savePdfObject(bucket: StorageBucket, pathPrefix: string, buffer: Buffer): Promise<string> {

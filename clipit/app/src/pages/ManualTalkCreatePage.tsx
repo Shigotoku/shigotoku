@@ -46,7 +46,7 @@ export default function ManualTalkCreatePage() {
   const [transcript, setTranscript] = useState("");
   const [shots, setShots] = useState<ShotItem[]>([]);
   const [tone, setTone] = useState<InstructionTone>("simple");
-  const [useAi, setUseAi] = useState(true);
+  const [useAi, setUseAi] = useState(false);
   const [showMeetGuide, setShowMeetGuide] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");

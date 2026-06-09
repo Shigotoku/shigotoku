@@ -38,7 +38,7 @@ export default function ManualEditPage() {
   const [loading, setLoading] = useState(true);
   const [aiBusy, setAiBusy] = useState(false);
   const [extSynced, setExtSynced] = useState(false);
-  const [polishVoiceWithAi, setPolishVoiceWithAi] = useState(true);
+  const [polishVoiceWithAi, setPolishVoiceWithAi] = useState(false);
 
   const load = useCallback(async () => {
     if (!id || id.startsWith("demo")) {

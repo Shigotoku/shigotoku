@@ -62,5 +62,5 @@ export async function applyMasksToBuffer(imageBuffer: Buffer, masks: MaskRect[])
     composites.push({ input: region, left, top });
   }
 
-  return sharp(imageBuffer).composite(composites).jpeg({ quality: 92 }).toBuffer();
+  return sharp(imageBuffer).composite(composites).webp({ quality: 82 }).toBuffer();
 }

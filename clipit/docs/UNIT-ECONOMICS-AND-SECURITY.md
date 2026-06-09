@@ -163,7 +163,7 @@ Firebase の無料枠内に収まる段階（MAU 数百）では **月数千円*
 1. **無料でも「1 本完成」まで迷わない** — オンボーディング・テンプレ（成功体験）。
 2. **上限に達したら** — 理由とプランを日本語 1 文で表示（実装: `assertCanCreateManual` / API 429）。
 3. **AI は「一括生成」より「1 手順ずつ」デフォルト** — 失敗時の無駄コストとユーザーストレスを減らす。
-4. **画像は WebP・最大辺 1280px** — 閲覧品質を保ちつつ Storage/転送を半減。
+4. **画像は WebP・最大辺 1280px** — 閲覧品質を保ちつつ Storage/転送を半減。（**実装済み** → `OPERATIONAL-COST.md`）
 5. **共有ページは静的スナップショット** — 公開閲覧が Firestore 本番を読み放題しない。
 
 ---
@@ -184,4 +184,5 @@ Firebase の無料枠内に収まる段階（MAU 数百）では **月数千円*
 - プラン定義: `clipit/app/src/lib/plans.ts`
 - 課金ルール: `clipit/docs/BILLING-RULES.md`
 - 利用制限: `clipit/app/src/services/usage.ts`, `clipit/api/src/services/usage.ts`
-- 可視化: `canvases/clipit-unit-economics.canvas.tsx`
+- 運用コスト試算・施策一覧: `clipit/docs/OPERATIONAL-COST.md`
+- 可視化（Canvas・未コミットの場合あり）: `canvases/clipit-unit-economics.canvas.tsx`
