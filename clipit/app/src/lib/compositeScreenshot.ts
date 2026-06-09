@@ -1,4 +1,5 @@
 import type { MaskRect, MaskStyle, StepAnnotation } from '../types';
+import { fontFamilyCss, textCompositePx, textStyleOf } from './annotationTextStyle';
 import { loadImageFromSrc, resolveImageDataUrl } from './imageDataUrl';
 
 function drawMask(ctx: CanvasRenderingContext2D, m: MaskRect, w: number, h: number) {
@@ -81,14 +82,16 @@ function drawAnnotation(ctx: CanvasRenderingContext2D, a: StepAnnotation, w: num
   if (a.kind === 'text' && a.text) {
     const px = (a.x / 100) * w;
     const py = (a.y / 100) * h;
-    const fontSize = Math.max(14, w / 55);
-    ctx.font = `bold ${fontSize}px "Noto Sans JP", sans-serif`;
+    const style = textStyleOf(a);
+    const fontSize = textCompositePx(style.fontSize, w);
+    const weight = style.fontWeight === 'bold' ? 'bold' : 'normal';
+    ctx.font = `${weight} ${fontSize}px ${fontFamilyCss(style.fontFamily)}`;
     const metrics = ctx.measureText(a.text);
-    const pad = 8;
-    ctx.fillStyle = 'rgba(251,191,36,0.95)';
+    const pad = Math.max(6, fontSize * 0.35);
+    ctx.fillStyle = style.bgColor;
     ctx.fillRect(px - pad, py - pad, metrics.width + pad * 2, fontSize + pad * 2);
-    ctx.fillStyle = '#78350f';
-    ctx.fillText(a.text, px, py + fontSize - 4);
+    ctx.fillStyle = style.textColor;
+    ctx.fillText(a.text, px, py + fontSize - pad * 0.45);
   }
 }
 

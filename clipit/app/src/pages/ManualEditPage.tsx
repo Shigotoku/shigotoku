@@ -1,7 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import { ChevronDown, ChevronUp, Eye, GripVertical, ImagePlus, Plus, Sparkles, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Eye } from "lucide-react";
 import PageHeader from "../components/PageHeader";
+import ManualDocumentEditor from "../components/ManualDocumentEditor";
+import ManualStepDetailPanel from "../components/ManualStepDetailPanel";
+import EditToolboxRow from "../components/EditToolboxRow";
 import {
   deleteManual,
   deleteStep,
@@ -16,39 +19,26 @@ import {
 } from "../services/manuals";
 import { generateAllStepsWithApi, generateStepWithApi } from "../services/ai";
 import { buildInstructionFromStep } from "../lib/instructionRules";
-import { syncExtensionSession, extensionInstallUrl } from "../lib/extensionBridge";
-import VoiceMemoPanel from "../components/VoiceMemoPanel";
+import { syncExtensionSession } from "../lib/extensionBridge";
 import { uploadStepScreenshot } from "../lib/uploadStepScreenshot";
-import { useStepDraft } from "../hooks/useStepDraft";
-import StepScreenEditor from "../components/StepScreenEditor";
-import { useEditLayoutColumns, ResizeGutter } from "../hooks/useEditLayoutColumns";
-import StepScreenshotPreview from "../components/StepScreenshotPreview";
-import ManualHealthPanel from "../components/ManualHealthPanel";
-import StepQuizPanel from "../components/StepQuizPanel";
 import { useOrg } from "../context/OrgContext";
 import { useAuth } from "../components/AuthProvider";
-import { expandOrgContent } from "../lib/orgContent";
 import { manualWorkStatus, WORK_STATUS_LABEL } from "../lib/manualWorkStatus";
-import type { Manual, ManualStep, ManualWorkStatus, StepType, TargetAudience } from "../types";
+import type { Manual, ManualStep, ManualWorkStatus, TargetAudience } from "../types";
 
 export default function ManualEditPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const detailStepId = searchParams.get("detail");
   const { organization } = useOrg();
   const { user } = useAuth();
   const [manual, setManual] = useState<Manual | null>(null);
   const [steps, setSteps] = useState<ManualStep[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [aiBusy, setAiBusy] = useState(false);
   const [extSynced, setExtSynced] = useState(false);
   const [polishVoiceWithAi, setPolishVoiceWithAi] = useState(true);
-  const [imgBusy, setImgBusy] = useState(false);
-  const [dragStepId, setDragStepId] = useState<string | null>(null);
-  const [showAddMenu, setShowAddMenu] = useState(false);
-  const [screenEditOpen, setScreenEditOpen] = useState(false);
-  const layoutRef = useRef<HTMLDivElement>(null);
-  const { widths, dragSteps, dragEdit } = useEditLayoutColumns();
 
   const load = useCallback(async () => {
     if (!id || id.startsWith("demo")) {
@@ -75,7 +65,6 @@ export default function ManualEditPage() {
     const s = await listSteps(id);
     setManual(m);
     setSteps(s);
-    setActiveId((cur) => (cur && s.some((x) => x.id === cur) ? cur : s[0]?.id ?? null));
     setLoading(false);
   }, [id, navigate]);
 
@@ -83,34 +72,30 @@ export default function ManualEditPage() {
     load();
   }, [load]);
 
-  const active = steps.find((s) => s.id === activeId) ?? steps[0];
-
-  const saveDraftFields = useCallback(
-    async (fields: { title: string; instruction: string; note: string }) => {
-      if (!id || !active || id.startsWith("demo")) return;
-      await updateStep(id, active.id, fields);
-      setSteps((cur) =>
-        cur.map((s) => (s.id === active.id ? { ...s, ...fields } : s)),
-      );
-    },
-    [id, active?.id],
-  );
-
-  const { draft, update: updateDraft, saveState } = useStepDraft(
-    active?.id,
-    active
-      ? { title: active.title, instruction: active.instruction, note: active.note ?? "" }
-      : undefined,
-    saveDraftFields,
-  );
-
-  const patchActive = async (patch: Partial<ManualStep>) => {
-    if (!id || !active || id.startsWith("demo")) return;
-    await updateStep(id, active.id, patch);
-    setSteps((cur) => cur.map((s) => (s.id === active.id ? { ...s, ...patch } : s)));
+  const openDetail = (stepId: string) => {
+    setSearchParams({ detail: stepId });
   };
 
-  const move = async (stepId: string, dir: -1 | 1) => {
+  const closeDetail = () => {
+    setSearchParams({});
+  };
+
+  const saveStepFields = async (stepId: string, fields: { title: string; instruction: string; note: string }) => {
+    if (!id || id.startsWith("demo")) return;
+    await updateStep(id, stepId, fields);
+    setSteps((cur) => cur.map((s) => (s.id === stepId ? { ...s, ...fields } : s)));
+  };
+
+  const patchStep = async (stepId: string, patch: Partial<ManualStep>) => {
+    if (!id || id.startsWith("demo")) return;
+    await updateStep(id, stepId, patch);
+    setSteps((cur) => cur.map((s) => (s.id === stepId ? { ...s, ...patch } : s)));
+  };
+
+  const active = steps.find((s) => s.id === detailStepId) ?? steps[0];
+  const audience = (manual?.targetAudience?.[0] ?? "new_staff") as TargetAudience;
+
+  const moveStep = async (stepId: string, dir: -1 | 1) => {
     const idx = steps.findIndex((s) => s.id === stepId);
     const next = idx + dir;
     if (next < 0 || next >= steps.length || !id || id.startsWith("demo")) return;
@@ -134,24 +119,26 @@ export default function ManualEditPage() {
     setSteps(reordered);
   };
 
-  const handleInsertStep = async (mode: "end" | "before" | "after") => {
-    if (!id || id.startsWith("demo")) return;
-    setShowAddMenu(false);
+  const insertStep = async (mode: "end" | "before" | "after") => {
+    if (!id || id.startsWith("demo") || !active) return;
     let position = steps.length + 1;
-    if (mode === "before" && active) position = active.order;
-    if (mode === "after" && active) position = active.order + 1;
+    if (mode === "before") position = active.order;
+    if (mode === "after") position = active.order + 1;
     const newId = await insertStepAt(id, position, {
       type: "normal",
       title: `手順 ${position}`,
       instruction: "",
       note: "",
+      textBeforeImage: "",
       screenshotUrl: "",
       pageTitle: "",
       pageUrl: "",
       elementText: "",
+      imageWidthPct: 100,
+      imageAlign: "center",
     });
     await load();
-    setActiveId(newId);
+    openDetail(newId);
   };
 
   const handleDeleteStep = async (stepId: string) => {
@@ -160,22 +147,20 @@ export default function ManualEditPage() {
     await deleteStep(id, stepId);
     const next = steps.filter((s) => s.id !== stepId);
     setSteps(next);
-    setActiveId(next[0]?.id ?? null);
+    if (detailStepId === stepId) {
+      if (next[0]) openDetail(next[0].id);
+      else closeDetail();
+    }
   };
-
-  const audience = (manual?.targetAudience?.[0] ?? "new_staff") as TargetAudience;
 
   const applyRuleInstruction = async (tone: "simple" | "formal" | "manual" = "simple") => {
     if (!active || !id) return;
     const text = buildInstructionFromStep(active, tone, audience);
-    updateDraft({ instruction: text });
-    if (id.startsWith("demo")) return;
-    await updateStep(id, active.id, { instruction: text });
-    setSteps((cur) => cur.map((s) => (s.id === active.id ? { ...s, instruction: text } : s)));
+    await patchStep(active.id, { instruction: text });
   };
 
   const handleAiPolish = async (tone: "simple" | "formal" | "manual" | "detailed") => {
-    if (!active) return;
+    if (!active || !id) return;
     setAiBusy(true);
     try {
       const orgId = manual?.organizationId;
@@ -183,10 +168,7 @@ export default function ManualEditPage() {
       const text = await generateStepWithApi(active, tone, audience, orgId).catch(() =>
         polishInstruction(active, tone === "manual" || tone === "detailed" ? "formal" : tone === "formal" ? "formal" : "simple"),
       );
-      updateDraft({ instruction: text });
-      if (!id || !active) return;
-      await updateStep(id, active.id, { instruction: text });
-      setSteps((cur) => cur.map((s) => (s.id === active.id ? { ...s, instruction: text } : s)));
+      await patchStep(active.id, { instruction: text });
     } finally {
       setAiBusy(false);
     }
@@ -216,15 +198,6 @@ export default function ManualEditPage() {
     setExtSynced(ok);
   };
 
-  const saveLabel =
-    saveState === "saving"
-      ? "保存中…"
-      : saveState === "pending"
-        ? "保存待ち…"
-        : saveState === "saved"
-          ? "保存しました"
-          : "自動保存";
-
   if (loading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
@@ -233,28 +206,26 @@ export default function ManualEditPage() {
     );
   }
 
-  if (!manual) return null;
+  if (!manual || !id) return null;
+
+  const inDetail = Boolean(detailStepId && steps.some((s) => s.id === detailStepId));
 
   return (
     <>
       <PageHeader
         title={manual.title}
-        description="手順の並び替え・文言の編集・共有の準備（編集は自動保存）"
+        description={inDetail ? "手順の詳細編集（画面編集・AI・画像差し替え）" : "Wordのように手順を並べて編集（クリックで詳細編集）"}
         action={
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs text-slate-400">{saveLabel}</span>
             {id && !id.startsWith("demo") && (
               <Link
                 to={`/manuals/${id}/preview`}
                 className="inline-flex items-center gap-1 rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
               >
-                <Eye size={16} /> プレビュー
+                <Eye size={16} /> 書き出し・印刷
               </Link>
             )}
-            <Link
-              to={`/manuals/${id}/share`}
-              className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-            >
+            <Link to={`/manuals/${id}/share`} className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
               共有へ
             </Link>
             {user && (
@@ -262,7 +233,7 @@ export default function ManualEditPage() {
                 type="button"
                 className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                 onClick={async () => {
-                  if (!id || id.startsWith("demo") || !manual) return;
+                  if (id.startsWith("demo")) return;
                   const label = prompt("新しい版の名前（例: 2027年度版）", `${manual.title}（改訂版）`);
                   if (!label?.trim()) return;
                   const newId = await duplicateManual(id, {
@@ -279,7 +250,7 @@ export default function ManualEditPage() {
             <button
               type="button"
               onClick={async () => {
-                if (!id || id.startsWith("demo")) return;
+                if (id.startsWith("demo")) return;
                 await updateManual(id, { status: "published" });
                 setManual({ ...manual, status: "published" });
               }}
@@ -299,354 +270,70 @@ export default function ManualEditPage() {
               key={ws}
               type="button"
               onClick={async () => {
-                if (!id) return;
                 await updateManual(id, { workStatus: ws });
                 setManual({ ...manual, workStatus: ws });
               }}
               className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-                manualWorkStatus(manual) === ws
-                  ? "bg-primary-500 text-white"
-                  : "border border-slate-300 bg-white text-slate-600 hover:bg-slate-100"
+                manualWorkStatus(manual) === ws ? "bg-primary-500 text-white" : "border border-slate-300 bg-white text-slate-600 hover:bg-slate-100"
               }`}
             >
               {WORK_STATUS_LABEL[ws]}
             </button>
           ))}
-          <span className="text-xs text-slate-500">
-            {manualWorkStatus(manual) === "in_progress"
-              ? "ダッシュボードの「作成中」に表示されます"
-              : "作成が完了したら「作成済み」に切り替えてください"}
-          </span>
         </div>
       )}
 
-      {manual && steps.length > 0 && (
-        <div className="mx-6 mb-4 space-y-3">
-          <ManualHealthPanel manual={manual} steps={steps} />
-          {(manual.contentType === "material" || steps.length >= 2) && <StepQuizPanel steps={steps} />}
-        </div>
-      )}
-
-      {id && !id.startsWith("demo") && (
-        <div className="mx-6 mb-4 space-y-3">
-          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-primary-200 bg-primary-50/60 px-4 py-3 text-sm">
-            <span className="font-semibold text-slate-800">Chrome拡張で記録</span>
-            <button
-              type="button"
-              onClick={handleExtensionSync}
-              className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-primary-700 shadow-sm hover:bg-primary-50"
-            >
-              {extSynced ? "連携済み" : "拡張と連携"}
-            </button>
-            <label className="flex items-center gap-1.5 text-xs text-slate-600">
-              <input
-                type="checkbox"
-                checked={polishVoiceWithAi}
-                onChange={(e) => setPolishVoiceWithAi(e.target.checked)}
-              />
-              取り込み後に音声説明をAIで整える
-            </label>
-            <span className="text-xs text-slate-500">
-              記録中は拡張パネルの「音声説明」で喋ると、各手順の説明文に入ります
-            </span>
-            <a href={extensionInstallUrl()} target="_blank" rel="noreferrer" className="text-xs text-primary-600 hover:underline">
-              拡張をインストール
-            </a>
-            <button
-              type="button"
-              disabled={aiBusy || steps.length === 0}
-              onClick={handleAiAll}
-              className="ml-auto inline-flex items-center gap-1 rounded-lg bg-primary-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-600 disabled:opacity-50"
-            >
-              <Sparkles size={12} /> 全手順をAI生成（Gemini）
-            </button>
-          </div>
-          <VoiceMemoPanel />
-        </div>
-      )}
-
-      <div ref={layoutRef} className="flex min-h-[calc(100vh-8rem)] flex-col lg:flex-row">
-        <aside
-          className="shrink-0 border-b border-slate-200 bg-white lg:border-b-0 lg:border-r"
-          style={{ width: widths.steps }}
-        >
-          <div className="relative flex items-center justify-between border-b border-slate-100 px-4 py-3">
-            <span className="text-xs font-bold text-slate-500">手順 ({steps.length}) · ドラッグで並べ替え</span>
-            <button
-              type="button"
-              onClick={() => setShowAddMenu((v) => !v)}
-              className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-primary-600 hover:bg-primary-50"
-            >
-              <Plus size={14} /> 追加
-            </button>
-            {showAddMenu && (
-              <div className="absolute right-4 top-12 z-20 min-w-[180px] rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
-                <button type="button" className="block w-full px-4 py-2 text-left text-xs hover:bg-slate-50" onClick={() => handleInsertStep("end")}>
-                  末尾に追加
-                </button>
-                <button
-                  type="button"
-                  disabled={!active}
-                  className="block w-full px-4 py-2 text-left text-xs hover:bg-slate-50 disabled:opacity-40"
-                  onClick={() => handleInsertStep("before")}
-                >
-                  「{active?.title || "選択中"}」の前に挿入
-                </button>
-                <button
-                  type="button"
-                  disabled={!active}
-                  className="block w-full px-4 py-2 text-left text-xs hover:bg-slate-50 disabled:opacity-40"
-                  onClick={() => handleInsertStep("after")}
-                >
-                  「{active?.title || "選択中"}」の後に挿入
-                </button>
-              </div>
-            )}
-          </div>
-          <ul className="max-h-[60vh] overflow-y-auto lg:max-h-none">
-            {steps.map((s, i) => (
-              <li
-                key={s.id}
-                draggable={!id?.startsWith("demo")}
-                onDragStart={() => setDragStepId(s.id)}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => {
-                  if (dragStepId) void reorderByDrag(dragStepId, s.id);
-                  setDragStepId(null);
-                }}
-                onDragEnd={() => setDragStepId(null)}
-              >
-                <button
-                  type="button"
-                  onClick={() => setActiveId(s.id)}
-                  className={`flex w-full items-start gap-2 border-l-4 px-2 py-3 text-left text-sm transition-colors ${
-                    active?.id === s.id
-                      ? "border-primary-500 bg-primary-50/80"
-                      : "border-transparent hover:bg-slate-50"
-                  }`}
-                >
-                  <GripVertical size={14} className="mt-1 shrink-0 text-slate-300" aria-hidden />
-                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary-500 text-xs font-bold text-white">
-                    {i + 1}
-                  </span>
-                  <span className="font-medium text-slate-800">{s.title || `手順 ${i + 1}`}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </aside>
-
-        <ResizeGutter
-          onDrag={(dx) => {
-            const w = layoutRef.current?.clientWidth ?? 1200;
-            dragSteps(dx, w);
-          }}
+      {manual && steps.length > 0 && !inDetail && (
+        <EditToolboxRow
+          manual={manual}
+          steps={steps}
+          extSynced={extSynced}
+          polishVoiceWithAi={polishVoiceWithAi}
+          aiBusy={aiBusy}
+          onExtensionSync={handleExtensionSync}
+          onPolishVoiceChange={setPolishVoiceWithAi}
+          onAiAll={handleAiAll}
+          showExtension={Boolean(id && !id.startsWith("demo"))}
         />
+      )}
 
-        <section className="min-w-0 flex-1 border-b border-slate-200 bg-slate-100 p-4 lg:border-b-0 lg:border-r">
-          {active ? (
-            <div className="mx-auto w-full max-w-4xl">
-              <StepScreenshotPreview
-                screenshotUrl={active.screenshotUrl}
-                stepIndex={steps.findIndex((s) => s.id === active.id) + 1}
-                clickX={active.clickX}
-                clickY={active.clickY}
-                stepType={active.type}
-                imageLoading="eager"
-              />
-              <p className="mt-2 text-center text-xs text-slate-500">{active.pageTitle || active.pageUrl || "—"}</p>
-              {id && !id.startsWith("demo") && (
-                <label className="mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:border-primary-400 hover:text-primary-700">
-                  <ImagePlus size={14} />
-                  {imgBusy ? "アップロード中…" : "画像を差し替え・挿入"}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="sr-only"
-                    disabled={imgBusy}
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      e.target.value = "";
-                      if (!file || !id || !active) return;
-                      setImgBusy(true);
-                      try {
-                        const url = await uploadStepScreenshot(id, active.id, file);
-                        await patchActive({ screenshotUrl: url });
-                      } catch (err) {
-                        alert(err instanceof Error ? err.message : "画像のアップロードに失敗しました");
-                      } finally {
-                        setImgBusy(false);
-                      }
-                    }}
-                  />
-                </label>
-              )}
-            </div>
-          ) : (
-            <p className="py-20 text-center text-sm text-slate-500">手順を追加してください</p>
-          )}
-        </section>
-
-        <ResizeGutter
-          onDrag={(dx) => {
-            const w = layoutRef.current?.clientWidth ?? 1200;
-            dragEdit(dx, w);
+      {inDetail && detailStepId ? (
+        <ManualStepDetailPanel
+          manualId={id}
+          manual={manual}
+          steps={steps}
+          activeId={detailStepId}
+          onBack={closeDetail}
+          onStepsChange={setSteps}
+          onActiveChange={openDetail}
+          onReload={load}
+          saveStepFields={saveStepFields}
+          patchStep={patchStep}
+          moveStep={moveStep}
+          reorderByDrag={reorderByDrag}
+          insertStep={insertStep}
+          deleteStep={handleDeleteStep}
+          applyRuleInstruction={applyRuleInstruction}
+          handleAiPolish={handleAiPolish}
+          uploadScreenshot={async (file) => {
+            if (!active) return;
+            const url = await uploadStepScreenshot(id, active.id, file);
+            await patchStep(active.id, { screenshotUrl: url });
           }}
+          aiBusy={aiBusy}
+          organization={organization}
         />
-
-        <section className="shrink-0 bg-white p-4" style={{ width: widths.edit }}>
-          {active ? (
-            <div className="space-y-4">
-              <div className="flex gap-2">
-                <button type="button" onClick={() => move(active.id, -1)} className="rounded-lg border p-2 hover:bg-slate-50" aria-label="上へ">
-                  <ChevronUp size={16} />
-                </button>
-                <button type="button" onClick={() => move(active.id, 1)} className="rounded-lg border p-2 hover:bg-slate-50" aria-label="下へ">
-                  <ChevronDown size={16} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDeleteStep(active.id)}
-                  className="ml-auto rounded-lg border border-danger-200 p-2 text-danger-600 hover:bg-danger-50"
-                  aria-label="削除"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-600">手順タイトル</label>
-                <input
-                  value={draft.title}
-                  onChange={(e) => updateDraft({ title: e.target.value })}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-600">説明文</label>
-                <textarea
-                  rows={5}
-                  value={draft.instruction}
-                  onChange={(e) => updateDraft({ instruction: e.target.value })}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                />
-                <p className="mt-1 text-[11px] text-slate-400">
-                  入力は自動保存されます（約0.6秒後）。「自動作成」は無料（ルールベース）。Gemini AI は月間回数を消費します。
-                </p>
-                {organization?.snippets && organization.snippets.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {organization.snippets.map((s) => (
-                      <button
-                        key={s.id}
-                        type="button"
-                        className="rounded-full border border-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-600 hover:bg-primary-50"
-                        onClick={() =>
-                          updateDraft({
-                            instruction: `${draft.instruction}\n{{snippet:${s.id}}}`.trim(),
-                          })
-                        }
-                      >
-                        + {s.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {draft.instruction.includes("{{") && organization && (
-                  <p className="mt-1 text-[11px] text-primary-600">
-                    プレビュー: {expandOrgContent(draft.instruction, organization.orgVariables, organization.snippets)}
-                  </p>
-                )}
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    disabled={aiBusy}
-                    onClick={() => void applyRuleInstruction("simple")}
-                    className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-800 hover:bg-slate-200 disabled:opacity-50"
-                  >
-                    説明を自動作成（無料）
-                  </button>
-                  <button
-                    type="button"
-                    disabled={aiBusy}
-                    onClick={() => handleAiPolish("simple")}
-                    className="inline-flex items-center gap-1 rounded-lg bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 disabled:opacity-50"
-                  >
-                    <Sparkles size={12} /> AI Gemini（かんたん）
-                  </button>
-                  <button
-                    type="button"
-                    disabled={aiBusy}
-                    onClick={() => handleAiPolish("manual")}
-                    className="inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-semibold text-slate-600 disabled:opacity-50"
-                  >
-                    AI（業務文書風）
-                  </button>
-                  <button
-                    type="button"
-                    disabled={aiBusy}
-                    onClick={() => handleAiPolish("formal")}
-                    className="inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-semibold text-slate-600 disabled:opacity-50"
-                  >
-                    AI（丁寧）
-                  </button>
-                </div>
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-600">手順の種類</label>
-                <select
-                  value={active.type}
-                  onChange={(e) => patchActive({ type: e.target.value as StepType })}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                >
-                  <option value="normal">通常</option>
-                  <option value="warning">注意</option>
-                  <option value="ng_example">NG例（やってはいけない）</option>
-                  <option value="check">確認ポイント</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-600">注意メモ</label>
-                <input
-                  value={draft.note}
-                  onChange={(e) => updateDraft({ note: e.target.value })}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-600">画面編集</p>
-                <p className="mt-0.5 text-[11px] text-slate-400">黒塗り・モザイク・ぼかし・丸・矢印・テキスト（保存後は画像に焼き込み）</p>
-                <button
-                  type="button"
-                  disabled={!active.screenshotUrl}
-                  onClick={() => setScreenEditOpen(true)}
-                  className="mt-2 w-full rounded-lg border border-primary-300 bg-primary-50 px-3 py-2 text-sm font-semibold text-primary-800 hover:bg-primary-100 disabled:opacity-40"
-                >
-                  全画面で画面編集を開く
-                </button>
-              </div>
-              {screenEditOpen && active.screenshotUrl && id && (
-                <StepScreenEditor
-                  screenshotUrl={active.screenshotUrl}
-                  manualId={id}
-                  stepId={active.id}
-                  masks={active.masks ?? []}
-                  annotations={active.annotations ?? []}
-                  onSave={(result) => {
-                    void patchActive({
-                      screenshotUrl: result.screenshotUrl,
-                      masks: result.masks,
-                      annotations: result.annotations,
-                    });
-                    setScreenEditOpen(false);
-                  }}
-                  onClose={() => setScreenEditOpen(false)}
-                />
-              )}
-              {aiBusy && <p className="text-xs text-slate-400">AI生成中…</p>}
-            </div>
-          ) : null}
-        </section>
-      </div>
+      ) : (
+        <ManualDocumentEditor
+          manualId={id}
+          manual={manual}
+          steps={steps}
+          onStepsChange={setSteps}
+          onOpenDetail={openDetail}
+          onReload={load}
+          demo={id.startsWith("demo")}
+        />
+      )}
 
       {id && !id.startsWith("demo") && (
         <div className="border-t border-slate-200 px-6 py-4">

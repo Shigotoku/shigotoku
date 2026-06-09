@@ -9,11 +9,14 @@ import { createManual, addStep } from "../services/manuals";
 import {
   MANUAL_TEMPLATES,
   TEMPLATE_CATEGORY_LABELS,
+  TEMPLATE_SCOPE_LABELS,
   type ManualTemplate,
   type TemplateCategory,
+  type TemplateScope,
 } from "../services/templates";
 
 const ALL = "all" as const;
+const SCOPE_ALL = "all" as const;
 
 const CATEGORY_ICON: Record<TemplateCategory, string> = {
   clinic: "🏥",
@@ -32,11 +35,13 @@ export default function TemplatesPage() {
   const { user, demoMode } = useAuth();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [scope, setScope] = useState<typeof SCOPE_ALL | TemplateScope>(SCOPE_ALL);
   const [category, setCategory] = useState<typeof ALL | TemplateCategory>(ALL);
   const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
     let list: ManualTemplate[] = MANUAL_TEMPLATES;
+    if (scope !== SCOPE_ALL) list = list.filter((t) => t.scope === scope);
     if (category !== ALL) list = list.filter((t) => t.category === category);
     if (query.trim()) {
       const q = query.trim().toLowerCase();
@@ -48,7 +53,13 @@ export default function TemplatesPage() {
       );
     }
     return list;
-  }, [category, query]);
+  }, [scope, category, query]);
+
+  const scopeCounts = useMemo(() => {
+    const company = MANUAL_TEMPLATES.filter((t) => t.scope === "company").length;
+    const personal = MANUAL_TEMPLATES.filter((t) => t.scope === "personal").length;
+    return { company, personal, all: MANUAL_TEMPLATES.length };
+  }, []);
 
   const useTemplate = async (templateId: string) => {
     const tpl = MANUAL_TEMPLATES.find((t) => t.id === templateId);
@@ -118,6 +129,36 @@ export default function TemplatesPage() {
           </div>
         )}
 
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setScope(SCOPE_ALL)}
+            className={`rounded-xl border px-4 py-2.5 text-sm font-semibold ${
+              scope === SCOPE_ALL ? "border-primary-400 bg-primary-50 text-primary-800" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            📁 すべて（{scopeCounts.all}）
+          </button>
+          <button
+            type="button"
+            onClick={() => setScope("company")}
+            className={`rounded-xl border px-4 py-2.5 text-sm font-semibold ${
+              scope === "company" ? "border-primary-400 bg-primary-50 text-primary-800" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            🏢 {TEMPLATE_SCOPE_LABELS.company}（{scopeCounts.company}）
+          </button>
+          <button
+            type="button"
+            onClick={() => setScope("personal")}
+            className={`rounded-xl border px-4 py-2.5 text-sm font-semibold ${
+              scope === "personal" ? "border-primary-400 bg-primary-50 text-primary-800" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            👤 {TEMPLATE_SCOPE_LABELS.personal}（{scopeCounts.personal}）
+          </button>
+        </div>
+
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="relative min-w-0 flex-1">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -176,7 +217,7 @@ export default function TemplatesPage() {
                 {t.title}
               </span>
               <span className="mt-1 text-[10px] text-slate-400">
-                {t.steps.length}手順 · {TEMPLATE_CATEGORY_LABELS[t.category]}
+                {t.steps.length}手順 · {TEMPLATE_SCOPE_LABELS[t.scope]} · {TEMPLATE_CATEGORY_LABELS[t.category]}
               </span>
               {busy === t.id && (
                 <span className="mt-1 text-[10px] font-semibold text-primary-600">作成中…</span>

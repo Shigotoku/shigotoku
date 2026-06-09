@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Copy, Download, ExternalLink, Loader2, Printer } from "lucide-react";
 import PageHeader from "../components/PageHeader";
-import StepScreenshotPreview from "../components/StepScreenshotPreview";
+import StepDocumentBlock from "../components/StepDocumentBlock";
 import { getManual, listSteps } from "../services/manuals";
 import { buildShareUrl, getLatestShareTokenForManual } from "../services/share";
 import { downloadAsHtml, downloadAsWordDoc, formatStepsForClipboard } from "../lib/exportManual";
@@ -226,29 +226,19 @@ export default function ManualPreviewPage() {
         <article className="shared-manual rounded-2xl border border-slate-200 bg-white px-6 py-8 print:border-0">
           <h1 className="text-xl font-bold text-slate-900">{title}</h1>
           <p className="mt-1 text-xs text-slate-400">{sorted.length} 手順</p>
-          <ol className="mt-8 list-none space-y-8 p-0">
+          <div className="mt-8 space-y-6">
             {sorted.map((s, i) => (
-              <li key={s.id} className="break-inside-avoid">
-                <h2 className="text-base font-bold text-slate-900">
-                  {i + 1}. {s.title || `手順 ${i + 1}`}
-                </h2>
-                <div className="mt-3">
-                  <StepScreenshotPreview
-                    screenshotUrl={s.screenshotUrl}
-                    stepIndex={i + 1}
-                    stepType={s.type}
-                    showClickMarker={false}
-                  />
-                </div>
-                <p className="mt-3 whitespace-pre-wrap text-[15px] leading-relaxed text-slate-700">
-                  {s.instruction}
-                </p>
-                {s.note && (
-                  <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">{s.note}</p>
-                )}
-              </li>
+              <div key={s.id} className="break-inside-avoid">
+                <StepDocumentBlock
+                  step={s}
+                  index={i}
+                  onPatch={() => {}}
+                  onOpenDetail={() => {}}
+                  readOnly
+                />
+              </div>
             ))}
-          </ol>
+          </div>
         </article>
       </div>
     </>

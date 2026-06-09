@@ -1,10 +1,11 @@
 import type { TargetAudience } from '../types';
-import type { TemplateCategory, TemplateStepDef } from './templateTypes';
+import type { TemplateCategory, TemplateScope, TemplateStepDef } from './templateTypes';
 
 export interface TemplateCatalogEntry {
   id: string;
   title: string;
   category: TemplateCategory;
+  scope?: TemplateScope;
   targetAudience: TargetAudience[];
   description: string;
   tags: string[];

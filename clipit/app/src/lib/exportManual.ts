@@ -78,6 +78,9 @@ async function buildWordHtml(title: string, steps: ManualStep[]): Promise<string
     const s = sorted[i]!;
     const n = i + 1;
     parts.push(`<h2 style='margin:14pt 0 6pt;font-size:14pt;color:#c2410c;page-break-after:avoid'>${n}. ${escapeHtml(s.title || `手順 ${n}`)}</h2>`);
+    if (s.textBeforeImage) {
+      parts.push(`<p class=MsoNormal style='margin:0 0 8pt'>${escapeHtml(s.textBeforeImage).replace(/\n/g, '<br/>')}</p>`);
+    }
     if (s.screenshotUrl) {
       try {
         const { dataUrl, w, h } = await prepareEmbedImage(s.screenshotUrl, WORD_IMG_WIDTH_PX);
@@ -142,6 +145,7 @@ async function stepsToHtml(title: string, steps: ManualStep[], embedImages: bool
     }
     parts.push(`<section style="margin-bottom:24px;page-break-inside:avoid">
 <h2 style="font-size:14pt;color:#c2410c;margin:0 0 8px">${n}. ${escapeHtml(s.title || `手順 ${n}`)}</h2>
+${s.textBeforeImage ? `<p style="margin:0 0 8px">${escapeHtml(s.textBeforeImage).replace(/\n/g, '<br/>')}</p>` : ''}
 ${imgBlock}
 <p style="margin:0 0 8px">${escapeHtml(s.instruction || '').replace(/\n/g, '<br/>')}</p>
 ${s.note ? `<p style="margin:0;padding:8px 12px;background:#fffbeb;font-size:10pt">注意: ${escapeHtml(s.note)}</p>` : ''}

@@ -20,6 +20,8 @@ export interface MaskRect {
   type: MaskStyle;
 }
 
+export type AnnotationFontFamily = 'noto' | 'mincho' | 'inter' | 'mono';
+
 export interface StepAnnotation {
   id: string;
   kind: 'circle' | 'text' | 'arrow';
@@ -29,6 +31,12 @@ export interface StepAnnotation {
   /** 円の直径（%） */
   size?: number;
   text?: string;
+  /** テキストサイズ（800px幅基準の px、保存時に画像幅でスケール） */
+  fontSize?: number;
+  fontFamily?: AnnotationFontFamily;
+  fontWeight?: 'normal' | 'bold';
+  textColor?: string;
+  bgColor?: string;
   /** 矢印の終点（%） */
   endX?: number;
   endY?: number;
@@ -135,6 +143,8 @@ export interface FolderShareTokenDoc {
   createdBy: string;
 }
 
+export type StepImageAlign = 'left' | 'center' | 'right';
+
 export interface ManualStep {
   id: string;
   order: number;
@@ -150,6 +160,12 @@ export interface ManualStep {
   /** ビューポートに対するクリック位置（0–100%） */
   clickX?: number;
   clickY?: number;
+  /** 画像の表示幅（%・25–100） */
+  imageWidthPct?: number;
+  /** 画像の横位置（幅を狭めたときに有効） */
+  imageAlign?: StepImageAlign;
+  /** 画像の前に入る説明文（Word風の流し込み） */
+  textBeforeImage?: string;
   masks?: MaskRect[];
   annotations?: StepAnnotation[];
 }
@@ -163,6 +179,9 @@ export interface ShareStepSnapshot {
   screenshotUrl: string;
   clickX?: number;
   clickY?: number;
+  imageWidthPct?: number;
+  imageAlign?: StepImageAlign;
+  textBeforeImage?: string;
 }
 
 export interface ShareTokenDoc {

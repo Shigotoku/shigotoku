@@ -8,6 +8,8 @@ export type TemplateCategory =
   | 'hospitality'
   | 'general';
 
+export type TemplateScope = 'company' | 'personal';
+
 export interface TemplateStepDef {
   title: string;
   instruction: string;
@@ -25,6 +27,7 @@ export interface ManualTemplate {
   id: string;
   title: string;
   category: TemplateCategory;
+  scope: TemplateScope;
   targetAudience: TargetAudience[];
   description: string;
   tags: string[];

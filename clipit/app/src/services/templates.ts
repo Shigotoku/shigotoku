@@ -1,8 +1,9 @@
 import { templatePlaceholderUrl } from '../lib/templatePlaceholders';
-import { TEMPLATE_CATALOG } from './templateCatalog';
-import type { ManualTemplate, TemplateCategory, TemplateStepDef } from './templateTypes';
+import { TEMPLATE_CATALOG, type TemplateCatalogEntry } from './templateCatalog';
+import { TEMPLATE_CATALOG_EXTRA } from './templateCatalogExtra';
+import type { ManualTemplate, TemplateCategory, TemplateScope, TemplateStepDef } from './templateTypes';
 
-export type { TemplateCategory, ManualTemplate, TemplateStepDef } from './templateTypes';
+export type { TemplateCategory, TemplateScope, ManualTemplate, TemplateStepDef } from './templateTypes';
 
 export const TEMPLATE_CATEGORY_LABELS: Record<TemplateCategory, string> = {
   clinic: 'クリニック・医療',
@@ -13,9 +14,26 @@ export const TEMPLATE_CATEGORY_LABELS: Record<TemplateCategory, string> = {
   general: '汎用',
 };
 
-function finalizeTemplate(entry: (typeof TEMPLATE_CATALOG)[number]): ManualTemplate {
+export const TEMPLATE_SCOPE_LABELS: Record<TemplateScope, string> = {
+  company: '会社向け',
+  personal: '個人向け',
+};
+
+const PERSONAL_IDS = new Set(['edu-parent', 'edu-experiment']);
+const SCHOOL_EDU_IDS = new Set(['edu-print', 'edu-test', 'edu-lesson-plan']);
+
+function resolveScope(entry: TemplateCatalogEntry): TemplateScope {
+  if (entry.scope) return entry.scope;
+  if (PERSONAL_IDS.has(entry.id)) return 'personal';
+  if (entry.category === 'education' && !SCHOOL_EDU_IDS.has(entry.id)) return 'personal';
+  return 'company';
+}
+
+function finalizeTemplate(entry: TemplateCatalogEntry): ManualTemplate {
+  const { scope: _omit, ...rest } = entry;
   return {
-    ...entry,
+    ...rest,
+    scope: resolveScope(entry),
     steps: entry.steps.map((s, i) => ({
       ...s,
       screenshotUrl: templatePlaceholderUrl(entry.category, i + 1, s.title, entry.title),
@@ -25,4 +43,4 @@ function finalizeTemplate(entry: (typeof TEMPLATE_CATALOG)[number]): ManualTempl
   };
 }
 
-export const MANUAL_TEMPLATES: ManualTemplate[] = TEMPLATE_CATALOG.map(finalizeTemplate);
+export const MANUAL_TEMPLATES: ManualTemplate[] = [...TEMPLATE_CATALOG, ...TEMPLATE_CATALOG_EXTRA].map(finalizeTemplate);

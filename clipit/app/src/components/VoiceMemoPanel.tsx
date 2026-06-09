@@ -12,7 +12,9 @@ function getSpeechRecognition(): SpeechRecognitionCtor | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
-export default function VoiceMemoPanel() {
+type Props = { compact?: boolean };
+
+export default function VoiceMemoPanel({ compact = false }: Props) {
   const [supported, setSupported] = useState(true);
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -75,10 +77,47 @@ export default function VoiceMemoPanel() {
   if (!supported) {
     return (
       <p className="text-xs text-slate-500">
-        このブラウザは音声認識に未対応です（Chrome 推奨）。手順の「注意メモ」に直接入力できます。
+        {compact ? '音声非対応（Chrome推奨）' : 'このブラウザは音声認識に未対応です（Chrome 推奨）。手順の「注意メモ」に直接入力できます。'}
       </p>
     );
   }
+
+  const body = (
+    <>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={toggle}
+          className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold ${
+            listening
+              ? 'bg-danger-100 text-danger-700'
+              : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+          }`}
+        >
+          {listening ? <MicOff size={12} /> : <Mic size={12} />}
+          {listening ? '停止' : '開始'}
+        </button>
+        {listening && (
+          <span className="inline-flex items-center gap-1 text-[11px] text-primary-600">
+            <Loader2 size={10} className="animate-spin" /> 各手順メモへ反映
+          </span>
+        )}
+      </div>
+      {transcript ? (
+        <p className={`max-h-20 overflow-y-auto rounded-lg bg-slate-50 text-[11px] leading-relaxed text-slate-600 ${compact ? 'mt-1.5 p-2' : 'mt-3 p-3'}`}>
+          {transcript}
+        </p>
+      ) : (
+        !compact && (
+          <p className="mt-2 text-xs text-slate-400">
+            記録中に口頭で説明すると、停止時に手順ごとの「注意メモ」へ自動配分されます（AI クォータ不要）。
+          </p>
+        )
+      )}
+    </>
+  );
+
+  if (compact) return <div>{body}</div>;
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4">
