@@ -1,40 +1,38 @@
 ---
-import { appPath, sitePath, clipitIconPath } from '../lib/urls';
+import { appPath, clipitIconPath, assetPath } from '../lib/urls';
 
 const loginUrl = appPath('/login');
-const pricingUrl = sitePath('pricing');
 const howUrl = `${import.meta.env.BASE_URL}#how-it-works`;
+const heroBgUrl = assetPath('hero-bg.png');
 ---
 
-<section class="clipit-hero relative overflow-hidden bg-slate-950">
-  <div class="clipit-hero-glow pointer-events-none absolute inset-0" aria-hidden="true"></div>
-  <div
-    class="pointer-events-none absolute inset-0 opacity-[0.04]"
-    style="background-image: linear-gradient(rgba(255,255,255,.4) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.4) 1px, transparent 1px); background-size: 48px 48px;"
-    aria-hidden="true"
-  ></div>
+<section class="clipit-hero relative overflow-hidden bg-[#fff9f5]">
+  <div class="clipit-hero-bg" aria-hidden="true">
+    <img src={heroBgUrl} alt="" class="clipit-hero-bg-img" width={1920} height={800} loading="eager" decoding="async" />
+  </div>
+  <div class="clipit-hero-bg-fade pointer-events-none absolute inset-0" aria-hidden="true"></div>
 
-  <div class="relative mx-auto max-w-7xl px-4 pb-12 pt-12 sm:px-6 sm:pb-24 sm:pt-24">
+  <div class="relative z-10 mx-auto max-w-7xl px-4 pb-12 pt-12 sm:px-6 sm:pb-24 sm:pt-24">
     <div class="clipit-grid-safe grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
       <div class="min-w-0 text-center lg:text-left">
-        <div class="clipit-hero-badge inline-flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 py-1.5 pl-1.5 pr-3 text-sm font-medium text-slate-300 sm:justify-start sm:pr-4 lg:justify-start">
+        <div class="clipit-hero-badge inline-flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full border border-primary-200/80 bg-white/90 py-1.5 pl-1.5 pr-3 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur-sm sm:justify-start sm:pr-4 lg:justify-start">
           <span class="clipit-icon-frame clipit-icon-frame--badge shrink-0">
             <img src={clipitIconPath} alt="" class="clipit-brand-icon" width="32" height="32" />
           </span>
           <span data-jp-wrap>操作するだけでマニュアルができる SaaS</span>
         </div>
-        <h1 class="clipit-h1 mt-5 text-[1.625rem] font-extrabold leading-[1.35] tracking-tight text-white sm:mt-6 sm:text-4xl sm:leading-[1.12] lg:text-[3.25rem]" data-jp-heading>
+        <h1 class="clipit-h1 mt-5 text-[1.625rem] font-extrabold leading-[1.35] tracking-tight text-slate-900 sm:mt-6 sm:text-4xl sm:leading-[1.12] lg:text-[3.25rem]" data-jp-heading>
           作る。直す。届ける。<br />
-          <span class="text-primary-400">ClipIt ひとつで。</span>
+          <span class="text-primary-600">ClipIt ひとつで。</span>
         </h1>
-        <p class="clipit-lead mx-auto mt-5 max-w-xl text-base leading-relaxed text-slate-400 sm:mt-6 sm:text-lg lg:mx-0" data-jp-wrap>
-          Chrome拡張で操作を記録し、AIが手順文を整え、<strong class="font-semibold text-slate-300">まとめて修正</strong>で常に最新に。
+        <p class="clipit-lead mx-auto mt-5 max-w-xl text-base leading-relaxed text-slate-600 sm:mt-6 sm:text-lg lg:mx-0" data-jp-wrap>
+          Chrome拡張で操作を記録し、AIが手順文を整え、<strong class="font-semibold text-slate-800">まとめて修正</strong>で常に最新に。
           クリニック・中小企業の現場マニュアルに最適です。
         </p>
         <div class="mt-9 flex flex-col items-center gap-3 sm:flex-row lg:justify-start">
           <a
             href={loginUrl}
-            class="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary-500 px-8 py-4 text-base font-bold text-white shadow-lg shadow-primary-500/25 transition-all hover:bg-primary-400 sm:w-auto"
+            class="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary-500 px-8 py-4 text-base font-bold text-white shadow-lg shadow-primary-500/30 transition-all hover:bg-primary-600 sm:w-auto"
           >
             無料で始める
             <svg class="h-4 w-4 transition-transform group-hover:translate-x-0.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -43,46 +41,46 @@ const howUrl = `${import.meta.env.BASE_URL}#how-it-works`;
           </a>
           <a
             href={howUrl}
-            class="inline-flex w-full items-center justify-center rounded-xl border border-white/15 px-8 py-4 text-base font-semibold text-slate-200 transition-all hover:border-white/30 hover:text-white sm:w-auto"
+            class="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white/80 px-8 py-4 text-base font-semibold text-slate-700 shadow-sm transition-all hover:border-primary-300 hover:text-primary-700 sm:w-auto"
           >
             使い方を見る
           </a>
         </div>
         <p class="mt-5 text-xs leading-relaxed text-slate-500 sm:text-sm" data-jp-wrap>初期費用0円 · 主力プラン 月額2,980円 · 5分で初回作成</p>
-        <div class="mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[11px] text-slate-500 sm:mt-8 sm:gap-6 sm:text-xs lg:justify-start">
-          <span class="flex items-center gap-1.5"><span class="text-primary-400">✓</span> Googleログイン</span>
-          <span class="flex items-center gap-1.5"><span class="text-primary-400">✓</span> 閲覧者はログイン不要</span>
-          <span class="flex items-center gap-1.5"><span class="text-primary-400">✓</span> 手動マスキング</span>
+        <div class="mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[11px] text-slate-600 sm:mt-8 sm:gap-6 sm:text-xs lg:justify-start">
+          <span class="flex items-center gap-1.5 font-medium"><span class="text-primary-600">✓</span> Googleログイン</span>
+          <span class="flex items-center gap-1.5 font-medium"><span class="text-primary-600">✓</span> 閲覧者はログイン不要</span>
+          <span class="flex items-center gap-1.5 font-medium"><span class="text-primary-600">✓</span> 手動マスキング</span>
         </div>
       </div>
 
       <div class="relative mx-auto w-full min-w-0 max-w-lg lg:max-w-none">
-        <div class="clipit-hero-mock rounded-2xl border border-white/10 bg-white/5 p-3 shadow-2xl backdrop-blur-sm sm:p-5">
-          <div class="flex min-w-0 items-center gap-2 border-b border-white/10 pb-3">
+        <div class="clipit-hero-mock rounded-2xl border border-slate-200/80 bg-white/95 p-3 shadow-xl shadow-slate-300/40 backdrop-blur-sm sm:p-5">
+          <div class="flex min-w-0 items-center gap-2 border-b border-slate-100 pb-3">
             <span class="h-3 w-3 shrink-0 rounded-full bg-red-400/80"></span>
             <span class="h-3 w-3 shrink-0 rounded-full bg-amber-400/80"></span>
             <span class="h-3 w-3 shrink-0 rounded-full bg-emerald-400/80"></span>
-            <span class="ml-1 min-w-0 truncate text-[11px] font-medium text-slate-400 sm:ml-2 sm:text-xs" data-jp-wrap>新患受付の手順 — 記録中</span>
+            <span class="ml-1 min-w-0 truncate text-[11px] font-medium text-slate-500 sm:ml-2 sm:text-xs" data-jp-wrap>新患受付の手順 — 記録中</span>
           </div>
           <div class="mt-4 space-y-3">
-            <div class="relative overflow-hidden rounded-xl bg-slate-800/80 aspect-[16/10]">
-              <div class="absolute inset-4 rounded-lg border-2 border-dashed border-slate-600"></div>
-              <div class="absolute left-[38%] top-[42%] flex h-10 w-10 items-center justify-center rounded-full border-4 border-red-500 bg-red-500/20 text-sm font-bold text-red-400 shadow-lg shadow-red-500/30">
+            <div class="relative aspect-[16/10] overflow-hidden rounded-xl bg-slate-100">
+              <div class="absolute inset-4 rounded-lg border-2 border-dashed border-slate-300"></div>
+              <div class="absolute left-[38%] top-[42%] flex h-10 w-10 items-center justify-center rounded-full border-4 border-red-500 bg-red-50 text-sm font-bold text-red-600 shadow-lg shadow-red-500/20">
                 1
               </div>
-              <p class="absolute bottom-3 left-3 right-3 rounded-lg bg-black/50 px-3 py-2 text-xs text-slate-200">
+              <p class="absolute bottom-3 left-3 right-3 rounded-lg bg-white/95 px-3 py-2 text-xs text-slate-700 shadow-sm">
                 「受付」ボタンをクリックして、新患登録画面を開きます。
               </p>
             </div>
             <div class="clipit-hero-mock-tags flex gap-2">
-              <span class="rounded-lg bg-primary-500/20 px-2.5 py-1 text-[11px] font-semibold text-primary-300 sm:px-3 sm:py-1.5 sm:text-xs">● 記録中</span>
-              <span class="rounded-lg bg-white/5 px-2.5 py-1 text-[11px] text-slate-400 sm:px-3 sm:py-1.5 sm:text-xs">ステップ 3</span>
-              <span class="clipit-tag-long ml-auto rounded-lg bg-white/10 px-2.5 py-1 text-[11px] text-slate-300 sm:px-3 sm:py-1.5 sm:text-xs">Alt+Shift+S 強制キャプチャ</span>
-              <span class="clipit-tag-short ml-auto rounded-lg bg-white/10 px-2.5 py-1 text-[11px] text-slate-300">強制キャプチャ</span>
+              <span class="rounded-lg bg-primary-100 px-2.5 py-1 text-[11px] font-semibold text-primary-700 sm:px-3 sm:py-1.5 sm:text-xs">● 記録中</span>
+              <span class="rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] text-slate-600 sm:px-3 sm:py-1.5 sm:text-xs">ステップ 3</span>
+              <span class="clipit-tag-long ml-auto rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] text-slate-600 sm:px-3 sm:py-1.5 sm:text-xs">Alt+Shift+S 強制キャプチャ</span>
+              <span class="clipit-tag-short ml-auto rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] text-slate-600">強制キャプチャ</span>
             </div>
           </div>
         </div>
-        <div class="absolute -right-4 -top-4 hidden rounded-xl border border-primary-400/30 bg-primary-500/10 px-4 py-2 text-xs font-semibold text-primary-200 backdrop-blur sm:block">
+        <div class="absolute -right-4 -top-4 hidden rounded-xl border border-primary-300 bg-primary-500 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-primary-500/25 sm:block">
           AIが手順文を自動生成
         </div>
       </div>
@@ -90,22 +88,72 @@ const howUrl = `${import.meta.env.BASE_URL}#how-it-works`;
   </div>
 </section>
 
-<style>
-  .clipit-hero-glow {
-    background:
-      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(249, 115, 22, 0.35), transparent),
-      radial-gradient(ellipse 60% 40% at 100% 50%, rgba(251, 146, 60, 0.15), transparent),
-      radial-gradient(ellipse 50% 30% at 0% 80%, rgba(234, 88, 12, 0.12), transparent);
+<style is:global>
+  .clipit-hero {
+    isolation: isolate;
   }
-  .clipit-hero-icon {
-    filter: drop-shadow(0 20px 40px rgba(249, 115, 22, 0.35));
-    animation: clipit-float 6s ease-in-out infinite;
+
+  .clipit-hero-bg {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
   }
+
+  .clipit-hero-bg-img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 140%;
+    max-width: none;
+    object-fit: cover;
+    object-position: left center;
+    animation: clipit-hero-slide 48s ease-in-out infinite alternate;
+    will-change: transform;
+  }
+
+  .clipit-hero-bg-fade {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 249, 245, 0.92) 0%,
+      rgba(255, 249, 245, 0.55) 38%,
+      rgba(255, 249, 245, 0.2) 62%,
+      rgba(255, 249, 245, 0.08) 100%
+    );
+    z-index: 1;
+  }
+
+  @keyframes clipit-hero-slide {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(-18%);
+    }
+  }
+
   .clipit-hero-mock {
-    animation: clipit-float 6s ease-in-out infinite 0.4s;
+    animation: clipit-hero-float 6s ease-in-out infinite 0.4s;
   }
-  @keyframes clipit-float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-6px); }
+
+  @keyframes clipit-hero-float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-6px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .clipit-hero-bg-img {
+      animation: none;
+      width: 120%;
+    }
+    .clipit-hero-mock {
+      animation: none;
+    }
   }
 </style>
