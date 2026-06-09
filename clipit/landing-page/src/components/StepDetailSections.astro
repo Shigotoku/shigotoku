@@ -21,7 +21,7 @@ const steps = [
     title: '手順を整えて完成させる',
     body: 'AIが日本語の説明文を整え、スクショには赤枠・番号を付与。文言の修正と画像の差し替えだけで、読みやすいマニュアルに仕上がります。',
     bullets: ['AIが手順文を自動生成', '赤枠・番号で「どこを押すか」明示', '並び替え・マスキング・プレビュー'],
-    bg: 'bg-slate-50/80',
+    bg: 'bg-white',
   },
   {
     id: 'step-share',
@@ -36,7 +36,7 @@ const steps = [
 ---
 
 {steps.map((s) => (
-  <section id={s.id} class:list={['clipit-section border-b border-slate-100 py-10 sm:py-16', s.bg]}>
+  <section id={s.id} class:list={['clipit-section py-10 sm:py-16', s.bg]}>
     <div class="mx-auto max-w-7xl px-4 sm:px-6">
       <div class="clipit-grid-safe grid items-center gap-8 lg:grid-cols-2 lg:gap-14">
         <div class="min-w-0">
