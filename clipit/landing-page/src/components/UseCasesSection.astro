@@ -1,4 +1,8 @@
 ---
+import { assetPath } from '../lib/urls';
+
+const collageUrl = assetPath('use-cases-collage.png');
+
 const audiences = [
   {
     tag: 'クリニック・医療',
@@ -78,13 +82,14 @@ const audiences = [
 <section id="use-cases" class="clipit-use-cases clipit-section relative overflow-hidden py-10 sm:py-14">
   <div class="clipit-use-cases-bg" aria-hidden="true">
     <img
-      src="/use-cases-collage.png"
+      src={collageUrl}
       alt=""
       class="clipit-use-cases-bg-img"
       width={1920}
       height={1080}
-      loading="lazy"
+      loading="eager"
       decoding="async"
+      fetchpriority="low"
     />
   </div>
   <div class="clipit-use-cases-overlay" aria-hidden="true"></div>
@@ -123,31 +128,37 @@ const audiences = [
   </div>
 </section>
 
-<style>
-  .clipit-use-cases-bg {
+<style is:global>
+  #use-cases.clipit-use-cases {
+    isolation: isolate;
+  }
+
+  #use-cases .clipit-use-cases-bg {
     position: absolute;
-    inset: -8%;
+    inset: -10%;
+    z-index: 0;
     overflow: hidden;
     pointer-events: none;
   }
 
-  .clipit-use-cases-bg-img {
+  #use-cases .clipit-use-cases-bg-img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    opacity: 0.28;
+    opacity: 0.42;
     animation: clipit-use-cases-drift 32s ease-in-out infinite alternate;
     will-change: transform;
   }
 
-  .clipit-use-cases-overlay {
+  #use-cases .clipit-use-cases-overlay {
     position: absolute;
     inset: 0;
+    z-index: 1;
     background: linear-gradient(
       180deg,
-      rgba(255, 255, 255, 0.78) 0%,
-      rgba(248, 250, 252, 0.88) 45%,
-      rgba(255, 255, 255, 0.82) 100%
+      rgba(255, 255, 255, 0.52) 0%,
+      rgba(248, 250, 252, 0.68) 50%,
+      rgba(255, 255, 255, 0.58) 100%
     );
     pointer-events: none;
   }
@@ -165,9 +176,9 @@ const audiences = [
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .clipit-use-cases-bg-img {
+    #use-cases .clipit-use-cases-bg-img {
       animation: none;
-      opacity: 0.2;
+      opacity: 0.32;
     }
   }
 </style>
