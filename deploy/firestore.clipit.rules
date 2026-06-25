@@ -1,0 +1,114 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isClipitAdmin() {
+      return request.auth != null
+        && request.auth.token.email in [
+          'admin@shigotoku.com',
+          'meditoku.jp@gmail.com'
+        ];
+    }
+
+    function isClipitMember(orgId) {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/clipit_organizations/$(orgId)/members/$(request.auth.uid));
+    }
+
+    function clipitMemberRole(orgId) {
+      return get(/databases/$(database)/documents/clipit_organizations/$(orgId)/members/$(request.auth.uid)).data.role;
+    }
+
+    function isClipitOrgAdmin(orgId) {
+      let role = clipitMemberRole(orgId);
+      return role == 'owner' || role == 'admin';
+    }
+
+    match /clipit_users/{userId} {
+      allow read: if request.auth != null && (request.auth.uid == userId || isClipitAdmin());
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if false;
+    }
+
+    match /clipit_organizations/{orgId} {
+      allow read: if request.auth != null && (isClipitMember(orgId) || isClipitAdmin());
+      allow create: if request.auth != null;
+      allow update: if request.auth != null && (isClipitOrgAdmin(orgId) || isClipitAdmin());
+      allow delete: if request.auth != null && (clipitMemberRole(orgId) == 'owner' || isClipitAdmin());
+
+      match /members/{memberId} {
+        allow read: if request.auth != null && (isClipitMember(orgId) || isClipitAdmin());
+        allow create: if request.auth != null
+          && (request.auth.uid == memberId || isClipitOrgAdmin(orgId) || isClipitAdmin());
+        allow update, delete: if request.auth != null && (isClipitOrgAdmin(orgId) || isClipitAdmin());
+      }
+    }
+
+    match /clipit_manuals/{manualId} {
+      allow read: if request.auth != null && (isClipitMember(resource.data.organizationId) || isClipitAdmin());
+      allow create: if request.auth != null && isClipitMember(request.resource.data.organizationId);
+      allow update, delete: if request.auth != null && (isClipitMember(resource.data.organizationId) || isClipitAdmin());
+
+      match /steps/{stepId} {
+        allow read, write: if request.auth != null
+          && isClipitMember(get(/databases/$(database)/documents/clipit_manuals/$(manualId)).data.organizationId);
+      }
+
+      // 既読確認・フィードバックは公開閲覧者（未ログイン）からの作成を許可
+      match /readConfirmations/{id} {
+        allow read: if request.auth != null;
+        allow create: if true;
+        allow update, delete: if false;
+      }
+      match /feedback/{id} {
+        allow read: if request.auth != null;
+        allow create: if true;
+        allow update, delete: if false;
+      }
+    }
+
+    match /clipit_invitations/{token} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && isClipitOrgAdmin(request.resource.data.organizationId);
+      allow update: if request.auth != null
+        && (resource.data.email == request.auth.token.email
+            || isClipitOrgAdmin(resource.data.organizationId));
+      allow delete: if request.auth != null
+        && isClipitOrgAdmin(resource.data.organizationId);
+    }
+
+    match /clipit_folders/{folderId} {
+      allow read: if request.auth != null && (isClipitMember(resource.data.organizationId) || isClipitAdmin());
+      allow create: if request.auth != null && isClipitMember(request.resource.data.organizationId);
+      allow update, delete: if request.auth != null && (isClipitMember(resource.data.organizationId) || isClipitAdmin());
+    }
+
+    // 共有トークンは公開閲覧（QR/URL先）のため read 許可
+    match /clipit_shareTokens/{token} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && isClipitMember(request.resource.data.organizationId);
+      allow update, delete: if request.auth != null
+        && isClipitMember(resource.data.organizationId);
+    }
+
+    match /clipit_folderShareTokens/{token} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && isClipitMember(request.resource.data.organizationId);
+      allow update, delete: if request.auth != null
+        && isClipitMember(resource.data.organizationId);
+    }
+
+    // 月次利用量（AI回数など）は API のみ更新。クライアントは読み取りのみ
+    match /clipit_usage/{orgId} {
+      allow read: if request.auth != null && isClipitMember(orgId);
+      allow write: if false;
+      match /months/{monthId} {
+        allow read: if request.auth != null && isClipitMember(orgId);
+        allow write: if false;
+      }
+    }
+  }
+}
