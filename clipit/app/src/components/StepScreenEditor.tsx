@@ -13,6 +13,10 @@ import {
   Bold,
   Highlighter,
   Hash,
+  Copy,
+  ClipboardPaste,
+  Layers,
+  ChevronRight,
 } from 'lucide-react';
 import { compositeScreenshot } from '../lib/compositeScreenshot';
 import {
@@ -29,6 +33,23 @@ import {
   type TextStylePreset,
 } from '../lib/annotationTextStyle';
 import { uploadStepScreenshot } from '../lib/uploadStepScreenshot';
+import {
+  applyOverlayTemplate,
+  buildOverlayTemplate,
+  consumeAutoApplyLayout,
+  loadCarryOverPreference,
+  loadManualOverlayTemplate,
+  loadOverlayClipboard,
+  loadStepOverlayTemplate,
+  saveCarryOverPreference,
+  saveManualOverlayTemplate,
+  saveOverlayClipboard,
+  saveStepOverlayTemplate,
+  setAutoApplyLayout,
+  templateIsEmpty,
+  templateSummary,
+  type ScreenEditorOverlayTemplate,
+} from '../lib/screenEditorTemplate';
 import type { AnnotationFontFamily, MaskRect, MaskStyle, StepAnnotation } from '../types';
 
 type Tool =
@@ -60,9 +81,15 @@ interface Props {
   stepId: string;
   /** 手順番号（番号バッジの初期値） */
   stepOrder?: number;
+  /** 1つ前の手順 ID（レイアウト引き継ぎ用） */
+  previousStepId?: string | null;
+  /** 次の手順 ID（保存して続行用） */
+  nextStepId?: string | null;
   masks: MaskRect[];
   annotations: StepAnnotation[];
   onSave: (result: ScreenEditorSaveResult) => void;
+  /** 保存後に次の手順の編集を開く */
+  onSaveAndNext?: (result: ScreenEditorSaveResult) => void | Promise<void>;
   onClose: () => void;
 }
 
@@ -167,6 +194,35 @@ function clampPct(v: number): number {
   return Math.max(0, Math.min(100, v));
 }
 
+const BBOX_CORNERS = ['nw', 'ne', 'se', 'sw'] as const;
+
+const BBOX_CORNER_CLASS: Record<(typeof BBOX_CORNERS)[number], string> = {
+  nw: 'left-0 top-0 -translate-x-1/2 -translate-y-1/2 cursor-nwse-resize',
+  ne: 'right-0 top-0 translate-x-1/2 -translate-y-1/2 cursor-nesw-resize',
+  se: 'right-0 bottom-0 translate-x-1/2 translate-y-1/2 cursor-se-resize',
+  sw: 'left-0 bottom-0 -translate-x-1/2 translate-y-1/2 cursor-nesw-resize',
+};
+
+function circleBoxPct(a: StepAnnotation): { left: number; top: number; size: number } {
+  const size = a.size ?? 8;
+  const half = size / 2;
+  return { left: a.x - half, top: a.y - half, size };
+}
+
+function renderBBoxHandles(onResize: (e: React.PointerEvent) => void) {
+  return BBOX_CORNERS.map((corner) => (
+    <div
+      key={corner}
+      data-handle
+      className={`absolute z-30 h-6 w-6 rounded-full bg-primary-500 shadow ring-2 ring-white ${BBOX_CORNER_CLASS[corner]}`}
+      onPointerDown={(e) => {
+        e.stopPropagation();
+        onResize(e);
+      }}
+    />
+  ));
+}
+
 function distanceToSegment(px: number, py: number, x1: number, y1: number, x2: number, y2: number): number {
   const dx = x2 - x1;
   const dy = y2 - y1;
@@ -218,9 +274,12 @@ export default function StepScreenEditor({
   manualId,
   stepId,
   stepOrder,
+  previousStepId,
+  nextStepId,
   masks,
   annotations,
   onSave,
+  onSaveAndNext,
   onClose,
 }: Props) {
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -252,6 +311,18 @@ export default function StepScreenEditor({
   const [bgAlpha, setBgAlpha] = useState(95);
   const [defaultStrokeColor, setDefaultStrokeColor] = useState(DEFAULT_STROKE_COLOR);
   const [defaultStrokeWidth, setDefaultStrokeWidth] = useState(DEFAULT_STROKE_WIDTH);
+  const [carryOverNext, setCarryOverNext] = useState(() => loadCarryOverPreference(manualId));
+  const [hasClipboard, setHasClipboard] = useState(() => {
+    const c = loadOverlayClipboard();
+    return c != null && !templateIsEmpty(c);
+  });
+  const autoAppliedRef = useRef(false);
+
+  const latestTemplate = loadManualOverlayTemplate(manualId);
+  const prevStepTemplate =
+    previousStepId != null ? loadStepOverlayTemplate(manualId, previousStepId) : null;
+  const hasLatestTemplate = latestTemplate != null && !templateIsEmpty(latestTemplate);
+  const hasPrevTemplate = prevStepTemplate != null && !templateIsEmpty(prevStepTemplate);
 
   const canUndo = historyState.index > 0;
   const canRedo = historyState.index < historyState.items.length - 1;
@@ -322,6 +393,75 @@ export default function StepScreenEditor({
     setSelection({ kind: 'annotation', id: copy.id });
   }, [applyChange, localAnn, localMasks, selection]);
 
+  const persistOverlayTemplate = useCallback(() => {
+    const template = buildOverlayTemplate(localMasks, localAnn, {
+      defaultStrokeColor,
+      defaultStrokeWidth,
+      sourceStepOrder: stepOrder,
+    });
+    saveManualOverlayTemplate(manualId, template);
+    saveStepOverlayTemplate(manualId, stepId, template);
+    return template;
+  }, [defaultStrokeColor, defaultStrokeWidth, localAnn, localMasks, manualId, stepId, stepOrder]);
+
+  const applyTemplateDefaults = useCallback((template: ScreenEditorOverlayTemplate) => {
+    if (template.defaultStrokeColor) setDefaultStrokeColor(template.defaultStrokeColor);
+    if (template.defaultStrokeWidth != null) setDefaultStrokeWidth(template.defaultStrokeWidth);
+  }, []);
+
+  const applyLayoutTemplate = useCallback(
+    (template: ScreenEditorOverlayTemplate, mode: 'replace' | 'merge', clearText = false) => {
+      if (templateIsEmpty(template)) return;
+      const applied = applyOverlayTemplate(template, { stepOrder, clearText });
+      applyTemplateDefaults(template);
+      if (mode === 'replace') {
+        applyChange(applied.masks, applied.annotations);
+      } else {
+        applyChange([...localMasks, ...applied.masks], [...localAnn, ...applied.annotations]);
+      }
+      setSelection(null);
+    },
+    [applyChange, applyTemplateDefaults, localAnn, localMasks, stepOrder],
+  );
+
+  const confirmAndApply = useCallback(
+    (template: ScreenEditorOverlayTemplate, mode: 'replace' | 'merge', clearText = false) => {
+      const isEmpty = localMasks.length === 0 && localAnn.length === 0;
+      if (isEmpty || mode === 'merge') {
+        applyLayoutTemplate(template, mode, clearText);
+        return;
+      }
+      if (window.confirm('現在の編集内容を置き換えてレイアウトを適用しますか？')) {
+        applyLayoutTemplate(template, 'replace', clearText);
+      }
+    },
+    [applyLayoutTemplate, localAnn.length, localMasks.length],
+  );
+
+  const copyLayoutToClipboard = useCallback(() => {
+    let template: ScreenEditorOverlayTemplate;
+    if (selection?.kind === 'mask') {
+      const m = localMasks.find((x) => x.id === selection.id);
+      if (!m) return;
+      template = buildOverlayTemplate([m], [], { defaultStrokeColor, defaultStrokeWidth, sourceStepOrder: stepOrder });
+    } else if (selection?.kind === 'annotation') {
+      const a = localAnn.find((x) => x.id === selection.id);
+      if (!a) return;
+      template = buildOverlayTemplate([], [a], { defaultStrokeColor, defaultStrokeWidth, sourceStepOrder: stepOrder });
+    } else {
+      template = persistOverlayTemplate();
+    }
+    saveOverlayClipboard(template);
+    setHasClipboard(!templateIsEmpty(template));
+  }, [defaultStrokeColor, defaultStrokeWidth, localAnn, localMasks, persistOverlayTemplate, selection, stepOrder]);
+
+  const pasteLayoutFromClipboard = useCallback(() => {
+    const template = loadOverlayClipboard();
+    if (!template || templateIsEmpty(template)) return;
+    const isEmpty = localMasks.length === 0 && localAnn.length === 0;
+    applyLayoutTemplate(template, isEmpty ? 'replace' : 'merge');
+  }, [applyLayoutTemplate, localAnn.length, localMasks.length]);
+
   const selectedTextAnn =
     selection?.kind === 'annotation'
       ? localAnn.find((a) => a.id === selection.id && a.kind === 'text')
@@ -366,6 +506,20 @@ export default function StepScreenEditor({
   }, []);
 
   useEffect(() => {
+    if (autoAppliedRef.current) return;
+    if (masks.length > 0 || annotations.length > 0) return;
+    if (!consumeAutoApplyLayout(manualId)) return;
+    const template = loadManualOverlayTemplate(manualId);
+    if (!template || templateIsEmpty(template)) return;
+    autoAppliedRef.current = true;
+    const applied = applyOverlayTemplate(template, { stepOrder });
+    applyTemplateDefaults(template);
+    setLocalMasks(applied.masks);
+    setLocalAnn(applied.annotations);
+    setHistoryState({ items: [cloneSnapshot(applied.masks, applied.annotations)], index: 0 });
+  }, [annotations.length, applyTemplateDefaults, manualId, masks.length, stepOrder]);
+
+  useEffect(() => {
     if (pendingText || selectedTextAnn) {
       requestAnimationFrame(() => {
         inspectorTextRef.current?.focus();
@@ -375,6 +529,9 @@ export default function StepScreenEditor({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT') return;
+
       if (pendingText) {
         if (e.key === 'Escape') {
           setPendingText(null);
@@ -396,6 +553,16 @@ export default function StepScreenEditor({
       if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
         e.preventDefault();
         duplicateSelection();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+        e.preventDefault();
+        copyLayoutToClipboard();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+        e.preventDefault();
+        pasteLayoutFromClipboard();
         return;
       }
       if (e.key === 'Delete' || e.key === 'Backspace') {
@@ -421,7 +588,7 @@ export default function StepScreenEditor({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [applyChange, duplicateSelection, localAnn, localMasks, pendingText, redo, selection, undo]);
+  }, [applyChange, copyLayoutToClipboard, duplicateSelection, localAnn, localMasks, pasteLayoutFromClipboard, pendingText, redo, selection, undo]);
 
   const pointInOverlay = useCallback((clientX: number, clientY: number): OverlayPoint | null => {
     const el = overlayRef.current;
@@ -731,7 +898,9 @@ export default function StepScreenEditor({
   }, [endDrag, scheduleDragPoint]);
 
   const onOverlayPointerDown = (e: React.PointerEvent) => {
-    if ((e.target as HTMLElement).closest('[data-handle],[data-del],[data-text-input],[data-inspector]')) return;
+    if ((e.target as HTMLElement).closest('[data-handle],[data-del],[data-text-input],[data-inspector],[data-shape-hit]')) {
+      return;
+    }
     const p = pointInOverlay(e.clientX, e.clientY);
     if (!p) return;
 
@@ -910,6 +1079,139 @@ export default function StepScreenEditor({
     );
   };
 
+  const renderCircleInteractive = (a: StepAnnotation) => {
+    const selected = selection?.kind === 'annotation' && selection.id === a.id;
+    const sel = { kind: 'annotation' as const, id: a.id };
+    const { left, top, size } = circleBoxPct(a);
+
+    return (
+      <div
+        key={`circle-hit-${a.id}`}
+        data-shape-hit
+        className={`absolute ${selected ? 'z-20' : 'z-10'}`}
+        style={{ left: `${left}%`, top: `${top}%`, width: `${size}%`, aspectRatio: '1' }}
+      >
+        <div
+          className={`h-full w-full rounded-full ${
+            tool === 'select' ? 'cursor-move' : ''
+          } ${selected ? 'ring-2 ring-primary-400 ring-offset-1 ring-offset-transparent' : 'hover:ring-1 hover:ring-primary-300/60'}`}
+          onPointerDown={(e) => {
+            if (tool !== 'select' || pendingText) return;
+            e.stopPropagation();
+            setSelection(sel);
+            startDrag('move-annotation', e, sel);
+          }}
+        />
+        {selected && (
+          <>
+            <div className="pointer-events-none absolute inset-0 rounded-full border border-dashed border-primary-300/90" />
+            {renderBBoxHandles((e) => startDrag('resize-circle', e, sel))}
+          </>
+        )}
+      </div>
+    );
+  };
+
+  const renderArrowInteractive = () => {
+    if (box.w <= 0 || box.h <= 0) return null;
+
+    return (
+      <svg
+        className="absolute inset-0 z-10 h-full w-full"
+        viewBox={`0 0 ${box.w} ${box.h}`}
+        preserveAspectRatio="none"
+        style={{ pointerEvents: 'none' }}
+      >
+        {localAnn
+          .filter((a) => a.kind === 'arrow' && a.endX != null && a.endY != null)
+          .sort((a, b) => {
+            const aSel = selection?.kind === 'annotation' && selection.id === a.id;
+            const bSel = selection?.kind === 'annotation' && selection.id === b.id;
+            if (aSel && !bSel) return 1;
+            if (!aSel && bSel) return -1;
+            return 0;
+          })
+          .map((a) => {
+            const selected = selection?.kind === 'annotation' && selection.id === a.id;
+            const sel = { kind: 'annotation' as const, id: a.id };
+            const x1 = pctToPx(a.x, box.w);
+            const y1 = pctToPx(a.y, box.h);
+            const x2 = pctToPx(a.endX!, box.w);
+            const y2 = pctToPx(a.endY!, box.h);
+            const hitW = Math.max(28, strokeDisplayPx(a, box.w) + 24);
+            const pad = 14;
+            const bx = Math.min(x1, x2) - pad;
+            const by = Math.min(y1, y2) - pad;
+            const bw = Math.max(Math.abs(x2 - x1) + pad * 2, 24);
+            const bh = Math.max(Math.abs(y2 - y1) + pad * 2, 24);
+
+            return (
+              <g key={`arrow-hit-${a.id}`} data-shape-hit style={{ pointerEvents: 'auto' }}>
+                <line
+                  x1={x1}
+                  y1={y1}
+                  x2={x2}
+                  y2={y2}
+                  stroke="transparent"
+                  strokeWidth={hitW}
+                  style={{ cursor: tool === 'select' ? 'move' : undefined }}
+                  onPointerDown={(e) => {
+                    if (tool !== 'select' || pendingText) return;
+                    e.stopPropagation();
+                    setSelection(sel);
+                    startDrag('move-annotation', e, sel);
+                  }}
+                />
+                {selected && (
+                  <>
+                    <rect
+                      x={bx}
+                      y={by}
+                      width={bw}
+                      height={bh}
+                      fill="none"
+                      stroke="rgba(147,197,253,0.95)"
+                      strokeWidth={1.5}
+                      strokeDasharray="5 4"
+                      pointerEvents="none"
+                    />
+                    <circle
+                      data-handle
+                      cx={x1}
+                      cy={y1}
+                      r={11}
+                      fill="white"
+                      stroke="#3b82f6"
+                      strokeWidth={2.5}
+                      style={{ cursor: 'grab' }}
+                      onPointerDown={(e) => {
+                        e.stopPropagation();
+                        startDrag('resize-arrow-start', e, sel);
+                      }}
+                    />
+                    <circle
+                      data-handle
+                      cx={x2}
+                      cy={y2}
+                      r={11}
+                      fill="#3b82f6"
+                      stroke="white"
+                      strokeWidth={2.5}
+                      style={{ cursor: 'grab' }}
+                      onPointerDown={(e) => {
+                        e.stopPropagation();
+                        startDrag('resize-arrow-end', e, sel);
+                      }}
+                    />
+                  </>
+                )}
+              </g>
+            );
+          })}
+      </svg>
+    );
+  };
+
   const renderSvgAnnotations = () => {
     if (box.w <= 0 || box.h <= 0) return null;
     const defaultStroke = Math.max(3, box.w / 280);
@@ -1004,24 +1306,17 @@ export default function StepScreenEditor({
 
   const renderBadge = (a: StepAnnotation) => {
     const selected = selection?.kind === 'annotation' && selection.id === a.id;
-    const sizePct = a.size ?? 8;
+    const sel = { kind: 'annotation' as const, id: a.id };
+    const { left, top, size } = circleBoxPct(a);
     const fill = a.fillColor ?? strokeColorOf(a);
-    const fontPx = Math.max(10, pctToPx(sizePct * 0.52, Math.min(box.w, box.h)));
+    const fontPx = Math.max(10, pctToPx(size * 0.52, Math.min(box.w, box.h)));
 
     return (
       <div
         key={a.id}
-        className="absolute -translate-x-1/2 -translate-y-1/2"
-        style={{
-          left: `${a.x}%`,
-          top: `${a.y}%`,
-          width: `${sizePct}%`,
-          aspectRatio: '1',
-        }}
-        onPointerDown={(e) => {
-          if (tool !== 'select' || pendingText) return;
-          startDrag('move-annotation', e, { kind: 'annotation', id: a.id });
-        }}
+        data-shape-hit
+        className={`absolute ${selected ? 'z-20' : 'z-10'}`}
+        style={{ left: `${left}%`, top: `${top}%`, width: `${size}%`, aspectRatio: '1' }}
       >
         <div
           className={`flex h-full w-full cursor-move items-center justify-center rounded-full font-bold shadow transition-shadow ${
@@ -1032,9 +1327,21 @@ export default function StepScreenEditor({
             color: a.textColor ?? '#ffffff',
             fontSize: fontPx,
           }}
+          onPointerDown={(e) => {
+            if (tool !== 'select' || pendingText) return;
+            e.stopPropagation();
+            setSelection(sel);
+            startDrag('move-annotation', e, sel);
+          }}
         >
           {a.text ?? '1'}
         </div>
+        {selected && (
+          <>
+            <div className="pointer-events-none absolute inset-0 rounded-full border border-dashed border-primary-300/90" />
+            {renderBBoxHandles((e) => startDrag('resize-circle', e, sel))}
+          </>
+        )}
         <button
           type="button"
           data-del
@@ -1128,52 +1435,25 @@ export default function StepScreenEditor({
     );
   };
 
-  const renderSelectionHandles = () => {
-    if (!selection || selection.kind !== 'annotation' || pendingText) return null;
-    const a = localAnn.find((x) => x.id === selection.id);
-    if (!a || a.kind === 'text') return null;
-
-    if (a.kind === 'circle' || a.kind === 'badge') {
-      const handleX = a.x + (a.size ?? 8) / 4;
-      return (
-        <div
-          data-handle
-          className="absolute z-20 h-5 w-5 -translate-x-1/2 -translate-y-1/2 cursor-se-resize rounded-full bg-primary-500 shadow ring-2 ring-white"
-          style={{ left: `${handleX}%`, top: `${a.y}%` }}
-          onPointerDown={(e) => startDrag('resize-circle', e, selection)}
-        />
-      );
-    }
-
-    if (a.kind === 'arrow' && a.endX != null && a.endY != null) {
-      return (
-        <>
-          <div
-            data-handle
-            className="absolute z-20 h-5 w-5 -translate-x-1/2 -translate-y-1/2 cursor-grab rounded-full bg-white shadow ring-2 ring-primary-500"
-            style={{ left: `${a.x}%`, top: `${a.y}%` }}
-            onPointerDown={(e) => startDrag('resize-arrow-start', e, selection)}
-          />
-          <div
-            data-handle
-            className="absolute z-20 h-5 w-5 -translate-x-1/2 -translate-y-1/2 cursor-grab rounded-full bg-primary-500 shadow ring-2 ring-white"
-            style={{ left: `${a.endX}%`, top: `${a.endY}%` }}
-            onPointerDown={(e) => startDrag('resize-arrow-end', e, selection)}
-          />
-        </>
-      );
-    }
-    return null;
-  };
-
-  const handleSave = async () => {
+  const handleSave = async (andNext = false) => {
     setSaving(true);
     try {
+      persistOverlayTemplate();
+      if (andNext || carryOverNext) {
+        setAutoApplyLayout(manualId, true);
+      }
+
       const blob = await compositeScreenshot(screenshotUrl, localMasks, localAnn);
       const file = new File([blob], 'edited.webp', { type: blob.type || 'image/webp' });
       const newUrl = await uploadStepScreenshot(manualId, stepId, file);
-      onSave({ masks: [], annotations: [], screenshotUrl: newUrl });
-      onClose();
+      const result = { masks: [], annotations: [], screenshotUrl: newUrl };
+
+      if (andNext && onSaveAndNext) {
+        await onSaveAndNext(result);
+      } else {
+        onSave(result);
+        onClose();
+      }
     } catch (err) {
       alert(err instanceof Error ? err.message : '保存に失敗しました');
     } finally {
@@ -1202,10 +1482,10 @@ export default function StepScreenEditor({
           <Maximize2 size={18} className="text-primary-400" />
           <span className="font-bold">画面編集</span>
           <span className="hidden text-xs text-slate-400 lg:inline">
-            ドラッグで描画 · 選択して移動 · Ctrl+Dで複製 · Ctrl+Shift+Zでやり直し
+            選択ツールでドラッグ移動 · 角の●でサイズ変更 · 矢印は端の●で向き・長さを調整
           </span>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <button
             type="button"
             disabled={!canUndo}
@@ -1226,10 +1506,22 @@ export default function StepScreenEditor({
             <Redo2 size={14} />
             やり直し
           </button>
+          {nextStepId && onSaveAndNext && (
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => void handleSave(true)}
+              className="inline-flex items-center gap-1 rounded-lg border border-primary-400 bg-primary-500/20 px-3 py-2 text-sm font-semibold hover:bg-primary-500/30 disabled:opacity-60"
+              title="保存して次の手順の編集を開く（レイアウト自動適用）"
+            >
+              {saving ? <Loader2 size={14} className="animate-spin" /> : <ChevronRight size={14} />}
+              保存して次へ
+            </button>
+          )}
           <button
             type="button"
             disabled={saving}
-            onClick={() => void handleSave()}
+            onClick={() => void handleSave(false)}
             className="inline-flex items-center gap-2 rounded-lg bg-primary-500 px-4 py-2 text-sm font-semibold hover:bg-primary-600 disabled:opacity-60"
           >
             {saving && <Loader2 size={14} className="animate-spin" />}
@@ -1268,6 +1560,80 @@ export default function StepScreenEditor({
         >
           すべてクリア
         </button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-700 bg-slate-900/50 px-4 py-2">
+        <Layers size={14} className="text-slate-400" />
+        <span className="text-xs font-semibold text-slate-300">レイアウト引き継ぎ</span>
+        <button
+          type="button"
+          disabled={!hasLatestTemplate}
+          title={hasLatestTemplate && latestTemplate ? templateSummary(latestTemplate) : undefined}
+          onClick={() => latestTemplate && confirmAndApply(latestTemplate, 'replace')}
+          className="inline-flex items-center gap-1 rounded-lg border border-slate-600 px-2.5 py-1 text-xs font-semibold text-slate-200 hover:bg-slate-800 disabled:opacity-40"
+        >
+          前回を適用
+        </button>
+        <button
+          type="button"
+          disabled={!hasPrevTemplate}
+          title={hasPrevTemplate && prevStepTemplate ? templateSummary(prevStepTemplate) : undefined}
+          onClick={() => prevStepTemplate && confirmAndApply(prevStepTemplate, 'replace')}
+          className="inline-flex items-center gap-1 rounded-lg border border-slate-600 px-2.5 py-1 text-xs font-semibold text-slate-200 hover:bg-slate-800 disabled:opacity-40"
+        >
+          前の手順から
+        </button>
+        <button
+          type="button"
+          disabled={!hasLatestTemplate}
+          title={hasLatestTemplate && latestTemplate ? templateSummary(latestTemplate) : undefined}
+          onClick={() => latestTemplate && confirmAndApply(latestTemplate, 'merge')}
+          className="inline-flex items-center gap-1 rounded-lg border border-slate-600 px-2.5 py-1 text-xs font-semibold text-slate-200 hover:bg-slate-800 disabled:opacity-40"
+        >
+          前回を重ねる
+        </button>
+        <button
+          type="button"
+          disabled={!hasPrevTemplate}
+          onClick={() => prevStepTemplate && confirmAndApply(prevStepTemplate, 'replace', true)}
+          className="inline-flex items-center gap-1 rounded-lg border border-slate-600 px-2.5 py-1 text-xs font-semibold text-slate-200 hover:bg-slate-800 disabled:opacity-40"
+          title="位置・スタイルのみ。テキスト枠の文言は空にします"
+        >
+          スタイルのみ（前手順）
+        </button>
+        <span className="hidden h-4 w-px bg-slate-600 sm:inline" />
+        <button
+          type="button"
+          onClick={() => copyLayoutToClipboard()}
+          className="inline-flex items-center gap-1 rounded-lg border border-slate-600 px-2.5 py-1 text-xs font-semibold text-slate-200 hover:bg-slate-800"
+          title="Ctrl+C"
+        >
+          <Copy size={12} />
+          コピー
+        </button>
+        <button
+          type="button"
+          disabled={!hasClipboard}
+          onClick={() => pasteLayoutFromClipboard()}
+          className="inline-flex items-center gap-1 rounded-lg border border-slate-600 px-2.5 py-1 text-xs font-semibold text-slate-200 hover:bg-slate-800 disabled:opacity-40"
+          title="Ctrl+V"
+        >
+          <ClipboardPaste size={12} />
+          貼り付け
+        </button>
+        <label className="ml-auto inline-flex cursor-pointer items-center gap-2 text-xs text-slate-300">
+          <input
+            type="checkbox"
+            checked={carryOverNext}
+            onChange={(e) => {
+              const on = e.target.checked;
+              setCarryOverNext(on);
+              saveCarryOverPreference(manualId, on);
+            }}
+            className="rounded border-slate-500 accent-primary-500"
+          />
+          保存時に次の手順へレイアウトを引き継ぐ
+        </label>
       </div>
 
       {(selectedTextAnn || pendingText) && activeStyle && (
@@ -1540,9 +1906,10 @@ export default function StepScreenEditor({
           >
             {localMasks.map(renderMask)}
             {renderSvgAnnotations()}
+            {localAnn.filter((a) => a.kind === 'circle').map(renderCircleInteractive)}
+            {renderArrowInteractive()}
             {localAnn.filter((a) => a.kind === 'badge').map(renderBadge)}
             {localAnn.filter((a) => a.kind === 'text' && a.id !== pendingText?.id).map(renderText)}
-            {renderSelectionHandles()}
             {current && current.w > 0 && current.h > 0 && (
               <div
                 className="pointer-events-none absolute border-2 border-primary-400 bg-primary-400/20"

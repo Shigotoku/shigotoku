@@ -59,6 +59,9 @@ export default function ManualStepDetailPanel({
   const { showToast } = useToast();
 
   const active = steps.find((s) => s.id === activeId) ?? steps[0];
+  const activeIndex = steps.findIndex((s) => s.id === activeId);
+  const prevStep = activeIndex > 0 ? steps[activeIndex - 1] : null;
+  const nextStep = activeIndex >= 0 && activeIndex < steps.length - 1 ? steps[activeIndex + 1] : null;
   const demo = manualId.startsWith('demo');
 
   const { draft, update: updateDraft, saveState } = useStepDraft(
@@ -287,10 +290,13 @@ export default function ManualStepDetailPanel({
             </div>
             {screenEditOpen && active.screenshotUrl && (
               <StepScreenEditor
+                key={active.id}
                 screenshotUrl={active.screenshotUrl}
                 manualId={manualId}
                 stepId={active.id}
                 stepOrder={active.order}
+                previousStepId={prevStep?.id ?? null}
+                nextStepId={nextStep?.screenshotUrl ? nextStep.id : null}
                 masks={active.masks ?? []}
                 annotations={active.annotations ?? []}
                 onSave={(result) => {
@@ -301,6 +307,18 @@ export default function ManualStepDetailPanel({
                   });
                   setScreenEditOpen(false);
                 }}
+                onSaveAndNext={
+                  nextStep?.screenshotUrl
+                    ? async (result) => {
+                        await patchStep(active.id, {
+                          screenshotUrl: result.screenshotUrl,
+                          masks: result.masks,
+                          annotations: result.annotations,
+                        });
+                        onActiveChange(nextStep.id);
+                      }
+                    : undefined
+                }
                 onClose={() => setScreenEditOpen(false)}
               />
             )}
