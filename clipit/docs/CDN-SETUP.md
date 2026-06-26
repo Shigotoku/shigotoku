@@ -20,5 +20,8 @@
 ## Storage CORS（エクスポート用）
 
 ```bash
+gsutil cors set deploy/storage.cors.clipit.json gs://shigotoku-clipit-prod-ad9ee.appspot.com
 gsutil cors set deploy/storage.cors.clipit.json gs://shigotoku-clipit-prod-ad9ee.firebasestorage.app
+# または
+npm run storage:cors:clipit --prefix deploy
 ```

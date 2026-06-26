@@ -38,6 +38,28 @@ const mobileNav = [
   { to: "/settings", label: "設定", icon: Settings },
 ];
 
+function isNavItemActive(pathname: string, to: string): boolean {
+  if (to === "/manuals/new") {
+    return pathname === "/manuals/new" || pathname.startsWith("/manuals/new/");
+  }
+  if (to === "/manuals") {
+    if (pathname.startsWith("/manuals/new")) return false;
+    return pathname === "/manuals" || /^\/manuals\/[^/]+/.test(pathname);
+  }
+  return pathname === to || pathname.startsWith(`${to}/`);
+}
+
+function navLinkClass(active: boolean, mobile = false): string {
+  if (mobile) {
+    return `flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium ${
+      active ? "bg-primary-50 text-primary-700" : "text-slate-700"
+    }`;
+  }
+  return `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+    active ? "bg-primary-50 text-primary-700" : "text-slate-600 hover:bg-slate-100"
+  }`;
+}
+
 export default function AppLayout() {
   const { user, demoMode } = useAuth();
   const { organization, error: orgError, loading: orgLoading } = useOrg();
@@ -71,20 +93,15 @@ export default function AppLayout() {
           <span className="text-base font-bold tracking-tight text-slate-900">クリッピット</span>
         </div>
         <nav className="flex-1 space-y-1 px-3">
-          {nav.map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              className={({ isActive }) =>
-                `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                  isActive ? "bg-primary-50 text-primary-700" : "text-slate-600 hover:bg-slate-100"
-                }`
-              }
-            >
-              <Icon size={18} />
-              {label}
-            </NavLink>
-          ))}
+          {nav.map(({ to, label, icon: Icon }) => {
+            const active = isNavItemActive(location.pathname, to);
+            return (
+              <NavLink key={to} to={to} className={navLinkClass(active)}>
+                <Icon size={18} />
+                {label}
+              </NavLink>
+            );
+          })}
         </nav>
         <div className="border-t border-slate-200 p-3">
           <a
@@ -121,40 +138,36 @@ export default function AppLayout() {
               </button>
             </div>
             <nav className="space-y-1">
-              {nav.map(({ to, label, icon: Icon }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium ${
-                      isActive ? "bg-primary-50 text-primary-700" : "text-slate-700"
-                    }`
-                  }
-                >
-                  <Icon size={18} />
-                  {label}
-                </NavLink>
-              ))}
+              {nav.map(({ to, label, icon: Icon }) => {
+                const active = isNavItemActive(location.pathname, to);
+                return (
+                  <NavLink key={to} to={to} className={navLinkClass(active, true)}>
+                    <Icon size={18} />
+                    {label}
+                  </NavLink>
+                );
+              })}
             </nav>
           </div>
         </div>
       )}
 
       <nav className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-slate-200 bg-white/95 backdrop-blur md:hidden">
-        {mobileNav.map(({ to, label, icon: Icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            className={({ isActive }) =>
-              `flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-semibold ${
-                isActive ? "text-primary-600" : "text-slate-500"
-              }`
-            }
-          >
-            <Icon size={20} />
-            {label}
-          </NavLink>
-        ))}
+        {mobileNav.map(({ to, label, icon: Icon }) => {
+          const active = isNavItemActive(location.pathname, to);
+          return (
+            <NavLink
+              key={to}
+              to={to}
+              className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-semibold ${
+                active ? "text-primary-600" : "text-slate-500"
+              }`}
+            >
+              <Icon size={20} />
+              {label}
+            </NavLink>
+          );
+        })}
         <button
           type="button"
           onClick={() => setMenuOpen(true)}

@@ -79,14 +79,20 @@ export async function ingestSteps(
   for (const step of steps) {
     order += 1;
     let screenshotUrl = '';
-    if (step.screenshotBase64?.startsWith('data:image')) {
-      const base64 = step.screenshotBase64.replace(/^data:image\/\w+;base64,/, '');
+    const rawB64 = step.screenshotBase64?.trim();
+    if (rawB64) {
+      let base64 = rawB64;
+      if (base64.startsWith('data:image')) {
+        base64 = base64.replace(/^data:image\/\w+;base64,/, '');
+      }
       const buffer = Buffer.from(base64, 'base64');
-      screenshotUrl = await saveScreenshotObject(
-        bucket,
-        `clipit/manuals/${manualId}/step-${order}`,
-        buffer,
-      );
+      if (buffer.length > 0) {
+        screenshotUrl = await saveScreenshotObject(
+          bucket,
+          `clipit/manuals/${manualId}/step-${order}`,
+          buffer,
+        );
+      }
     }
 
     const voiceSeg = step.voiceSegment?.trim();

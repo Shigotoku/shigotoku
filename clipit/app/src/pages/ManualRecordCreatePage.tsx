@@ -1,18 +1,20 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { folderIdFromSearch } from "../lib/folderContext";
+import { layoutIdFromSearch } from "../lib/uiLayoutTemplates";
 import { Chrome, ListOrdered } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import { useOrg } from "../context/OrgContext";
 import { useAuth } from "../components/AuthProvider";
 import { AUDIENCE_OPTIONS, labelsToAudience } from "../lib/format";
-import { addDemoSteps, createManual } from "../services/manuals";
+import { addDemoSteps, applyUiLayoutToSteps, createManual } from "../services/manuals";
 import type { TargetAudience } from "../types";
 
 export default function ManualRecordCreatePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const presetFolderId = folderIdFromSearch(searchParams);
+  const uiLayoutId = layoutIdFromSearch(searchParams);
   const { profile, organization } = useOrg();
   const { user, demoMode } = useAuth();
   const [title, setTitle] = useState("");
@@ -41,8 +43,10 @@ export default function ManualRecordCreatePage() {
         createdBy: user.uid,
         creationSource: withDemo ? "demo" : "extension",
         folderId: presetFolderId,
+        uiLayoutId,
       });
       if (withDemo) await addDemoSteps(id, title.trim());
+      await applyUiLayoutToSteps(id, uiLayoutId);
       navigate(`/manuals/${id}/edit?new=1`);
     } catch (e) {
       setError((e as Error).message ?? "作成に失敗しました");

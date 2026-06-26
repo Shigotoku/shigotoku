@@ -10,3 +10,13 @@ export function appendFolderQuery(path: string, folderId: string | null): string
   const sep = path.includes('?') ? '&' : '?';
   return `${path}${sep}folder=${encodeURIComponent(folderId)}`;
 }
+
+/** folder + layout クエリを付与 */
+export function appendCreateQuery(path: string, folderId: string | null, layoutId?: string): string {
+  let out = appendFolderQuery(path, folderId);
+  if (layoutId) {
+    const sep = out.includes('?') ? '&' : '?';
+    out = `${out}${sep}layout=${encodeURIComponent(layoutId)}`;
+  }
+  return out;
+}

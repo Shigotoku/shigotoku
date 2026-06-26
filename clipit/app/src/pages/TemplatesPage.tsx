@@ -1,11 +1,19 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { FileText, Search } from "lucide-react";
-import { folderIdFromSearch } from "../lib/folderContext";
+import { FileText, LayoutGrid, Search } from "lucide-react";
+import { appendCreateQuery, folderIdFromSearch } from "../lib/folderContext";
+import {
+  getUiLayoutTemplate,
+  persistUiLayoutId,
+  resolveUiLayoutId,
+  type UiLayoutId,
+} from "../lib/uiLayoutTemplates";
 import PageHeader from "../components/PageHeader";
+import UiLayoutDiagram from "../components/UiLayoutDiagram";
+import UiLayoutPicker from "../components/UiLayoutPicker";
 import { useOrg } from "../context/OrgContext";
 import { useAuth } from "../components/AuthProvider";
-import { createManual, addStep } from "../services/manuals";
+import { addStep, applyUiLayoutToSteps, createManual } from "../services/manuals";
 import {
   MANUAL_TEMPLATES,
   TEMPLATE_CATEGORY_LABELS,
@@ -30,8 +38,10 @@ const CATEGORY_ICON: Record<TemplateCategory, string> = {
 
 export default function TemplatesPage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const presetFolderId = folderIdFromSearch(searchParams);
+  const [uiLayoutId, setUiLayoutId] = useState<UiLayoutId>(() => resolveUiLayoutId(searchParams));
+  const [showLayoutPicker, setShowLayoutPicker] = useState(false);
   const { organization } = useOrg();
   const { user, demoMode } = useAuth();
   const [busy, setBusy] = useState<string | null>(null);
@@ -77,6 +87,16 @@ export default function TemplatesPage() {
     return { company, personal, all: MANUAL_TEMPLATES.length };
   }, []);
 
+  const handleLayoutChange = (id: UiLayoutId) => {
+    persistUiLayoutId(id);
+    setUiLayoutId(id);
+    const next = new URLSearchParams(searchParams);
+    next.set("layout", id);
+    setSearchParams(next, { replace: true });
+  };
+
+  const currentLayout = getUiLayoutTemplate(uiLayoutId);
+
   const useTemplate = async (templateId: string) => {
     const tpl = MANUAL_TEMPLATES.find((t) => t.id === templateId);
     if (!tpl) return;
@@ -101,6 +121,7 @@ export default function TemplatesPage() {
         contentType: tpl.category === "education" ? "material" : "manual",
         creationSource: "template",
         folderId: presetFolderId,
+        uiLayoutId,
       });
       for (let i = 0; i < tpl.steps.length; i++) {
         const s = tpl.steps[i]!;
@@ -118,6 +139,7 @@ export default function TemplatesPage() {
           elementText: "",
         });
       }
+      await applyUiLayoutToSteps(id, uiLayoutId);
       navigate(`/manuals/${id}/edit?new=1`);
     } catch (e) {
       const msg = (e as Error).message ?? "テンプレートからの作成に失敗しました";
@@ -129,8 +151,48 @@ export default function TemplatesPage() {
 
   return (
     <>
-      <PageHeader title="テンプレート" description="説明文・画面イメージ入りのひな形。スクショを差し替えればすぐ使えます" />
+      <PageHeader
+        title="内容のひな型"
+        description="業務の型・手順文・補足が入ったテンプレートです。見た目（UIレイアウト）は下で選んだものが適用されます"
+      />
       <div className="space-y-4 p-6">
+        <section className="rounded-2xl border border-slate-200 bg-white p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <div className="w-full max-w-[140px] shrink-0">
+              <UiLayoutDiagram layoutId={uiLayoutId} selected />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <LayoutGrid size={16} className="text-primary-500" />
+                <p className="text-xs font-semibold text-slate-500">選択中のUIレイアウト（見た目）</p>
+              </div>
+              <p className="mt-1 text-base font-bold text-slate-900">{currentLayout.name}</p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                内容テンプレートとは別です。作成時に手順の配置・画像サイズへ反映されます。
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowLayoutPicker((v) => !v)}
+                className="mt-2 text-xs font-semibold text-primary-600 hover:underline"
+              >
+                {showLayoutPicker ? "UIレイアウト選択を閉じる" : "別のUIレイアウトを選ぶ"}
+              </button>
+              <span className="mx-2 text-xs text-slate-300">|</span>
+              <Link
+                to={appendCreateQuery("/manuals/new", presetFolderId, uiLayoutId)}
+                className="text-xs font-semibold text-primary-600 hover:underline"
+              >
+                作り方選択に戻る
+              </Link>
+            </div>
+          </div>
+          {showLayoutPicker && (
+            <div className="mt-4 border-t border-slate-100 pt-4">
+              <UiLayoutPicker value={uiLayoutId} onChange={handleLayoutChange} compact />
+            </div>
+          )}
+        </section>
+
         {error && (
           <div className="rounded-xl border border-danger-200 bg-danger-50 px-4 py-3 text-sm text-danger-700">
             <p>{error}</p>
@@ -275,7 +337,7 @@ export default function TemplatesPage() {
 
         <p className="text-center text-xs text-slate-400">
           <FileText size={12} className="mr-1 inline" />
-          テンプレートを選ぶと、手順の説明文・補足・画面イメージが入った状態で編集画面が開きます。実際のスクショに差し替えれば完成です。
+          内容のひな型を選ぶと、手順の説明文・補足・画面イメージが入った状態で編集画面が開きます。実際のスクショに差し替えれば完成です。
         </p>
       </div>
     </>

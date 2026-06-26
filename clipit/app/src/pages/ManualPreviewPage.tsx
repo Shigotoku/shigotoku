@@ -5,9 +5,10 @@ import PageHeader from "../components/PageHeader";
 import StepDocumentBlock from "../components/StepDocumentBlock";
 import { getManual, listSteps } from "../services/manuals";
 import { buildShareUrl, getLatestShareTokenForManual } from "../services/share";
-import { downloadAsHtml, downloadAsMarkdown, downloadAsWordDoc, formatStepsForClipboard } from "../lib/exportManual";
+import { downloadAsHtml, downloadAsMarkdown, downloadAsPdf, downloadAsWordDoc, formatStepsForClipboard, printWordDocument } from "../lib/exportManual";
 import { exportToGoogleDocsForCurrentUser } from "../lib/exportGoogleDoc";
-import { generateManualPdf } from "../services/exportApi";
+import { fetchManualExportImages } from "../services/exportApi";
+import { setExportImageCache } from "../lib/imageDataUrl";
 import type { ManualStep } from "../types";
 
 type FallbackDownload = { label: string; url: string; filename: string };
@@ -19,6 +20,7 @@ export default function ManualPreviewPage() {
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [exportBusy, setExportBusy] = useState<string | null>(null);
+  const [printBusy, setPrintBusy] = useState(false);
   const [exportError, setExportError] = useState("");
   const [exportOk, setExportOk] = useState("");
   const [fallbackDownload, setFallbackDownload] = useState<FallbackDownload | null>(null);
@@ -49,7 +51,11 @@ export default function ManualPreviewPage() {
       return;
     }
     setExportBusy(kind);
+    const needsImages = kind !== "markdown";
     try {
+      if (needsImages && id) {
+        setExportImageCache(await fetchManualExportImages(id));
+      }
       if (kind === "word") {
         const { filename, fallbackUrl } = await downloadAsWordDoc(title, steps);
         setExportOk(`Wordファイル（${filename}）のダウンロードを開始しました。`);
@@ -72,20 +78,35 @@ export default function ManualPreviewPage() {
           setExportOk("Googleドキュメントを新しいタブで開きました。");
         }
       } else if (kind === "pdf") {
-        if (!id) throw new Error("マニュアルIDがありません");
-        const { pdfUrl } = await generateManualPdf(id);
-        const opened = window.open(pdfUrl, "_blank", "noopener");
-        if (!opened) {
-          setExportOk("PDFを生成しました。下のリンクからダウンロードしてください。");
-          setFallbackDownload({ label: "PDFを開く", url: pdfUrl, filename: "" });
-        } else {
-          setExportOk("PDFを新しいタブで開きました。");
-        }
+        const { filename } = await downloadAsPdf(title, steps);
+        setExportOk(`PDFファイル（${filename}）のダウンロードを開始しました。`);
       }
     } catch (e) {
       setExportError(e instanceof Error ? e.message : "エクスポートに失敗しました");
     } finally {
+      setExportImageCache(null);
       setExportBusy(null);
+    }
+  };
+
+  const runPrint = async () => {
+    setExportError("");
+    setExportOk("");
+    if (steps.length === 0) {
+      setExportError("手順がありません。");
+      return;
+    }
+    setPrintBusy(true);
+    try {
+      if (id) {
+        setExportImageCache(await fetchManualExportImages(id));
+      }
+      await printWordDocument(title, steps);
+    } catch (e) {
+      setExportError(e instanceof Error ? e.message : "印刷の準備に失敗しました");
+    } finally {
+      setExportImageCache(null);
+      setPrintBusy(false);
     }
   };
 
@@ -145,10 +166,11 @@ export default function ManualPreviewPage() {
             </button>
             <button
               type="button"
-              onClick={() => window.print()}
-              className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              disabled={printBusy || exportBusy != null}
+              onClick={() => void runPrint()}
+              className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
             >
-              <Printer size={14} /> 印刷
+              {printBusy ? <Loader2 size={14} className="animate-spin" /> : <Printer size={14} />} 印刷
             </button>
             <button
               type="button"
@@ -193,7 +215,7 @@ export default function ManualPreviewPage() {
               className="inline-flex items-center gap-2 rounded-lg border border-primary-300 bg-primary-50 px-3 py-2 text-xs font-semibold text-primary-800 hover:bg-primary-100 disabled:opacity-50"
             >
               {exportBusy === "pdf" ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-              PDF（サーバー生成・A4）
+              PDF（Word 同等・A4）
             </button>
           </div>
           <p className="text-[11px] text-slate-500">

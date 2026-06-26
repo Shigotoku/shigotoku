@@ -1,13 +1,14 @@
 import { useCallback, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { folderIdFromSearch } from "../lib/folderContext";
+import { layoutIdFromSearch } from "../lib/uiLayoutTemplates";
 import { ImageUp, Loader2 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import DropZone from "../components/DropZone";
 import { useOrg } from "../context/OrgContext";
 import { useAuth } from "../components/AuthProvider";
 import { AUDIENCE_OPTIONS, labelsToAudience } from "../lib/format";
-import { createManual } from "../services/manuals";
+import { applyUiLayoutToSteps, createManual } from "../services/manuals";
 import { ingestTalkSteps } from "../services/talkCreate";
 import type { TargetAudience } from "../types";
 
@@ -29,6 +30,7 @@ export default function ManualScreenshotCreatePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const presetFolderId = folderIdFromSearch(searchParams);
+  const uiLayoutId = layoutIdFromSearch(searchParams);
   const { organization } = useOrg();
   const { user, demoMode } = useAuth();
   const [title, setTitle] = useState("");
@@ -73,6 +75,7 @@ export default function ManualScreenshotCreatePage() {
         createdBy: user.uid,
         creationSource: "screenshot",
         folderId: presetFolderId,
+        uiLayoutId,
       });
       await ingestTalkSteps(
         manualId,
@@ -82,6 +85,7 @@ export default function ManualScreenshotCreatePage() {
           screenshotBase64: s.base64,
         })),
       );
+      await applyUiLayoutToSteps(manualId, uiLayoutId);
       navigate(`/manuals/${manualId}/edit?new=1`);
     } catch (e) {
       setError((e as Error).message ?? "作成に失敗しました");

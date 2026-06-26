@@ -3,12 +3,14 @@ import { Link } from "react-router-dom";
 import { Chrome, ImageUp, Plus } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { insertStepAt, updateStep } from '../services/manuals';
+import { stepFieldsFromLayout } from '../lib/uiLayoutTemplates';
 import type { Manual, ManualStep } from '../types';
 import StepDocumentBlock from './StepDocumentBlock';
 
 type Props = {
   manualId: string;
   manual: Manual;
+  displayTitle: string;
   steps: ManualStep[];
   onStepsChange: (steps: ManualStep[]) => void;
   onOpenDetail: (stepId: string) => void;
@@ -19,6 +21,7 @@ type Props = {
 export default function ManualDocumentEditor({
   manualId,
   manual,
+  displayTitle,
   steps,
   onStepsChange,
   onOpenDetail,
@@ -60,18 +63,19 @@ export default function ManualDocumentEditor({
 
   const addStepAt = async (position: number) => {
     if (demo) return;
+    const layoutFields = stepFieldsFromLayout(manual.uiLayoutId);
     const newId = await insertStepAt(manualId, position, {
-      type: 'normal',
+      type: layoutFields.type ?? 'normal',
       title: `手順 ${position}`,
       instruction: '',
-      note: '',
-      textBeforeImage: '',
+      note: layoutFields.note ?? '',
+      textBeforeImage: layoutFields.textBeforeImage ?? '',
       screenshotUrl: '',
       pageTitle: '',
       pageUrl: '',
       elementText: '',
-      imageWidthPct: 100,
-      imageAlign: 'center',
+      imageWidthPct: layoutFields.imageWidthPct,
+      imageAlign: layoutFields.imageAlign,
     });
     await onReload();
     onOpenDetail(newId);
@@ -93,8 +97,8 @@ export default function ManualDocumentEditor({
   return (
     <div className="mx-auto max-w-3xl px-4 pb-20 pt-2">
       <article className="rounded-2xl border border-slate-200 bg-white px-6 py-8 shadow-sm">
-        <h1 className="text-xl font-bold text-slate-900">{manual.title}</h1>
-        {manual.description && <p className="mt-2 text-sm text-slate-500">{manual.description}</p>}
+        <h1 className="text-xl font-bold text-slate-900">{displayTitle}</h1>
+        {manual.description && <p className="mt-2 whitespace-pre-wrap text-sm text-slate-500">{manual.description}</p>}
         <p className="mt-1 text-xs text-slate-400">{steps.length} 手順 · クリックで詳細編集</p>
 
         {steps.length === 0 ? (

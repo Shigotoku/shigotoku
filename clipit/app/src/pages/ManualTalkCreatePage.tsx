@@ -1,13 +1,14 @@
 import { useCallback, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { folderIdFromSearch } from "../lib/folderContext";
+import { layoutIdFromSearch } from "../lib/uiLayoutTemplates";
 import { Camera, ChevronDown, ChevronUp, Loader2, MessageCircle, Sparkles, Video } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import PageHelpTip from "../components/PageHelpTip";
 import { useOrg } from "../context/OrgContext";
 import { useAuth } from "../components/AuthProvider";
 import { AUDIENCE_OPTIONS, labelsToAudience } from "../lib/format";
-import { createManual } from "../services/manuals";
+import { applyUiLayoutToSteps, createManual } from "../services/manuals";
 import { ingestTalkSteps, mergeTalkStepsWithApi, type MergedTalkStep, type TalkScreenshotPayload } from "../services/talkCreate";
 import type { InstructionTone } from "../services/ai";
 import type { TargetAudience } from "../types";
@@ -39,6 +40,7 @@ export default function ManualTalkCreatePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const presetFolderId = folderIdFromSearch(searchParams);
+  const uiLayoutId = layoutIdFromSearch(searchParams);
   const { organization } = useOrg();
   const { user, demoMode } = useAuth();
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -148,6 +150,7 @@ export default function ManualTalkCreatePage() {
         createdBy: user.uid,
         creationSource: "talk",
         folderId: presetFolderId,
+        uiLayoutId,
       });
       await ingestTalkSteps(
         manualId,
@@ -160,6 +163,7 @@ export default function ManualTalkCreatePage() {
           screenshotBase64: shots[s.screenshotIndex]?.imageBase64,
         })),
       );
+      await applyUiLayoutToSteps(manualId, uiLayoutId);
       navigate(`/manuals/${manualId}/edit?new=1`);
     } catch (e) {
       setError((e as Error).message ?? "保存に失敗しました");

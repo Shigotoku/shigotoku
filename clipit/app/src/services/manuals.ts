@@ -17,6 +17,7 @@ import { db } from '../lib/firebase';
 import { buildInstructionFromStep } from '../lib/instructionRules';
 import type { Manual, ManualCreationSource, ManualStep, ManualStatus, TargetAudience } from '../types';
 import { assertCanCreateManual, assertCanAddSteps } from './usage';
+import { getUiLayoutTemplate, stepFieldsFromLayout, type UiLayoutId } from '../lib/uiLayoutTemplates';
 
 function manualsCol() {
   return collection(db, 'clipit_manuals');
@@ -45,13 +46,15 @@ export async function createManual(input: {
   contentType?: 'manual' | 'material';
   editionLabel?: string;
   folderId?: string | null;
+  uiLayoutId?: UiLayoutId;
 }): Promise<string> {
   await assertCanCreateManual(input.organizationId);
+  const layout = getUiLayoutTemplate(input.uiLayoutId);
   const expiresAt = Timestamp.fromDate(new Date(Date.now() + 180 * 86_400_000));
   const ref = await addDoc(manualsCol(), {
     organizationId: input.organizationId,
     title: input.title.trim(),
-    description: input.description ?? '',
+    description: input.description?.trim() || layout.manualDescription || '',
     category: input.category ?? 'general',
     targetAudience: input.targetAudience,
     status: 'draft' satisfies ManualStatus,
@@ -66,6 +69,7 @@ export async function createManual(input: {
     editionLabel: input.editionLabel ?? '',
     confirmationVersion: 1,
     folderId: input.folderId ?? null,
+    uiLayoutId: layout.id,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
@@ -74,7 +78,7 @@ export async function createManual(input: {
 
 export async function updateManual(
   manualId: string,
-  patch: Partial<Pick<Manual, 'title' | 'description' | 'status' | 'workStatus' | 'targetAudience' | 'folderId'>>,
+  patch: Partial<Pick<Manual, 'title' | 'description' | 'status' | 'workStatus' | 'targetAudience' | 'folderId' | 'uiLayoutId'>>,
 ) {
   await updateDoc(doc(db, 'clipit_manuals', manualId), {
     ...patch,
@@ -88,6 +92,28 @@ export async function deleteManual(manualId: string) {
   stepsSnap.docs.forEach((s) => batch.delete(s.ref));
   batch.delete(doc(db, 'clipit_manuals', manualId));
   await batch.commit();
+}
+
+export async function deleteManuals(manualIds: string[]): Promise<void> {
+  for (const manualId of manualIds) {
+    await deleteManual(manualId);
+  }
+}
+
+/** 既存手順すべてに UI ひな型の配置を適用 */
+export async function applyUiLayoutToSteps(manualId: string, layoutId?: UiLayoutId | string): Promise<void> {
+  const manual = await getManual(manualId);
+  const layout = getUiLayoutTemplate(layoutId ?? manual?.uiLayoutId);
+  const steps = await listSteps(manualId);
+  for (const s of steps) {
+    const fields = stepFieldsFromLayout(layout.id, s);
+    await updateStep(manualId, s.id, fields);
+  }
+  if (layout.manualDescription && manual && !manual.description?.trim()) {
+    await updateManual(manualId, { description: layout.manualDescription, uiLayoutId: layout.id });
+  } else if (manual?.uiLayoutId !== layout.id) {
+    await updateManual(manualId, { uiLayoutId: layout.id });
+  }
 }
 
 function stepsCol(manualId: string) {

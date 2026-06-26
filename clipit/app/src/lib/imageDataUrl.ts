@@ -1,6 +1,12 @@
-import { ref, getBytes } from 'firebase/storage';
-import { storage } from './firebase';
 import { mimeFromStoragePath } from './storageMeta';
+import { apiFetch } from './api';
+
+/** エクスポート開始前に API から一括取得した画像キャッシュ */
+let exportImageCache: Record<string, string> | null = null;
+
+export function setExportImageCache(cache: Record<string, string> | null): void {
+  exportImageCache = cache;
+}
 
 function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -11,37 +17,67 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 
-/** Firebase Storage の download URL からオブジェクトパスを抽出 */
-export function storagePathFromDownloadUrl(url: string): string | null {
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error(message)), ms);
+    }),
+  ]);
+}
+
+/** Firebase Storage の download URL から bucket / path を抽出 */
+export function parseFirebaseStorageUrl(url: string): { bucket: string; path: string } | null {
   try {
     const u = new URL(url);
     if (!u.hostname.includes('firebasestorage.googleapis.com')) return null;
-    const m = u.pathname.match(/\/o\/(.+)$/);
+    const m = u.pathname.match(/^\/v0\/b\/([^/]+)\/o\/(.+)$/);
     if (!m) return null;
-    return decodeURIComponent(m[1]);
+    return { bucket: decodeURIComponent(m[1]!), path: decodeURIComponent(m[2]!) };
   } catch {
     return null;
   }
 }
 
-/** エクスポート・合成用に data URL へ（CORS 不要で Storage SDK を優先） */
+/** @deprecated parseFirebaseStorageUrl を使用 */
+export function storagePathFromDownloadUrl(url: string): string | null {
+  return parseFirebaseStorageUrl(url)?.path ?? null;
+}
+
+async function fetchViaApiProxy(url: string): Promise<string> {
+  const { dataUrl } = await withTimeout(
+    apiFetch<{ dataUrl: string }>('/v1/storage/data-url', {
+      method: 'POST',
+      body: JSON.stringify({ url }),
+    }),
+    45_000,
+    '画像の取得がタイムアウトしました。しばらく待ってから再試行してください。',
+  );
+  if (!dataUrl?.startsWith('data:')) {
+    throw new Error('画像の取得に失敗しました');
+  }
+  return dataUrl;
+}
+
+/**
+ * エクスポート・合成用に data URL へ。
+ * Firebase Storage はブラウザ SDK / fetch では CORS で失敗するため API プロキシのみ使用。
+ */
 export async function resolveImageDataUrl(url: string): Promise<string> {
   if (url.startsWith('data:')) return url;
-  const path = storagePathFromDownloadUrl(url);
-  if (path) {
-    try {
-      const buf = await getBytes(ref(storage, path));
-      const mime = mimeFromStoragePath(path);
-      return blobToDataUrl(new Blob([buf], { type: mime }));
-    } catch {
-      /* fetch にフォールバック */
-    }
+
+  const cached = exportImageCache?.[url];
+  if (cached?.startsWith('data:')) return cached;
+
+  if (parseFirebaseStorageUrl(url)) {
+    return fetchViaApiProxy(url);
   }
+
   try {
-    const res = await fetch(url, { mode: 'cors' });
+    const res = await withTimeout(fetch(url, { mode: 'cors' }), 20_000, '画像の取得がタイムアウトしました');
     if (res.ok) return blobToDataUrl(await res.blob());
   } catch {
-    /* そのまま URL を返す（Word がオンライン取得する場合あり） */
+    /* そのまま URL を返す */
   }
   return url;
 }
@@ -51,7 +87,10 @@ export function loadImageFromSrc(src: string): Promise<HTMLImageElement> {
     const img = new Image();
     img.onload = () => resolve(img);
     img.onerror = () => reject(new Error('画像の読み込みに失敗しました'));
+    // data URL のみ canvas 合成に使用（外部 URL は taint するため crossOrigin 不要）
     if (!src.startsWith('data:')) img.crossOrigin = 'anonymous';
     img.src = src;
   });
 }
+
+export { mimeFromStoragePath };

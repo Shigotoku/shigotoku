@@ -21,6 +21,7 @@
     "deploy:runwith": "npm run build && firebase deploy --project runwith --config firebase.runwith.json --only hosting,storage,firestore",
     "build:clipit-api": "npm ci --prefix ../clipit/api && npm run build --prefix ../clipit/api && node scripts/prepare-clipit-api.mjs",
     "deploy:clipit-api": "npm run build:clipit-api && firebase deploy --project clipit --config firebase.clipit.json --only functions:clipit-api",
+    "storage:cors:clipit": "node scripts/apply-clipit-storage-cors.mjs",
     "deploy:clipit": "npm run build && npm run build:clipit-api && firebase deploy --project clipit --config firebase.clipit.json --only hosting,functions:clipit-api,storage,firestore",
     "deploy:all": "npm run deploy:buzzit && npm run deploy:runwith",
     "deploy:all-with-api": "npm run deploy:buzzit && npm run deploy:runwith",

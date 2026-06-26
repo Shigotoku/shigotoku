@@ -26,6 +26,7 @@ import { uploadStepScreenshot } from "../lib/uploadStepScreenshot";
 import { useOrg } from "../context/OrgContext";
 import { useAuth } from "../components/AuthProvider";
 import { manualWorkStatus, WORK_STATUS_LABEL } from "../lib/manualWorkStatus";
+import { getUiLayoutTemplate, stepFieldsFromLayout } from "../lib/uiLayoutTemplates";
 import type { Manual, ManualStep, ManualWorkStatus, TargetAudience } from "../types";
 
 export default function ManualEditPage() {
@@ -44,6 +45,8 @@ export default function ManualEditPage() {
   const [extInstalled, setExtInstalled] = useState<boolean | null>(null);
   const [polishVoiceWithAi, setPolishVoiceWithAi] = useState(false);
   const [generateAllWithAi, setGenerateAllWithAi] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
+  const [titleSaving, setTitleSaving] = useState(false);
 
   useEffect(() => {
     pingExtension().then(setExtInstalled);
@@ -72,6 +75,7 @@ export default function ManualEditPage() {
         createdBy: "",
       });
       setSteps([]);
+      setTitleDraft("デモマニュアル");
       setLoading(false);
       return;
     }
@@ -83,6 +87,7 @@ export default function ManualEditPage() {
     const s = await listSteps(id);
     setManual(m);
     setSteps(s);
+    setTitleDraft(m.title);
     setLoading(false);
   }, [id, navigate]);
 
@@ -114,6 +119,20 @@ export default function ManualEditPage() {
     if (!id || id.startsWith("demo")) return;
     await updateStep(id, stepId, patch);
     setSteps((cur) => cur.map((s) => (s.id === stepId ? { ...s, ...patch } : s)));
+  };
+
+  const saveTitle = async () => {
+    if (!id || id.startsWith("demo") || !manual) return;
+    const next = titleDraft.trim() || "無題のマニュアル";
+    if (next === manual.title) return;
+    setTitleSaving(true);
+    try {
+      await updateManual(id, { title: next });
+      setManual({ ...manual, title: next });
+      setTitleDraft(next);
+    } finally {
+      setTitleSaving(false);
+    }
   };
 
   const active = steps.find((s) => s.id === detailStepId) ?? steps[0];
@@ -148,18 +167,19 @@ export default function ManualEditPage() {
     let position = steps.length + 1;
     if (mode === "before") position = active.order;
     if (mode === "after") position = active.order + 1;
+    const layoutFields = stepFieldsFromLayout(manual?.uiLayoutId);
     const newId = await insertStepAt(id, position, {
-      type: "normal",
+      type: layoutFields.type ?? "normal",
       title: `手順 ${position}`,
       instruction: "",
-      note: "",
-      textBeforeImage: "",
+      note: layoutFields.note ?? "",
+      textBeforeImage: layoutFields.textBeforeImage ?? "",
       screenshotUrl: "",
       pageTitle: "",
       pageUrl: "",
       elementText: "",
-      imageWidthPct: 100,
-      imageAlign: "center",
+      imageWidthPct: layoutFields.imageWidthPct,
+      imageAlign: layoutFields.imageAlign,
     });
     await load();
     openDetail(newId);
@@ -246,7 +266,17 @@ export default function ManualEditPage() {
   return (
     <>
       <PageHeader
-        title={manual.title}
+        title={titleDraft.trim() || manual.title}
+        editableTitle={
+          id && !id.startsWith("demo")
+            ? {
+                value: titleDraft,
+                onChange: setTitleDraft,
+                onSave: () => void saveTitle(),
+                saving: titleSaving,
+              }
+            : undefined
+        }
         description={inDetail ? "手順の詳細編集（画面編集・AI・画像差し替え）" : "Wordのように手順を並べて編集（クリックで詳細編集）"}
         action={
           <div className="flex flex-wrap items-center gap-2">
@@ -294,6 +324,12 @@ export default function ManualEditPage() {
           </div>
         }
       />
+
+      {id && !id.startsWith("demo") && manual.uiLayoutId && !inDetail && (
+        <p className="mx-6 mb-2 text-xs text-slate-500">
+          UIひな型: <span className="font-semibold text-slate-700">{getUiLayoutTemplate(manual.uiLayoutId).name}</span>
+        </p>
+      )}
 
       {id && !id.startsWith("demo") && <EditNextStepsBanner manualId={id} stepCount={steps.length} />}
       {id && !id.startsWith("demo") && (
@@ -382,6 +418,7 @@ export default function ManualEditPage() {
         <ManualDocumentEditor
           manualId={id}
           manual={manual}
+          displayTitle={titleDraft.trim() || manual.title}
           steps={steps}
           onStepsChange={setSteps}
           onOpenDetail={openDetail}

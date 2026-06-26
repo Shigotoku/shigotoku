@@ -22,6 +22,7 @@ import { removeMember, updateMemberRole } from './services/team.js';
 import { notifyManualShare } from './services/shareNotify.js';
 import { applyStepMasks } from './services/stepMasks.js';
 import { generateManualPdf } from './services/pdfExport.js';
+import { parseFirebaseStorageUrl, resolveManualExportImages, storageUrlToDataUrl } from './services/storageProxy.js';
 
 const limitAi = rateLimit(30);
 
@@ -346,6 +347,42 @@ api.post('/v1/manuals/:manualId/pdf', requireAuth, async (req: AuthedRequest, re
   } catch (e) {
     const err = e as { status?: number; message?: string };
     res.status(err.status ?? 500).json({ error: err.message ?? 'pdf failed' });
+  }
+});
+
+api.post('/v1/storage/data-url', requireAuth, async (req: AuthedRequest, res) => {
+  const url = (req.body as { url?: string }).url?.trim();
+  if (!url) {
+    res.status(400).json({ error: 'url is required' });
+    return;
+  }
+  try {
+    const parsed = parseFirebaseStorageUrl(url);
+    const manualMatch = parsed?.path.match(/^clipit\/manuals\/([^/]+)\//);
+    if (manualMatch) {
+      await assertManualAccess(manualMatch[1]!, req.uid!);
+    }
+    const dataUrl = await storageUrlToDataUrl(url);
+    res.json({ dataUrl });
+  } catch (e) {
+    const err = e as { status?: number; message?: string };
+    res.status(err.status ?? 500).json({ error: err.message ?? 'storage data-url failed' });
+  }
+});
+
+api.post('/v1/manuals/:manualId/export-images', requireAuth, async (req: AuthedRequest, res) => {
+  const manualId = String(req.params.manualId);
+  try {
+    const { manualRef } = await assertManualAccess(manualId, req.uid!);
+    const stepsSnap = await manualRef.collection('steps').orderBy('order').get();
+    const urls = stepsSnap.docs
+      .map((d) => d.data().screenshotUrl as string | undefined)
+      .filter((u): u is string => Boolean(u?.trim()));
+    const images = await resolveManualExportImages(urls);
+    res.json({ images });
+  } catch (e) {
+    const err = e as { status?: number; message?: string };
+    res.status(err.status ?? 500).json({ error: err.message ?? 'export-images failed' });
   }
 });
 

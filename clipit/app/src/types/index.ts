@@ -116,6 +116,8 @@ export interface Manual {
   parentManualId?: string;
   /** フォルダ未設定は null / 未設定 */
   folderId?: string | null;
+  /** 手順の見た目・配置の UI ひな型 */
+  uiLayoutId?: string;
 }
 
 export interface ManualFolder {

@@ -19,7 +19,7 @@ import EmptyState from "../components/EmptyState";
 import PublishSafetyCheck from "../components/PublishSafetyCheck";
 import { useOrg } from "../context/OrgContext";
 import { useAuth } from "../components/AuthProvider";
-import { listManuals } from "../services/manuals";
+import { listManuals, deleteManuals } from "../services/manuals";
 import {
   createFolder,
   deleteFolder,
@@ -60,8 +60,14 @@ export default function ManualsListPage() {
   const [copied, setCopied] = useState(false);
   const [expiresInDays, setExpiresInDays] = useState(365);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   const folderFilter: FolderFilter = (searchParams.get("folder") as FolderFilter) || "all";
+
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [folderFilter, searchQuery]);
 
   const setFolderFilter = (f: FolderFilter) => {
     if (f === "all") {
@@ -222,6 +228,40 @@ export default function ManualsListPage() {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const toggleSelect = (manualId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(manualId)) next.delete(manualId);
+      else next.add(manualId);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredManuals.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredManuals.map((m) => m.id)));
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    if (demoMode || selectedIds.size === 0) return;
+    const n = selectedIds.size;
+    if (!confirm(`選択した ${n} 件のマニュアルを削除しますか？この操作は取り消せません。`)) return;
+    setDeleteBusy(true);
+    try {
+      await deleteManuals([...selectedIds]);
+      setSelectedIds(new Set());
+      await reload();
+    } finally {
+      setDeleteBusy(false);
+    }
+  };
+
+  const allSelected = filteredManuals.length > 0 && selectedIds.size === filteredManuals.length;
+  const someSelected = selectedIds.size > 0;
 
   const listTitle =
     folderFilter === "all"
@@ -458,9 +498,36 @@ export default function ManualsListPage() {
           )}
 
           <section className="rounded-2xl border border-slate-200 bg-white">
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-              <h2 className="text-sm font-bold text-slate-900">{listTitle}</h2>
-              <span className="text-xs text-slate-400">{filteredManuals.length} 件</span>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+              <div className="flex items-center gap-3">
+                {!demoMode && filteredManuals.length > 0 && (
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = someSelected && !allSelected;
+                    }}
+                    onChange={toggleSelectAll}
+                    className="h-4 w-4 rounded border-slate-300 text-primary-500 focus:ring-primary-400"
+                    aria-label="すべて選択"
+                  />
+                )}
+                <h2 className="text-sm font-bold text-slate-900">{listTitle}</h2>
+              </div>
+              <div className="flex items-center gap-2">
+                {someSelected && !demoMode && (
+                  <button
+                    type="button"
+                    disabled={deleteBusy}
+                    onClick={() => void handleDeleteSelected()}
+                    className="inline-flex items-center gap-1 rounded-lg border border-danger-200 bg-danger-50 px-3 py-1.5 text-xs font-semibold text-danger-700 hover:bg-danger-100 disabled:opacity-50"
+                  >
+                    <Trash2 size={14} />
+                    {deleteBusy ? "削除中…" : `${selectedIds.size} 件を削除`}
+                  </button>
+                )}
+                <span className="text-xs text-slate-400">{filteredManuals.length} 件</span>
+              </div>
             </div>
 
             {loading ? (
@@ -485,7 +552,21 @@ export default function ManualsListPage() {
             ) : (
               <ul className="divide-y divide-slate-100">
                 {filteredManuals.map((m) => (
-                  <li key={m.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center">
+                  <li
+                    key={m.id}
+                    className={`flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center ${
+                      selectedIds.has(m.id) ? "bg-primary-50/40" : ""
+                    }`}
+                  >
+                    {!demoMode && (
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(m.id)}
+                        onChange={() => toggleSelect(m.id)}
+                        className="h-4 w-4 shrink-0 rounded border-slate-300 text-primary-500 focus:ring-primary-400"
+                        aria-label={`${m.title} を選択`}
+                      />
+                    )}
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-slate-900">{m.title}</p>
                       <p className="mt-0.5 text-xs text-slate-400">

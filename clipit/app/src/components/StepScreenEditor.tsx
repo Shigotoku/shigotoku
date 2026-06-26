@@ -150,7 +150,8 @@ export default function StepScreenEditor({
   onClose,
 }: Props) {
   const overlayRef = useRef<HTMLDivElement>(null);
-  const textEditRef = useRef<HTMLDivElement>(null);
+  const textEditRef = useRef<HTMLTextAreaElement>(null);
+  const composingRef = useRef(false);
   const dragSessionRef = useRef<DragSession | null>(null);
   const rafRef = useRef<number | null>(null);
   const pendingPointRef = useRef<OverlayPoint | null>(null);
@@ -231,13 +232,10 @@ export default function StepScreenEditor({
   useEffect(() => {
     if (pendingText) {
       requestAnimationFrame(() => {
-        textEditRef.current?.focus();
-        const range = document.createRange();
-        range.selectNodeContents(textEditRef.current!);
-        range.collapse(false);
-        const sel = window.getSelection();
-        sel?.removeAllRanges();
-        sel?.addRange(range);
+        const el = textEditRef.current;
+        if (!el) return;
+        el.focus();
+        el.setSelectionRange(el.value.length, el.value.length);
       });
     }
   }, [pendingText]);
@@ -578,7 +576,7 @@ export default function StepScreenEditor({
 
     if (tool === 'text') {
       setPendingText({ x: p.pctX, y: p.pctY });
-      setTextDraft('ここを確認');
+      setTextDraft('');
       setTextDraftStyle(DEFAULT_TEXT_STYLE);
       setSelection(null);
       return;
@@ -598,7 +596,8 @@ export default function StepScreenEditor({
   };
 
   const commitText = () => {
-    const value = (textEditRef.current?.innerText ?? textDraft).trim();
+    if (composingRef.current) return;
+    const value = textDraft.trim();
     if (pendingText && value) {
       if (pendingText.id) {
         const nextAnn = localAnn.map((a) =>
@@ -956,7 +955,6 @@ export default function StepScreenEditor({
         <div
           data-inspector
           className="flex flex-wrap items-center gap-3 border-b border-slate-700 bg-slate-900/80 px-4 py-2 text-white"
-          onMouseDown={(e) => e.preventDefault()}
         >
           <span className="text-xs font-semibold text-slate-400">テキスト</span>
           <label className="flex items-center gap-2 text-xs">
@@ -1047,26 +1045,44 @@ export default function StepScreenEditor({
             {pendingText && (
               <div
                 data-text-input
-                className="absolute z-30 min-w-[120px]"
+                className="absolute z-30 min-w-[160px] max-w-[min(90%,420px)]"
                 style={{
                   left: `${pendingText.x}%`,
                   top: `${pendingText.y}%`,
                   transform: 'translate(-4px,-4px)',
                 }}
+                onPointerDown={(e) => e.stopPropagation()}
               >
-                <div
+                <textarea
                   ref={textEditRef}
-                  contentEditable
-                  suppressContentEditableWarning
-                  onInput={(e) => setTextDraft(e.currentTarget.innerText)}
+                  value={textDraft}
+                  rows={2}
+                  placeholder="テキストを入力"
+                  onChange={(e) => setTextDraft(e.target.value)}
+                  onCompositionStart={() => {
+                    composingRef.current = true;
+                  }}
+                  onCompositionEnd={() => {
+                    composingRef.current = false;
+                  }}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
+                    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
                       e.preventDefault();
                       commitText();
                     }
+                    if (e.key === 'Escape') {
+                      e.preventDefault();
+                      setPendingText(null);
+                      setTextDraft('');
+                    }
+                    e.stopPropagation();
                   }}
-                  onBlur={() => commitText()}
-                  className="rounded px-2 py-1 shadow-lg outline-none ring-2 ring-primary-400"
+                  onBlur={() => {
+                    window.setTimeout(() => {
+                      if (!composingRef.current) commitText();
+                    }, 0);
+                  }}
+                  className="w-full resize-none rounded px-2 py-1 shadow-lg outline-none ring-2 ring-primary-400"
                   style={{
                     fontSize: draftEditorPx,
                     fontFamily: fontFamilyCss(textDraftStyle.fontFamily),
@@ -1075,9 +1091,7 @@ export default function StepScreenEditor({
                     backgroundColor: textDraftStyle.bgColor,
                     lineHeight: 1.25,
                   }}
-                >
-                  {textDraft}
-                </div>
+                />
               </div>
             )}
           </div>
