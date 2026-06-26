@@ -38,7 +38,6 @@ export default function App() {
 
       {/* 認証必須 */}
       <Route path="/setup" element={<P><OrgSetupPage /></P>} />
-      <Route path="/extension/install" element={<P><ExtensionInstallPage /></P>} />
 
       <Route element={<AppLayout />}>
         <Route path="/dashboard" element={<P><DashboardPage /></P>} />
@@ -54,6 +53,7 @@ export default function App() {
         <Route path="/assistant" element={<P><AssistantPage /></P>} />
         <Route path="/templates" element={<P><TemplatesPage /></P>} />
         <Route path="/team" element={<P><TeamPage /></P>} />
+        <Route path="/extension/install" element={<P><ExtensionInstallPage /></P>} />
         <Route path="/settings" element={<P><SettingsPage /></P>} />
       </Route>
 
