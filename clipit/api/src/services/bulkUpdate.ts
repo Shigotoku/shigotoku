@@ -1,6 +1,15 @@
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-const GEMINI_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+import {
+  buildApplySummary,
+  getCachedOrgContext,
+  inferSearchPlan,
+  proposeBulkChangesWithModel,
+  proposeManualToneUnify,
+  type BulkSearchPlan,
+  type OrgContext,
+} from './bulkUpdateAi.js';
+import { embedText } from './geminiClient.js';
+import { ensureStepEmbeddings, filterRowsBySemanticSimilarity } from './stepSearchIndex.js';
 
 export type BulkField = 'title' | 'instruction' | 'note' | 'manualTitle' | 'manualDescription';
 
@@ -13,6 +22,7 @@ export interface BulkMatch {
   field: BulkField;
   before: string;
   linePreview: string;
+  matchSource?: 'keyword' | 'semantic' | 'manual';
 }
 
 export interface BulkChangeProposal {
@@ -60,6 +70,7 @@ interface StepRow {
   note: string;
   screenshotUrl?: string;
   type?: string;
+  searchEmbedding?: number[];
 }
 
 export interface BulkUpdateScope {
@@ -67,6 +78,19 @@ export interface BulkUpdateScope {
   folderIds?: string[];
   manualIds?: string[];
   includeUncategorized?: boolean;
+}
+
+export interface BulkProposeResult {
+  proposals: BulkChangeProposal[];
+  matchCount: number;
+  summary: string;
+  searchPlan?: BulkSearchPlan;
+  inferredKeywords?: string[];
+  phase?: 'analyze' | 'complete';
+}
+
+function matchKey(m: Pick<BulkMatch, 'manualId' | 'stepId' | 'field' | 'before'>) {
+  return `${m.manualId}:${m.stepId ?? 'manual'}:${m.field}:${m.before.slice(0, 80)}`;
 }
 
 function filterRowsByScope(rows: StepRow[], scope?: BulkUpdateScope): StepRow[] {
@@ -97,6 +121,16 @@ async function assertOrgMember(orgId: string, uid: string) {
   }
 }
 
+async function loadOrgContext(orgId: string): Promise<OrgContext> {
+  const org = await getFirestore().collection('clipit_organizations').doc(orgId).get();
+  const data = org.data() ?? {};
+  return {
+    glossary: (data.termGlossary as string[] | undefined) ?? [],
+    rulebook: String(data.rulebook ?? ''),
+    orgVariables: (data.orgVariables as Record<string, string> | undefined) ?? {},
+  };
+}
+
 export async function loadOrgSteps(orgId: string): Promise<StepRow[]> {
   const db = getFirestore();
   const manualsSnap = await db
@@ -121,18 +155,17 @@ export async function loadOrgSteps(orgId: string): Promise<StepRow[]> {
         note: String(st.note ?? ''),
         screenshotUrl: st.screenshotUrl as string | undefined,
         type: st.type as string | undefined,
+        searchEmbedding: st.searchEmbedding as number[] | undefined,
       });
     }
   }
   return rows;
 }
 
-function collectMatches(rows: StepRow[], query: string, caseSensitive = false): BulkMatch[] {
-  const q = caseSensitive ? query : query.toLowerCase();
+function collectMatchesFromQuery(rows: StepRow[], query: string, source: BulkMatch['matchSource'] = 'keyword'): BulkMatch[] {
+  const q = query.toLowerCase();
   if (!q.trim()) return [];
   const matches: BulkMatch[] = [];
-
-  const test = (text: string) => (caseSensitive ? text.includes(query) : text.toLowerCase().includes(q));
 
   for (const row of rows) {
     const fields: Array<{ field: BulkField; text: string; stepId?: string; stepOrder?: number; stepTitle?: string }> = [
@@ -143,7 +176,7 @@ function collectMatches(rows: StepRow[], query: string, caseSensitive = false): 
       { field: 'note', text: row.note, stepId: row.stepId, stepOrder: row.stepOrder, stepTitle: row.stepTitle },
     ];
     for (const f of fields) {
-      if (!f.text || !test(f.text)) continue;
+      if (!f.text || !f.text.toLowerCase().includes(q)) continue;
       matches.push({
         manualId: row.manualId,
         manualTitle: row.manualTitle,
@@ -153,10 +186,115 @@ function collectMatches(rows: StepRow[], query: string, caseSensitive = false): 
         field: f.field,
         before: f.text,
         linePreview: f.text.slice(0, 120),
+        matchSource: source,
       });
     }
   }
   return matches;
+}
+
+function collectMatchesMulti(rows: StepRow[], plan: BulkSearchPlan): BulkMatch[] {
+  const seen = new Set<string>();
+  const out: BulkMatch[] = [];
+
+  const push = (m: BulkMatch) => {
+    const key = matchKey(m);
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(m);
+  };
+
+  for (const kw of plan.keywords) {
+    for (const m of collectMatchesFromQuery(rows, kw, 'keyword')) push(m);
+  }
+
+  for (const pattern of plan.regexPatterns) {
+    try {
+      const re = new RegExp(pattern, 'i');
+      for (const row of rows) {
+        const fields: Array<{ field: BulkField; text: string; stepId?: string; stepOrder?: number; stepTitle?: string }> = [
+          { field: 'manualTitle', text: row.manualTitle },
+          { field: 'manualDescription', text: row.manualDescription },
+          { field: 'title', text: row.stepTitle, stepId: row.stepId, stepOrder: row.stepOrder, stepTitle: row.stepTitle },
+          { field: 'instruction', text: row.instruction, stepId: row.stepId, stepOrder: row.stepOrder, stepTitle: row.stepTitle },
+          { field: 'note', text: row.note, stepId: row.stepId, stepOrder: row.stepOrder, stepTitle: row.stepTitle },
+        ];
+        for (const f of fields) {
+          if (!f.text || !re.test(f.text)) continue;
+          push({
+            manualId: row.manualId,
+            manualTitle: row.manualTitle,
+            stepId: f.stepId,
+            stepOrder: f.stepOrder,
+            stepTitle: f.stepTitle,
+            field: f.field,
+            before: f.text,
+            linePreview: f.text.slice(0, 120),
+            matchSource: 'keyword',
+          });
+        }
+      }
+    } catch {
+      /* invalid regex */
+    }
+  }
+
+  if (plan.replaceFrom?.trim()) {
+    for (const m of collectMatchesFromQuery(rows, plan.replaceFrom.trim(), 'keyword')) push(m);
+  }
+
+  return out;
+}
+
+function matchesToRowsForSemantic(rows: StepRow[], matches: BulkMatch[]): StepRow[] {
+  const stepKeys = new Set(matches.filter((m) => m.stepId).map((m) => `${m.manualId}:${m.stepId}`));
+  if (!stepKeys.size) return rows.filter((r) => r.instruction.trim() || r.note.trim());
+  return rows.filter((r) => stepKeys.has(`${r.manualId}:${r.stepId}`));
+}
+
+async function collectSemanticMatches(rows: StepRow[], semanticQuery: string): Promise<BulkMatch[]> {
+  const queryEmbedding = await embedText(semanticQuery);
+  if (!queryEmbedding.length) return [];
+
+  const embeddingByStep = await ensureStepEmbeddings(rows);
+  const similarRows = filterRowsBySemanticSimilarity(rows, embeddingByStep, queryEmbedding, 0.68);
+
+  const matches: BulkMatch[] = [];
+  for (const row of similarRows) {
+    for (const f of [
+      { field: 'instruction' as BulkField, text: row.instruction },
+      { field: 'note' as BulkField, text: row.note },
+      { field: 'title' as BulkField, text: row.stepTitle },
+    ]) {
+      if (!f.text.trim()) continue;
+      matches.push({
+        manualId: row.manualId,
+        manualTitle: row.manualTitle,
+        stepId: row.stepId,
+        stepOrder: row.stepOrder,
+        stepTitle: row.stepTitle,
+        field: f.field,
+        before: f.text,
+        linePreview: f.text.slice(0, 120),
+        matchSource: 'semantic',
+      });
+    }
+  }
+  return matches;
+}
+
+function mergeMatches(...lists: BulkMatch[][]): BulkMatch[] {
+  const seen = new Set<string>();
+  const out: BulkMatch[] = [];
+  for (const list of lists) {
+    for (const m of list) {
+      const key = matchKey(m);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(m);
+    }
+  }
+  return out;
 }
 
 export function proposeSimpleReplace(
@@ -170,95 +308,143 @@ export function proposeSimpleReplace(
     const re = new RegExp(from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
     return text.replace(re, to);
   };
-  return matches.map((m) => {
-    const after = replaceIn(m.before);
-    const screenshotHint = /freee|マネーフォワード|旧|ログイン画面|URL/i.test(from + m.before);
-    return {
-      manualId: m.manualId,
-      manualTitle: m.manualTitle,
-      stepId: m.stepId,
-      stepOrder: m.stepOrder,
-      stepTitle: m.stepTitle,
-      field: m.field,
-      before: m.before,
-      after,
-      risk: (after === m.before ? 'low' : m.field === 'note' && /個人情報|氏名|患者/.test(m.before) ? 'high' : 'low') as 'low' | 'medium' | 'high',
-      requiresScreenshotUpdate: screenshotHint && Boolean(m.stepId),
-      reason: after === m.before ? '変更なし' : undefined,
-    };
-  }).filter((c) => c.before !== c.after);
+  return matches
+    .map((m) => {
+      const after = replaceIn(m.before);
+      const screenshotHint = /freee|マネーフォワード|旧|ログイン画面|URL/i.test(from + m.before);
+      return {
+        manualId: m.manualId,
+        manualTitle: m.manualTitle,
+        stepId: m.stepId,
+        stepOrder: m.stepOrder,
+        stepTitle: m.stepTitle,
+        field: m.field,
+        before: m.before,
+        after,
+        risk: (after === m.before
+          ? 'low'
+          : m.field === 'note' && /個人情報|氏名|患者/.test(m.before)
+            ? 'high'
+            : 'low') as 'low' | 'medium' | 'high',
+        requiresScreenshotUpdate: screenshotHint && Boolean(m.stepId),
+        reason: after === m.before ? '変更なし' : undefined,
+      };
+    })
+    .filter((c) => c.before !== c.after);
 }
 
-async function callGeminiBulk(
+function matchToProposal(m: BulkMatch, g: { after: string; risk: 'low' | 'medium' | 'high'; requiresScreenshotUpdate?: boolean; reason?: string }): BulkChangeProposal {
+  return {
+    manualId: m.manualId,
+    manualTitle: m.manualTitle,
+    stepId: m.stepId,
+    stepOrder: m.stepOrder,
+    stepTitle: m.stepTitle,
+    field: m.field,
+    before: m.before,
+    after: g.after,
+    risk: g.risk,
+    requiresScreenshotUpdate: Boolean(g.requiresScreenshotUpdate),
+    reason: g.reason,
+  };
+}
+
+async function proposeWithAiRouting(
   instruction: string,
   matches: BulkMatch[],
-  glossary: string[],
-  rulebook: string,
+  ctx: OrgContext,
+  plan: BulkSearchPlan,
 ): Promise<BulkChangeProposal[]> {
-  const items = matches.map((m) => ({
+  const capped = matches.slice(0, 80);
+  if (!capped.length) return [];
+
+  if (plan.mode === 'manual_tone_unify') {
+    const byManual = new Map<string, BulkMatch[]>();
+    for (const m of capped) {
+      const list = byManual.get(m.manualId) ?? [];
+      list.push(m);
+      byManual.set(m.manualId, list);
+    }
+
+    const blocks = [...byManual.entries()].map(([manualId, ms]) => ({
+      manualId,
+      manualTitle: ms[0]!.manualTitle,
+      fields: ms.map((m) => ({
+        stepId: m.stepId,
+        stepOrder: m.stepOrder,
+        stepTitle: m.stepTitle,
+        field: m.field,
+        before: m.before,
+      })),
+    }));
+
+    const unified = await proposeManualToneUnify(instruction, blocks, ctx);
+    const proposals: BulkChangeProposal[] = [];
+    for (const u of unified) {
+      for (const c of u.changes) {
+        const src = capped.find((m) => m.manualId === u.manualId && m.stepId === c.stepId && m.field === c.field && m.before === c.before);
+        if (!src) continue;
+        proposals.push({
+          manualId: u.manualId,
+          manualTitle: src.manualTitle,
+          stepId: c.stepId,
+          stepOrder: src.stepOrder,
+          stepTitle: src.stepTitle,
+          field: c.field as BulkField,
+          before: c.before,
+          after: c.after,
+          risk: c.risk,
+          requiresScreenshotUpdate: /旧|画面|URL|ログイン/i.test(c.before + instruction),
+          reason: c.reason,
+        });
+      }
+    }
+    return proposals.filter((p) => p.before !== p.after);
+  }
+
+  const items = capped.map((m) => ({
     manualTitle: m.manualTitle,
     stepTitle: m.stepTitle ?? '',
     field: m.field,
     before: m.before,
   }));
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) throw new Error('GEMINI_API_KEY が未設定です');
 
-  const prompt = `あなたは業務マニュアルの一括更新アシスタントです。
-ユーザーの指示に従い、各テキストを自然な日本語に修正してください。
-過去の履歴説明として意図的に残すべき箇所は変更しないでください。
-医療・個人情報・法務に関わる箇所は risk を high にしてください。
-スクショに旧画面名が含まれる可能性がある場合は requiresScreenshotUpdate を true にしてください。
+  const flashItems = items.slice(0, 40);
+  const flashMatches = capped.slice(0, 40);
+  const flashResults = await proposeBulkChangesWithModel(instruction, flashItems, ctx, 'flash');
 
-用語辞書（正しい表記）: ${glossary.slice(0, 30).join('、')}
-
-社内ルールブック:
-${rulebook.slice(0, 1500) || '（未設定）'}
-
-ユーザー指示:
-${instruction}
-
-対象一覧（JSON）:
-${JSON.stringify(items.slice(0, 40), null, 0)}
-
-次のJSON配列のみを返してください（説明不要）:
-[{"index":0,"after":"修正後テキスト","risk":"low|medium|high","requiresScreenshotUpdate":false,"reason":"短い理由"}]`;
-
-  const res = await fetch(`${GEMINI_URL}?key=${key}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.2, responseMimeType: 'application/json' },
-    }),
-  });
-  if (!res.ok) throw new Error(`Gemini error: ${res.status}`);
-  const data = (await res.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
-  const raw = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '[]';
-  const parsed = JSON.parse(raw) as Array<{
-    index: number;
-    after: string;
-    risk: 'low' | 'medium' | 'high';
-    requiresScreenshotUpdate?: boolean;
-    reason?: string;
-  }>;
-
-  return matches.map((m, i) => {
-    const g = parsed.find((p) => p.index === i) ?? parsed[i];
-    return {
-      manualId: m.manualId,
-      manualTitle: m.manualTitle,
-      stepId: m.stepId,
-      stepOrder: m.stepOrder,
-      stepTitle: m.stepTitle,
-      field: m.field,
-      before: m.before,
+  const proposals: BulkChangeProposal[] = flashMatches.map((m, i) => {
+    const g = flashResults.find((p) => p.index === i) ?? flashResults[i];
+    return matchToProposal(m, {
       after: g?.after ?? m.before,
       risk: g?.risk ?? 'medium',
-      requiresScreenshotUpdate: Boolean(g?.requiresScreenshotUpdate),
+      requiresScreenshotUpdate: g?.requiresScreenshotUpdate,
       reason: g?.reason,
-    };
+    });
   });
+
+  const highRiskIndexes = proposals
+    .map((p, i) => ({ p, i }))
+    .filter(({ p }) => p.risk === 'high' || p.risk === 'medium')
+    .slice(0, 15);
+
+  if (highRiskIndexes.length) {
+    const proItems = highRiskIndexes.map(({ i }) => items[i]!);
+    const proResults = await proposeBulkChangesWithModel(instruction, proItems, ctx, 'pro');
+    for (let j = 0; j < highRiskIndexes.length; j++) {
+      const { i } = highRiskIndexes[j]!;
+      const g = proResults.find((p) => p.index === j) ?? proResults[j];
+      if (!g?.after) continue;
+      proposals[i] = matchToProposal(flashMatches[i]!, {
+        after: g.after,
+        risk: g.risk ?? 'high',
+        requiresScreenshotUpdate: g.requiresScreenshotUpdate,
+        reason: g.reason ?? 'Proモデルで再確認',
+      });
+    }
+  }
+
+  return proposals.filter((p) => p.before !== p.after);
 }
 
 export async function scanBulkUpdate(
@@ -269,7 +455,29 @@ export async function scanBulkUpdate(
 ): Promise<BulkMatch[]> {
   await assertOrgMember(orgId, uid);
   const rows = filterRowsByScope(await loadOrgSteps(orgId), scope);
-  return collectMatches(rows, keyword);
+  return collectMatchesFromQuery(rows, keyword);
+}
+
+export async function analyzeBulkUpdate(input: {
+  organizationId: string;
+  uid: string;
+  instruction: string;
+  scope?: BulkUpdateScope;
+}): Promise<{ searchPlan: BulkSearchPlan; matchCount: number; inferredKeywords: string[]; summary: string }> {
+  await assertOrgMember(input.organizationId, input.uid);
+  const ctx = await getCachedOrgContext(input.organizationId, () => loadOrgContext(input.organizationId));
+  const rows = filterRowsByScope(await loadOrgSteps(input.organizationId), input.scope);
+  const searchPlan = await inferSearchPlan(input.instruction, ctx);
+  const keywordMatches = collectMatchesMulti(rows, searchPlan);
+  const semanticMatches = await collectSemanticMatches(matchesToRowsForSemantic(rows, keywordMatches), searchPlan.semanticQuery);
+  const matches = mergeMatches(keywordMatches, semanticMatches);
+  const summary = buildApplySummary(input.instruction, [], matches.length, searchPlan);
+  return {
+    searchPlan,
+    matchCount: matches.length,
+    inferredKeywords: searchPlan.keywords,
+    summary,
+  };
 }
 
 export async function proposeBulkUpdate(input: {
@@ -281,44 +489,84 @@ export async function proposeBulkUpdate(input: {
   replaceTo?: string;
   useAi?: boolean;
   scope?: BulkUpdateScope;
-}): Promise<{ proposals: BulkChangeProposal[]; matchCount: number }> {
+  searchPlan?: BulkSearchPlan;
+}): Promise<BulkProposeResult> {
   await assertOrgMember(input.organizationId, input.uid);
   const rows = filterRowsByScope(await loadOrgSteps(input.organizationId), input.scope);
-  const org = await getFirestore().collection('clipit_organizations').doc(input.organizationId).get();
-  const orgData = org.data() ?? {};
-  const glossary = (orgData.termGlossary as string[] | undefined) ?? [];
-  const rulebook = String(orgData.rulebook ?? '');
+  const ctx = await getCachedOrgContext(input.organizationId, () => loadOrgContext(input.organizationId));
 
-  let matches: BulkMatch[];
-  if (input.keyword?.trim()) {
-    matches = collectMatches(rows, input.keyword.trim());
+  let searchPlan: BulkSearchPlan | undefined = input.searchPlan;
+  let matches: BulkMatch[] = [];
+
+  if (input.useAi) {
+    searchPlan = searchPlan ?? (await inferSearchPlan(input.instruction, ctx));
+    if (input.keyword?.trim()) searchPlan.keywords.unshift(input.keyword.trim());
+    if (input.replaceFrom?.trim()) {
+      searchPlan.replaceFrom = input.replaceFrom.trim();
+      searchPlan.replaceTo = input.replaceTo ?? '';
+    }
+    matches = collectMatchesMulti(rows, searchPlan);
+    const semanticMatches = await collectSemanticMatches(
+      matchesToRowsForSemantic(rows, matches.length ? matches : []),
+      searchPlan.semanticQuery,
+    );
+    matches = mergeMatches(matches, semanticMatches);
+
+    if (!matches.length && searchPlan.mode === 'manual_tone_unify') {
+      matches = rows.flatMap((row) => {
+        if (!row.instruction.trim()) return [];
+        return [{
+          manualId: row.manualId,
+          manualTitle: row.manualTitle,
+          stepId: row.stepId,
+          stepOrder: row.stepOrder,
+          stepTitle: row.stepTitle,
+          field: 'instruction' as BulkField,
+          before: row.instruction,
+          linePreview: row.instruction.slice(0, 120),
+          matchSource: 'manual' as const,
+        }];
+      });
+    }
+  } else if (input.keyword?.trim()) {
+    matches = collectMatchesFromQuery(rows, input.keyword.trim());
   } else if (input.replaceFrom?.trim()) {
-    matches = collectMatches(rows, input.replaceFrom.trim());
-  } else {
-    matches = rows.flatMap((row) => [
-      {
-        manualId: row.manualId,
-        manualTitle: row.manualTitle,
-        stepId: row.stepId,
-        stepOrder: row.stepOrder,
-        stepTitle: row.stepTitle,
-        field: 'instruction' as BulkField,
-        before: row.instruction,
-        linePreview: row.instruction.slice(0, 120),
-      },
-    ]).filter((m) => m.before.length > 0);
+    matches = collectMatchesFromQuery(rows, input.replaceFrom.trim());
   }
 
   if (!input.useAi && input.replaceFrom && input.replaceTo !== undefined) {
-    return { proposals: proposeSimpleReplace(matches, input.replaceFrom, input.replaceTo), matchCount: matches.length };
+    const proposals = proposeSimpleReplace(matches, input.replaceFrom, input.replaceTo);
+    return {
+      proposals,
+      matchCount: matches.length,
+      summary: buildApplySummary(input.instruction, proposals, matches.length),
+      inferredKeywords: input.keyword ? [input.keyword] : undefined,
+    };
   }
 
   if (!input.useAi) {
-    return { proposals: [], matchCount: matches.length };
+    return {
+      proposals: [],
+      matchCount: matches.length,
+      summary: buildApplySummary(input.instruction, [], matches.length),
+    };
   }
 
-  const proposals = await callGeminiBulk(input.instruction, matches.slice(0, 40), glossary, rulebook);
-  return { proposals: proposals.filter((p) => p.before !== p.after), matchCount: matches.length };
+  if (!searchPlan) {
+    searchPlan = await inferSearchPlan(input.instruction, ctx);
+  }
+
+  const proposals = await proposeWithAiRouting(input.instruction, matches, ctx, searchPlan);
+  const summary = buildApplySummary(input.instruction, proposals, matches.length, searchPlan);
+
+  return {
+    proposals,
+    matchCount: matches.length,
+    summary,
+    searchPlan,
+    inferredKeywords: searchPlan.keywords,
+    phase: 'complete',
+  };
 }
 
 export async function applyBulkUpdate(input: {
@@ -326,7 +574,7 @@ export async function applyBulkUpdate(input: {
   uid: string;
   instruction: string;
   changes: BulkChangeProposal[];
-}): Promise<{ batchId: string; appliedCount: number; skippedCount: number; manualIds: string[] }> {
+}): Promise<{ batchId: string; appliedCount: number; skippedCount: number; manualIds: string[]; summary: string }> {
   await assertOrgMember(input.organizationId, input.uid);
   const db = getFirestore();
   const toApply = input.changes.filter((c) => !c.excluded && c.before !== c.after);
@@ -348,6 +596,7 @@ export async function applyBulkUpdate(input: {
         if (c.field === 'note') patch.note = c.after;
         await db.collection('clipit_manuals').doc(c.manualId).collection('steps').doc(c.stepId).update({
           ...patch,
+          searchEmbedding: FieldValue.delete(),
           updatedAt: FieldValue.serverTimestamp(),
         });
         await db.collection('clipit_manuals').doc(c.manualId).update({ updatedAt: FieldValue.serverTimestamp() });
@@ -405,7 +654,9 @@ export async function applyBulkUpdate(input: {
     createdAt: FieldValue.serverTimestamp(),
   });
 
-  return { batchId: batchRef.id, appliedCount: applied.length, skippedCount: skipped, manualIds };
+  const summary = `${applied.length} 件を ${manualIds.length} マニュアルに適用しました`;
+
+  return { batchId: batchRef.id, appliedCount: applied.length, skippedCount: skipped, manualIds, summary };
 }
 
 export async function listBulkBatches(orgId: string, uid: string): Promise<BulkBatchRecord[]> {
@@ -446,6 +697,7 @@ export async function rollbackBulkBatch(batchId: string, orgId: string, uid: str
         if (c.field === 'note') patch.note = c.before;
         await db.collection('clipit_manuals').doc(c.manualId).collection('steps').doc(c.stepId).update({
           ...patch,
+          searchEmbedding: FieldValue.delete(),
           updatedAt: FieldValue.serverTimestamp(),
         });
       }
@@ -456,4 +708,10 @@ export async function rollbackBulkBatch(batchId: string, orgId: string, uid: str
   }
   await ref.update({ status: 'rolled_back', rolledBackAt: FieldValue.serverTimestamp() });
   return { restored };
+}
+
+/** AI一括更新のクォータ消費見積もり */
+export function estimateBulkAiCostUnits(matchCount: number, useAi: boolean): number {
+  if (!useAi) return 0;
+  return 1 + Math.ceil(matchCount / 40) + (matchCount > 0 ? 1 : 0);
 }

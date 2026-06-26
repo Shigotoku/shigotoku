@@ -44,10 +44,51 @@ export type BulkUpdateScope = {
   includeUncategorized?: boolean;
 };
 
+export interface BulkSearchPlan {
+  mode: 'keyword_replace' | 'contextual_rewrite' | 'manual_tone_unify';
+  keywords: string[];
+  regexPatterns: string[];
+  replaceFrom?: string;
+  replaceTo?: string;
+  semanticQuery: string;
+  summaryPreview: string;
+}
+
+export interface BulkProposeResult {
+  proposals: BulkChangeProposal[];
+  matchCount: number;
+  summary: string;
+  searchPlan?: BulkSearchPlan;
+  inferredKeywords?: string[];
+}
+
+export interface AiUsageInfo {
+  aiCalls: number;
+  aiLimit: number;
+  bulkAiOps: number;
+  bulkAiLimit: number;
+}
+
 export async function scanBulkMatches(organizationId: string, keyword: string, scope?: BulkUpdateScope) {
   return apiFetch<{ matches: BulkMatch[]; count: number }>('/v1/bulk-update/scan', {
     method: 'POST',
     body: JSON.stringify({ organizationId, keyword, scope }),
+  });
+}
+
+export async function analyzeBulkUpdate(input: {
+  organizationId: string;
+  instruction: string;
+  scope?: BulkUpdateScope;
+}) {
+  return apiFetch<{
+    searchPlan: BulkSearchPlan;
+    matchCount: number;
+    inferredKeywords: string[];
+    summary: string;
+  }>('/v1/bulk-update/analyze', {
+    method: 'POST',
+    body: JSON.stringify(input),
   });
 }
 
@@ -59,8 +100,9 @@ export async function proposeBulkChanges(input: {
   replaceTo?: string;
   useAi?: boolean;
   scope?: BulkUpdateScope;
+  searchPlan?: BulkSearchPlan;
 }) {
-  return apiFetch<{ proposals: BulkChangeProposal[]; matchCount: number }>('/v1/bulk-update/propose', {
+  return apiFetch<BulkProposeResult>('/v1/bulk-update/propose', {
     method: 'POST',
     body: JSON.stringify(input),
   });
@@ -71,10 +113,13 @@ export async function applyBulkChanges(input: {
   instruction: string;
   changes: BulkChangeProposal[];
 }) {
-  return apiFetch<{ batchId: string; appliedCount: number; skippedCount: number }>('/v1/bulk-update/apply', {
-    method: 'POST',
-    body: JSON.stringify(input),
-  });
+  return apiFetch<{ batchId: string; appliedCount: number; skippedCount: number; summary?: string }>(
+    '/v1/bulk-update/apply',
+    {
+      method: 'POST',
+      body: JSON.stringify(input),
+    },
+  );
 }
 
 export async function listBulkBatches(organizationId: string) {
@@ -86,4 +131,19 @@ export async function rollbackBulkBatch(batchId: string, organizationId: string)
     method: 'POST',
     body: JSON.stringify({ organizationId }),
   });
+}
+
+export async function fetchAiUsage(organizationId: string) {
+  return apiFetch<AiUsageInfo>(`/v1/usage/ai?organizationId=${encodeURIComponent(organizationId)}`);
+}
+
+/** マニュアル単位に変更候補をグループ化 */
+export function groupProposalsByManual(proposals: BulkChangeProposal[]) {
+  const map = new Map<string, { manualTitle: string; items: BulkChangeProposal[] }>();
+  for (const p of proposals) {
+    const cur = map.get(p.manualId) ?? { manualTitle: p.manualTitle, items: [] };
+    cur.items.push(p);
+    map.set(p.manualId, cur);
+  }
+  return [...map.entries()].map(([manualId, { manualTitle, items }]) => ({ manualId, manualTitle, items }));
 }

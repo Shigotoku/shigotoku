@@ -8,10 +8,12 @@ import type { InstructionTone, TargetAudience, StepInput } from './services/gemi
 import { getFirestore } from 'firebase-admin/firestore';
 import { assertManualAccess, ingestSteps } from './services/manuals.js';
 import { rateLimit } from './middleware/rateLimit.js';
-import { assertAiQuota } from './services/usage.js';
+import { assertAiQuota, assertBulkAiQuota, getAiUsage } from './services/usage.js';
 import { mergeTalkSteps } from './services/talkMerge.js';
 import {
+  analyzeBulkUpdate,
   applyBulkUpdate,
+  estimateBulkAiCostUnits,
   listBulkBatches,
   proposeBulkUpdate,
   rollbackBulkBatch,
@@ -161,6 +163,41 @@ api.post('/v1/ai/merge-talk-steps', requireAuth, async (req: AuthedRequest, res)
   }
 });
 
+api.post('/v1/bulk-update/analyze', requireAuth, async (req: AuthedRequest, res) => {
+  if (!limitAi(req.uid)) {
+    res.status(429).json({ error: 'リクエストが多すぎます。' });
+    return;
+  }
+  const { organizationId, instruction, scope } = req.body as {
+    organizationId?: string;
+    instruction?: string;
+    scope?: import('./services/bulkUpdate.js').BulkUpdateScope;
+  };
+  if (!organizationId || !instruction?.trim()) {
+    res.status(400).json({ error: 'organizationId と instruction が必要です' });
+    return;
+  }
+  try {
+    await assertBulkAiQuota(organizationId, req.email, false);
+  } catch (e) {
+    const err = e as { status?: number; message?: string };
+    res.status(err.status ?? 429).json({ error: err.message });
+    return;
+  }
+  try {
+    const result = await analyzeBulkUpdate({
+      organizationId,
+      uid: req.uid!,
+      instruction: instruction.trim(),
+      scope,
+    });
+    res.json(result);
+  } catch (e) {
+    const err = e as { status?: number; message?: string };
+    res.status(err.status ?? 500).json({ error: err.message });
+  }
+});
+
 api.post('/v1/bulk-update/scan', requireAuth, async (req: AuthedRequest, res) => {
   const { organizationId, keyword, scope } = req.body as {
     organizationId?: string;
@@ -185,7 +222,7 @@ api.post('/v1/bulk-update/propose', requireAuth, async (req: AuthedRequest, res)
     res.status(429).json({ error: 'リクエストが多すぎます。' });
     return;
   }
-  const { organizationId, instruction, keyword, replaceFrom, replaceTo, useAi = false, scope } = req.body as {
+  const { organizationId, instruction, keyword, replaceFrom, replaceTo, useAi = false, scope, searchPlan } = req.body as {
     organizationId?: string;
     instruction?: string;
     keyword?: string;
@@ -193,6 +230,7 @@ api.post('/v1/bulk-update/propose', requireAuth, async (req: AuthedRequest, res)
     replaceTo?: string;
     useAi?: boolean;
     scope?: import('./services/bulkUpdate.js').BulkUpdateScope;
+    searchPlan?: import('./services/bulkUpdateAi.js').BulkSearchPlan;
   };
   if (!organizationId || !instruction?.trim()) {
     res.status(400).json({ error: 'organizationId と instruction が必要です' });
@@ -200,7 +238,7 @@ api.post('/v1/bulk-update/propose', requireAuth, async (req: AuthedRequest, res)
   }
   if (useAi) {
     try {
-      await assertAiQuota(organizationId, 5, req.email);
+      await assertBulkAiQuota(organizationId, req.email, true);
     } catch (e) {
       const err = e as { status?: number; message?: string };
       res.status(err.status ?? 429).json({ error: err.message });
@@ -217,7 +255,15 @@ api.post('/v1/bulk-update/propose', requireAuth, async (req: AuthedRequest, res)
       replaceTo,
       useAi,
       scope,
+      searchPlan,
     });
+    if (useAi) {
+      try {
+        await assertAiQuota(organizationId, estimateBulkAiCostUnits(result.matchCount, true), req.email);
+      } catch {
+        /* quota logged on best-effort */
+      }
+    }
     res.json(result);
   } catch (e) {
     const err = e as { status?: number; message?: string };
@@ -273,6 +319,21 @@ api.get('/v1/notifications', requireAuth, async (req: AuthedRequest, res) => {
   try {
     const items = await listOrgNotifications(organizationId, req.uid!);
     res.json({ notifications: items });
+  } catch (e) {
+    const err = e as { status?: number; message?: string };
+    res.status(err.status ?? 500).json({ error: err.message });
+  }
+});
+
+api.get('/v1/usage/ai', requireAuth, async (req: AuthedRequest, res) => {
+  const organizationId = String(req.query.organizationId ?? '');
+  if (!organizationId) {
+    res.status(400).json({ error: 'organizationId が必要です' });
+    return;
+  }
+  try {
+    const usage = await getAiUsage(organizationId, req.email);
+    res.json(usage);
   } catch (e) {
     const err = e as { status?: number; message?: string };
     res.status(err.status ?? 500).json({ error: err.message });
