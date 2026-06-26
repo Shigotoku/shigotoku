@@ -12,8 +12,10 @@ const projects = [
   { name: 'corporate-site', cwd: join(root, 'corporate-site'), out: join(out, 'web') },
   { name: 'runwith-landing', cwd: join(root, 'runwith/landing-page'), out: join(out, 'web/runwith') },
   { name: 'buzzit-landing', cwd: join(root, 'buzzit/landing-page'), out: join(out, 'web/buzzit') },
+  { name: 'clipit-landing', cwd: join(root, 'clipit/landing-page'), out: join(out, 'web/clipit') },
   { name: 'runwith-app', cwd: join(root, 'runwith/app'), out: join(out, 'runwith-app') },
   { name: 'buzzit-app', cwd: join(root, 'buzzit/app'), out: join(out, 'buzzit-app') },
+  { name: 'clipit-app', cwd: join(root, 'clipit/app'), out: join(out, 'clipit-app') },
 ];
 
 function run(command, cwd, env = {}) {
@@ -45,6 +47,7 @@ writeFileSync(
 Allow: /
 Allow: /runwith/
 Allow: /buzzit/
+Allow: /clipit/
 
 Sitemap: https://shigotoku.com/sitemap.xml
 `,
@@ -59,6 +62,8 @@ const sitemapUrls = [
   { loc: 'https://shigotoku.com/runwith/', changefreq: 'weekly', priority: '0.9' },
   { loc: 'https://shigotoku.com/runwith/pricing/', changefreq: 'monthly', priority: '0.8' },
   { loc: 'https://shigotoku.com/buzzit/', changefreq: 'weekly', priority: '0.9' },
+  { loc: 'https://shigotoku.com/clipit/', changefreq: 'weekly', priority: '0.9' },
+  { loc: 'https://shigotoku.com/clipit/pricing/', changefreq: 'monthly', priority: '0.8' },
 ];
 
 const today = new Date().toISOString().slice(0, 10);

@@ -6,14 +6,19 @@ BuzzIt とランウィズを **別 Firebase プロジェクト** で運用しま
 
 | プロジェクト ID | 用途 | Hosting サイト |
 |----------------|------|----------------|
-| `shigotoku-prod` | コーポレート + BuzzIt LP + BuzzIt アプリ + API | `shigotoku-web`, `shigotoku-buzzit-app` |
+| `shigotoku-prod` | コーポレート + BuzzIt LP + BuzzIt アプリ + API + **ClipIt LP** | `shigotoku-web`, `shigotoku-buzzit-app` |
 | `shigotoku-runwith-prod` | ランウィズ アプリ専用 | `shigotoku-runwith-app` |
+| `shigotoku-clipit-prod-ad9ee` | クリッピット アプリ専用 | `shigotoku-clipit-app-ad9ee` |
 
 | URL | プロジェクト |
 |-----|-------------|
 | https://shigotoku.com/ | shigotoku-prod |
+| https://shigotoku.com/clipit/ | shigotoku-prod（LP サブパス） |
 | https://app.buzzit.shigotoku.com/ | shigotoku-prod |
 | https://app.runwith.shigotoku.com/ | **shigotoku-runwith-prod** |
+| https://app.clipit.shigotoku.com/ | **shigotoku-clipit-prod-ad9ee** |
+
+> クリッピット初回セットアップ: [FIREBASE-CLIPIT-SETUP.md](./FIREBASE-CLIPIT-SETUP.md)
 
 ---
 
@@ -28,12 +33,14 @@ npm run deploy:all-with-api
 # 個別
 npm run deploy:buzzit    # shigotoku-prod
 npm run deploy:runwith   # shigotoku-runwith-prod
+npm run deploy:clipit    # shigotoku-clipit-prod-ad9ee
 ```
 
 設定ファイル:
 
 - `firebase.buzzit.json` + `firestore.buzzit.rules` + `storage.buzzit.rules`
 - `firebase.runwith.json` + `firestore.runwith.rules` + `storage.runwith.rules`
+- `firebase.clipit.json` + `firestore.clipit.rules` + `storage.clipit.rules`
 
 ---
 

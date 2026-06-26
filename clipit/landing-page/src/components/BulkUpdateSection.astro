@@ -1,0 +1,45 @@
+---
+import { appPath } from '../lib/urls';
+
+const bulkUrl = appPath('/bulk-update');
+---
+
+<section id="bulk-update" class="clipit-section bg-slate-950 py-12 text-white sm:py-20">
+  <div class="mx-auto max-w-7xl px-4 sm:px-6">
+    <div class="clipit-grid-safe grid items-center gap-8 lg:grid-cols-2 lg:gap-12">
+      <div class="min-w-0">
+        <p class="text-sm font-semibold uppercase tracking-widest text-primary-400">まとめて修正</p>
+        <h2 class="clipit-h2 mt-3 text-2xl font-bold tracking-tight sm:text-3xl" data-jp-heading>システムが変わっても、1つずつ開かない。</h2>
+        <p class="clipit-lead mt-3 text-base leading-relaxed text-slate-400 sm:mt-4" data-jp-wrap>
+          予約・会計・連絡先の変更を、全マニュアル横断で検索。AIが文脈を読んで変更候補を出し、確認してから一括適用します。
+        </p>
+        <ul class="mt-5 space-y-2 text-sm text-slate-300">
+          <li>✓ フォルダ・マニュアル単位で対象を絞れる</li>
+          <li>✓ 差分プレビューと1件ずつ除外</li>
+          <li>✓ スクショ差し替え要確認の表示</li>
+        </ul>
+        <a
+          href={bulkUrl}
+          class="mt-8 inline-flex rounded-xl bg-primary-500 px-8 py-3.5 text-sm font-bold text-white hover:bg-primary-400"
+        >
+          まとめて修正を開く
+        </a>
+      </div>
+      <div class="min-w-0 rounded-2xl border border-white/10 bg-white/5 p-4 font-mono text-[11px] text-slate-300 sm:p-6 sm:text-xs">
+        <p class="text-slate-500">// 変更候補の例</p>
+        <div class="mt-4 space-y-4">
+          <div class="rounded-lg border border-white/10 p-4">
+            <p class="text-primary-300">請求書発行 / 手順2</p>
+            <p class="mt-2 line-through text-red-300/80">freeeにログインします</p>
+            <p class="mt-1 text-emerald-300">マネーフォワードにログインします</p>
+            <span class="mt-2 inline-block rounded bg-amber-500/20 px-2 py-0.5 text-[10px] text-amber-200">スクショ要確認</span>
+          </div>
+          <div class="rounded-lg border border-white/10 p-4">
+            <p class="text-primary-300">変数 {'{{問い合わせ先}}'} を1回変更</p>
+            <p class="mt-2 text-slate-400">→ 全マニュアルの問い合わせ表記が一括反映</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
