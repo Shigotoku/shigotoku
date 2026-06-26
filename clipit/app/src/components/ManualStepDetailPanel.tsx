@@ -290,6 +290,7 @@ export default function ManualStepDetailPanel({
                 screenshotUrl={active.screenshotUrl}
                 manualId={manualId}
                 stepId={active.id}
+                stepOrder={active.order}
                 masks={active.masks ?? []}
                 annotations={active.annotations ?? []}
                 onSave={(result) => {

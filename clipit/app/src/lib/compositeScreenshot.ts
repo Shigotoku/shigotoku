@@ -24,8 +24,25 @@ function drawMask(ctx: CanvasRenderingContext2D, m: MaskRect, w: number, h: numb
     ctx.fillRect(x, y, mw, mh);
     return;
   }
+  if (m.type === 'highlight') {
+    ctx.fillStyle = 'rgba(250,204,21,0.45)';
+    ctx.fillRect(x, y, mw, mh);
+    ctx.strokeStyle = 'rgba(234,179,8,0.85)';
+    ctx.lineWidth = Math.max(2, Math.min(mw, mh) / 40);
+    ctx.strokeRect(x, y, mw, mh);
+    return;
+  }
   ctx.fillStyle = 'rgba(0,0,0,0.92)';
   ctx.fillRect(x, y, mw, mh);
+}
+
+function strokeColorOf(a: StepAnnotation): string {
+  return a.strokeColor ?? '#ef4444';
+}
+
+function strokeWidthPx(a: StepAnnotation, w: number): number {
+  const base = a.strokeWidth ?? 3;
+  return Math.max(2, base * (w / 800));
 }
 
 function drawArrow(
@@ -55,6 +72,29 @@ function drawArrow(
   ctx.fill();
 }
 
+function wrapTextLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+  const paragraphs = text.split('\n');
+  const lines: string[] = [];
+  for (const para of paragraphs) {
+    if (!para) {
+      lines.push('');
+      continue;
+    }
+    let line = '';
+    for (const ch of para) {
+      const test = line + ch;
+      if (ctx.measureText(test).width > maxWidth && line) {
+        lines.push(line);
+        line = ch;
+      } else {
+        line = test;
+      }
+    }
+    if (line) lines.push(line);
+  }
+  return lines.length ? lines : [''];
+}
+
 function drawAnnotation(ctx: CanvasRenderingContext2D, a: StepAnnotation, w: number, h: number) {
   if (a.kind === 'arrow' && a.endX != null && a.endY != null) {
     drawArrow(
@@ -63,8 +103,8 @@ function drawAnnotation(ctx: CanvasRenderingContext2D, a: StepAnnotation, w: num
       (a.y / 100) * h,
       (a.endX / 100) * w,
       (a.endY / 100) * h,
-      '#ef4444',
-      Math.max(3, w / 400),
+      strokeColorOf(a),
+      strokeWidthPx(a, w),
     );
     return;
   }
@@ -72,11 +112,33 @@ function drawAnnotation(ctx: CanvasRenderingContext2D, a: StepAnnotation, w: num
     const size = ((a.size ?? 8) / 100) * Math.min(w, h);
     const cx = (a.x / 100) * w;
     const cy = (a.y / 100) * h;
-    ctx.strokeStyle = '#ef4444';
-    ctx.lineWidth = Math.max(3, w / 350);
+    ctx.strokeStyle = strokeColorOf(a);
+    ctx.lineWidth = strokeWidthPx(a, w);
     ctx.beginPath();
     ctx.arc(cx, cy, size / 2, 0, Math.PI * 2);
     ctx.stroke();
+    return;
+  }
+  if (a.kind === 'badge') {
+    const size = ((a.size ?? 8) / 100) * Math.min(w, h);
+    const cx = (a.x / 100) * w;
+    const cy = (a.y / 100) * h;
+    const fill = a.fillColor ?? strokeColorOf(a);
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.arc(cx, cy, size / 2, 0, Math.PI * 2);
+    ctx.fill();
+    if (a.strokeColor && (a.strokeWidth ?? 0) > 0) {
+      ctx.strokeStyle = a.strokeColor;
+      ctx.lineWidth = strokeWidthPx(a, w);
+      ctx.stroke();
+    }
+    const label = a.text ?? '1';
+    ctx.fillStyle = a.textColor ?? '#ffffff';
+    ctx.font = `bold ${Math.max(10, Math.round(size * 0.52))}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, cx, cy + size * 0.02);
     return;
   }
   if (a.kind === 'text' && a.text) {
@@ -84,14 +146,30 @@ function drawAnnotation(ctx: CanvasRenderingContext2D, a: StepAnnotation, w: num
     const py = (a.y / 100) * h;
     const style = textStyleOf(a);
     const fontSize = textCompositePx(style.fontSize, w);
+    const borderPx = Math.max(1, Math.round(style.borderWidth * (w / 800)));
     const weight = style.fontWeight === 'bold' ? 'bold' : 'normal';
     ctx.font = `${weight} ${fontSize}px ${fontFamilyCss(style.fontFamily)}`;
-    const metrics = ctx.measureText(a.text);
     const pad = Math.max(6, fontSize * 0.35);
+    const innerW = a.boxWidthPct != null ? (a.boxWidthPct / 100) * w - pad * 2 : ctx.measureText(a.text).width;
+    const lines = wrapTextLines(ctx, a.text, Math.max(40, innerW));
+    const lineH = fontSize * 1.3;
+    const contentH = lines.length * lineH;
+    const boxW = a.boxWidthPct != null ? (a.boxWidthPct / 100) * w : ctx.measureText(a.text).width + pad * 2;
+    const boxH = a.boxHeightPct != null ? (a.boxHeightPct / 100) * h : contentH + pad * 2;
+
     ctx.fillStyle = style.bgColor;
-    ctx.fillRect(px - pad, py - pad, metrics.width + pad * 2, fontSize + pad * 2);
+    ctx.fillRect(px - pad, py - pad, boxW, boxH);
+
+    if (style.borderColor && borderPx > 0) {
+      ctx.strokeStyle = style.borderColor;
+      ctx.lineWidth = borderPx;
+      ctx.strokeRect(px - pad, py - pad, boxW, boxH);
+    }
+
     ctx.fillStyle = style.textColor;
-    ctx.fillText(a.text, px, py + fontSize - pad * 0.45);
+    lines.forEach((line, i) => {
+      ctx.fillText(line, px, py + fontSize + i * lineH - pad * 0.3);
+    });
   }
 }
 

@@ -9,7 +9,7 @@ export type ManualWorkStatus = 'in_progress' | 'completed';
 export type TargetAudience = 'new_staff' | 'admin' | 'patient' | 'customer' | 'developer';
 export type StepType = 'normal' | 'warning' | 'ng_example' | 'check';
 
-export type MaskStyle = 'black' | 'blur' | 'pixelate';
+export type MaskStyle = 'black' | 'blur' | 'pixelate' | 'highlight';
 
 export interface MaskRect {
   id: string;
@@ -24,19 +24,33 @@ export type AnnotationFontFamily = 'noto' | 'mincho' | 'inter' | 'mono';
 
 export interface StepAnnotation {
   id: string;
-  kind: 'circle' | 'text' | 'arrow';
+  kind: 'circle' | 'text' | 'arrow' | 'badge';
   /** 位置（%）— 円・テキストは中心/左上、矢印は始点 */
   x: number;
   y: number;
-  /** 円の直径（%） */
+  /** 円・番号バッジの直径（%） */
   size?: number;
   text?: string;
+  /** 円・矢印・番号バッジの線色 */
+  strokeColor?: string;
+  /** 円・矢印の線の太さ（800px幅基準の px） */
+  strokeWidth?: number;
+  /** 番号バッジの塗り色 */
+  fillColor?: string;
   /** テキストサイズ（800px幅基準の px、保存時に画像幅でスケール） */
   fontSize?: number;
   fontFamily?: AnnotationFontFamily;
   fontWeight?: 'normal' | 'bold';
   textColor?: string;
   bgColor?: string;
+  /** 枠線の色 */
+  borderColor?: string;
+  /** 枠線の太さ（800px幅基準の px） */
+  borderWidth?: number;
+  /** テキストボックス幅（画像幅に対する %） */
+  boxWidthPct?: number;
+  /** テキストボックス高さ（画像高さに対する %） */
+  boxHeightPct?: number;
   /** 矢印の終点（%） */
   endX?: number;
   endY?: number;
