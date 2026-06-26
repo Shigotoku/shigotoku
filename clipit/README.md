@@ -17,7 +17,7 @@
 ## 開発
 
 ```bash
-# アイコン・ヒーロー画像（初回または favicon 変更時）
+# アイコン（clipit/extension/public/icon.png を正とし各所へコピー）
 node clipit/scripts/generate-assets.mjs
 
 # LP

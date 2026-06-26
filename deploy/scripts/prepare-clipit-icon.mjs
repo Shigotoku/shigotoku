@@ -1,5 +1,5 @@
 /**
- * icon.png の四隅などの黒背景を透過にし、各配置先へコピーする。
+ * clipit/extension/public/icon.png の四隅などの黒背景を透過にし、各配置先へコピーする。
  * 角からつながる黒のみ透明化（アイコン内の濃い色は残す）。
  */
 import { createRequire } from 'node:module';
@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const root = join(scriptDir, '../..');
-const src = join(root, 'clipit', 'landing-page', 'public', 'icon.png');
+const src = join(root, 'clipit', 'extension', 'public', 'icon.png');
 
 const require = createRequire(join(root, 'clipit/api/package.json'));
 const sharp = require('sharp');

@@ -11,7 +11,7 @@ const root = join(deployDir, '..');
 const lpOut = join(deployDir, 'dist', 'web', 'clipit');
 const iconSrc = join(root, 'corporate-site', 'public', 'clipit-icon.png');
 const iconDest = join(lpOut, 'icon.png');
-const ICON_URL = '/clipit/icon.png?v=4';
+const ICON_URL = '/clipit/icon.png?v=5';
 
 const ICON_CSS = `
 .clipit-brand-icon{border-radius:22%;background:#fff9f5}

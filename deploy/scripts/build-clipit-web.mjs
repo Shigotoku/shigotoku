@@ -13,7 +13,7 @@ const scriptDir = dirname(fileURLToPath(import.meta.url));
 const deployDir = join(scriptDir, '..');
 const root = join(deployDir, '..');
 const webOut = join(deployDir, 'dist', 'web');
-const clipitIconSrc = join(root, 'clipit', 'landing-page', 'public', 'icon.png');
+const clipitIconSrc = join(root, 'clipit', 'extension', 'public', 'icon.png');
 const clipitIconPrepared = join(root, 'corporate-site', 'public', 'clipit-icon.png');
 const clipitLpCacheDir = join(deployDir, '.cache', 'clipit-lp-build');
 

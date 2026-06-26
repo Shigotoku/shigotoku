@@ -16,4 +16,4 @@ export function assetPath(path: string) {
 }
 
 /** 透過 PNG（キャッシュ bust 付き） */
-export const clipitIconPath = `${import.meta.env.BASE_URL}icon.png?v=4`;
+export const clipitIconPath = `${import.meta.env.BASE_URL}icon.png?v=5`;
