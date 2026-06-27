@@ -23,8 +23,13 @@ export async function mergeTalkStepsWithApi(input: {
   screenshots: TalkScreenshotPayload[];
   tone?: InstructionTone;
   audience?: TargetAudience;
-  useAi?: boolean;
-}): Promise<{ steps: MergedTalkStep[]; usedGemini: boolean; warnings: string[] }> {
+}): Promise<{
+  steps: MergedTalkStep[];
+  usedGemini: boolean;
+  mergeMode: 'rules' | 'text_ai';
+  ruleConfidence: number;
+  warnings: string[];
+}> {
   return apiFetch('/v1/ai/merge-talk-steps', {
     method: 'POST',
     body: JSON.stringify(input),

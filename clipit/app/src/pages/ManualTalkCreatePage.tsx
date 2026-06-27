@@ -11,7 +11,7 @@ import { useAuth } from "../components/AuthProvider";
 import { AUDIENCE_OPTIONS, labelsToAudience } from "../lib/format";
 import { applyUiLayoutToSteps, createManual } from "../services/manuals";
 import { ingestTalkSteps, mergeTalkStepsWithApi, type MergedTalkStep, type TalkScreenshotPayload } from "../services/talkCreate";
-import type { InstructionTone } from "../services/ai";
+import { polishInstructionsWithApi, type InstructionTone } from "../services/ai";
 import type { TargetAudience } from "../types";
 import { parseMeetTranscript, parseTranscriptFile, suggestLabelsFromTranscript } from "../lib/meetTranscript";
 
@@ -50,9 +50,9 @@ export default function ManualTalkCreatePage() {
   const [transcript, setTranscript] = useState("");
   const [shots, setShots] = useState<ShotItem[]>([]);
   const [tone, setTone] = useState<InstructionTone>("simple");
-  const [useAi, setUseAi] = useState(true);
   const [showMeetGuide, setShowMeetGuide] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [polishBusy, setPolishBusy] = useState(false);
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<MergedTalkStep[] | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
@@ -123,16 +123,54 @@ export default function ManualTalkCreatePage() {
         })),
         tone,
         audience: audiences[0] ?? "new_staff",
-        useAi: useAi && !demoMode,
       });
       setPreview(result.steps);
       setWarnings(result.warnings);
-      setUsedGemini(result.usedGemini);
+      setUsedGemini(false);
       setStep(3);
     } catch (e) {
       setError((e as Error).message ?? "統合に失敗しました");
     } finally {
       setBusy(false);
+    }
+  };
+
+  const updatePreviewStep = (index: number, patch: Partial<MergedTalkStep>) => {
+    setPreview((cur) => cur?.map((s, i) => (i === index ? { ...s, ...patch } : s)) ?? null);
+  };
+
+  const polishPreviewInstructions = async () => {
+    if (!organization || !preview?.length || demoMode) return;
+    const hasText = preview.some((s) => s.instruction.trim().length >= 4);
+    if (!hasText) {
+      setError("整形する説明文がありません。各手順の説明を入力してください。");
+      return;
+    }
+    setPolishBusy(true);
+    setError("");
+    try {
+      const audiences = labelsToAudience(selected) as TargetAudience[];
+      const result = await polishInstructionsWithApi(
+        organization.id,
+        preview.map((s) => ({
+          title: s.title,
+          instruction: s.instruction,
+          elementText: s.elementText,
+        })),
+        tone,
+        audiences[0] ?? "new_staff",
+      );
+      setPreview((cur) =>
+        cur?.map((s, i) => ({
+          ...s,
+          instruction: result.instructions[i] ?? s.instruction,
+        })) ?? null,
+      );
+      setUsedGemini(result.usedGemini);
+    } catch (e) {
+      setError((e as Error).message ?? "文案の整形に失敗しました");
+    } finally {
+      setPolishBusy(false);
     }
   };
 
@@ -187,8 +225,8 @@ export default function ManualTalkCreatePage() {
       />
       <div className="mx-auto max-w-3xl space-y-6 p-6">
         <PageHelpTip title="話して作成の流れ">
-          Google Meet で説明 → 文字起こしを貼り付け → 説明順にスクショをアップロード、が基本の流れです。
-          初めての方は「スクショから作る」の方が簡単です。
+          Google Meet で説明 → 文字起こしを貼り付け → 説明順にスクショをアップロード → AI統合、が基本の流れです。
+          説明の区切りで「次」「続いて」と言うと、統合の精度が上がります。
         </PageHelpTip>
         <div className="flex gap-2 text-xs font-semibold text-slate-500">
           {(["基本情報", "文字起こしとスクショ", "プレビュー"] as const).map((label, i) => (
@@ -385,10 +423,9 @@ export default function ManualTalkCreatePage() {
                   <option value="manual">業務マニュアル風</option>
                 </select>
               </label>
-              <label className="flex items-center gap-2">
-                <input type="checkbox" checked={useAi} onChange={(e) => setUseAi(e.target.checked)} />
-                AIで統合（オフ時は均等分割）
-              </label>
+              <p className="w-full text-xs text-slate-500">
+                文字起こしとスクショを AI で統合します。説明中に「次」「続いて」と言うと区切りが認識されやすくなります。統合後に説明文を直してから「AIで文案を整える」を押せます。
+              </p>
             </div>
 
             <div className="flex gap-3">
@@ -410,10 +447,30 @@ export default function ManualTalkCreatePage() {
 
         {step === 3 && preview && (
           <div className="space-y-4">
-            {usedGemini && (
+            {usedGemini ? (
               <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                Gemini AI で文字起こしとスクショを統合しました。内容を確認してから保存してください。
+                AIで文案を整えました。内容を確認してから保存してください。
               </p>
+            ) : (
+              <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                AIで文字起こしとスクショを統合しました。説明文を確認・修正してから保存してください。
+              </p>
+            )}
+            {!demoMode && (
+              <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <button
+                  type="button"
+                  disabled={polishBusy || !preview.some((s) => s.instruction.trim().length >= 4)}
+                  onClick={() => void polishPreviewInstructions()}
+                  className="inline-flex items-center gap-2 rounded-xl bg-primary-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  {polishBusy ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                  AIで文案を整える
+                </button>
+                <p className="text-xs text-slate-500">
+                  説明文を直したあと、必要なときだけ押してください（全手順をまとめて1回）
+                </p>
+              </div>
             )}
             {warnings.length > 0 && (
               <ul className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -426,16 +483,29 @@ export default function ManualTalkCreatePage() {
               {preview.map((s, i) => (
                 <div key={i} className="rounded-2xl border border-slate-200 bg-white p-5">
                   <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-bold text-slate-900">
-                      {i + 1}. {s.title}
-                    </h3>
+                    <label className="flex-1 text-xs font-semibold text-slate-600">
+                      手順 {i + 1} のタイトル
+                      <input
+                        value={s.title}
+                        onChange={(e) => updatePreviewStep(i, { title: e.target.value })}
+                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-bold text-slate-900"
+                      />
+                    </label>
                     {s.type && s.type !== "normal" && (
                       <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
                         {s.type}
                       </span>
                     )}
                   </div>
-                  <p className="mt-2 text-sm text-slate-700">{s.instruction}</p>
+                  <label className="mt-3 block text-xs font-semibold text-slate-600">
+                    説明文
+                    <textarea
+                      rows={4}
+                      value={s.instruction}
+                      onChange={(e) => updatePreviewStep(i, { instruction: e.target.value })}
+                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                    />
+                  </label>
                   {s.note && <p className="mt-2 text-xs text-slate-500">{s.note}</p>}
                   {shots[s.screenshotIndex] && (
                     <img

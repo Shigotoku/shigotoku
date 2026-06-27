@@ -58,7 +58,7 @@ export default function IngestedBanner({
             className="inline-flex items-center gap-1.5 rounded-lg bg-primary-500 px-3 py-2 text-xs font-semibold text-white hover:bg-primary-600 disabled:opacity-50"
           >
             {aiBusy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-            全手順をAIで推敲
+            AIで文案を整える（全手順）
           </button>
         )}
         {stepCount > 0 && firstStepId && (

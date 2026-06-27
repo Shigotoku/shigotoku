@@ -15,12 +15,11 @@ import {
   getManual,
   insertStepAt,
   listSteps,
-  polishInstruction,
   reorderSteps,
   updateManual,
   updateStep,
 } from "../services/manuals";
-import { generateAllStepsWithApi, generateStepWithApi } from "../services/ai";
+import { polishInstructionsWithApi } from "../services/ai";
 import { buildInstructionFromStep } from "../lib/instructionRules";
 import { syncExtensionSession, pingExtension } from "../lib/extensionBridge";
 import { uploadStepScreenshot } from "../lib/uploadStepScreenshot";
@@ -218,16 +217,21 @@ export default function ManualEditPage() {
     await patchStep(active.id, { instruction: text });
   };
 
-  const handleAiPolish = async (tone: "simple" | "formal" | "manual" | "detailed") => {
+  const handleAiPolish = async (instruction: string) => {
     if (!active || !id) return;
+    const text = instruction.trim();
+    if (text.length < 4) return;
     setAiBusy(true);
     try {
       const orgId = manual?.organizationId;
       if (!orgId || orgId === "demo") return;
-      const text = await generateStepWithApi(active, tone, audience, orgId).catch(() =>
-        polishInstruction(active, tone === "manual" || tone === "detailed" ? "formal" : tone === "formal" ? "formal" : "simple"),
+      const result = await polishInstructionsWithApi(
+        orgId,
+        [{ title: active.title, instruction: text, elementText: active.elementText }],
+        "simple",
+        audience,
       );
-      await patchStep(active.id, { instruction: text });
+      await patchStep(active.id, { instruction: result.instructions[0] ?? text });
     } finally {
       setAiBusy(false);
     }
@@ -235,15 +239,22 @@ export default function ManualEditPage() {
 
   const handleAiAll = async () => {
     if (!id || id.startsWith("demo") || steps.length === 0) return;
+    const items = steps.map((s) => ({
+      title: s.title,
+      instruction: s.instruction,
+      elementText: s.elementText,
+    }));
+    if (!items.some((item) => item.instruction.trim().length >= 4)) return;
     setAiBusy(true);
     try {
       const orgId = manual?.organizationId;
       if (!orgId) return;
-      const texts = await generateAllStepsWithApi(steps, "manual", audience, orgId).catch(() =>
-        steps.map((s) => polishInstruction(s, "formal")),
-      );
+      const result = await polishInstructionsWithApi(orgId, items, "manual", audience);
       for (let i = 0; i < steps.length; i++) {
-        await updateStep(id, steps[i]!.id, { instruction: texts[i] });
+        const next = result.instructions[i];
+        if (next && next !== steps[i]!.instruction) {
+          await updateStep(id, steps[i]!.id, { instruction: next });
+        }
       }
       await load();
     } finally {

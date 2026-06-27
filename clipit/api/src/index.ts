@@ -3,7 +3,7 @@ import express from 'express';
 import { onRequest } from 'firebase-functions/v2/https';
 import { initializeApp, getApps } from 'firebase-admin/app';
 import { requireAuth, type AuthedRequest } from './middleware/auth.js';
-import { generateAllStepInstructions, generateStepInstruction } from './services/gemini.js';
+import { generateAllStepInstructions, generateStepInstruction, polishTalkInstructionsBatch } from './services/gemini.js';
 import type { InstructionTone, TargetAudience, StepInput } from './services/gemini.js';
 import { getFirestore } from 'firebase-admin/firestore';
 import { assertManualAccess, ingestSteps } from './services/manuals.js';
@@ -102,6 +102,52 @@ api.post('/v1/ai/generate-steps', requireAuth, async (req: AuthedRequest, res) =
   res.json(result);
 });
 
+/** 既存の説明文をまとめて整形（1クォータ・画像なし） */
+api.post('/v1/ai/polish-instructions', requireAuth, async (req: AuthedRequest, res) => {
+  if (!limitAi(req.uid)) {
+    res.status(429).json({ error: 'リクエストが多すぎます。しばらく待ってください。' });
+    return;
+  }
+  const {
+    organizationId,
+    items,
+    tone = 'simple',
+    audience = 'new_staff',
+  } = req.body as {
+    organizationId?: string;
+    items?: Array<{ title?: string; instruction?: string; elementText?: string }>;
+    tone?: InstructionTone;
+    audience?: TargetAudience;
+  };
+  if (!organizationId || !items?.length) {
+    res.status(400).json({ error: 'organizationId と items が必要です' });
+    return;
+  }
+  if (items.length > 40) {
+    res.status(400).json({ error: '一度に整形できる手順は40件までです' });
+    return;
+  }
+  const polishable = items.filter((item) => (item.instruction ?? '').trim().length >= 4);
+  if (!polishable.length) {
+    res.status(400).json({ error: '整形する説明文がありません。各手順に数文字以上入力してください。' });
+    return;
+  }
+  try {
+    await assertAiQuota(organizationId, 1, req.email);
+  } catch (e) {
+    const err = e as { status?: number; message?: string };
+    res.status(err.status ?? 429).json({ error: err.message });
+    return;
+  }
+  const batchInput = items.map((item) => ({
+    title: item.title?.trim() || '手順',
+    spokenText: item.instruction?.trim() || item.title?.trim() || '',
+    screenLabel: item.elementText?.trim(),
+  }));
+  const result = await polishTalkInstructionsBatch(batchInput, tone, audience);
+  res.json(result);
+});
+
 api.post('/v1/ai/merge-talk-steps', requireAuth, async (req: AuthedRequest, res) => {
   if (!limitAi(req.uid)) {
     res.status(429).json({ error: 'リクエストが多すぎます。しばらく待ってください。' });
@@ -113,14 +159,12 @@ api.post('/v1/ai/merge-talk-steps', requireAuth, async (req: AuthedRequest, res)
     screenshots,
     tone = 'simple',
     audience = 'new_staff',
-    useAi = true,
   } = req.body as {
     organizationId?: string;
     transcript?: string;
     screenshots?: Array<{ imageBase64: string; timestamp?: string; label?: string }>;
     tone?: InstructionTone;
     audience?: TargetAudience;
-    useAi?: boolean;
   };
   if (!organizationId || !transcript || !screenshots?.length) {
     res.status(400).json({ error: 'organizationId, transcript, screenshots が必要です' });
@@ -136,15 +180,6 @@ api.post('/v1/ai/merge-talk-steps', requireAuth, async (req: AuthedRequest, res)
     res.status(403).json({ error: '組織へのアクセスがありません' });
     return;
   }
-  if (useAi) {
-    try {
-      await assertAiQuota(organizationId, Math.min(screenshots.length, 20), req.email);
-    } catch (e) {
-      const err = e as { status?: number; message?: string };
-      res.status(err.status ?? 429).json({ error: err.message });
-      return;
-    }
-  }
   const org = await getFirestore().collection('clipit_organizations').doc(organizationId).get();
   const glossary = (org.data()?.termGlossary as string[] | undefined) ?? [];
   try {
@@ -154,7 +189,8 @@ api.post('/v1/ai/merge-talk-steps', requireAuth, async (req: AuthedRequest, res)
       tone,
       audience,
       glossary,
-      useAi,
+      organizationId,
+      userEmail: req.email,
     });
     res.json(result);
   } catch (e) {

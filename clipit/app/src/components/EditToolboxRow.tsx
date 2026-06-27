@@ -191,7 +191,7 @@ export default function EditToolboxRow({
               className="inline-flex items-center gap-1 rounded-lg bg-primary-500 px-2 py-1 font-semibold text-white disabled:opacity-50"
             >
               {aiBusy ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-              全手順AI
+              AIで文案を整える（全手順）
             </button>
           </div>
         </ToolboxCard>

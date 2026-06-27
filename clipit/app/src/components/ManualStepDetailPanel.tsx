@@ -24,7 +24,7 @@ type Props = {
   insertStep: (mode: 'end' | 'before' | 'after') => Promise<void>;
   deleteStep: (stepId: string) => Promise<void>;
   applyRuleInstruction: (tone: 'simple' | 'formal' | 'manual') => Promise<void>;
-  handleAiPolish: (tone: 'simple' | 'formal' | 'manual' | 'detailed') => Promise<void>;
+  handleAiPolish: (instruction: string) => Promise<void>;
   uploadScreenshot: (file: File) => Promise<void>;
   aiBusy: boolean;
   organization: ReturnType<typeof import('../context/OrgContext').useOrg>['organization'];
@@ -251,13 +251,15 @@ export default function ManualStepDetailPanel({
               )}
               <div className="mt-2 flex flex-wrap gap-2">
                 <button type="button" disabled={aiBusy} onClick={() => void applyRuleInstruction('simple')} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-800 hover:bg-slate-200 disabled:opacity-50">
-                  説明を自動作成（無料）
+                  ルールで説明を作成
                 </button>
-                <button type="button" disabled={aiBusy} onClick={() => void handleAiPolish('simple')} className="inline-flex items-center gap-1 rounded-lg bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 disabled:opacity-50">
-                  <Sparkles size={12} /> AI（かんたん）
-                </button>
-                <button type="button" disabled={aiBusy} onClick={() => void handleAiPolish('manual')} className="rounded-lg border px-3 py-1.5 text-xs font-semibold text-slate-600 disabled:opacity-50">
-                  AI（業務文書風）
+                <button
+                  type="button"
+                  disabled={aiBusy || draft.instruction.trim().length < 4}
+                  onClick={() => void handleAiPolish(draft.instruction)}
+                  className="inline-flex items-center gap-1 rounded-lg bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 disabled:opacity-50"
+                >
+                  <Sparkles size={12} /> AIで文案を整える
                 </button>
               </div>
             </div>

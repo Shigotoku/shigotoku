@@ -4,6 +4,25 @@ import type { TargetAudience } from '../types';
 
 export type InstructionTone = 'simple' | 'formal' | 'manual' | 'short' | 'detailed';
 
+export type PolishInstructionItem = {
+  title?: string;
+  instruction?: string;
+  elementText?: string;
+};
+
+/** 説明文をまとめて整形（1クォータ・テキストのみ） */
+export async function polishInstructionsWithApi(
+  organizationId: string,
+  items: PolishInstructionItem[],
+  tone: InstructionTone = 'simple',
+  audience: TargetAudience = 'new_staff',
+): Promise<{ instructions: string[]; usedGemini: boolean }> {
+  return apiFetch('/v1/ai/polish-instructions', {
+    method: 'POST',
+    body: JSON.stringify({ organizationId, items, tone, audience }),
+  });
+}
+
 export async function generateStepWithApi(
   step: ManualStep,
   tone: InstructionTone,
