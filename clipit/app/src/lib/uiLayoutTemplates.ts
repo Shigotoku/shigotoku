@@ -134,9 +134,22 @@ export function appendLayoutQuery(path: string, layoutId: UiLayoutId): string {
 export function stepFieldsFromLayout(
   layoutId: UiLayoutId | string | undefined,
   existing?: Partial<ManualStep>,
+  options?: { forceLayout?: boolean },
 ): Pick<ManualStep, 'imageWidthPct' | 'imageAlign' | 'textBeforeImage' | 'note' | 'type'> {
   const layout = getUiLayoutTemplate(layoutId);
   const d = layout.stepDefaults;
+  const force = options?.forceLayout ?? false;
+
+  if (force) {
+    return {
+      imageWidthPct: d.imageWidthPct,
+      imageAlign: d.imageAlign,
+      textBeforeImage: d.textBeforeImage ?? '',
+      note: d.note ?? existing?.note ?? '',
+      type: d.type ?? existing?.type ?? 'normal',
+    };
+  }
+
   return {
     imageWidthPct: d.imageWidthPct,
     imageAlign: d.imageAlign,

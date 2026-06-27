@@ -2,7 +2,6 @@ import { useRef, useState } from 'react';
 import { ArrowLeft, ChevronDown, ChevronUp, GripVertical, ImagePlus, Plus, Sparkles, Trash2 } from 'lucide-react';
 import { useEditLayoutColumns, ResizeGutter } from '../hooks/useEditLayoutColumns';
 import { useStepDraft } from '../hooks/useStepDraft';
-import { useToast } from '../context/ToastContext';
 import StepScreenshotPreview from './StepScreenshotPreview';
 import StepScreenEditor from './StepScreenEditor';
 import VoiceInputButton from './VoiceInputButton';
@@ -56,7 +55,6 @@ export default function ManualStepDetailPanel({
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [screenEditOpen, setScreenEditOpen] = useState(false);
   const [imgBusy, setImgBusy] = useState(false);
-  const { showToast } = useToast();
 
   const active = steps.find((s) => s.id === activeId) ?? steps[0];
   const activeIndex = steps.findIndex((s) => s.id === activeId);
@@ -69,7 +67,6 @@ export default function ManualStepDetailPanel({
     active ? { title: active.title, instruction: active.instruction, note: active.note ?? '' } : undefined,
     (fields) => saveStepFields(active!.id, fields),
     600,
-    () => showToast('保存しました'),
   );
 
   const saveLabel =

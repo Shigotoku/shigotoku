@@ -394,11 +394,19 @@ export async function mergeTalkSteps(input: {
 
   if (!steps) {
     steps = fallbackMerge(transcript, input.screenshots, body);
-    warnings.push(
-      isMeetFormat
-        ? 'AI統合に失敗したため、文字起こしを操作の区切りで分割して手順を作成しました。編集画面で調整してください。'
-        : 'AI統合に失敗したため、文字起こしを均等分割して手順を作成しました。編集画面で調整してください。',
-    );
+    if (input.useAi === false) {
+      warnings.push(
+        isMeetFormat
+          ? 'AI統合オフのため、文字起こしを操作の区切りで分割して手順を作成しました。'
+          : 'AI統合オフのため、文字起こしを均等分割して手順を作成しました。',
+      );
+    } else {
+      warnings.push(
+        isMeetFormat
+          ? 'AI統合に失敗したため、文字起こしを操作の区切りで分割して手順を作成しました。編集画面で調整してください。'
+          : 'AI統合に失敗したため、文字起こしを均等分割して手順を作成しました。編集画面で調整してください。',
+      );
+    }
   }
 
   // screenshotIndex を範囲内に

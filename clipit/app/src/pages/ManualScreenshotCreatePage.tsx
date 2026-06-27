@@ -85,7 +85,7 @@ export default function ManualScreenshotCreatePage() {
           screenshotBase64: s.base64,
         })),
       );
-      await applyUiLayoutToSteps(manualId, uiLayoutId);
+      await applyUiLayoutToSteps(manualId, uiLayoutId, { forceLayout: true });
       navigate(`/manuals/${manualId}/edit?new=1`);
     } catch (e) {
       setError((e as Error).message ?? "作成に失敗しました");

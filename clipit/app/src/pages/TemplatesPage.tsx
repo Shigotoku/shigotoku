@@ -139,7 +139,7 @@ export default function TemplatesPage() {
           elementText: "",
         });
       }
-      await applyUiLayoutToSteps(id, uiLayoutId);
+      await applyUiLayoutToSteps(id, uiLayoutId, { forceLayout: true });
       navigate(`/manuals/${id}/edit?new=1`);
     } catch (e) {
       const msg = (e as Error).message ?? "テンプレートからの作成に失敗しました";

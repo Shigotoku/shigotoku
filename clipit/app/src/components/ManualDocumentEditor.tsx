@@ -30,7 +30,6 @@ export default function ManualDocumentEditor({
 }: Props) {
   const { showToast } = useToast();
   const saveTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
-  const toastTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   const patchStep = useCallback(
     (stepId: string, patch: Partial<ManualStep>) => {
@@ -41,19 +40,7 @@ export default function ManualDocumentEditor({
       saveTimers.current.set(
         stepId,
         setTimeout(() => {
-          void updateStep(manualId, stepId, patch)
-            .then(() => {
-              const prevToast = toastTimers.current.get(stepId);
-              if (prevToast) clearTimeout(prevToast);
-              toastTimers.current.set(
-                stepId,
-                setTimeout(() => {
-                  showToast('保存しました');
-                  toastTimers.current.delete(stepId);
-                }, 300),
-              );
-            })
-            .catch(() => showToast('保存に失敗しました', 'error'));
+          void updateStep(manualId, stepId, patch).catch(() => showToast('保存に失敗しました', 'error'));
           saveTimers.current.delete(stepId);
         }, 500),
       );

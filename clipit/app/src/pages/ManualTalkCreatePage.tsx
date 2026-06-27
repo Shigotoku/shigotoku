@@ -5,6 +5,7 @@ import { layoutIdFromSearch } from "../lib/uiLayoutTemplates";
 import { Camera, ChevronDown, ChevronUp, Loader2, MessageCircle, Sparkles, Video } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import PageHelpTip from "../components/PageHelpTip";
+import FilePickButton from "../components/FilePickButton";
 import { useOrg } from "../context/OrgContext";
 import { useAuth } from "../components/AuthProvider";
 import { AUDIENCE_OPTIONS, labelsToAudience } from "../lib/format";
@@ -49,12 +50,13 @@ export default function ManualTalkCreatePage() {
   const [transcript, setTranscript] = useState("");
   const [shots, setShots] = useState<ShotItem[]>([]);
   const [tone, setTone] = useState<InstructionTone>("simple");
-  const [useAi, setUseAi] = useState(false);
+  const [useAi, setUseAi] = useState(true);
   const [showMeetGuide, setShowMeetGuide] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<MergedTalkStep[] | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
+  const [usedGemini, setUsedGemini] = useState(false);
 
   const parsedTranscript = useMemo(
     () => (transcript.trim() ? parseMeetTranscript(transcript, shots.length) : null),
@@ -125,6 +127,7 @@ export default function ManualTalkCreatePage() {
       });
       setPreview(result.steps);
       setWarnings(result.warnings);
+      setUsedGemini(result.usedGemini);
       setStep(3);
     } catch (e) {
       setError((e as Error).message ?? "統合に失敗しました");
@@ -163,7 +166,7 @@ export default function ManualTalkCreatePage() {
           screenshotBase64: shots[s.screenshotIndex]?.imageBase64,
         })),
       );
-      await applyUiLayoutToSteps(manualId, uiLayoutId);
+      await applyUiLayoutToSteps(manualId, uiLayoutId, { forceLayout: true });
       navigate(`/manuals/${manualId}/edit?new=1`);
     } catch (e) {
       setError((e as Error).message ?? "保存に失敗しました");
@@ -183,8 +186,8 @@ export default function ManualTalkCreatePage() {
         }
       />
       <div className="mx-auto max-w-3xl space-y-6 p-6">
-        <PageHelpTip title="上級者向け：話して作成">
-          Meetで説明 → 文字起こしを貼り付け → 説明順にスクショをアップロード、が基本の流れです。
+        <PageHelpTip title="話して作成の流れ">
+          Google Meet で説明 → 文字起こしを貼り付け → 説明順にスクショをアップロード、が基本の流れです。
           初めての方は「スクショから作る」の方が簡単です。
         </PageHelpTip>
         <div className="flex gap-2 text-xs font-semibold text-slate-500">
@@ -212,6 +215,9 @@ export default function ManualTalkCreatePage() {
                 className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm"
               />
               <p className="mt-4 text-sm font-semibold text-slate-800">誰向けですか？</p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                AIが手順文の言い回しを整えるときの想定読者です（例：新人向けは平易な表現）。マニュアル情報としても保存されます。
+              </p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {AUDIENCE_OPTIONS.map(({ label }) => (
                   <button
@@ -266,18 +272,18 @@ export default function ManualTalkCreatePage() {
                 <MessageCircle size={16} />
                 文字起こし（貼り付けまたはファイル）
               </label>
-              <input
-                type="file"
-                accept=".txt,.vtt,text/plain"
-                className="mt-2 block w-full text-xs text-slate-600"
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  const text = await file.text();
-                  setTranscript(parseTranscriptFile(text, file.name));
-                  e.target.value = "";
-                }}
-              />
+              <div className="mt-3">
+                <FilePickButton
+                  label="文字起こしファイルを選ぶ（.txt / .vtt）"
+                  accept=".txt,.vtt,text/plain"
+                  onFiles={async (files) => {
+                    const file = files[0];
+                    if (!file) return;
+                    const text = await file.text();
+                    setTranscript(parseTranscriptFile(text, file.name));
+                  }}
+                />
+              </div>
               <textarea
                 value={transcript}
                 onChange={(e) => setTranscript(e.target.value)}
@@ -313,13 +319,23 @@ export default function ManualTalkCreatePage() {
                 <Camera size={16} />
                 スクショ（説明の順に並べる）
               </label>
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                className="mt-3 block w-full text-sm"
-                onChange={(e) => onFiles(e.target.files)}
-              />
+              <div className="mt-3 flex flex-wrap gap-2">
+                <FilePickButton
+                  label="スクショ画像を選ぶ"
+                  accept="image/*"
+                  multiple
+                  onFiles={async (files) => onFiles(files)}
+                />
+                {shots.length > 0 && (
+                  <FilePickButton
+                    label="さらに追加"
+                    accept="image/*"
+                    multiple
+                    className="border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                    onFiles={async (files) => onFiles(files)}
+                  />
+                )}
+              </div>
               {shots.length > 0 && transcript.trim() && parsedTranscript && parsedTranscript.segments.length > 0 && (
                 <button
                   type="button"
@@ -394,6 +410,11 @@ export default function ManualTalkCreatePage() {
 
         {step === 3 && preview && (
           <div className="space-y-4">
+            {usedGemini && (
+              <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                Gemini AI で文字起こしとスクショを統合しました。内容を確認してから保存してください。
+              </p>
+            )}
             {warnings.length > 0 && (
               <ul className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                 {warnings.map((w) => (

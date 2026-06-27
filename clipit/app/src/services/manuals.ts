@@ -101,12 +101,16 @@ export async function deleteManuals(manualIds: string[]): Promise<void> {
 }
 
 /** 既存手順すべてに UI ひな型の配置を適用 */
-export async function applyUiLayoutToSteps(manualId: string, layoutId?: UiLayoutId | string): Promise<void> {
+export async function applyUiLayoutToSteps(
+  manualId: string,
+  layoutId?: UiLayoutId | string,
+  options?: { forceLayout?: boolean },
+): Promise<void> {
   const manual = await getManual(manualId);
   const layout = getUiLayoutTemplate(layoutId ?? manual?.uiLayoutId);
   const steps = await listSteps(manualId);
   for (const s of steps) {
-    const fields = stepFieldsFromLayout(layout.id, s);
+    const fields = stepFieldsFromLayout(layout.id, s, { forceLayout: options?.forceLayout });
     await updateStep(manualId, s.id, fields);
   }
   if (layout.manualDescription && manual && !manual.description?.trim()) {

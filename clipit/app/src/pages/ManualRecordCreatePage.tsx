@@ -46,7 +46,7 @@ export default function ManualRecordCreatePage() {
         uiLayoutId,
       });
       if (withDemo) await addDemoSteps(id, title.trim());
-      await applyUiLayoutToSteps(id, uiLayoutId);
+      await applyUiLayoutToSteps(id, uiLayoutId, { forceLayout: true });
       navigate(`/manuals/${id}/edit?new=1`);
     } catch (e) {
       setError((e as Error).message ?? "作成に失敗しました");

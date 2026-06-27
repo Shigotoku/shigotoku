@@ -8,6 +8,7 @@ import EditNextStepsBanner from "../components/EditNextStepsBanner";
 import IngestedBanner from "../components/IngestedBanner";
 import EditToolboxRow from "../components/EditToolboxRow";
 import {
+  applyUiLayoutToSteps,
   deleteManual,
   deleteStep,
   duplicateManual,
@@ -26,7 +27,8 @@ import { uploadStepScreenshot } from "../lib/uploadStepScreenshot";
 import { useOrg } from "../context/OrgContext";
 import { useAuth } from "../components/AuthProvider";
 import { manualWorkStatus, WORK_STATUS_LABEL } from "../lib/manualWorkStatus";
-import { getUiLayoutTemplate, stepFieldsFromLayout } from "../lib/uiLayoutTemplates";
+import { getUiLayoutTemplate, stepFieldsFromLayout, type UiLayoutId } from "../lib/uiLayoutTemplates";
+import UiLayoutPicker from "../components/UiLayoutPicker";
 import type { Manual, ManualStep, ManualWorkStatus, TargetAudience } from "../types";
 
 export default function ManualEditPage() {
@@ -47,6 +49,7 @@ export default function ManualEditPage() {
   const [generateAllWithAi, setGenerateAllWithAi] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
   const [titleSaving, setTitleSaving] = useState(false);
+  const [layoutBusy, setLayoutBusy] = useState(false);
 
   useEffect(() => {
     pingExtension().then(setExtInstalled);
@@ -132,6 +135,18 @@ export default function ManualEditPage() {
       setTitleDraft(next);
     } finally {
       setTitleSaving(false);
+    }
+  };
+
+  const changeUiLayout = async (layoutId: UiLayoutId) => {
+    if (!id || id.startsWith("demo") || !manual) return;
+    if (layoutId === manual.uiLayoutId && steps.some((s) => s.imageWidthPct != null)) return;
+    setLayoutBusy(true);
+    try {
+      await applyUiLayoutToSteps(id, layoutId, { forceLayout: true });
+      await load();
+    } finally {
+      setLayoutBusy(false);
     }
   };
 
@@ -326,9 +341,23 @@ export default function ManualEditPage() {
       />
 
       {id && !id.startsWith("demo") && manual.uiLayoutId && !inDetail && (
-        <p className="mx-6 mb-2 text-xs text-slate-500">
-          UIひな型: <span className="font-semibold text-slate-700">{getUiLayoutTemplate(manual.uiLayoutId).name}</span>
-        </p>
+        <div className="mx-6 mb-4 rounded-xl border border-slate-200 bg-white p-4">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-bold text-slate-900">UIのひな型（レイアウト）</p>
+              <p className="text-xs text-slate-500">
+                現在: {getUiLayoutTemplate(manual.uiLayoutId).name}
+                {layoutBusy && " · 適用中…"}
+              </p>
+            </div>
+            <p className="text-[11px] text-slate-400">変更すると全手順の画像配置・注意欄の型が更新されます</p>
+          </div>
+          <UiLayoutPicker
+            value={(manual.uiLayoutId as UiLayoutId) ?? "standard-vertical"}
+            onChange={(next) => void changeUiLayout(next)}
+            compact
+          />
+        </div>
       )}
 
       {id && !id.startsWith("demo") && <EditNextStepsBanner manualId={id} stepCount={steps.length} />}
