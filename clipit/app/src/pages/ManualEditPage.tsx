@@ -305,7 +305,7 @@ export default function ManualEditPage() {
               }
             : undefined
         }
-        description={inDetail ? "手順の詳細編集（画面編集・AI・画像差し替え）" : "Wordのように手順を並べて編集（クリックで詳細編集）"}
+        description={inDetail ? "手順の詳細編集（画面編集・AI・画像差し替え）" : "3列カードで手順を俯瞰（カードで簡単編集・詳細ボタンで本格編集）"}
         action={
           <div className="flex flex-wrap items-center gap-2">
             {id && !id.startsWith("demo") && (

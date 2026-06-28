@@ -5,7 +5,7 @@ import { useToast } from '../context/ToastContext';
 import { insertStepAt, updateStep } from '../services/manuals';
 import { stepFieldsFromLayout } from '../lib/uiLayoutTemplates';
 import type { Manual, ManualStep } from '../types';
-import StepDocumentBlock from './StepDocumentBlock';
+import StepOverviewCard from './StepOverviewCard';
 import ManualTableOfContents from './ManualTableOfContents';
 
 type Props = {
@@ -70,79 +70,92 @@ export default function ManualDocumentEditor({
     onOpenDetail(newId);
   };
 
-  const InsertButton = ({ position, label }: { position: number; label: string }) => (
-    <div className="flex justify-center py-2">
-      <button
-        type="button"
-        onClick={() => void addStepAt(position)}
-        className="inline-flex items-center gap-1 rounded-full border border-dashed border-slate-300 bg-white px-4 py-1.5 text-xs font-semibold text-slate-600 hover:border-primary-400 hover:bg-primary-50 hover:text-primary-700"
-      >
-        <Plus size={14} />
-        {label}
-      </button>
-    </div>
-  );
-
   return (
-    <div className="mx-auto w-full max-w-[min(100%,1200px)] px-4 pb-20 pt-2 lg:px-6">
-      <article className="rounded-2xl border border-slate-200 bg-white px-6 py-8 shadow-sm">
+    <div className="mx-auto w-full max-w-[min(100%,1600px)] px-4 pb-20 pt-2 lg:px-6">
+      <header className="mb-4 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
         <h1 className="text-xl font-bold text-slate-900">{displayTitle}</h1>
-        {manual.description && <p className="mt-2 whitespace-pre-wrap text-sm text-slate-500">{manual.description}</p>}
-        {manual.tocEnabled && steps.length > 0 && <ManualTableOfContents steps={steps} />}
-        <p className="mt-1 text-xs text-slate-400">{steps.length} 手順 · クリックで詳細編集</p>
-
-        {steps.length === 0 ? (
-          <div className="py-12">
-            <p className="text-center text-sm font-semibold text-slate-800">手順を追加しましょう</p>
-            <p className="mx-auto mt-2 max-w-sm text-center text-xs leading-relaxed text-slate-500">
-              操作記録・スクショアップロード・手入力のいずれかで始められます。
-            </p>
-            {!demo && (
-              <div className="mt-6 flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
-                <button
-                  type="button"
-                  onClick={() => void addStepAt(1)}
-                  className="inline-flex items-center gap-2 rounded-xl bg-primary-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-600"
-                >
-                  <Plus size={16} />
-                  手順を手動で追加
-                </button>
-                <Link
-                  to="/extension/install"
-                  className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                >
-                  <Chrome size={16} />
-                  拡張で記録する
-                </Link>
-                <Link
-                  to="/manuals/new/screenshots"
-                  className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                >
-                  <ImageUp size={16} />
-                  スクショから追加
-                </Link>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="mt-8" style={{ display: 'flex', flexDirection: 'column', gap: manual.stepSpacingPx ?? 8 }}>
-            <InsertButton position={1} label="先頭に手順を挿入" />
-            {steps.map((step, i) => (
-              <div key={step.id}>
-                <StepDocumentBlock
-                  step={step}
-                  index={i}
-                  manualLayoutId={manual.uiLayoutId}
-                  onPatch={(patch) => patchStep(step.id, patch)}
-                  onOpenDetail={() => onOpenDetail(step.id)}
-                  readOnly={demo}
-                />
-                <InsertButton position={step.order + 1} label="この後に手順を挿入" />
-              </div>
-            ))}
-          </div>
+        {manual.description && (
+          <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm text-slate-500">{manual.description}</p>
         )}
-      </article>
+        {manual.tocEnabled && steps.length > 0 && <ManualTableOfContents steps={steps} />}
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-slate-500">
+            {steps.length} 手順 · カードで簡単編集 · 「詳細」で画面編集・AI・画像差し替え
+          </p>
+          {!demo && steps.length > 0 && (
+            <button
+              type="button"
+              onClick={() => void addStepAt(steps.length + 1)}
+              className="inline-flex items-center gap-1 rounded-lg border border-primary-300 bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 hover:bg-primary-100"
+            >
+              <Plus size={14} />
+              手順を追加
+            </button>
+          )}
+        </div>
+      </header>
+
+      {steps.length === 0 ? (
+        <div className="rounded-2xl border border-slate-200 bg-white py-12 shadow-sm">
+          <p className="text-center text-sm font-semibold text-slate-800">手順を追加しましょう</p>
+          <p className="mx-auto mt-2 max-w-sm text-center text-xs leading-relaxed text-slate-500">
+            操作記録・スクショアップロード・手入力のいずれかで始められます。
+          </p>
+          {!demo && (
+            <div className="mt-6 flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
+              <button
+                type="button"
+                onClick={() => void addStepAt(1)}
+                className="inline-flex items-center gap-2 rounded-xl bg-primary-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-600"
+              >
+                <Plus size={16} />
+                手順を手動で追加
+              </button>
+              <Link
+                to="/extension/install"
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                <Chrome size={16} />
+                拡張で記録する
+              </Link>
+              <Link
+                to="/manuals/new/screenshots"
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                <ImageUp size={16} />
+                スクショから追加
+              </Link>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div
+          className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"
+          style={{ gap: manual.stepSpacingPx != null && manual.stepSpacingPx > 0 ? manual.stepSpacingPx : 16 }}
+        >
+          {steps.map((step, i) => (
+            <StepOverviewCard
+              key={step.id}
+              step={step}
+              index={i}
+              manualLayoutId={manual.uiLayoutId}
+              onPatch={(patch) => patchStep(step.id, patch)}
+              onOpenDetail={() => onOpenDetail(step.id)}
+              readOnly={demo}
+            />
+          ))}
+          {!demo && (
+            <button
+              type="button"
+              onClick={() => void addStepAt(steps.length + 1)}
+              className="flex min-h-[280px] flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-white text-slate-500 transition-colors hover:border-primary-400 hover:bg-primary-50/30 hover:text-primary-700"
+            >
+              <Plus size={28} strokeWidth={1.5} />
+              <span className="text-sm font-semibold">手順を追加</span>
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
