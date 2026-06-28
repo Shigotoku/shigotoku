@@ -18,9 +18,18 @@ type Props = {
   className?: string;
   /** 親コンテナいっぱいに表示（横並びレイアウト用） */
   fillContainer?: boolean;
+  /** カードプレビュー向けのコンパクト表示 */
+  compact?: boolean;
 };
 
-export default function StepDocumentImage({ step, stepIndex, showClickMarker = false, className = '', fillContainer = false }: Props) {
+export default function StepDocumentImage({
+  step,
+  stepIndex,
+  showClickMarker = false,
+  className = '',
+  fillContainer = false,
+  compact = false,
+}: Props) {
   const widthPct = stepImageWidthPct(step);
   const align = stepImageAlign(step);
   const floatLayout = stepUsesFloatLayout(step);
@@ -33,12 +42,16 @@ export default function StepDocumentImage({ step, stepIndex, showClickMarker = f
       style={{ width: fillContainer ? '100%' : `${widthPct}%`, maxWidth: '100%' }}
     >
       {step.type === 'ng_example' && (
-        <div className="mb-2 rounded-lg bg-danger-600 px-3 py-1 text-center text-xs font-bold text-white">
+        <div
+          className={`rounded-lg bg-danger-600 text-center font-bold text-white ${compact ? 'mb-1 px-2 py-0.5 text-[8px]' : 'mb-2 px-3 py-1 text-xs'}`}
+        >
           NG例 — この操作はしないでください
         </div>
       )}
       {step.type === 'warning' && (
-        <div className="mb-2 rounded-lg bg-amber-500 px-3 py-1 text-center text-xs font-bold text-white">
+        <div
+          className={`rounded-lg bg-amber-500 text-center font-bold text-white ${compact ? 'mb-1 px-2 py-0.5 text-[8px]' : 'mb-2 px-3 py-1 text-xs'}`}
+        >
           注意が必要な手順
         </div>
       )}
@@ -47,6 +60,7 @@ export default function StepDocumentImage({ step, stepIndex, showClickMarker = f
         loading="lazy"
         borderColor={step.imageBorderColor}
         borderWidth={step.imageBorderWidth}
+        compact={compact}
         overlay={
           hasPoint ? (
             <div

@@ -10,6 +10,7 @@ type Props = {
   loading?: 'lazy' | 'eager';
   borderColor?: string;
   borderWidth?: number;
+  compact?: boolean;
 };
 
 /** スクショを余白なく表示（aspect 固定なし・画質劣化なし） */
@@ -21,13 +22,14 @@ export default function ScreenshotFrame({
   loading = 'lazy',
   borderColor,
   borderWidth = 0,
+  compact = false,
 }: Props) {
   if (!screenshotUrl) {
     return (
       <div
-        className={`flex min-h-[120px] flex-col items-center justify-center rounded-xl border border-slate-200 bg-slate-100 p-6 text-center ${className}`}
+        className={`flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-slate-100 text-center ${compact ? 'min-h-[60px] p-3' : 'min-h-[120px] p-6'} ${className}`}
       >
-        <p className="text-sm font-semibold text-slate-500">{emptyLabel}</p>
+        <p className={`font-semibold text-slate-500 ${compact ? 'text-[10px]' : 'text-sm'}`}>{emptyLabel}</p>
       </div>
     );
   }
@@ -37,7 +39,7 @@ export default function ScreenshotFrame({
 
   return (
     <div
-      className={`relative w-full overflow-hidden rounded-xl bg-slate-50 ${className}`}
+      className={`relative w-full overflow-hidden bg-slate-50 ${compact ? 'rounded-md' : 'rounded-xl'} ${className}`}
       style={bw > 0 ? { border: `${bw}px solid ${bc}` } : { border: '1px solid #e2e8f0' }}
     >
       <img
