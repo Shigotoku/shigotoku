@@ -36,7 +36,7 @@ const methods = [
     to: "/manuals/new/talk",
     icon: MessageCircle,
     title: "話して作成",
-    desc: "Meetの文字起こしとスクショをAIが統合。説明の暗黙知も残せます。",
+    desc: "Meetの文字起こしとスクショをルールで統合。説明の暗黙知も残せます。",
     badge: "",
     primary: false,
   },
@@ -72,7 +72,7 @@ export default function ManualNewPage() {
         title="マニュアルの作り方を選ぶ"
         description="初めての方は「スクショから作る」がいちばん簡単です"
       />
-      <div className="mx-auto max-w-3xl space-y-6 p-6">
+      <div className="mx-auto w-full max-w-[min(100%,1600px)] space-y-5 px-4 py-5 lg:px-6">
         <div className="rounded-2xl border border-primary-200 bg-gradient-to-r from-primary-50 to-white p-5">
           <div className="flex items-center gap-2 text-sm font-bold text-primary-800">
             <Sparkles size={18} />
@@ -112,7 +112,7 @@ export default function ManualNewPage() {
 
         <section>
           <h2 className="mb-3 text-sm font-bold text-slate-900">作り方を選ぶ</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {methods.map((m) => (
               <Link
                 key={m.to}

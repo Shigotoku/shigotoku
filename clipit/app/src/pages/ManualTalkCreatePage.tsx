@@ -226,9 +226,9 @@ export default function ManualTalkCreatePage() {
           </Link>
         }
       />
-      <div className="mx-auto max-w-3xl space-y-6 p-6">
+      <div className="mx-auto w-full max-w-[min(100%,1600px)] space-y-5 px-4 py-5 lg:px-6">
         <PageHelpTip title="話して作成の流れ">
-          Google Meet で説明 → 文字起こしを貼り付け → 説明順にスクショをアップロード → AI統合、が基本の流れです。
+          Google Meet で説明 → 文字起こしを貼り付け → 説明順にスクショをアップロード → ルールで手順に統合、が基本の流れです。
           説明の区切りで「次」「続いて」と言うと、統合の精度が上がります。
         </PageHelpTip>
         <div className="flex gap-2 text-xs font-semibold text-slate-500">
@@ -378,15 +378,20 @@ export default function ManualTalkCreatePage() {
                 )}
               </div>
               {shots.length > 0 && transcript.trim() && parsedTranscript && parsedTranscript.segments.length > 0 && (
-                <button
-                  type="button"
-                  onClick={applySuggestedLabels}
-                  className="mt-3 rounded-lg border border-primary-300 bg-primary-50 px-3 py-2 text-xs font-semibold text-primary-700 hover:bg-primary-100"
-                >
-                  文字起こしから画面メモを自動提案
-                </button>
+                <div className="mt-3 space-y-1">
+                  <button
+                    type="button"
+                    onClick={applySuggestedLabels}
+                    className="rounded-lg border border-primary-300 bg-primary-50 px-3 py-2 text-xs font-semibold text-primary-700 hover:bg-primary-100"
+                  >
+                    文字起こしから画面メモを自動提案
+                  </button>
+                  <p className="text-[11px] text-slate-500">
+                    ルールベース（AI不使用）— 操作説明の区切りから各画像のメモ候補を入れます。
+                  </p>
+                </div>
               )}
-              <div className="mt-4 space-y-3">
+              <div className="mt-4 grid gap-3 xl:grid-cols-2">
                 {shots.map((s, idx) => (
                   <div key={s.id} className="flex gap-3 rounded-xl border border-slate-200 p-3">
                     <img src={s.previewUrl} alt="" className="h-20 w-32 shrink-0 rounded-lg object-cover" />
@@ -427,7 +432,7 @@ export default function ManualTalkCreatePage() {
                 </select>
               </label>
               <p className="w-full text-xs text-slate-500">
-                文字起こしとスクショを AI で統合します。説明中に「次」「続いて」と言うと区切りが認識されやすくなります。統合後に説明文を直してから「AIで文案を整える」を押せます。
+                文字起こしとスクショをルールで統合します（AI不使用）。説明中に「次」「続いて」と言うと区切りが認識されやすくなります。統合後に説明文を直してから「AIで文案を整える」を押せます。
               </p>
             </div>
 
@@ -442,7 +447,7 @@ export default function ManualTalkCreatePage() {
                 className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary-500 py-3 text-sm font-semibold text-white disabled:opacity-50"
               >
                 {busy ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}
-                AIで手順に統合
+                手順に統合（ルールベース）
               </button>
             </div>
           </div>
@@ -456,7 +461,7 @@ export default function ManualTalkCreatePage() {
               </p>
             ) : (
               <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                AIで文字起こしとスクショを統合しました。説明文を確認・修正してから保存してください。
+                ルールベースで文字起こしとスクショを統合しました。説明文を確認・修正してから保存してください。
               </p>
             )}
             {!demoMode && (

@@ -31,6 +31,8 @@ type Props = {
   onGenerateAllWithAiChange: (v: boolean) => void;
   onAiAll: () => void;
   showExtension?: boolean;
+  /** 折りたたみ内に埋め込むときは外側マージンを省略 */
+  embedded?: boolean;
 };
 
 function ToolboxCard({
@@ -78,6 +80,7 @@ export default function EditToolboxRow({
   onGenerateAllWithAiChange,
   onAiAll,
   showExtension = true,
+  embedded = false,
 }: Props) {
   const issues = useMemo(() => runManualHealthCheck(manual, steps), [manual, steps]);
   const alertCount = issues.filter((i) => i.level === 'alert').length;
@@ -88,7 +91,7 @@ export default function EditToolboxRow({
   const score = questions.filter((q) => answers[q.id] === q.answer).length;
 
   return (
-    <div className="mx-6 mb-4 flex flex-col gap-2 xl:flex-row">
+    <div className={`flex flex-col gap-2 xl:flex-row ${embedded ? '' : 'mx-6 mb-4'}`}>
       <ToolboxCard
         title="マニュアル健康診断"
         icon={<Stethoscope size={15} />}

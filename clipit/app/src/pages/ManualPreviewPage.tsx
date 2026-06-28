@@ -39,8 +39,9 @@ export default function ManualPreviewPage() {
     () => ({
       description: manual?.description,
       tocEnabled: manual?.tocEnabled,
+      stepSpacingPx: manual?.stepSpacingPx,
     }),
-    [manual?.description, manual?.tocEnabled],
+    [manual?.description, manual?.tocEnabled, manual?.stepSpacingPx],
   );
 
   useEffect(() => {

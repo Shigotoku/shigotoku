@@ -80,7 +80,7 @@ export async function createManual(input: {
 
 export async function updateManual(
   manualId: string,
-  patch: Partial<Pick<Manual, 'title' | 'description' | 'status' | 'workStatus' | 'targetAudience' | 'folderId' | 'uiLayoutId' | 'tocEnabled'>>,
+  patch: Partial<Pick<Manual, 'title' | 'description' | 'status' | 'workStatus' | 'targetAudience' | 'folderId' | 'uiLayoutId' | 'tocEnabled' | 'stepSpacingPx'>>,
 ) {
   await updateDoc(doc(db, 'clipit_manuals', manualId), {
     ...patch,
@@ -113,7 +113,7 @@ export async function applyUiLayoutToSteps(
   const steps = await listSteps(manualId);
   for (const s of steps) {
     const fields = stepFieldsFromLayout(layout.id, s, { forceLayout: options?.forceLayout });
-    await updateStep(manualId, s.id, fields);
+    await updateStep(manualId, s.id, { ...fields, uiLayoutId: layout.id });
   }
   if (layout.manualDescription && manual && !manual.description?.trim()) {
     await updateManual(manualId, { description: layout.manualDescription, uiLayoutId: layout.id });

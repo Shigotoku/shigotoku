@@ -1,23 +1,30 @@
-import { AlignCenter, AlignLeft, AlignRight, Settings2 } from 'lucide-react';
-import type { ManualStep, StepImageAlign } from '../types';
-import { IMAGE_WIDTH_MAX, IMAGE_WIDTH_MIN, stepImageAlign, stepImageWidthPct, stepUsesFloatLayout } from '../lib/stepLayout';
+import { Settings2 } from 'lucide-react';
+import type { ManualStep } from '../types';
+import { stepImageAlign, stepImageWidthPct, stepUsesFloatLayout } from '../lib/stepLayout';
 import StepDocumentImage from './StepDocumentImage';
+import StepLayoutControls from './StepLayoutControls';
 
 type Props = {
   step: ManualStep;
   index: number;
+  manualLayoutId?: string | null;
   onPatch: (patch: Partial<ManualStep>) => void;
   onOpenDetail: () => void;
   readOnly?: boolean;
 };
 
-export default function StepDocumentBlock({ step, index, onPatch, onOpenDetail, readOnly = false }: Props) {
+export default function StepDocumentBlock({
+  step,
+  index,
+  manualLayoutId,
+  onPatch,
+  onOpenDetail,
+  readOnly = false,
+}: Props) {
   const widthPct = stepImageWidthPct(step);
   const align = stepImageAlign(step);
   const hasImage = Boolean(step.screenshotUrl);
   const sideBySide = hasImage && stepUsesFloatLayout(step);
-
-  const setAlign = (imageAlign: StepImageAlign) => onPatch({ imageAlign });
 
   return (
     <section
@@ -26,7 +33,7 @@ export default function StepDocumentBlock({ step, index, onPatch, onOpenDetail, 
       onClick={(e) => {
         if (readOnly) return;
         const t = e.target as HTMLElement;
-        if (t.closest('input,textarea,button,label,[data-no-detail]')) return;
+        if (t.closest('input,textarea,button,label,select,[data-no-detail]')) return;
         onOpenDetail();
       }}
     >
@@ -58,59 +65,26 @@ export default function StepDocumentBlock({ step, index, onPatch, onOpenDetail, 
         )}
       </div>
 
-      {!readOnly && hasImage && (
-        <div
-          data-no-detail
-          className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-slate-100 bg-white px-3 py-2"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <label className="flex min-w-[140px] flex-1 items-center gap-2 text-[11px] font-semibold text-slate-500">
-            画像サイズ
-            <input
-              type="range"
-              min={IMAGE_WIDTH_MIN}
-              max={IMAGE_WIDTH_MAX}
-              value={widthPct}
-              onChange={(e) => onPatch({ imageWidthPct: Number(e.target.value) })}
-              className="flex-1 accent-primary-500"
-            />
-            <span className="w-8 tabular-nums text-slate-700">{widthPct}%</span>
-          </label>
-          {sideBySide && (
-            <div className="flex items-center gap-1">
-              <span className="text-[11px] font-semibold text-slate-500">配置</span>
-              {(
-                [
-                  { id: 'left' as const, icon: AlignLeft, label: '左' },
-                  { id: 'center' as const, icon: AlignCenter, label: '中央' },
-                  { id: 'right' as const, icon: AlignRight, label: '右' },
-                ] as const
-              ).map(({ id, icon: Icon, label }) => (
-                <button
-                  key={id}
-                  type="button"
-                  title={label}
-                  onClick={() => setAlign(id)}
-                  className={`rounded-md p-1.5 ${
-                    align === id ? 'bg-primary-100 text-primary-700' : 'text-slate-500 hover:bg-slate-100'
-                  }`}
-                >
-                  <Icon size={14} />
-                </button>
-              ))}
-            </div>
-          )}
+      {!readOnly && (
+        <div className="mb-3">
+          <StepLayoutControls step={step} manualLayoutId={manualLayoutId} onPatch={onPatch} />
         </div>
       )}
 
-      {(step.textBeforeImage || (!readOnly && !sideBySide)) && (
+      {(step.textBeforeImage || !readOnly) && (
         <textarea
           value={step.textBeforeImage ?? ''}
           readOnly={readOnly}
           onChange={(e) => onPatch({ textBeforeImage: e.target.value })}
           onClick={(e) => e.stopPropagation()}
           rows={step.textBeforeImage ? 2 : 1}
-          placeholder={hasImage && !sideBySide ? '画像の前に入る説明（任意）' : sideBySide ? '画像の上に入る短い説明（任意）' : ''}
+          placeholder={
+            sideBySide
+              ? '画像の上に入る短い説明（任意）'
+              : hasImage
+                ? '画像の前に入る説明（任意）'
+                : '説明の前置き（任意）'
+          }
           className="mb-2 w-full resize-y border-0 bg-transparent text-[15px] leading-relaxed text-slate-700 outline-none placeholder:text-slate-300"
         />
       )}

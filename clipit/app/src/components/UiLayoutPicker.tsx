@@ -18,7 +18,7 @@ export default function UiLayoutPicker({ value, onChange, compact = false }: Pro
   };
 
   return (
-    <div className={`grid gap-3 ${compact ? 'grid-cols-2 sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
+    <div className={`grid gap-3 ${compact ? 'grid-cols-2 sm:grid-cols-3 xl:grid-cols-6' : 'grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'}`}>
       {UI_LAYOUT_TEMPLATES.map((layout) => {
         const selected = value === layout.id;
         return (

@@ -113,11 +113,20 @@ type DragMode =
   | 'create-arrow'
   | 'move-mask'
   | 'move-annotation'
+  | 'move-crop'
   | 'resize-mask'
   | 'resize-circle'
   | 'resize-arrow-start'
   | 'resize-arrow-end'
-  | 'resize-text-box';
+  | 'resize-text-box'
+  | 'resize-crop-n'
+  | 'resize-crop-s'
+  | 'resize-crop-e'
+  | 'resize-crop-w'
+  | 'resize-crop-ne'
+  | 'resize-crop-nw'
+  | 'resize-crop-se'
+  | 'resize-crop-sw';
 
 interface OverlayPoint {
   x: number;
@@ -140,6 +149,7 @@ interface DragSession {
   maskType?: MaskStyle;
   startBoxWPct?: number;
   startBoxHPct?: number;
+  startCropRect?: ImageCropRect;
 }
 
 function isPercentMask(m: MaskRect): boolean {
@@ -200,6 +210,52 @@ function cloneSnapshot(masks: MaskRect[], annotations: StepAnnotation[]): Editor
 function clampPct(v: number): number {
   return Math.max(0, Math.min(100, v));
 }
+
+const MIN_CROP_PCT = 5;
+
+function clampCropRect(r: ImageCropRect): ImageCropRect {
+  const width = Math.max(MIN_CROP_PCT, Math.min(100, r.width));
+  const height = Math.max(MIN_CROP_PCT, Math.min(100, r.height));
+  return {
+    x: Math.max(0, Math.min(100 - width, r.x)),
+    y: Math.max(0, Math.min(100 - height, r.y)),
+    width,
+    height,
+  };
+}
+
+function cropInsetClipPath(r: ImageCropRect): string {
+  const top = r.y;
+  const right = 100 - r.x - r.width;
+  const bottom = 100 - r.y - r.height;
+  const left = r.x;
+  return `inset(${top}% ${right}% ${bottom}% ${left}%)`;
+}
+
+function shrinkCropSides(r: ImageCropRect, pct: number): ImageCropRect {
+  return clampCropRect({
+    x: r.x + pct,
+    y: r.y + pct,
+    width: r.width - pct * 2,
+    height: r.height - pct * 2,
+  });
+}
+
+function centerCropSize(sizePct: number): ImageCropRect {
+  const margin = (100 - sizePct) / 2;
+  return clampCropRect({ x: margin, y: margin, width: sizePct, height: sizePct });
+}
+
+const CROP_HANDLES: Array<{ id: string; mode: DragMode; className: string }> = [
+  { id: 'n', mode: 'resize-crop-n', className: 'left-1/2 top-0 h-3 w-12 -translate-x-1/2 -translate-y-1/2 cursor-ns-resize rounded-full' },
+  { id: 's', mode: 'resize-crop-s', className: 'left-1/2 bottom-0 h-3 w-12 -translate-x-1/2 translate-y-1/2 cursor-ns-resize rounded-full' },
+  { id: 'e', mode: 'resize-crop-e', className: 'right-0 top-1/2 h-12 w-3 translate-x-1/2 -translate-y-1/2 cursor-ew-resize rounded-full' },
+  { id: 'w', mode: 'resize-crop-w', className: 'left-0 top-1/2 h-12 w-3 -translate-x-1/2 -translate-y-1/2 cursor-ew-resize rounded-full' },
+  { id: 'ne', mode: 'resize-crop-ne', className: 'right-0 top-0 h-5 w-5 translate-x-1/2 -translate-y-1/2 cursor-nesw-resize rounded-full' },
+  { id: 'nw', mode: 'resize-crop-nw', className: 'left-0 top-0 h-5 w-5 -translate-x-1/2 -translate-y-1/2 cursor-nwse-resize rounded-full' },
+  { id: 'se', mode: 'resize-crop-se', className: 'right-0 bottom-0 h-5 w-5 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-full' },
+  { id: 'sw', mode: 'resize-crop-sw', className: 'left-0 bottom-0 h-5 w-5 -translate-x-1/2 translate-y-1/2 cursor-nesw-resize rounded-full' },
+];
 
 const BBOX_CORNERS = ['nw', 'ne', 'se', 'sw'] as const;
 
@@ -669,6 +725,55 @@ export default function StepScreenEditor({
     const dPctY = p.pctY - session.startPctY;
     const snap = session.snapshot;
 
+    if (session.startCropRect) {
+      const start = session.startCropRect;
+      let next = { ...start };
+      switch (session.mode) {
+        case 'move-crop':
+          next.x = start.x + dPctX;
+          next.y = start.y + dPctY;
+          break;
+        case 'resize-crop-e':
+          next.width = start.width + dPctX;
+          break;
+        case 'resize-crop-w':
+          next.x = start.x + dPctX;
+          next.width = start.width - dPctX;
+          break;
+        case 'resize-crop-s':
+          next.height = start.height + dPctY;
+          break;
+        case 'resize-crop-n':
+          next.y = start.y + dPctY;
+          next.height = start.height - dPctY;
+          break;
+        case 'resize-crop-se':
+          next.width = start.width + dPctX;
+          next.height = start.height + dPctY;
+          break;
+        case 'resize-crop-sw':
+          next.x = start.x + dPctX;
+          next.width = start.width - dPctX;
+          next.height = start.height + dPctY;
+          break;
+        case 'resize-crop-ne':
+          next.y = start.y + dPctY;
+          next.width = start.width + dPctX;
+          next.height = start.height - dPctY;
+          break;
+        case 'resize-crop-nw':
+          next.x = start.x + dPctX;
+          next.y = start.y + dPctY;
+          next.width = start.width - dPctX;
+          next.height = start.height - dPctY;
+          break;
+        default:
+          return;
+      }
+      setCropRect(clampCropRect(next));
+      return;
+    }
+
     if (session.mode === 'create-circle') {
       const dx = p.x - session.startX;
       const dy = p.y - session.startY;
@@ -891,11 +996,16 @@ export default function StepScreenEditor({
         }
       }
 
+      if (mode === 'move-crop' || mode.startsWith('resize-crop-')) {
+        if (!cropRect) return;
+        session.startCropRect = { ...cropRect };
+      }
+
       dragSessionRef.current = session;
       setIsDragging(true);
       if (sel) setSelection(sel);
     },
-    [localAnn, localMasks, pointInOverlay],
+    [localAnn, localMasks, pointInOverlay, cropRect],
   );
 
   useEffect(() => {
@@ -956,8 +1066,22 @@ export default function StepScreenEditor({
     }
 
     setSelection(null);
-    if (tool === 'crop') startDrag('create-crop', e, null);
-    else if (tool === 'circle') startDrag('create-circle', e, null);
+    if (tool === 'crop') {
+      if (cropRect) {
+        const inside =
+          p.pctX >= cropRect.x &&
+          p.pctX <= cropRect.x + cropRect.width &&
+          p.pctY >= cropRect.y &&
+          p.pctY <= cropRect.y + cropRect.height;
+        if (inside) {
+          startDrag('move-crop', e, null);
+          return;
+        }
+      }
+      startDrag('create-crop', e, null);
+      return;
+    }
+    if (tool === 'circle') startDrag('create-circle', e, null);
     else if (tool === 'arrow') startDrag('create-arrow', e, null);
     else startDrag('create-mask', e, null, maskTypeFromTool());
   };
@@ -1571,6 +1695,9 @@ export default function StepScreenEditor({
             onClick={() => {
               setTool(t.id);
               if (t.id !== 'select') setSelection(null);
+              if (t.id === 'crop' && !cropRect) {
+                setCropRect({ x: 0, y: 0, width: 100, height: 100 });
+              }
             }}
             className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold ${
               tool === t.id ? 'bg-primary-500 text-white' : 'bg-slate-800 text-slate-200 hover:bg-slate-700'
@@ -1608,7 +1735,29 @@ export default function StepScreenEditor({
             トリミング解除
           </button>
         )}
-        <span className="text-slate-500">トリミングは範囲をドラッグ → 保存で反映</span>
+        {tool === 'crop' && cropRect && (
+          <>
+            <button
+              type="button"
+              onClick={() => setCropRect((r) => (r ? shrinkCropSides(r, 5) : r))}
+              className="rounded-lg border border-slate-600 px-2 py-1 font-semibold hover:bg-slate-800"
+            >
+              四辺5%削る
+            </button>
+            <button
+              type="button"
+              onClick={() => setCropRect(centerCropSize(90))}
+              className="rounded-lg border border-slate-600 px-2 py-1 font-semibold hover:bg-slate-800"
+            >
+              中央90%
+            </button>
+          </>
+        )}
+        <span className="text-slate-500">
+          {tool === 'crop'
+            ? '暗い部分が削除されます。枠の●をドラッグして調整 → 保存で反映'
+            : 'トリミングツールで範囲を指定できます'}
+        </span>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 border-b border-slate-700 bg-slate-900/50 px-4 py-2">
@@ -1946,13 +2095,87 @@ export default function StepScreenEditor({
 
       <div className="flex flex-1 items-center justify-center overflow-auto p-4">
         <div className="relative max-h-full max-w-[min(100%,1400px)]">
-          <img src={screenshotUrl} alt="" className="block max-h-[calc(100vh-180px)] w-auto max-w-full select-none" draggable={false} />
+          <img
+            src={screenshotUrl}
+            alt=""
+            className="block max-h-[calc(100vh-180px)] w-auto max-w-full select-none"
+            draggable={false}
+            style={cropRect && tool === 'crop' ? { clipPath: cropInsetClipPath(cropRect) } : undefined}
+          />
           <div
             ref={overlayRef}
-            className={`absolute inset-0 touch-none select-none ${tool === 'select' && !isDragging ? 'cursor-default' : 'cursor-crosshair'}`}
+            className={`absolute inset-0 touch-none select-none ${tool === 'select' && !isDragging ? 'cursor-default' : tool === 'crop' ? 'cursor-crosshair' : 'cursor-crosshair'}`}
             style={{ touchAction: 'none' }}
             onPointerDown={onOverlayPointerDown}
           >
+            {tool === 'crop' && cropRect && (
+              <>
+                <div
+                  className="absolute left-0 right-0 top-0 z-10 bg-black/50"
+                  style={{ height: `${cropRect.y}%` }}
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    startDrag('create-crop', e, null);
+                  }}
+                />
+                <div
+                  className="absolute left-0 right-0 z-10 bg-black/50"
+                  style={{ top: `${cropRect.y + cropRect.height}%`, bottom: 0 }}
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    startDrag('create-crop', e, null);
+                  }}
+                />
+                <div
+                  className="absolute z-10 bg-black/50"
+                  style={{ left: 0, top: `${cropRect.y}%`, width: `${cropRect.x}%`, height: `${cropRect.height}%` }}
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    startDrag('create-crop', e, null);
+                  }}
+                />
+                <div
+                  className="absolute z-10 bg-black/50"
+                  style={{
+                    left: `${cropRect.x + cropRect.width}%`,
+                    top: `${cropRect.y}%`,
+                    right: 0,
+                    height: `${cropRect.height}%`,
+                  }}
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    startDrag('create-crop', e, null);
+                  }}
+                />
+                <div
+                  className="absolute z-20 border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,0.5)]"
+                  style={{
+                    left: `${cropRect.x}%`,
+                    top: `${cropRect.y}%`,
+                    width: `${cropRect.width}%`,
+                    height: `${cropRect.height}%`,
+                  }}
+                  onPointerDown={(e) => {
+                    if ((e.target as HTMLElement).closest('[data-crop-handle]')) return;
+                    e.stopPropagation();
+                    startDrag('move-crop', e, null);
+                  }}
+                >
+                  <div className="pointer-events-none absolute inset-0 border border-dashed border-white/70" />
+                  {CROP_HANDLES.map((h) => (
+                    <div
+                      key={h.id}
+                      data-crop-handle
+                      className={`absolute z-30 bg-primary-500 shadow ring-2 ring-white ${h.className}`}
+                      onPointerDown={(e) => {
+                        e.stopPropagation();
+                        startDrag(h.mode, e, null);
+                      }}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
             {localMasks.map(renderMask)}
             {renderSvgAnnotations()}
             {localAnn.filter((a) => a.kind === 'circle').map(renderCircleInteractive)}

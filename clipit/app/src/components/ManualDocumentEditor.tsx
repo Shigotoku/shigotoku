@@ -62,6 +62,7 @@ export default function ManualDocumentEditor({
       pageTitle: '',
       pageUrl: '',
       elementText: '',
+      uiLayoutId: manual.uiLayoutId,
       imageWidthPct: layoutFields.imageWidthPct,
       imageAlign: layoutFields.imageAlign,
     });
@@ -83,7 +84,7 @@ export default function ManualDocumentEditor({
   );
 
   return (
-    <div className="mx-auto max-w-3xl px-4 pb-20 pt-2">
+    <div className="mx-auto w-full max-w-[min(100%,1200px)] px-4 pb-20 pt-2 lg:px-6">
       <article className="rounded-2xl border border-slate-200 bg-white px-6 py-8 shadow-sm">
         <h1 className="text-xl font-bold text-slate-900">{displayTitle}</h1>
         {manual.description && <p className="mt-2 whitespace-pre-wrap text-sm text-slate-500">{manual.description}</p>}
@@ -124,13 +125,14 @@ export default function ManualDocumentEditor({
             )}
           </div>
         ) : (
-          <div className="mt-8 space-y-2">
+          <div className="mt-8" style={{ display: 'flex', flexDirection: 'column', gap: manual.stepSpacingPx ?? 8 }}>
             <InsertButton position={1} label="先頭に手順を挿入" />
             {steps.map((step, i) => (
               <div key={step.id}>
                 <StepDocumentBlock
                   step={step}
                   index={i}
+                  manualLayoutId={manual.uiLayoutId}
                   onPatch={(patch) => patchStep(step.id, patch)}
                   onOpenDetail={() => onOpenDetail(step.id)}
                   readOnly={demo}

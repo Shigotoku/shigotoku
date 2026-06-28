@@ -130,6 +130,32 @@ export function appendLayoutQuery(path: string, layoutId: UiLayoutId): string {
   return `${path}${sep}layout=${encodeURIComponent(layoutId)}`;
 }
 
+/** 手順が参照する UI ひな型（手順個別 → マニュアル既定 → 標準） */
+export function resolveStepUiLayoutId(
+  step: Pick<ManualStep, 'uiLayoutId' | 'imageWidthPct' | 'imageAlign'>,
+  manualLayoutId?: string | null,
+): UiLayoutId {
+  if (step.uiLayoutId && UI_LAYOUT_TEMPLATES.some((t) => t.id === step.uiLayoutId)) {
+    return step.uiLayoutId as UiLayoutId;
+  }
+  if (manualLayoutId && UI_LAYOUT_TEMPLATES.some((t) => t.id === manualLayoutId)) {
+    return manualLayoutId as UiLayoutId;
+  }
+  return DEFAULT_UI_LAYOUT_ID;
+}
+
+/** 手順1件へ UI ひな型を適用するパッチ */
+export function applyStepUiLayout(
+  layoutId: UiLayoutId,
+  existing?: Partial<ManualStep>,
+  options?: { forceLayout?: boolean },
+): Pick<ManualStep, 'uiLayoutId' | 'imageWidthPct' | 'imageAlign' | 'textBeforeImage' | 'note' | 'type'> {
+  return {
+    uiLayoutId: layoutId,
+    ...stepFieldsFromLayout(layoutId, existing, options),
+  };
+}
+
 /** 新規手順・既存手順へ UI ひな型の配置を適用（内容テンプレートの文言は維持） */
 export function stepFieldsFromLayout(
   layoutId: UiLayoutId | string | undefined,

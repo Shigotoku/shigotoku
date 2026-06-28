@@ -7,6 +7,7 @@ import ManualStepDetailPanel from "../components/ManualStepDetailPanel";
 import EditNextStepsBanner from "../components/EditNextStepsBanner";
 import IngestedBanner from "../components/IngestedBanner";
 import EditToolboxRow from "../components/EditToolboxRow";
+import CollapsibleEditSection from "../components/CollapsibleEditSection";
 import {
   applyUiLayoutToSteps,
   deleteManual,
@@ -192,6 +193,7 @@ export default function ManualEditPage() {
       pageTitle: "",
       pageUrl: "",
       elementText: "",
+      uiLayoutId: manual?.uiLayoutId,
       imageWidthPct: layoutFields.imageWidthPct,
       imageAlign: layoutFields.imageAlign,
     });
@@ -352,23 +354,25 @@ export default function ManualEditPage() {
       />
 
       {id && !id.startsWith("demo") && manual.uiLayoutId && !inDetail && (
-        <div className="mx-6 mb-4 rounded-xl border border-slate-200 bg-white p-4">
+        <CollapsibleEditSection
+          storageKey="clipit-edit-section-layout"
+          title="UIのひな型（全手順に一括）"
+          subtitle={`現在: ${getUiLayoutTemplate(manual.uiLayoutId).name}`}
+          defaultOpen
+        >
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <p className="text-sm font-bold text-slate-900">UIのひな型（レイアウト）</p>
-              <p className="text-xs text-slate-500">
-                現在: {getUiLayoutTemplate(manual.uiLayoutId).name}
-                {layoutBusy && " · 適用中…"}
-              </p>
-            </div>
-            <p className="text-[11px] text-slate-400">変更すると全手順の画像配置・注意欄の型が更新されます</p>
+            <p className="text-xs text-slate-500">
+              現在: {getUiLayoutTemplate(manual.uiLayoutId).name}
+              {layoutBusy && " · 適用中…"}
+            </p>
+            <p className="text-[11px] text-slate-400">全手順に一括適用します。手順ごとの個別設定は上書きされます</p>
           </div>
           <UiLayoutPicker
             value={(manual.uiLayoutId as UiLayoutId) ?? "standard-vertical"}
             onChange={(next) => void changeUiLayout(next)}
             compact
           />
-        </div>
+        </CollapsibleEditSection>
       )}
 
       {id && !id.startsWith("demo") && <EditNextStepsBanner manualId={id} stepCount={steps.length} />}
@@ -411,21 +415,52 @@ export default function ManualEditPage() {
       )}
 
       {manual && !inDetail && (
-        <EditToolboxRow
-          manual={manual}
-          steps={steps}
-          extSynced={extSynced}
-          extInstalled={extInstalled}
-          extMsg={extMsg}
-          polishVoiceWithAi={polishVoiceWithAi}
-          generateAllWithAi={generateAllWithAi}
-          aiBusy={aiBusy}
-          onExtensionSync={handleExtensionSync}
-          onPolishVoiceChange={setPolishVoiceWithAi}
-          onGenerateAllWithAiChange={setGenerateAllWithAi}
-          onAiAll={handleAiAll}
-          showExtension={Boolean(id && !id.startsWith("demo"))}
-        />
+        <CollapsibleEditSection
+          storageKey="clipit-edit-section-toolbox"
+          title="健康診断・確認テスト・拡張・音声メモ"
+          subtitle="折りたたんで編集スペースを広くできます"
+          defaultOpen={false}
+        >
+          <EditToolboxRow
+            manual={manual}
+            steps={steps}
+            extSynced={extSynced}
+            extInstalled={extInstalled}
+            extMsg={extMsg}
+            polishVoiceWithAi={polishVoiceWithAi}
+            generateAllWithAi={generateAllWithAi}
+            aiBusy={aiBusy}
+            onExtensionSync={handleExtensionSync}
+            onPolishVoiceChange={setPolishVoiceWithAi}
+            onGenerateAllWithAiChange={setGenerateAllWithAi}
+            onAiAll={handleAiAll}
+            showExtension={Boolean(id && !id.startsWith("demo"))}
+            embedded
+          />
+        </CollapsibleEditSection>
+      )}
+
+      {manual && !inDetail && id && !id.startsWith("demo") && (
+        <div className="mx-6 mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5">
+          <span className="text-xs font-semibold text-slate-700">手順の間隔</span>
+          {[0, 8, 16, 24, 32, 48, 64].map((px) => (
+            <button
+              key={px}
+              type="button"
+              onClick={async () => {
+                await updateManual(id, { stepSpacingPx: px });
+                setManual({ ...manual, stepSpacingPx: px });
+              }}
+              className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${
+                (manual.stepSpacingPx ?? 8) === px
+                  ? "bg-primary-500 text-white"
+                  : "border border-slate-300 bg-white text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              {px === 0 ? "なし" : `${px}px`}
+            </button>
+          ))}
+        </div>
       )}
 
       {inDetail && detailStepId ? (

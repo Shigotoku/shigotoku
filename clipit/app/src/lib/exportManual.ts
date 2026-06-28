@@ -9,6 +9,7 @@ const EMBED_MAX_WIDTH_PX = 2000;
 export interface ManualExportOptions {
   description?: string;
   tocEnabled?: boolean;
+  stepSpacingPx?: number;
 }
 
 function escapeHtml(s: string): string {
@@ -228,13 +229,14 @@ async function buildStepPartsWord(steps: ManualStep[]): Promise<string[]> {
   return parts;
 }
 
-async function buildStepPartsHtml(steps: ManualStep[]): Promise<string[]> {
+async function buildStepPartsHtml(steps: ManualStep[], stepSpacingPx = 8): Promise<string[]> {
   const sorted = [...steps].sort((a, b) => a.order - b.order);
+  const marginPt = Math.round(stepSpacingPx * 0.75);
   const parts: string[] = [];
   for (let i = 0; i < sorted.length; i++) {
     const inner = await buildSingleStepContent(sorted[i]!, i + 1, false);
     parts.push(
-      `<section class="step" id="${stepAnchorId(sorted[i]!.order)}" style="page-break-inside:avoid;margin-bottom:6pt">${inner.join('\n')}</section>`,
+      `<section class="step" id="${stepAnchorId(sorted[i]!.order)}" style="page-break-inside:avoid;margin-bottom:${marginPt}pt">${inner.join('\n')}</section>`,
     );
   }
   return parts;
@@ -283,7 +285,7 @@ export async function buildPreviewHtml(
   steps: ManualStep[],
   options: ManualExportOptions = {},
 ): Promise<string> {
-  const stepParts = await buildStepPartsHtml(steps);
+  const stepParts = await buildStepPartsHtml(steps, options.stepSpacingPx ?? 8);
   const header = [
     descriptionBlock(options.description, false),
     options.tocEnabled ? buildTocBlock(steps, false) : '',

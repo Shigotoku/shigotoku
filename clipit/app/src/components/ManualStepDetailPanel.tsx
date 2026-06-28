@@ -4,6 +4,7 @@ import { useEditLayoutColumns, ResizeGutter } from '../hooks/useEditLayoutColumn
 import { useStepDraft } from '../hooks/useStepDraft';
 import StepScreenshotPreview from './StepScreenshotPreview';
 import StepScreenEditor from './StepScreenEditor';
+import StepLayoutControls from './StepLayoutControls';
 import VoiceInputButton from './VoiceInputButton';
 import { expandOrgContent } from '../lib/orgContent';
 import type { Manual, ManualStep, StepType } from '../types';
@@ -221,6 +222,28 @@ export default function ManualStepDetailPanel({
               <label className="text-xs font-semibold text-slate-600">手順タイトル</label>
               <input value={draft.title} onChange={(e) => updateDraft({ title: e.target.value })} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
             </div>
+
+            <div>
+              <p className="mb-2 text-xs font-semibold text-slate-600">レイアウト（この手順のみ）</p>
+              <StepLayoutControls
+                step={active}
+                manualLayoutId={manual.uiLayoutId}
+                stacked
+                onPatch={(patch) => void patchStep(active.id, patch)}
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-slate-600">画像の前の説明（任意）</label>
+              <textarea
+                rows={2}
+                value={active.textBeforeImage ?? ''}
+                onChange={(e) => void patchStep(active.id, { textBeforeImage: e.target.value })}
+                placeholder="画像の前・横に入る短い説明"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+            </div>
+
             <div>
               <div className="flex items-center justify-between gap-2">
                 <label className="text-xs font-semibold text-slate-600">説明文</label>

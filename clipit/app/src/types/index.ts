@@ -134,6 +134,8 @@ export interface Manual {
   uiLayoutId?: string;
   /** 冒頭に目次を自動生成する */
   tocEnabled?: boolean;
+  /** 手順と手順の間隔（px・編集・書き出しに反映） */
+  stepSpacingPx?: number;
 }
 
 export interface ManualFolder {
@@ -188,6 +190,8 @@ export interface ManualStep {
   imageAlign?: StepImageAlign;
   /** 画像の前に入る説明文（Word風の流し込み） */
   textBeforeImage?: string;
+  /** 手順ごとの UI ひな型（未設定はマニュアル既定） */
+  uiLayoutId?: string;
   masks?: MaskRect[];
   annotations?: StepAnnotation[];
   /** 画像の表示枠線 */
@@ -215,6 +219,7 @@ export interface ShareStepSnapshot {
   imageWidthPct?: number;
   imageAlign?: StepImageAlign;
   textBeforeImage?: string;
+  uiLayoutId?: string;
 }
 
 export interface ShareTokenDoc {

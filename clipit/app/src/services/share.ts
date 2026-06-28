@@ -65,6 +65,7 @@ export async function publishShareToken(input: {
       imageWidthPct: s.imageWidthPct,
       imageAlign: s.imageAlign,
       textBeforeImage: expand(s.textBeforeImage ?? ''),
+      uiLayoutId: s.uiLayoutId,
     })),
     confirmationVersion,
     expiresAt,
@@ -104,6 +105,7 @@ export async function refreshShareSnapshot(
       imageWidthPct: s.imageWidthPct,
       imageAlign: s.imageAlign,
       textBeforeImage: expand(s.textBeforeImage ?? ''),
+      uiLayoutId: s.uiLayoutId,
     })),
     refreshedAt: serverTimestamp(),
   });
