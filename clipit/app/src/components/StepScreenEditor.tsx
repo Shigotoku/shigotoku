@@ -17,6 +17,7 @@ import {
   ClipboardPaste,
   Layers,
   ChevronRight,
+  Crop,
 } from 'lucide-react';
 import { compositeScreenshot } from '../lib/compositeScreenshot';
 import {
@@ -50,7 +51,7 @@ import {
   templateSummary,
   type ScreenEditorOverlayTemplate,
 } from '../lib/screenEditorTemplate';
-import type { AnnotationFontFamily, MaskRect, MaskStyle, StepAnnotation } from '../types';
+import type { AnnotationFontFamily, ImageCropRect, MaskRect, MaskStyle, StepAnnotation } from '../types';
 
 type Tool =
   | 'select'
@@ -61,7 +62,8 @@ type Tool =
   | 'circle'
   | 'arrow'
   | 'badge'
-  | 'text';
+  | 'text'
+  | 'crop';
 
 const DEFAULT_STROKE_COLOR = '#ef4444';
 const DEFAULT_STROKE_WIDTH = 3;
@@ -73,6 +75,8 @@ export type ScreenEditorSaveResult = {
   masks: MaskRect[];
   annotations: StepAnnotation[];
   screenshotUrl: string;
+  imageBorderColor?: string;
+  imageBorderWidth?: number;
 };
 
 interface Props {
@@ -87,6 +91,8 @@ interface Props {
   nextStepId?: string | null;
   masks: MaskRect[];
   annotations: StepAnnotation[];
+  imageBorderColor?: string;
+  imageBorderWidth?: number;
   onSave: (result: ScreenEditorSaveResult) => void;
   /** 保存後に次の手順の編集を開く */
   onSaveAndNext?: (result: ScreenEditorSaveResult) => void | Promise<void>;
@@ -102,6 +108,7 @@ type EditorSnapshot = { masks: MaskRect[]; annotations: StepAnnotation[] };
 
 type DragMode =
   | 'create-mask'
+  | 'create-crop'
   | 'create-circle'
   | 'create-arrow'
   | 'move-mask'
@@ -278,6 +285,8 @@ export default function StepScreenEditor({
   nextStepId,
   masks,
   annotations,
+  imageBorderColor,
+  imageBorderWidth,
   onSave,
   onSaveAndNext,
   onClose,
@@ -312,6 +321,9 @@ export default function StepScreenEditor({
   const [defaultStrokeColor, setDefaultStrokeColor] = useState(DEFAULT_STROKE_COLOR);
   const [defaultStrokeWidth, setDefaultStrokeWidth] = useState(DEFAULT_STROKE_WIDTH);
   const [carryOverNext, setCarryOverNext] = useState(() => loadCarryOverPreference(manualId));
+  const [cropRect, setCropRect] = useState<ImageCropRect | null>(null);
+  const [borderColor, setBorderColor] = useState(imageBorderColor ?? '#94a3b8');
+  const [borderWidth, setBorderWidth] = useState(imageBorderWidth ?? 0);
   const [hasClipboard, setHasClipboard] = useState(() => {
     const c = loadOverlayClipboard();
     return c != null && !templateIsEmpty(c);
@@ -671,7 +683,7 @@ export default function StepScreenEditor({
       return;
     }
 
-    if (session.mode === 'create-mask') {
+    if (session.mode === 'create-mask' || session.mode === 'create-crop') {
       const x = Math.min(session.startX, p.x);
       const y = Math.min(session.startY, p.y);
       setCurrent({ x, y, w: Math.abs(p.x - session.startX), h: Math.abs(p.y - session.startY) });
@@ -813,6 +825,12 @@ export default function StepScreenEditor({
         applyChange(localMasks, nextAnn);
         setSelection({ kind: 'annotation', id: nextAnn[nextAnn.length - 1]!.id });
       }
+    } else if (session.mode === 'create-crop' && maskDraft && maskDraft.w > 6 && maskDraft.h > 6) {
+      const p = pointInOverlay(session.startX, session.startY);
+      const boxW = p?.boxW ?? box.w;
+      const boxH = p?.boxH ?? box.h;
+      const pct = pxToPercent(maskDraft.x, maskDraft.y, maskDraft.w, maskDraft.h, boxW, boxH);
+      setCropRect(pct);
     } else if (session.mode === 'create-mask' && maskDraft && maskDraft.w > 6 && maskDraft.h > 6) {
       const p = pointInOverlay(session.startX, session.startY);
       const boxW = p?.boxW ?? box.w;
@@ -938,7 +956,8 @@ export default function StepScreenEditor({
     }
 
     setSelection(null);
-    if (tool === 'circle') startDrag('create-circle', e, null);
+    if (tool === 'crop') startDrag('create-crop', e, null);
+    else if (tool === 'circle') startDrag('create-circle', e, null);
     else if (tool === 'arrow') startDrag('create-arrow', e, null);
     else startDrag('create-mask', e, null, maskTypeFromTool());
   };
@@ -1443,10 +1462,20 @@ export default function StepScreenEditor({
         setAutoApplyLayout(manualId, true);
       }
 
-      const blob = await compositeScreenshot(screenshotUrl, localMasks, localAnn);
+      const blob = await compositeScreenshot(screenshotUrl, localMasks, localAnn, 0.9, {
+        crop: cropRect ?? undefined,
+        borderColor: borderWidth > 0 ? borderColor : undefined,
+        borderWidth: borderWidth > 0 ? borderWidth : undefined,
+      });
       const file = new File([blob], 'edited.webp', { type: blob.type || 'image/webp' });
       const newUrl = await uploadStepScreenshot(manualId, stepId, file);
-      const result = { masks: [], annotations: [], screenshotUrl: newUrl };
+      const result: ScreenEditorSaveResult = {
+        masks: [],
+        annotations: [],
+        screenshotUrl: newUrl,
+        imageBorderColor: borderWidth > 0 ? borderColor : '',
+        imageBorderWidth: borderWidth > 0 ? borderWidth : 0,
+      };
 
       if (andNext && onSaveAndNext) {
         await onSaveAndNext(result);
@@ -1471,6 +1500,7 @@ export default function StepScreenEditor({
     { id: 'arrow', label: '矢印', icon: <ArrowRight size={14} /> },
     { id: 'badge', label: '番号', icon: <Hash size={14} /> },
     { id: 'text', label: 'テキスト', icon: <Type size={14} /> },
+    { id: 'crop', label: 'トリミング', icon: <Crop size={14} /> },
   ];
 
   const draftEditorPx = textDisplayPx(textDraftStyle.fontSize, box.w);
@@ -1560,6 +1590,25 @@ export default function StepScreenEditor({
         >
           すべてクリア
         </button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 border-b border-slate-700 bg-slate-900/40 px-4 py-2 text-xs text-slate-200">
+        <span className="font-semibold text-slate-300">画像調整</span>
+        <label className="flex items-center gap-2">
+          枠線色
+          <input type="color" value={borderColor} onChange={(e) => setBorderColor(e.target.value)} className="h-7 w-10 cursor-pointer rounded border-0 bg-transparent" />
+        </label>
+        <label className="flex min-w-[140px] items-center gap-2">
+          枠線太さ
+          <input type="range" min={0} max={12} value={borderWidth} onChange={(e) => setBorderWidth(Number(e.target.value))} className="flex-1 accent-primary-500" />
+          <span className="w-6 tabular-nums">{borderWidth}px</span>
+        </label>
+        {cropRect && (
+          <button type="button" onClick={() => setCropRect(null)} className="rounded-lg border border-slate-600 px-2 py-1 font-semibold hover:bg-slate-800">
+            トリミング解除
+          </button>
+        )}
+        <span className="text-slate-500">トリミングは範囲をドラッグ → 保存で反映</span>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 border-b border-slate-700 bg-slate-900/50 px-4 py-2">

@@ -298,11 +298,15 @@ export default function ManualStepDetailPanel({
                 nextStepId={nextStep?.screenshotUrl ? nextStep.id : null}
                 masks={active.masks ?? []}
                 annotations={active.annotations ?? []}
+                imageBorderColor={active.imageBorderColor}
+                imageBorderWidth={active.imageBorderWidth}
                 onSave={(result) => {
                   void patchStep(active.id, {
                     screenshotUrl: result.screenshotUrl,
                     masks: result.masks,
                     annotations: result.annotations,
+                    imageBorderColor: result.imageBorderColor,
+                    imageBorderWidth: result.imageBorderWidth,
                   });
                   setScreenEditOpen(false);
                 }}
@@ -313,6 +317,8 @@ export default function ManualStepDetailPanel({
                           screenshotUrl: result.screenshotUrl,
                           masks: result.masks,
                           annotations: result.annotations,
+                          imageBorderColor: result.imageBorderColor,
+                          imageBorderWidth: result.imageBorderWidth,
                         });
                         onActiveChange(nextStep.id);
                       }

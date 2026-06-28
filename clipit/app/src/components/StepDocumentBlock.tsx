@@ -1,6 +1,6 @@
 import { AlignCenter, AlignLeft, AlignRight, Settings2 } from 'lucide-react';
 import type { ManualStep, StepImageAlign } from '../types';
-import { IMAGE_WIDTH_MAX, IMAGE_WIDTH_MIN, stepImageAlign, stepImageWidthPct } from '../lib/stepLayout';
+import { IMAGE_WIDTH_MAX, IMAGE_WIDTH_MIN, stepImageAlign, stepImageWidthPct, stepUsesFloatLayout } from '../lib/stepLayout';
 import StepDocumentImage from './StepDocumentImage';
 
 type Props = {
@@ -15,13 +15,14 @@ export default function StepDocumentBlock({ step, index, onPatch, onOpenDetail, 
   const widthPct = stepImageWidthPct(step);
   const align = stepImageAlign(step);
   const hasImage = Boolean(step.screenshotUrl);
-  const sideBySide = hasImage && widthPct < 100;
+  const sideBySide = hasImage && stepUsesFloatLayout(step);
 
   const setAlign = (imageAlign: StepImageAlign) => onPatch({ imageAlign });
 
   return (
     <section
-      className="group relative rounded-xl border border-transparent px-2 py-4 transition-colors hover:border-slate-200 hover:bg-slate-50/50"
+      id={`step-${step.order}`}
+      className="group relative scroll-mt-24 rounded-xl border border-transparent px-2 py-4 transition-colors hover:border-slate-200 hover:bg-slate-50/50"
       onClick={(e) => {
         if (readOnly) return;
         const t = e.target as HTMLElement;

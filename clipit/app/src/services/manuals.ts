@@ -47,6 +47,7 @@ export async function createManual(input: {
   editionLabel?: string;
   folderId?: string | null;
   uiLayoutId?: UiLayoutId;
+  tocEnabled?: boolean;
 }): Promise<string> {
   await assertCanCreateManual(input.organizationId);
   const layout = getUiLayoutTemplate(input.uiLayoutId);
@@ -70,6 +71,7 @@ export async function createManual(input: {
     confirmationVersion: 1,
     folderId: input.folderId ?? null,
     uiLayoutId: layout.id,
+    tocEnabled: input.tocEnabled ?? false,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
@@ -78,7 +80,7 @@ export async function createManual(input: {
 
 export async function updateManual(
   manualId: string,
-  patch: Partial<Pick<Manual, 'title' | 'description' | 'status' | 'workStatus' | 'targetAudience' | 'folderId' | 'uiLayoutId'>>,
+  patch: Partial<Pick<Manual, 'title' | 'description' | 'status' | 'workStatus' | 'targetAudience' | 'folderId' | 'uiLayoutId' | 'tocEnabled'>>,
 ) {
   await updateDoc(doc(db, 'clipit_manuals', manualId), {
     ...patch,

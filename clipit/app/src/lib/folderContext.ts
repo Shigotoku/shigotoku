@@ -11,12 +11,21 @@ export function appendFolderQuery(path: string, folderId: string | null): string
   return `${path}${sep}folder=${encodeURIComponent(folderId)}`;
 }
 
-/** folder + layout クエリを付与 */
-export function appendCreateQuery(path: string, folderId: string | null, layoutId?: string): string {
+/** folder + layout + toc クエリを付与 */
+export function appendCreateQuery(
+  path: string,
+  folderId: string | null,
+  layoutId?: string,
+  tocEnabled?: boolean,
+): string {
   let out = appendFolderQuery(path, folderId);
   if (layoutId) {
     const sep = out.includes('?') ? '&' : '?';
     out = `${out}${sep}layout=${encodeURIComponent(layoutId)}`;
+  }
+  if (tocEnabled) {
+    const sep = out.includes('?') ? '&' : '?';
+    out = `${out}${sep}toc=1`;
   }
   return out;
 }

@@ -1,20 +1,29 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Copy, Download, ExternalLink, Loader2, Printer } from "lucide-react";
 import PageHeader from "../components/PageHeader";
-import StepDocumentBlock from "../components/StepDocumentBlock";
+import ManualExportPreview from "../components/ManualExportPreview";
 import { getManual, listSteps } from "../services/manuals";
 import { buildShareUrl, getLatestShareTokenForManual } from "../services/share";
-import { downloadAsHtml, downloadAsMarkdown, downloadAsPdf, downloadAsWordDoc, formatStepsForClipboard, printWordDocument } from "../lib/exportManual";
+import {
+  downloadAsHtml,
+  downloadAsMarkdown,
+  downloadAsPdf,
+  downloadAsWordDoc,
+  formatStepsForClipboard,
+  printWordDocument,
+  type ManualExportOptions,
+} from "../lib/exportManual";
 import { exportToGoogleDocsForCurrentUser } from "../lib/exportGoogleDoc";
 import { fetchManualExportImages } from "../services/exportApi";
 import { setExportImageCache } from "../lib/imageDataUrl";
-import type { ManualStep } from "../types";
+import type { Manual, ManualStep } from "../types";
 
 type FallbackDownload = { label: string; url: string; filename: string };
 
 export default function ManualPreviewPage() {
   const { id } = useParams<{ id: string }>();
+  const [manual, setManual] = useState<Manual | null>(null);
   const [title, setTitle] = useState("");
   const [steps, setSteps] = useState<ManualStep[]>([]);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
@@ -26,6 +35,14 @@ export default function ManualPreviewPage() {
   const [fallbackDownload, setFallbackDownload] = useState<FallbackDownload | null>(null);
   const [copied, setCopied] = useState(false);
 
+  const exportOptions: ManualExportOptions = useMemo(
+    () => ({
+      description: manual?.description,
+      tocEnabled: manual?.tocEnabled,
+    }),
+    [manual?.description, manual?.tocEnabled],
+  );
+
   useEffect(() => {
     if (!id) return;
     (async () => {
@@ -34,8 +51,13 @@ export default function ManualPreviewPage() {
         setLoading(false);
         return;
       }
+      setManual(m);
       setTitle(m.title);
-      setSteps(await listSteps(id));
+      const loadedSteps = await listSteps(id);
+      setSteps(loadedSteps);
+      if (loadedSteps.some((s) => s.screenshotUrl)) {
+        setExportImageCache(await fetchManualExportImages(id));
+      }
       const token = await getLatestShareTokenForManual(id);
       if (token) setShareUrl(buildShareUrl(token));
       setLoading(false);
@@ -57,11 +79,11 @@ export default function ManualPreviewPage() {
         setExportImageCache(await fetchManualExportImages(id));
       }
       if (kind === "word") {
-        const { filename, fallbackUrl } = await downloadAsWordDoc(title, steps);
+        const { filename, fallbackUrl } = await downloadAsWordDoc(title, steps, exportOptions);
         setExportOk(`Wordファイル（${filename}）のダウンロードを開始しました。`);
         setFallbackDownload({ label: "Wordを再度ダウンロード", url: fallbackUrl, filename });
       } else if (kind === "html") {
-        const { filename, fallbackUrl } = await downloadAsHtml(title, steps);
+        const { filename, fallbackUrl } = await downloadAsHtml(title, steps, exportOptions);
         setExportOk(`HTMLファイル（${filename}）のダウンロードを開始しました。`);
         setFallbackDownload({ label: "HTMLを再度ダウンロード", url: fallbackUrl, filename });
       } else if (kind === "markdown") {
@@ -69,7 +91,7 @@ export default function ManualPreviewPage() {
         setExportOk(`Markdownファイル（${filename}）のダウンロードを開始しました。`);
         setFallbackDownload({ label: "Markdownを再度ダウンロード", url: fallbackUrl, filename });
       } else if (kind === "gdoc") {
-        const url = await exportToGoogleDocsForCurrentUser(title, steps);
+        const url = await exportToGoogleDocsForCurrentUser(title, steps, exportOptions);
         const opened = window.open(url, "_blank", "noopener");
         if (!opened) {
           setExportOk("Googleドキュメントを作成しました。下のリンクから開いてください。");
@@ -78,7 +100,7 @@ export default function ManualPreviewPage() {
           setExportOk("Googleドキュメントを新しいタブで開きました。");
         }
       } else if (kind === "pdf") {
-        const { filename } = await downloadAsPdf(title, steps);
+        const { filename } = await downloadAsPdf(title, steps, exportOptions);
         setExportOk(`PDFファイル（${filename}）のダウンロードを開始しました。`);
       }
     } catch (e) {
@@ -101,7 +123,7 @@ export default function ManualPreviewPage() {
       if (id) {
         setExportImageCache(await fetchManualExportImages(id));
       }
-      await printWordDocument(title, steps);
+      await printWordDocument(title, steps, exportOptions);
     } catch (e) {
       setExportError(e instanceof Error ? e.message : "印刷の準備に失敗しました");
     } finally {
@@ -118,13 +140,11 @@ export default function ManualPreviewPage() {
     );
   }
 
-  const sorted = [...steps].sort((a, b) => a.order - b.order);
-
   return (
     <>
       <PageHeader
         title="プレビュー"
-        description="完成イメージの確認・印刷・Word/Googleドキュメントへの書き出し"
+        description="Word/HTML と同じ見た目で確認できます"
         action={
           <div className="flex flex-wrap gap-2">
             <Link
@@ -150,7 +170,7 @@ export default function ManualPreviewPage() {
         }
       />
 
-      <div className="mx-auto max-w-2xl px-6 pb-16">
+      <div className="mx-auto max-w-4xl px-6 pb-16">
         <div className="no-print mb-6 space-y-3 rounded-xl border border-slate-200 bg-white p-4">
           <div className="flex flex-wrap gap-2">
             <button
@@ -219,20 +239,8 @@ export default function ManualPreviewPage() {
             </button>
           </div>
           <p className="text-[11px] text-slate-500">
-            Googleドキュメント: ログイン中の Google アカウントの Drive に新規ドキュメントを作成します（初回は Drive
-            へのアクセス許可が必要です）。
+            下のプレビューは Word / HTML エクスポートと同じレイアウトです。
           </p>
-          <details className="rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2 text-[11px] text-amber-950">
-            <summary className="cursor-pointer font-semibold">「安全ではない」と表示される場合</summary>
-            <p className="mt-2 leading-relaxed">
-              クリッピットは Google のアプリ審査（本番公開）前のテスト段階です。警告画面では画面左下の
-              <strong>「詳細」</strong>
-              を開き、
-              <strong>「クリッピット（安全ではないページ）に移動」</strong>
-              を選んでから「許可」を押してください。社内利用では Google Cloud の OAuth 同意画面で利用する Gmail
-              を「テストユーザー」に追加しておくとスムーズです。本番公開後はこの警告は出なくなります。
-            </p>
-          </details>
           {exportOk && <p className="text-xs text-success-700">{exportOk}</p>}
           {fallbackDownload && (
             <a
@@ -258,23 +266,7 @@ export default function ManualPreviewPage() {
           </p>
         )}
 
-        <article className="shared-manual rounded-2xl border border-slate-200 bg-white px-6 py-8 print:border-0">
-          <h1 className="text-xl font-bold text-slate-900">{title}</h1>
-          <p className="mt-1 text-xs text-slate-400">{sorted.length} 手順</p>
-          <div className="mt-8 space-y-6">
-            {sorted.map((s, i) => (
-              <div key={s.id} className="break-inside-avoid">
-                <StepDocumentBlock
-                  step={s}
-                  index={i}
-                  onPatch={() => {}}
-                  onOpenDetail={() => {}}
-                  readOnly
-                />
-              </div>
-            ))}
-          </div>
-        </article>
+        <ManualExportPreview title={title} steps={steps} options={exportOptions} />
       </div>
     </>
   );

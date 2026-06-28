@@ -1,4 +1,4 @@
-import type { MaskRect, MaskStyle, StepAnnotation } from '../types';
+import type { ImageCropRect, MaskRect, MaskStyle, StepAnnotation } from '../types';
 import { fontFamilyCss, textCompositePx, textStyleOf } from './annotationTextStyle';
 import { loadImageFromSrc, resolveImageDataUrl } from './imageDataUrl';
 
@@ -199,6 +199,11 @@ export async function compositeScreenshot(
   masks: MaskRect[],
   annotations: StepAnnotation[],
   quality = 0.9,
+  options?: {
+    crop?: ImageCropRect;
+    borderColor?: string;
+    borderWidth?: number;
+  },
 ): Promise<Blob> {
   const dataUrl = await resolveImageDataUrl(screenshotUrl);
   const img = await loadImageFromSrc(dataUrl);
@@ -212,5 +217,37 @@ export async function compositeScreenshot(
   ctx.drawImage(img, 0, 0);
   for (const m of masks) drawMask(ctx, m, w, h);
   for (const a of annotations) drawAnnotation(ctx, a, w, h);
-  return canvasToBlob(canvas, quality);
+
+  let outCanvas = canvas;
+  if (options?.crop && options.crop.width > 1 && options.crop.height > 1) {
+    const c = options.crop;
+    const sx = Math.round((c.x / 100) * w);
+    const sy = Math.round((c.y / 100) * h);
+    const sw = Math.round((c.width / 100) * w);
+    const sh = Math.round((c.height / 100) * h);
+    const cropped = document.createElement('canvas');
+    cropped.width = Math.max(1, sw);
+    cropped.height = Math.max(1, sh);
+    const cctx = cropped.getContext('2d');
+    if (cctx) {
+      cctx.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
+      outCanvas = cropped;
+    }
+  }
+
+  const bw = options?.borderWidth ?? 0;
+  if (bw > 0 && options?.borderColor) {
+    const bordered = document.createElement('canvas');
+    bordered.width = outCanvas.width + bw * 2;
+    bordered.height = outCanvas.height + bw * 2;
+    const bctx = bordered.getContext('2d');
+    if (bctx) {
+      bctx.fillStyle = options.borderColor;
+      bctx.fillRect(0, 0, bordered.width, bordered.height);
+      bctx.drawImage(outCanvas, bw, bw);
+      outCanvas = bordered;
+    }
+  }
+
+  return canvasToBlob(outCanvas, quality);
 }

@@ -1,10 +1,15 @@
 import type { ManualStep } from '../types';
 import { loadImageFromSrc, resolveImageDataUrl } from './imageDataUrl';
+import { buildTocItems, stepAnchorId } from './manualToc';
+import { stepImageAlign, stepImageWidthPct, stepUsesFloatLayout } from './stepLayout';
 
-/** Word / 印刷 / PDF 本文の表示幅（px @96dpi ≒ A4 本文） */
-const WORD_IMG_WIDTH_PX = 650;
-/** 埋め込み画像の最大ピクセル幅（高画質 HTML 用） */
+const WORD_BODY_WIDTH_PX = 650;
 const EMBED_MAX_WIDTH_PX = 2000;
+
+export interface ManualExportOptions {
+  description?: string;
+  tocEnabled?: boolean;
+}
 
 function escapeHtml(s: string): string {
   return s
@@ -32,7 +37,6 @@ function safeFilename(title: string) {
   return title.replace(/[\\/:*?"<>|]/g, '_').slice(0, 80) || 'manual';
 }
 
-/** エクスポート用にリサイズして JPEG 化 */
 async function prepareEmbedImage(
   src: string,
   displayWidth: number,
@@ -69,112 +73,183 @@ async function prepareEmbedImage(
   }
 }
 
-function wordImageParagraph(dataUrl: string, widthPx: number, heightPx: number): string {
-  return `<p class=MsoNormal align=center style='margin:6pt 0;text-align:center;line-height:normal'>
-<span style='mso-no-proof:yes'><img width="${widthPx}" height="${heightPx}" src="${dataUrl}" alt="screenshot" style="width:${widthPx}px;height:${heightPx}px;display:block;margin:0 auto;"/></span></p>`;
+function imageBorderStyle(step: ManualStep): string {
+  const w = step.imageBorderWidth ?? 0;
+  if (w <= 0) return '';
+  const c = step.imageBorderColor || '#94a3b8';
+  return `border:${w}px solid ${c};`;
 }
 
-function htmlImageBlock(dataUrl: string, widthPx: number, heightPx: number): string {
+function stepDisplayWidthPx(step: ManualStep, bodyWidth = WORD_BODY_WIDTH_PX): number {
+  return Math.round(bodyWidth * (stepImageWidthPct(step) / 100));
+}
+
+function buildTocBlock(steps: ManualStep[], word = false): string {
+  const items = buildTocItems(steps);
+  if (!items.length) return '';
+  const lines = items.map(
+    (item) =>
+      word
+        ? `<p class=MsoNormal style='margin:2pt 0'><a href="#${item.anchor}">${item.order}. ${escapeHtml(item.title)}</a></p>`
+        : `<li style="margin:4pt 0"><a href="#${item.anchor}" style="color:#c2410c;text-decoration:none">${item.order}. ${escapeHtml(item.title)}</a></li>`,
+  );
+  if (word) {
+    return `<p class=MsoNormal style='margin:12pt 0 6pt'><b><span style='font-size:13pt'>目次</span></b></p>${lines.join('\n')}<p class=MsoNormal style='margin:12pt 0'>&nbsp;</p>`;
+  }
+  return `<nav class="toc" style="margin:12pt 0 18pt;padding:10pt 12pt;background:#f8fafc;border:1pt solid #e2e8f0;border-radius:4pt"><p style="margin:0 0 8pt;font-weight:bold;font-size:13pt">目次</p><ol style="margin:0;padding-left:18pt">${lines.join('\n')}</ol></nav>`;
+}
+
+function descriptionBlock(description: string | undefined, word = false): string {
+  if (!description?.trim()) return '';
+  const body = escapeHtml(description.trim()).replace(/\n/g, '<br/>');
+  if (word) {
+    return `<p class=MsoNormal style='margin:0 0 14pt;line-height:1.6'>${body}</p>`;
+  }
+  return `<div class="manual-description" style="margin:0 0 14pt;line-height:1.6">${body}</div>`;
+}
+
+function wordImageParagraph(dataUrl: string, widthPx: number, heightPx: number, borderStyle = ''): string {
+  const style = borderStyle
+    ? `${borderStyle}width:${widthPx}px;height:${heightPx}px;display:block;margin:0 auto;`
+    : `width:${widthPx}px;height:${heightPx}px;display:block;margin:0 auto;`;
+  return `<p class=MsoNormal align=center style='margin:6pt 0;text-align:center;line-height:normal'>
+<span style='mso-no-proof:yes'><img width="${widthPx}" height="${heightPx}" src="${dataUrl}" alt="screenshot" style="${style}"/></span></p>`;
+}
+
+function htmlImageBlock(dataUrl: string, widthPx: number, heightPx: number, borderStyle = ''): string {
+  const extra = borderStyle ? `${borderStyle}box-sizing:border-box;` : '';
   return `<p class="step-image" style="margin:6pt 0;text-align:center;line-height:0">
-<img src="${dataUrl}" width="${widthPx}" height="${heightPx}" alt="screenshot" style="display:block;width:${widthPx}px;max-width:100%;height:auto;margin:0 auto"/>
+<img src="${dataUrl}" width="${widthPx}" height="${heightPx}" alt="screenshot" style="display:block;width:${widthPx}px;max-width:100%;height:auto;margin:0 auto;${extra}"/>
 </p>`;
 }
 
-/** Word の自動番号リスト（黒丸）を避けるため h2 ではなく段落＋太字で見出しを付ける */
-function stepTitleWord(n: number, title: string): string {
-  return `<p class=MsoNormal style='margin:14pt 0 6pt;page-break-after:avoid;mso-outline-level:body-text'>
+function stepTitleWord(n: number, title: string, anchor: string): string {
+  return `<p id="${anchor}" class=MsoNormal style='margin:14pt 0 6pt;page-break-after:avoid'>
 <b><span style='font-size:14pt;color:#c2410c'>${n}. ${escapeHtml(title)}</span></b></p>`;
 }
 
-function stepTitleHtml(n: number, title: string): string {
-  return `<p class="step-title" style="margin:14pt 0 6pt;font-weight:bold;font-size:14pt;color:#c2410c">${n}. ${escapeHtml(title)}</p>`;
+function stepTitleHtml(n: number, title: string, anchor: string): string {
+  return `<p id="${anchor}" class="step-title" style="margin:14pt 0 6pt;font-weight:bold;font-size:14pt;color:#c2410c">${n}. ${escapeHtml(title)}</p>`;
 }
 
-async function buildStepPartsWord(steps: ManualStep[], imgWidthPx: number): Promise<string[]> {
-  const sorted = [...steps].sort((a, b) => a.order - b.order);
-  const parts: string[] = [];
+function warningBanner(text: string, word: boolean): string {
+  if (word) {
+    return `<p class=MsoNormal align=center style='margin:0 0 6pt;text-align:center;background:#f59e0b;color:white;padding:4pt;font-weight:bold'>${escapeHtml(text)}</p>`;
+  }
+  return `<p style="margin:0 0 6pt;text-align:center;background:#f59e0b;color:white;padding:4pt 8pt;font-weight:bold;border-radius:4pt">${escapeHtml(text)}</p>`;
+}
 
-  for (let i = 0; i < sorted.length; i++) {
-    const s = sorted[i]!;
-    const n = i + 1;
-    const stepTitle = s.title || `手順 ${n}`;
+async function renderStepImage(step: ManualStep, imgWidthPx: number, word: boolean): Promise<string> {
+  if (!step.screenshotUrl) return '';
+  const borderStyle = imageBorderStyle(step);
+  try {
+    const { dataUrl, w, h } = await prepareEmbedImage(step.screenshotUrl, imgWidthPx);
+    return word ? wordImageParagraph(dataUrl, w, h, borderStyle) : htmlImageBlock(dataUrl, w, h, borderStyle);
+  } catch {
+    const link = `<a href="${escapeHtml(step.screenshotUrl)}">画像を表示</a>`;
+    return word ? `<p class=MsoNormal>${link}</p>` : `<p>${link}</p>`;
+  }
+}
 
-    parts.push(stepTitleWord(n, stepTitle));
+async function buildSingleStepContent(s: ManualStep, n: number, word: boolean): Promise<string[]> {
+  const stepTitle = s.title || `手順 ${n}`;
+  const anchor = stepAnchorId(s.order);
+  const parts: string[] = [word ? stepTitleWord(n, stepTitle, anchor) : stepTitleHtml(n, stepTitle, anchor)];
 
-    if (s.textBeforeImage) {
+  if (s.type === 'warning') parts.push(warningBanner('注意が必要な手順', word));
+  if (s.type === 'ng_example') parts.push(warningBanner('NG例 — この操作はしないでください', word));
+
+  if (s.textBeforeImage) {
+    parts.push(
+      word
+        ? `<p class=MsoNormal style='margin:0 0 8pt'>${escapeHtml(s.textBeforeImage).replace(/\n/g, '<br/>')}</p>`
+        : `<p style="margin:0 0 8pt">${escapeHtml(s.textBeforeImage).replace(/\n/g, '<br/>')}</p>`,
+    );
+  }
+
+  const imgW = stepDisplayWidthPx(s);
+  const sideBySide = Boolean(s.screenshotUrl) && stepUsesFloatLayout(s);
+  const imgHtml = await renderStepImage(s, imgW, word);
+
+  if (sideBySide) {
+    const align = stepImageAlign(s);
+    const textCell = s.instruction
+      ? word
+        ? `<p class=MsoNormal style='margin:0'>${escapeHtml(s.instruction).replace(/\n/g, '<br/>')}</p>`
+        : `<p style="margin:0;line-height:1.6">${escapeHtml(s.instruction).replace(/\n/g, '<br/>')}</p>`
+      : '';
+    const pct = stepImageWidthPct(s);
+    const imgFirst = align !== 'right';
+    if (word) {
       parts.push(
-        `<p class=MsoNormal style='margin:0 0 8pt'>${escapeHtml(s.textBeforeImage).replace(/\n/g, '<br/>')}</p>`,
+        `<table border=0 cellspacing=0 cellpadding=6 width=100% style='margin:6pt 0'><tr>${
+          imgFirst
+            ? `<td width="${pct}%" valign=top>${imgHtml}</td><td valign=top>${textCell}</td>`
+            : `<td valign=top>${textCell}</td><td width="${pct}%" valign=top>${imgHtml}</td>`
+        }</tr></table>`,
+      );
+    } else {
+      parts.push(
+        `<table width="100%" style="margin:6pt 0;border-collapse:collapse"><tr>${
+          imgFirst
+            ? `<td width="${pct}%" valign="top">${imgHtml}</td><td valign="top">${textCell}</td>`
+            : `<td valign="top">${textCell}</td><td width="${pct}%" valign="top">${imgHtml}</td>`
+        }</tr></table>`,
       );
     }
-
-    if (s.screenshotUrl) {
-      try {
-        const { dataUrl, w, h } = await prepareEmbedImage(s.screenshotUrl, imgWidthPx);
-        parts.push(wordImageParagraph(dataUrl, w, h));
-      } catch {
-        parts.push(`<p class=MsoNormal><a href="${escapeHtml(s.screenshotUrl)}">画像を表示</a></p>`);
-      }
-    }
-
+  } else {
+    if (imgHtml) parts.push(imgHtml);
     if (s.instruction) {
       parts.push(
-        `<p class=MsoNormal style='margin:0 0 12pt'>${escapeHtml(s.instruction).replace(/\n/g, '<br/>')}</p>`,
+        word
+          ? `<p class=MsoNormal style='margin:0 0 12pt'>${escapeHtml(s.instruction).replace(/\n/g, '<br/>')}</p>`
+          : `<p style="margin:0 0 12pt;line-height:1.6">${escapeHtml(s.instruction).replace(/\n/g, '<br/>')}</p>`,
       );
     }
+  }
 
-    if (s.note) {
-      parts.push(
-        `<p class=MsoNormal style='margin:0 0 12pt;background:#fffbeb;padding:6pt'><i>注意: ${escapeHtml(s.note)}</i></p>`,
-      );
-    }
+  if (s.note) {
+    parts.push(
+      word
+        ? `<p class=MsoNormal style='margin:0 0 12pt;background:#fffbeb;padding:6pt'><i>注意: ${escapeHtml(s.note)}</i></p>`
+        : `<p style="margin:0 0 12pt;padding:6pt 8pt;background:#fffbeb;font-style:italic">注意: ${escapeHtml(s.note)}</p>`,
+    );
   }
 
   return parts;
 }
 
-async function buildStepPartsHtml(steps: ManualStep[], imgWidthPx: number): Promise<string[]> {
+async function buildStepPartsWord(steps: ManualStep[]): Promise<string[]> {
   const sorted = [...steps].sort((a, b) => a.order - b.order);
   const parts: string[] = [];
-
   for (let i = 0; i < sorted.length; i++) {
-    const s = sorted[i]!;
-    const n = i + 1;
-    const stepTitle = s.title || `手順 ${n}`;
-    const inner: string[] = [stepTitleHtml(n, stepTitle)];
-
-    if (s.textBeforeImage) {
-      inner.push(`<p style="margin:0 0 8pt">${escapeHtml(s.textBeforeImage).replace(/\n/g, '<br/>')}</p>`);
-    }
-
-    if (s.screenshotUrl) {
-      try {
-        const { dataUrl, w, h } = await prepareEmbedImage(s.screenshotUrl, imgWidthPx);
-        inner.push(htmlImageBlock(dataUrl, w, h));
-      } catch {
-        inner.push(`<p><a href="${escapeHtml(s.screenshotUrl)}">画像を表示</a></p>`);
-      }
-    }
-
-    if (s.instruction) {
-      inner.push(
-        `<p style="margin:0 0 12pt;line-height:1.6">${escapeHtml(s.instruction).replace(/\n/g, '<br/>')}</p>`,
-      );
-    }
-
-    if (s.note) {
-      inner.push(
-        `<p style="margin:0 0 12pt;padding:6pt 8pt;background:#fffbeb;font-style:italic">注意: ${escapeHtml(s.note)}</p>`,
-      );
-    }
-
-    parts.push(`<section class="step" style="page-break-inside:avoid;margin-bottom:6pt">${inner.join('\n')}</section>`);
+    parts.push(...(await buildSingleStepContent(sorted[i]!, i + 1, true)));
   }
-
   return parts;
 }
 
-async function buildWordHtml(title: string, steps: ManualStep[]): Promise<string> {
-  const parts = await buildStepPartsWord(steps, WORD_IMG_WIDTH_PX);
+async function buildStepPartsHtml(steps: ManualStep[]): Promise<string[]> {
+  const sorted = [...steps].sort((a, b) => a.order - b.order);
+  const parts: string[] = [];
+  for (let i = 0; i < sorted.length; i++) {
+    const inner = await buildSingleStepContent(sorted[i]!, i + 1, false);
+    parts.push(
+      `<section class="step" id="${stepAnchorId(sorted[i]!.order)}" style="page-break-inside:avoid;margin-bottom:6pt">${inner.join('\n')}</section>`,
+    );
+  }
+  return parts;
+}
+
+export async function buildWordHtml(
+  title: string,
+  steps: ManualStep[],
+  options: ManualExportOptions = {},
+): Promise<string> {
+  const stepParts = await buildStepPartsWord(steps);
+  const header = [
+    descriptionBlock(options.description, true),
+    options.tocEnabled ? buildTocBlock(steps, true) : '',
+  ].filter(Boolean);
 
   return `<html xmlns:o="urn:schemas-microsoft-com:office:office"
 xmlns:w="urn:schemas-microsoft-com:office:word"
@@ -192,20 +267,27 @@ xmlns="http://www.w3.org/TR/REC-html40">
 div.Section1 { page:Section1; }
 body { font-family:"Yu Gothic UI","Meiryo",sans-serif; font-size:11pt; }
 p.MsoNormal { margin:0; mso-style-name:Normal; }
-p.step-title, h1 { font-family:"Yu Gothic UI","Meiryo",sans-serif; }
-img { border:none; }
+img { max-width:100%; height:auto; }
 </style>
 </head>
 <body><div class=Section1>
 <h1 style='font-size:18pt;border-bottom:2pt solid #f97316;padding-bottom:6pt;margin:0 0 12pt'>${escapeHtml(title)}</h1>
 <p style='font-size:9pt;color:#64748b;margin-bottom:18pt'>クリッピットからエクスポート（${new Date().toLocaleDateString('ja-JP')}）</p>
-${parts.join('\n')}
+${header.join('\n')}
+${stepParts.join('\n')}
 </div></body></html>`;
 }
 
-async function stepsToHtml(title: string, steps: ManualStep[], embedImages: boolean): Promise<string> {
-  const imgWidth = embedImages ? WORD_IMG_WIDTH_PX : EMBED_MAX_WIDTH_PX;
-  const parts = await buildStepPartsHtml(steps, imgWidth);
+export async function buildPreviewHtml(
+  title: string,
+  steps: ManualStep[],
+  options: ManualExportOptions = {},
+): Promise<string> {
+  const stepParts = await buildStepPartsHtml(steps);
+  const header = [
+    descriptionBlock(options.description, false),
+    options.tocEnabled ? buildTocBlock(steps, false) : '',
+  ].filter(Boolean);
 
   return `<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"/><title>${escapeHtml(title)}</title>
 <style>
@@ -229,15 +311,16 @@ h1 {
 .meta { font-size:9pt; color:#64748b; margin-bottom:18pt; }
 .step { page-break-inside:avoid; break-inside:avoid; }
 .step img { max-width:100%; height:auto; }
+a { color:#c2410c; }
 </style>
 </head><body>
 <h1>${escapeHtml(title)}</h1>
 <p class="meta">クリッピットからエクスポート（${new Date().toLocaleDateString('ja-JP')}）</p>
-${parts.join('\n')}
+${header.join('\n')}
+${stepParts.join('\n')}
 </body></html>`;
 }
 
-/** Word 用 HTML を iframe に載せて画像読み込み後に印刷 */
 async function renderWordHtmlInIframe(html: string): Promise<HTMLIFrameElement> {
   const iframe = document.createElement('iframe');
   iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;height:1123px;border:0';
@@ -274,16 +357,24 @@ async function renderWordHtmlInIframe(html: string): Promise<HTMLIFrameElement> 
   return iframe;
 }
 
-export async function printWordDocument(title: string, steps: ManualStep[]): Promise<void> {
-  const html = await buildWordHtml(title, steps);
+export async function printWordDocument(
+  title: string,
+  steps: ManualStep[],
+  options: ManualExportOptions = {},
+): Promise<void> {
+  const html = await buildWordHtml(title, steps, options);
   const iframe = await renderWordHtmlInIframe(html);
   iframe.contentWindow?.focus();
   iframe.contentWindow?.print();
   setTimeout(() => iframe.remove(), 60_000);
 }
 
-export async function downloadAsPdf(title: string, steps: ManualStep[]): Promise<{ filename: string }> {
-  const html = await buildWordHtml(title, steps);
+export async function downloadAsPdf(
+  title: string,
+  steps: ManualStep[],
+  options: ManualExportOptions = {},
+): Promise<{ filename: string }> {
+  const html = await buildWordHtml(title, steps, options);
   const iframe = await renderWordHtmlInIframe(html);
   const target = iframe.contentDocument?.querySelector('.Section1') ?? iframe.contentDocument?.body;
   if (!target) {
@@ -302,7 +393,6 @@ export async function downloadAsPdf(title: string, steps: ManualStep[]): Promise
         html2canvas: { scale: 2, useCORS: true, logging: false },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
         pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
-        // html2pdf.js の型定義が pagebreak を含まない
       } as never)
       .from(target as HTMLElement)
       .save();
@@ -312,24 +402,36 @@ export async function downloadAsPdf(title: string, steps: ManualStep[]): Promise
   }
 }
 
-export async function downloadAsWordDoc(title: string, steps: ManualStep[]): Promise<{ filename: string; fallbackUrl: string }> {
-  const html = await buildWordHtml(title, steps);
+export async function downloadAsWordDoc(
+  title: string,
+  steps: ManualStep[],
+  options: ManualExportOptions = {},
+): Promise<{ filename: string; fallbackUrl: string }> {
+  const html = await buildWordHtml(title, steps, options);
   const blob = new Blob(['\ufeff', html], { type: 'application/msword;charset=utf-8' });
   const filename = `${safeFilename(title)}.doc`;
   const fallbackUrl = downloadBlob(blob, filename);
   return { filename, fallbackUrl };
 }
 
-export async function downloadAsHtml(title: string, steps: ManualStep[]): Promise<{ filename: string; fallbackUrl: string }> {
-  const html = await stepsToHtml(title, steps, true);
+export async function downloadAsHtml(
+  title: string,
+  steps: ManualStep[],
+  options: ManualExportOptions = {},
+): Promise<{ filename: string; fallbackUrl: string }> {
+  const html = await buildPreviewHtml(title, steps, options);
   const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
   const filename = `${safeFilename(title)}.html`;
   const fallbackUrl = downloadBlob(blob, filename);
   return { filename, fallbackUrl };
 }
 
-export function buildExportHtml(title: string, steps: ManualStep[]): Promise<string> {
-  return buildWordHtml(title, steps);
+export function buildExportHtml(
+  title: string,
+  steps: ManualStep[],
+  options: ManualExportOptions = {},
+): Promise<string> {
+  return buildWordHtml(title, steps, options);
 }
 
 export function formatStepsForClipboard(title: string, steps: ManualStep[]): string {
@@ -368,7 +470,10 @@ export function buildMarkdown(title: string, steps: ManualStep[]): string {
   return lines.join('\n');
 }
 
-export async function downloadAsMarkdown(title: string, steps: ManualStep[]): Promise<{ filename: string; fallbackUrl: string }> {
+export async function downloadAsMarkdown(
+  title: string,
+  steps: ManualStep[],
+): Promise<{ filename: string; fallbackUrl: string }> {
   const md = buildMarkdown(title, steps);
   const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
   const filename = `${safeFilename(title)}.md`;

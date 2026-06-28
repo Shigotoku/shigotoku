@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { folderIdFromSearch } from "../lib/folderContext";
 import { layoutIdFromSearch } from "../lib/uiLayoutTemplates";
+import { resolveTocEnabled } from "../lib/manualToc";
 import { Chrome, ListOrdered } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import { useOrg } from "../context/OrgContext";
@@ -15,6 +16,7 @@ export default function ManualRecordCreatePage() {
   const [searchParams] = useSearchParams();
   const presetFolderId = folderIdFromSearch(searchParams);
   const uiLayoutId = layoutIdFromSearch(searchParams);
+  const tocEnabled = resolveTocEnabled(searchParams);
   const { profile, organization } = useOrg();
   const { user, demoMode } = useAuth();
   const [title, setTitle] = useState("");
@@ -44,6 +46,7 @@ export default function ManualRecordCreatePage() {
         creationSource: withDemo ? "demo" : "extension",
         folderId: presetFolderId,
         uiLayoutId,
+        tocEnabled,
       });
       if (withDemo) await addDemoSteps(id, title.trim());
       await applyUiLayoutToSteps(id, uiLayoutId, { forceLayout: true });

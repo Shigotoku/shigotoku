@@ -6,7 +6,7 @@ import {
   type UserCredential,
 } from 'firebase/auth';
 import { auth } from './firebase';
-import { buildExportHtml } from './exportManual';
+import { buildExportHtml, type ManualExportOptions } from './exportManual';
 import type { ManualStep } from '../types';
 
 /** アプリが作成したファイルのみ（検証要件を documents より軽くする） */
@@ -64,8 +64,9 @@ export async function exportManualToGoogleDrive(
   title: string,
   steps: ManualStep[],
   accessToken: string,
+  options: ManualExportOptions = {},
 ): Promise<{ fileId: string; webViewLink: string }> {
-  const html = await buildExportHtml(title, steps);
+  const html = await buildExportHtml(title, steps, options);
   const metadata = {
     name: `${title}（クリッピット）`,
     mimeType: 'application/vnd.google-apps.document',
@@ -115,10 +116,11 @@ export async function exportManualToGoogleDrive(
 export async function exportToGoogleDocsForCurrentUser(
   title: string,
   steps: ManualStep[],
+  options: ManualExportOptions = {},
 ): Promise<string> {
   const user = auth.currentUser;
   if (!user) throw new Error('ログインしてください');
   const token = await ensureGoogleDriveAccess(user);
-  const { webViewLink } = await exportManualToGoogleDrive(title, steps, token);
+  const { webViewLink } = await exportManualToGoogleDrive(title, steps, token, options);
   return webViewLink;
 }

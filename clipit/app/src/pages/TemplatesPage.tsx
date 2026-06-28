@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { FileText, LayoutGrid, Search } from "lucide-react";
 import { appendCreateQuery, folderIdFromSearch } from "../lib/folderContext";
+import { resolveTocEnabled } from "../lib/manualToc";
 import {
   getUiLayoutTemplate,
   persistUiLayoutId,
@@ -41,6 +42,7 @@ export default function TemplatesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const presetFolderId = folderIdFromSearch(searchParams);
   const [uiLayoutId, setUiLayoutId] = useState<UiLayoutId>(() => resolveUiLayoutId(searchParams));
+  const tocEnabled = resolveTocEnabled(searchParams);
   const [showLayoutPicker, setShowLayoutPicker] = useState(false);
   const { organization } = useOrg();
   const { user, demoMode } = useAuth();
@@ -122,6 +124,7 @@ export default function TemplatesPage() {
         creationSource: "template",
         folderId: presetFolderId,
         uiLayoutId,
+        tocEnabled,
       });
       for (let i = 0; i < tpl.steps.length; i++) {
         const s = tpl.steps[i]!;

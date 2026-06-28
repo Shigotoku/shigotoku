@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { folderIdFromSearch } from "../lib/folderContext";
 import { layoutIdFromSearch } from "../lib/uiLayoutTemplates";
+import { resolveTocEnabled } from "../lib/manualToc";
 import { ImageUp, Loader2 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import DropZone from "../components/DropZone";
@@ -31,6 +32,7 @@ export default function ManualScreenshotCreatePage() {
   const [searchParams] = useSearchParams();
   const presetFolderId = folderIdFromSearch(searchParams);
   const uiLayoutId = layoutIdFromSearch(searchParams);
+  const tocEnabled = resolveTocEnabled(searchParams);
   const { organization } = useOrg();
   const { user, demoMode } = useAuth();
   const [title, setTitle] = useState("");
@@ -76,6 +78,7 @@ export default function ManualScreenshotCreatePage() {
         creationSource: "screenshot",
         folderId: presetFolderId,
         uiLayoutId,
+        tocEnabled,
       });
       await ingestTalkSteps(
         manualId,

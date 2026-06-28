@@ -1,5 +1,6 @@
 import { Link, useSearchParams } from "react-router-dom";
 import { appendCreateQuery } from "../lib/folderContext";
+import { persistTocEnabled, resolveTocEnabled } from "../lib/manualToc";
 import { resolveUiLayoutId, type UiLayoutId } from "../lib/uiLayoutTemplates";
 import { Chrome, ImageUp, LayoutGrid, MessageCircle, ListOrdered, Sparkles } from "lucide-react";
 import PageHeader from "../components/PageHeader";
@@ -45,6 +46,7 @@ export default function ManualNewPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const folderId = searchParams.get("folder");
   const [layoutId, setLayoutId] = useState<UiLayoutId>(() => resolveUiLayoutId(searchParams));
+  const [tocEnabled, setTocEnabled] = useState(() => resolveTocEnabled(searchParams));
 
   const handleLayoutChange = (id: UiLayoutId) => {
     setLayoutId(id);
@@ -53,7 +55,16 @@ export default function ManualNewPage() {
     setSearchParams(next, { replace: true });
   };
 
-  const linkWithContext = (path: string) => appendCreateQuery(path, folderId, layoutId);
+  const handleTocChange = (enabled: boolean) => {
+    setTocEnabled(enabled);
+    persistTocEnabled(enabled);
+    const next = new URLSearchParams(searchParams);
+    if (enabled) next.set("toc", "1");
+    else next.delete("toc");
+    setSearchParams(next, { replace: true });
+  };
+
+  const linkWithContext = (path: string) => appendCreateQuery(path, folderId, layoutId, tocEnabled);
 
   return (
     <>
@@ -83,6 +94,20 @@ export default function ManualNewPage() {
             画像の大きさ・位置、説明文の配置、注意点の見せ方など、マニュアルの見た目の型を選びます。内容のテンプレートとは別です。
           </p>
           <UiLayoutPicker value={layoutId} onChange={handleLayoutChange} />
+          <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <input
+              type="checkbox"
+              checked={tocEnabled}
+              onChange={(e) => handleTocChange(e.target.checked)}
+              className="mt-0.5"
+            />
+            <span>
+              <span className="block text-sm font-semibold text-slate-800">冒頭に目次を自動作成</span>
+              <span className="mt-1 block text-xs text-slate-500">
+                各手順へのリンク付き目次をマニュアル先頭に挿入します。プレビュー・Word/HTML 出力にも反映されます。
+              </span>
+            </span>
+          </label>
         </section>
 
         <section>

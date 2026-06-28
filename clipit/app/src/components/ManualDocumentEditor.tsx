@@ -6,6 +6,7 @@ import { insertStepAt, updateStep } from '../services/manuals';
 import { stepFieldsFromLayout } from '../lib/uiLayoutTemplates';
 import type { Manual, ManualStep } from '../types';
 import StepDocumentBlock from './StepDocumentBlock';
+import ManualTableOfContents from './ManualTableOfContents';
 
 type Props = {
   manualId: string;
@@ -86,6 +87,7 @@ export default function ManualDocumentEditor({
       <article className="rounded-2xl border border-slate-200 bg-white px-6 py-8 shadow-sm">
         <h1 className="text-xl font-bold text-slate-900">{displayTitle}</h1>
         {manual.description && <p className="mt-2 whitespace-pre-wrap text-sm text-slate-500">{manual.description}</p>}
+        {manual.tocEnabled && steps.length > 0 && <ManualTableOfContents steps={steps} />}
         <p className="mt-1 text-xs text-slate-400">{steps.length} 手順 · クリックで詳細編集</p>
 
         {steps.length === 0 ? (

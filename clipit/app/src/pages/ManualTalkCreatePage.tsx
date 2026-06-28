@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { folderIdFromSearch } from "../lib/folderContext";
 import { layoutIdFromSearch } from "../lib/uiLayoutTemplates";
+import { resolveTocEnabled } from "../lib/manualToc";
 import { Camera, ChevronDown, ChevronUp, Loader2, MessageCircle, Sparkles, Video } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import PageHelpTip from "../components/PageHelpTip";
@@ -42,6 +43,7 @@ export default function ManualTalkCreatePage() {
   const [searchParams] = useSearchParams();
   const presetFolderId = folderIdFromSearch(searchParams);
   const uiLayoutId = layoutIdFromSearch(searchParams);
+  const tocEnabled = resolveTocEnabled(searchParams);
   const { organization } = useOrg();
   const { user, demoMode } = useAuth();
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -192,6 +194,7 @@ export default function ManualTalkCreatePage() {
         creationSource: "talk",
         folderId: presetFolderId,
         uiLayoutId,
+        tocEnabled,
       });
       await ingestTalkSteps(
         manualId,

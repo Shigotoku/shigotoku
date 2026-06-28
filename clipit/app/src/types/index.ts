@@ -132,6 +132,8 @@ export interface Manual {
   folderId?: string | null;
   /** 手順の見た目・配置の UI ひな型 */
   uiLayoutId?: string;
+  /** 冒頭に目次を自動生成する */
+  tocEnabled?: boolean;
 }
 
 export interface ManualFolder {
@@ -188,6 +190,17 @@ export interface ManualStep {
   textBeforeImage?: string;
   masks?: MaskRect[];
   annotations?: StepAnnotation[];
+  /** 画像の表示枠線 */
+  imageBorderColor?: string;
+  imageBorderWidth?: number;
+}
+
+/** 画像トリミング領域（%・画面編集で焼き込み前の一時領域にも使用） */
+export interface ImageCropRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
 export interface ShareStepSnapshot {

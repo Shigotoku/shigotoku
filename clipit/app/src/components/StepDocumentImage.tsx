@@ -10,6 +10,8 @@ type Props = {
     clickY?: number;
     imageWidthPct?: number;
     imageAlign?: 'left' | 'center' | 'right';
+    imageBorderColor?: string;
+    imageBorderWidth?: number;
   };
   stepIndex: number;
   showClickMarker?: boolean;
@@ -43,6 +45,8 @@ export default function StepDocumentImage({ step, stepIndex, showClickMarker = f
       <ScreenshotFrame
         screenshotUrl={step.screenshotUrl}
         loading="lazy"
+        borderColor={step.imageBorderColor}
+        borderWidth={step.imageBorderWidth}
         overlay={
           hasPoint ? (
             <div
