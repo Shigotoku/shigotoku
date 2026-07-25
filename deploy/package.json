@@ -25,7 +25,7 @@
     "deploy:clipit": "npm run build && npm run build:clipit-api && firebase deploy --project clipit --config firebase.clipit.json --only hosting,functions:clipit-api,storage,firestore",
     "deploy:all": "npm run deploy:buzzit && npm run deploy:runwith",
     "deploy:all-with-api": "npm run deploy:buzzit && npm run deploy:runwith",
-    "deploy:all-with-clipit": "npm run deploy:buzzit && npm run deploy:runwith && npm run deploy:web && npm run deploy:clipit"
+    "deploy:all-with-clipit": "npm run deploy:clipit-web"
   },
   "devDependencies": {
     "firebase-tools": "^14.0.0"
