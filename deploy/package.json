@@ -17,7 +17,7 @@
     "deploy:buzzit-api": "npm run build:buzzit-api && firebase deploy --project buzzit --config firebase.buzzit.json --only functions:buzzit-api,storage,firestore",
     "build:buzzit-api": "npm ci --prefix ../buzzit/api && npm run build --prefix ../buzzit/api && node scripts/prepare-buzzit-api.mjs",
     "copy:storage-rules": "node scripts/copy-storage-rules.mjs",
-    "deploy:buzzit": "npm run build:clipit-web && firebase deploy --project buzzit --config firebase.buzzit.json --only hosting",
+    "deploy:buzzit": "npm run build && npm run build:buzzit-api && firebase deploy --project buzzit --config firebase.buzzit.json --only hosting",
     "deploy:runwith": "npm run build && firebase deploy --project runwith --config firebase.runwith.json --only hosting,storage,firestore",
     "build:clipit-api": "npm ci --prefix ../clipit/api && npm run build --prefix ../clipit/api && node scripts/prepare-clipit-api.mjs",
     "deploy:clipit-api": "npm run build:clipit-api && firebase deploy --project clipit --config firebase.clipit.json --only functions:clipit-api",
