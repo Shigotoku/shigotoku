@@ -8,7 +8,7 @@
     "prepare:clipit-icon": "node scripts/prepare-clipit-icon.mjs",
     "patch:clipit-lp": "node scripts/patch-clipit-lp-dist.mjs",
     "deploy:clipit-web": "npm run build:clipit-web && firebase deploy --project buzzit --config firebase.buzzit.json --only hosting:shigotoku-web",
-    "deploy:corporate-web": "node scripts/build-clipit-web.mjs --corporate-only && firebase deploy --project buzzit --config firebase.buzzit.json --only hosting:shigotoku-web",
+    "deploy:corporate-web": "npm run deploy:clipit-web",
     "deploy:web": "npm run build && firebase deploy --project buzzit --config firebase.buzzit.json --only hosting:shigotoku-web",
     "deploy:runwith-app": "npm run build && firebase deploy --project runwith --config firebase.runwith.json --only hosting:runwith-app",
     "build:clipit-app": "node scripts/build-clipit-app.mjs",

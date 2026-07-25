@@ -1,8 +1,9 @@
 import { execSync } from 'node:child_process';
-import { cpSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { projectEnv } from './build.config.mjs';
+import { writeWebSeo } from './scripts/write-web-seo.mjs';
 
 const deployDir = dirname(fileURLToPath(import.meta.url));
 const root = join(deployDir, '..');
@@ -41,48 +42,7 @@ for (const project of projects) {
   console.log(`✓ ${project.name} -> ${project.out}`);
 }
 
-writeFileSync(
-  join(out, 'web/robots.txt'),
-  `User-agent: *
-Allow: /
-Allow: /runwith/
-Allow: /buzzit/
-Allow: /clipit/
-
-Sitemap: https://shigotoku.com/sitemap.xml
-`,
-);
-
-const sitemapUrls = [
-  { loc: 'https://shigotoku.com/', changefreq: 'weekly', priority: '1.0' },
-  { loc: 'https://shigotoku.com/privacy/', changefreq: 'yearly', priority: '0.3' },
-  { loc: 'https://shigotoku.com/terms/', changefreq: 'yearly', priority: '0.3' },
-  { loc: 'https://shigotoku.com/tokushoho/', changefreq: 'yearly', priority: '0.3' },
-  { loc: 'https://shigotoku.com/security/', changefreq: 'yearly', priority: '0.3' },
-  { loc: 'https://shigotoku.com/runwith/', changefreq: 'weekly', priority: '0.9' },
-  { loc: 'https://shigotoku.com/runwith/pricing/', changefreq: 'monthly', priority: '0.8' },
-  { loc: 'https://shigotoku.com/buzzit/', changefreq: 'weekly', priority: '0.9' },
-  { loc: 'https://shigotoku.com/clipit/', changefreq: 'weekly', priority: '0.9' },
-  { loc: 'https://shigotoku.com/clipit/pricing/', changefreq: 'monthly', priority: '0.8' },
-];
-
-const today = new Date().toISOString().slice(0, 10);
-const sitemapXml = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${sitemapUrls
-  .map(
-    (entry) => `  <url>
-    <loc>${entry.loc}</loc>
-    <lastmod>${today}</lastmod>
-    <changefreq>${entry.changefreq}</changefreq>
-    <priority>${entry.priority}</priority>
-  </url>`,
-  )
-  .join('\n')}
-</urlset>
-`;
-
-writeFileSync(join(out, 'web/sitemap.xml'), sitemapXml);
+writeWebSeo(join(out, 'web'));
 
 console.log('\nAll builds completed.');
 console.log(`Output: ${out}`);
