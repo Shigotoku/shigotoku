@@ -1,11 +1,31 @@
-import { useEffect, useState } from 'react';
-import { Outlet, NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Wand2, BarChart3, MessageCircle, Settings, Bell, ExternalLink, LogOut, Menu, X, Users } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Outlet, NavLink, useLocation, Navigate } from 'react-router-dom';
+import {
+  LayoutDashboard,
+  Wand2,
+  BarChart3,
+  MessageCircle,
+  Settings,
+  Bell,
+  ExternalLink,
+  LogOut,
+  Menu,
+  X,
+  Users,
+  Map,
+  CalendarDays,
+  Inbox,
+  Route,
+  CalendarRange,
+} from 'lucide-react';
 import { BRAND_NAME } from '../constants/brand';
 import { landingPath } from '../lib/urls';
 import { useApp } from '../store/appContext';
 import { useAuth } from '../store/authContext';
+import { useStore } from '../store/storeContext';
 import StoreSwitcher from '../components/StoreSwitcher';
+import PwaInstallBanner from '../components/PwaInstallBanner';
+import { ROLE_LABELS, canEditSettings, canManageLineCrm, isStaffOnly } from '../lib/permissions';
 
 const planLabels = {
   free: 'Free',
@@ -18,17 +38,35 @@ const planLabels = {
   enterprise: 'Enterprise',
 } as const;
 
-const navItems = [
-  { name: '経営コクピット', path: '/dashboard', icon: LayoutDashboard },
-  { name: 'マジック・クリエイター', path: '/magic-creator', icon: Wand2 },
-  { name: 'LINE CRM', path: '/line-crm', icon: MessageCircle },
-  { name: '分析・売上', path: '/analytics', icon: BarChart3 },
-  { name: 'スタッフ', path: '/team', icon: Users },
-  { name: '設定', path: '/settings', icon: Settings },
+type NavItem = {
+  name: string;
+  path: string;
+  icon: typeof LayoutDashboard;
+  staffOk?: boolean;
+  managerOnly?: boolean;
+};
+
+const allNavItems: NavItem[] = [
+  { name: '経営コクピット', path: '/dashboard', icon: LayoutDashboard, staffOk: true },
+  { name: '成長ロードマップ', path: '/roadmap', icon: Map, staffOk: true },
+  { name: 'ネタInbox', path: '/inbox', icon: Inbox, staffOk: true },
+  { name: 'マジック・クリエイター', path: '/magic-creator', icon: Wand2, staffOk: true },
+  { name: '投稿カレンダー', path: '/calendar', icon: CalendarDays, staffOk: true },
+  { name: '30本カレンダー', path: '/content-calendar', icon: CalendarRange, staffOk: true },
+  { name: '導線ビルダー', path: '/funnel', icon: Route, managerOnly: true },
+  { name: 'LINE CRM', path: '/line-crm', icon: MessageCircle, managerOnly: true },
+  { name: '分析・売上', path: '/analytics', icon: BarChart3, managerOnly: true },
+  { name: 'スタッフ', path: '/team', icon: Users, managerOnly: true },
+  { name: '設定', path: '/settings', icon: Settings, managerOnly: true },
 ];
 
 function pageTitle(pathname: string): string {
+  if (pathname.startsWith('/roadmap')) return '成長ロードマップ';
+  if (pathname.startsWith('/inbox')) return 'ネタInbox';
   if (pathname.startsWith('/magic-creator')) return 'マジック・クリエイター';
+  if (pathname.startsWith('/calendar')) return '投稿カレンダー';
+  if (pathname.startsWith('/content-calendar')) return '最初の30本';
+  if (pathname.startsWith('/funnel')) return '導線ビルダー';
   if (pathname.startsWith('/line-crm')) return 'LINE CRM';
   if (pathname.startsWith('/analytics')) return '分析・売上';
   if (pathname.startsWith('/team')) return 'スタッフ管理';
@@ -39,11 +77,15 @@ function pageTitle(pathname: string): string {
 function SidebarContent({
   displayName,
   plan,
+  roleLabel,
+  navItems,
   onNavigate,
   onLogout,
 }: {
   displayName: string;
   plan: keyof typeof planLabels;
+  roleLabel: string;
+  navItems: NavItem[];
   onNavigate?: () => void;
   onLogout: () => void;
 }) {
@@ -71,6 +113,13 @@ function SidebarContent({
         ))}
       </nav>
       <div className="space-y-3 border-t border-neutral-200 p-4">
+        <NavLink
+          to="/onboarding?edit=1"
+          onClick={onNavigate}
+          className="flex min-h-[44px] items-center gap-2 text-xs text-neutral-500 transition-colors hover:text-neutral-900"
+        >
+          はじめに（業種・目的）を見直す
+        </NavLink>
         <a
           href={landingPath('/')}
           className="flex min-h-[44px] items-center gap-2 text-xs text-neutral-500 transition-colors hover:text-neutral-900"
@@ -84,7 +133,9 @@ function SidebarContent({
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{displayName}</p>
-            <p className="text-xs text-neutral-500">Owner ({planLabels[plan]})</p>
+            <p className="text-xs text-neutral-500">
+              {roleLabel} ({planLabels[plan]})
+            </p>
           </div>
           <button
             type="button"
@@ -103,10 +154,23 @@ function SidebarContent({
 export default function DashboardLayout() {
   const { plan } = useApp();
   const { user, logout } = useAuth();
+  const { userRole, refreshStores } = useStore();
   const location = useLocation();
   const [navOpen, setNavOpen] = useState(false);
   const displayName = user?.displayName ?? user?.email ?? 'デモユーザー';
   const title = pageTitle(location.pathname);
+  const roleLabel = userRole ? ROLE_LABELS[userRole] : 'メンバー';
+
+  const navItems = useMemo(() => {
+    if (isStaffOnly(userRole)) {
+      return allNavItems.filter((i) => i.staffOk);
+    }
+    return allNavItems;
+  }, [userRole]);
+
+  useEffect(() => {
+    refreshStores().catch(() => {});
+  }, [refreshStores]);
 
   useEffect(() => {
     setNavOpen(false);
@@ -118,6 +182,23 @@ export default function DashboardLayout() {
       document.body.style.overflow = '';
     };
   }, [navOpen]);
+
+  // スタッフが設定・CRM等へ直URLで来た場合のガード
+  if (isStaffOnly(userRole)) {
+    if (location.pathname.startsWith('/settings') && !canEditSettings(userRole)) {
+      return <Navigate to="/inbox" replace />;
+    }
+    if (location.pathname.startsWith('/line-crm') && !canManageLineCrm(userRole)) {
+      return <Navigate to="/inbox" replace />;
+    }
+    if (
+      location.pathname.startsWith('/funnel') ||
+      location.pathname.startsWith('/analytics') ||
+      location.pathname.startsWith('/team')
+    ) {
+      return <Navigate to="/inbox" replace />;
+    }
+  }
 
   return (
     <div className="flex min-h-dvh bg-[#f5f4f0] text-neutral-900">
@@ -146,6 +227,8 @@ export default function DashboardLayout() {
         <SidebarContent
           displayName={displayName}
           plan={plan}
+          roleLabel={roleLabel}
+          navItems={navItems}
           onNavigate={() => setNavOpen(false)}
           onLogout={() => logout()}
         />
@@ -167,18 +250,19 @@ export default function DashboardLayout() {
           </div>
           <div className="flex items-center gap-2">
             <StoreSwitcher />
-          <button
-            type="button"
-            className="relative flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-white hover:text-neutral-900"
-          >
-            <Bell className="h-5 w-5" />
-            <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-neutral-900" />
-          </button>
+            <button
+              type="button"
+              className="relative flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-white hover:text-neutral-900"
+            >
+              <Bell className="h-5 w-5" />
+              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-neutral-900" />
+            </button>
           </div>
         </header>
-        <div className="relative z-10 flex-1 overflow-auto p-4 md:p-6 lg:p-8">
+        <div className="relative z-10 flex-1 overflow-auto p-4 pb-24 md:p-6 lg:p-8 lg:pb-8">
           <Outlet />
         </div>
+        <PwaInstallBanner />
       </main>
     </div>
   );

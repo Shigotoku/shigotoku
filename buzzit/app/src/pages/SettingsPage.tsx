@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Check, Link2, MessageSquare, Zap, Save, BarChart3, Share2, MapPin, Sparkles, Users } from 'lucide-react';
 import { WATERMARK } from '../constants/brand';
 import {
@@ -13,6 +13,12 @@ import {
   startGbpOAuth,
   fetchLineCostEstimate,
   fetchCustomerTags,
+  draftGbpReviewReply,
+  fetchConnectionHealth,
+  fetchAuditLogs,
+  fetchExportJson,
+  downloadExport,
+  fetchStoresProgress,
   type PublishMode,
   type LineCostEstimate,
   type CustomerTag,
@@ -80,6 +86,7 @@ const fullStackPlans: { id: PlanTier; name: string; price: string; tagline: stri
 
 export default function SettingsPage() {
   const { plan, setPlan } = useApp();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [slackWebhookUrl, setSlackWebhookUrl] = useState('');
   const [ayrshareProfileKey, setAyrshareProfileKey] = useState('');
@@ -98,10 +105,14 @@ export default function SettingsPage() {
   const [newIdea, setNewIdea] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [gbpConnected] = useState(false);
+  const [gbpConnected, setGbpConnected] = useState(false);
+  const [gbpLocationName, setGbpLocationName] = useState('');
   const [hpbStoreUrl, setHpbStoreUrl] = useState('');
+  const [notifyEmail, setNotifyEmail] = useState('');
   const [lineCost, setLineCost] = useState<LineCostEstimate | null>(null);
   const [customerTags, setCustomerTags] = useState<CustomerTag[]>([]);
+  const [gbpReview, setGbpReview] = useState('');
+  const [gbpReply, setGbpReply] = useState('');
 
   useEffect(() => {
     fetchSettings()
@@ -120,6 +131,10 @@ export default function SettingsPage() {
         setMetaTokenExpiresAt(s.metaTokenExpiresAt ?? '');
         setLineWebhookUrl(s.lineWebhookUrl ?? '');
         setSnsConnections(s.snsConnections);
+        setHpbStoreUrl(s.hpbStoreUrl ?? '');
+        setGbpConnected(!!s.gbpConnected);
+        setGbpLocationName(s.gbpLocationName ?? '');
+        setNotifyEmail(s.notifyEmail ?? '');
       })
       .catch(() => {});
     fetchSlackIdeas()
@@ -168,6 +183,10 @@ export default function SettingsPage() {
         lineDestinationId,
         defaultDestinationUrl,
         defaultPublishMode,
+        hpbStoreUrl,
+        gbpConnected: gbpConnected || !!gbpLocationName.trim(),
+        gbpLocationName,
+        notifyEmail,
       });
       setMessage('設定を保存しました');
     } catch {
@@ -424,10 +443,20 @@ export default function SettingsPage() {
                   {idea.status === 'pending' && (
                     <button
                       type="button"
-                      onClick={() => approveSlackIdea(idea.id)}
+                      onClick={async () => {
+                        try {
+                          const r = await approveSlackIdea(idea.id);
+                          setSlackIdeas((prev) =>
+                            prev.map((i) => (i.id === idea.id ? { ...i, status: 'approved' } : i)),
+                          );
+                          navigate(r.magicCreatorPath || `/magic-creator?idea=${encodeURIComponent(idea.text)}`);
+                        } catch {
+                          /* ignore */
+                        }
+                      }}
                       className="text-xs text-neutral-700 underline-offset-2 hover:underline"
                     >
-                      採用
+                      採用してクリエイターへ
                     </button>
                   )}
                 </div>
@@ -491,23 +520,47 @@ export default function SettingsPage() {
           Google Business Profile（GBP / Googleマップ）
         </h3>
         <p className="text-sm text-neutral-600">
-          Instagram と同時に Googleマップへ自動投稿。MEO ダッシュボード（Growth OS）でクチコミ・順位も一元管理できます。
+          ロケーション名を保存すると GBP 投稿モードと口コミ返信ドラフトが使えます。
         </p>
+        <label className="buzz-label">店舗ロケーション名</label>
+        <input
+          value={gbpLocationName}
+          onChange={(e) => {
+            setGbpLocationName(e.target.value);
+            if (e.target.value.trim()) setGbpConnected(true);
+          }}
+          placeholder="例: BuzzIt渋谷店"
+          className="buzz-input"
+        />
         <div className="flex items-center justify-between border border-neutral-200 bg-neutral-50 p-4">
-          <span>Googleビジネスプロフィール</span>
-          <span
-            className={`rounded-full px-3 py-1 text-xs ${
-              gbpConnected
-                ? 'border border-neutral-300 bg-white text-neutral-800'
-                : 'bg-neutral-200 text-neutral-600'
-            }`}
-          >
-            {gbpConnected ? '接続済み' : '未接続（Phase 4 で提供）'}
-          </span>
+          <span>接続状態</span>
+          <span className="text-xs">{gbpConnected || gbpLocationName ? '連携済み（手動）' : '未接続'}</span>
         </div>
         <button type="button" onClick={handleGbpConnect} className="buzz-btn-secondary">
-          {gbpConnected ? 'GBP を再連携' : 'GBP で連携する'}
+          連携手順を確認
         </button>
+        <label className="buzz-label">口コミ返信ドラフト</label>
+        <textarea
+          className="buzz-input h-20 resize-none"
+          placeholder="届いた口コミを貼り付け"
+          value={gbpReview}
+          onChange={(e) => setGbpReview(e.target.value)}
+        />
+        <button
+          type="button"
+          className="buzz-btn-secondary"
+          onClick={async () => {
+            try {
+              const r = await draftGbpReviewReply(gbpReview);
+              setGbpReply(r.reply);
+            } catch {
+              setMessage('口コミ返信の生成に失敗しました');
+            }
+          }}
+        >
+          返信文を生成
+        </button>
+        {gbpReply && <pre className="whitespace-pre-wrap border border-neutral-200 bg-neutral-50 p-3 text-sm">{gbpReply}</pre>}
       </section>
 
       <section className="buzz-card-pad space-y-4">
@@ -516,7 +569,7 @@ export default function SettingsPage() {
           ホットペッパービューティー（HPB）トラッキング
         </h3>
         <p className="text-sm text-neutral-600">
-          投稿の計測リンクを HPB 予約導線に自動付与し、「どの投稿が予約に繋がったか」を可視化します（Growth OS）。
+          店舗URLを保存すると、投稿クリック・LINE追加から予約寄与を推計表示します。
         </p>
         <label className="buzz-label">HPB 店舗 URL</label>
         <input
@@ -525,9 +578,85 @@ export default function SettingsPage() {
           placeholder="https://beauty.hotpepper.jp/slnH000000000/"
           className="buzz-input"
         />
-        <p className="text-xs text-neutral-500">
-          ※ Phase 5 で API 連携が有効化されます。現在は UTM パラメータ自動付与のみ。
-        </p>
+        <label className="buzz-label">店長通知メール（将来拡張・現状はSlack/LINE優先）</label>
+        <input
+          value={notifyEmail}
+          onChange={(e) => setNotifyEmail(e.target.value)}
+          placeholder="owner@example.com"
+          className="buzz-input"
+        />
+      </section>
+
+      <section className="buzz-card-pad space-y-4">
+        <h3 className="text-lg font-bold">接続ヘルス / バックアップ / 操作ログ</h3>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="buzz-btn-secondary"
+            onClick={async () => {
+              const h = await fetchConnectionHealth();
+              setMessage(`接続ヘルス ${h.score}% — 注意 ${h.alerts.length} 件`);
+            }}
+          >
+            ヘルスチェック
+          </button>
+          <button
+            type="button"
+            className="buzz-btn-secondary"
+            onClick={async () => {
+              const data = await fetchExportJson();
+              const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'buzzit-export.json';
+              a.click();
+              URL.revokeObjectURL(url);
+              setMessage('バックアップJSONをダウンロードしました');
+            }}
+          >
+            JSONエクスポート
+          </button>
+          <button
+            type="button"
+            className="buzz-btn-secondary"
+            onClick={async () => {
+              const csv = await downloadExport('csv');
+              const blob = new Blob([String(csv)], { type: 'text/csv;charset=utf-8' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'buzzit-friends.csv';
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+          >
+            友だちCSV
+          </button>
+          <button
+            type="button"
+            className="buzz-btn-secondary"
+            onClick={async () => {
+              const r = await fetchAuditLogs();
+              setMessage(`操作ログ最新: ${r.logs[0]?.action ?? 'なし'} ${r.logs[0]?.detail ?? ''}`);
+            }}
+          >
+            最新操作ログ
+          </button>
+          <button
+            type="button"
+            className="buzz-btn-secondary"
+            onClick={async () => {
+              const r = await fetchStoresProgress();
+              const summary = r.stores
+                .map((s) => `${s.name}:${s.progress?.lineConnected ? 'LINE済' : 'LINE未'}`)
+                .join(' / ');
+              setMessage(summary || '店舗がありません');
+            }}
+          >
+            多店舗進捗
+          </button>
+        </div>
       </section>
 
       <section className="buzz-card-pad space-y-4">

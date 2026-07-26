@@ -6,6 +6,25 @@ import {
   getUserSettings,
 } from './firestore';
 import { executePublish } from './publish';
+import { postToSlackWebhook } from './slack';
+import { canUseSlack } from './autoMode';
+
+async function notifyPublishFailure(
+  uid: string,
+  jobId: string,
+  errorMessage: string,
+): Promise<void> {
+  try {
+    const settings = await getUserSettings(uid);
+    if (!settings.slackWebhookUrl || !canUseSlack(settings)) return;
+    await postToSlackWebhook(
+      settings.slackWebhookUrl,
+      `⚠️ *投稿に失敗しました*\nジョブ: ${jobId}\n理由: ${errorMessage.slice(0, 300)}\n👉 https://app.buzzit.shigotoku.com/calendar`,
+    );
+  } catch {
+    /* ignore notify errors */
+  }
+}
 
 export async function processDueScheduledJobs(): Promise<{ processed: number; errors: number }> {
   const jobs = await claimDueScheduledJobs(20);
@@ -37,13 +56,20 @@ export async function processDueScheduledJobs(): Promise<{ processed: number; er
         errorMessage: finalStatus === 'failed' ? outcome.message : undefined,
         completedMessage: outcome.message,
       });
-      processed++;
+      if (finalStatus === 'failed') {
+        errors++;
+        await notifyPublishFailure(job.uid, job.id, outcome.message);
+      } else {
+        processed++;
+      }
     } catch (err) {
       errors++;
+      const message = err instanceof Error ? err.message : 'Unknown error';
       await updateScheduledJobStatus(job.uid, job.id, {
         status: 'failed',
-        errorMessage: err instanceof Error ? err.message : 'Unknown error',
+        errorMessage: message,
       });
+      await notifyPublishFailure(job.uid, job.id, message);
     }
   }
 

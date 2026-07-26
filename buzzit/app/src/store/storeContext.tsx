@@ -26,6 +26,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const data = await fetchStores();
       setStores(data.stores);
       setActiveStoreId(data.activeStoreId);
+      if (data.role === 'owner' || data.role === 'manager' || data.role === 'staff') {
+        setUserRole(data.role);
+      }
     } finally {
       setLoading(false);
     }
@@ -34,6 +37,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const switchStore = useCallback(async (storeId: string) => {
     await setActiveStoreApi(storeId);
     setActiveStoreId(storeId);
+    const data = await fetchStores();
+    if (data.role === 'owner' || data.role === 'manager' || data.role === 'staff') {
+      setUserRole(data.role);
+    }
   }, []);
 
   return (
