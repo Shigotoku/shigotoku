@@ -92,14 +92,14 @@ function SidebarContent({
   onLogout: () => void;
 }) {
   return (
-    <>
-      <div className="flex h-16 items-center border-b border-neutral-200 px-5 lg:h-20 lg:px-6">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex h-16 shrink-0 items-center border-b border-neutral-200 px-5 lg:h-20 lg:px-6">
         <div className="flex items-center gap-3">
           <BrandMark className="buzz-logo-mark" size={32} />
           <span className="font-display text-xl font-bold tracking-tight">{BRAND_NAME}</span>
         </div>
       </div>
-      <nav className="flex-1 space-y-1 overflow-y-auto p-4">
+      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain p-4">
         {navItems.map((item) => (
           <NavLink
             key={item.path}
@@ -114,7 +114,8 @@ function SidebarContent({
           </NavLink>
         ))}
       </nav>
-      <div className="space-y-3 border-t border-neutral-200 p-4">
+      {/* 下部は常に表示（スクロール領域の外） */}
+      <div className="shrink-0 space-y-3 border-t border-neutral-200 bg-[#f5f4f0] p-4">
         <NavLink
           to="/onboarding?edit=1"
           onClick={onNavigate}
@@ -161,7 +162,7 @@ function SidebarContent({
           <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-70" />
         </a>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -215,7 +216,7 @@ export default function DashboardLayout() {
   }
 
   return (
-    <div className="flex min-h-dvh bg-[#f5f4f0] text-neutral-900">
+    <div className="flex h-dvh min-h-0 overflow-hidden bg-[#f5f4f0] text-neutral-900">
       {navOpen && (
         <button
           type="button"
@@ -226,7 +227,7 @@ export default function DashboardLayout() {
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-[min(100vw-3rem,18rem)] flex-col border-r border-neutral-200 bg-[#f5f4f0] transition-transform duration-200 lg:static lg:z-auto lg:w-64 lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex h-dvh w-[min(100vw-3rem,18rem)] shrink-0 flex-col border-r border-neutral-200 bg-[#f5f4f0] transition-transform duration-200 lg:static lg:z-auto lg:h-dvh lg:w-64 lg:translate-x-0 ${
           navOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
