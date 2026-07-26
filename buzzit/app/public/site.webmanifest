@@ -2,8 +2,10 @@
   "name": "BuzzIt（バジット）",
   "short_name": "BuzzIt",
   "description": "SNS運用を毎朝5分のルーティンで。BtoC店舗向けの経営OS。",
-  "start_url": "/login",
+  "start_url": "/dashboard",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#f5f4f0",
   "theme_color": "#f5f4f0",
   "lang": "ja",
@@ -12,7 +14,22 @@
       "src": "/favicon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any"
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "経営コクピット",
+      "url": "/dashboard",
+      "description": "今日のミッションと承認"
+    },
+    {
+      "name": "マジック・クリエイター",
+      "url": "/magic-creator"
+    },
+    {
+      "name": "投稿カレンダー",
+      "url": "/calendar"
     }
   ]
 }

@@ -93,6 +93,12 @@ export interface SettingsResponse {
   metaPageId?: string;
   metaTokenExpiresAt?: string;
   lineWebhookUrl?: string;
+  hpbStoreUrl?: string;
+  gbpConnected?: boolean;
+  gbpLocationName?: string;
+  notifyEmail?: string;
+  industry?: string;
+  extraSnsAccounts?: number;
   snsConnections: Array<{ name: string; connected: boolean }>;
   canUseSlack: boolean;
   canUseAutoMode: boolean;
@@ -100,6 +106,10 @@ export interface SettingsResponse {
 
 export function fetchSettings() {
   return request<SettingsResponse>('/v1/settings');
+}
+
+export function fetchSnsConnections() {
+  return request<{ snsConnections: Array<{ name: string; connected: boolean }> }>('/v1/sns-connections');
 }
 
 export function updateSettings(patch: Partial<SettingsResponse>) {
@@ -137,7 +147,13 @@ export type PublishMode = 'notify' | 'approval' | 'meta' | 'line' | 'gbp' | 'ayr
 
 export interface VoiceDraftResponse {
   transcript: string;
-  drafts: Array<{ kind: 'instagram' | 'line' | 'caption' | 'slack'; label: string; content: string }>;
+  drafts: Array<{
+    kind: string;
+    platform?: string;
+    label: string;
+    content: string;
+    carouselSlides?: string[];
+  }>;
   usedGemini: boolean;
 }
 
@@ -340,7 +356,7 @@ export interface ScheduledJob {
   contents: ScheduleApiRequest['contents'];
   scheduledAt: string;
   publishMode: PublishMode;
-  status: 'pending_approval' | 'pending' | 'processing' | 'published' | 'notified' | 'failed';
+  status: 'pending_approval' | 'pending' | 'processing' | 'published' | 'notified' | 'failed' | 'draft';
   completedMessage?: string;
   errorMessage?: string;
   createdAt: string;
@@ -370,6 +386,44 @@ export function approveScheduledJob(id: string) {
   });
 }
 
+export function retryScheduledJob(id: string) {
+  return request<{ success: boolean; job: ScheduledJob }>(`/v1/scheduled/${id}/retry`, {
+    method: 'POST',
+  });
+}
+
+export function revertScheduledJobToDraft(id: string) {
+  return request<{ success: boolean; job: ScheduledJob }>(`/v1/scheduled/${id}/draft`, {
+    method: 'POST',
+  });
+}
+
+export interface WeeklyReport {
+  periodLabel: string;
+  healthScore: number;
+  funnel: {
+    posts: number;
+    reach: number;
+    clicks: number;
+    lineSignups: number;
+    revenue: number;
+  };
+  scheduled: {
+    published: number;
+    notified: number;
+    failed: number;
+    pendingApproval: number;
+  };
+  topPosts: Array<{ title: string; reach: number; revenue: number }>;
+  topTrend: { topic: string; hook: string; score: number } | null;
+  recommendations: string[];
+  nextWeekActions?: string[];
+}
+
+export function fetchWeeklyReport() {
+  return request<{ report: WeeklyReport }>('/v1/reports/weekly');
+}
+
 export function startMetaOAuth() {
   return request<{ url: string }>('/v1/oauth/meta/start');
 }
@@ -395,7 +449,56 @@ export function fetchSlackIdeas() {
 }
 
 export function approveSlackIdea(id: string) {
-  return request<{ success: boolean }>(`/v1/slack/ideas/${id}/approve`, { method: 'POST' });
+  return request<{
+    success: boolean;
+    idea: { id: string; text: string; author: string; scriptPreview: string; status: string };
+    magicCreatorPath: string;
+  }>(`/v1/slack/ideas/${id}/approve`, { method: 'POST' });
+}
+
+export interface LineFriend {
+  lineUserId: string;
+  displayName: string;
+  pictureUrl?: string;
+  status: string;
+  tags: string[];
+  sourceId?: string | null;
+  score: number;
+  followedAt: string;
+  lastSeenAt: string;
+}
+
+export function fetchLineFriends(params?: { tag?: string; q?: string }) {
+  const qs = new URLSearchParams();
+  if (params?.tag) qs.set('tag', params.tag);
+  if (params?.q) qs.set('q', params.q);
+  const q = qs.toString() ? `?${qs}` : '';
+  return request<{ friends: LineFriend[] }>(`/v1/line/friends${q}`);
+}
+
+export function updateLineFriendTags(lineUserId: string, tags: string[]) {
+  return request<{ friend: LineFriend }>(`/v1/line/friends/${encodeURIComponent(lineUserId)}/tags`, {
+    method: 'PATCH',
+    body: JSON.stringify({ tags }),
+  });
+}
+
+export function sendLineSegmentMessage(body: { segmentId: string; text: string }) {
+  return request<{
+    success: boolean;
+    message: string;
+    recipients: number;
+    mode?: string;
+  }>('/v1/line/narrowcast', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function estimateLineSegment(segmentId: string) {
+  return request<{ estimatedReach: number }>(`/v1/line/segments/${segmentId}/estimate`, {
+    method: 'POST',
+  });
 }
 
 export function runAutoMode() {
@@ -491,6 +594,8 @@ export interface BillingResponse {
   storeCount: number;
   memberCount: number;
   pendingInviteCount: number;
+  extraSnsAccounts: number;
+  extraSnsAccountPrice: number;
   monthlyTotal: number;
   baseMonthly: number;
   additionalStoreDiscount: number;
@@ -523,7 +628,7 @@ export interface StoreInvitation {
 }
 
 export function fetchStores() {
-  return request<{ stores: StoreRecord[]; activeStoreId: string | null }>('/v1/stores');
+  return request<{ stores: StoreRecord[]; activeStoreId: string | null; role?: string | null }>('/v1/stores');
 }
 
 export function createStore(name: string, industry?: string) {
@@ -596,4 +701,177 @@ export function acceptInvitation(token: string) {
     `/v1/invitations/${encodeURIComponent(token)}/accept`,
     { method: 'POST' },
   );
+}
+
+export interface IdeaInboxItem {
+  id: string;
+  text: string;
+  author: string;
+  authorRole?: string;
+  photoDataUrl?: string | null;
+  status: string;
+  createdAt: string;
+}
+
+export function fetchIdeaInbox() {
+  return request<{ ideas: IdeaInboxItem[] }>('/v1/inbox');
+}
+
+export function submitIdeaInbox(body: {
+  text: string;
+  author?: string;
+  authorRole?: string;
+  photoDataUrl?: string;
+}) {
+  return request<{ idea: IdeaInboxItem }>('/v1/inbox', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function useIdeaInbox(id: string) {
+  return request<{ idea: IdeaInboxItem; magicCreatorPath: string }>(`/v1/inbox/${id}/use`, {
+    method: 'POST',
+  });
+}
+
+export function fetchWinningPatterns() {
+  return request<{
+    patterns: Array<{ id: string; title: string; hook: string; platform: string; notes?: string; createdAt: string }>;
+  }>('/v1/winning-patterns');
+}
+
+export function createWinningPattern(body: {
+  title: string;
+  hook: string;
+  platform?: string;
+  notes?: string;
+}) {
+  return request<{ pattern: { id: string } }>('/v1/winning-patterns', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function fetchCoupons() {
+  return request<{
+    coupons: Array<{
+      id: string;
+      name: string;
+      code: string;
+      benefit: string;
+      uses: number;
+      maxUses?: number | null;
+      active: boolean;
+    }>;
+  }>('/v1/coupons');
+}
+
+export function createCoupon(body: { name: string; benefit: string; code?: string; maxUses?: number }) {
+  return request<{ coupon: { id: string; code: string } }>('/v1/coupons', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function redeemCoupon(id: string, note?: string) {
+  return request<{ success: boolean; message: string; uses?: number }>(`/v1/coupons/${id}/redeem`, {
+    method: 'POST',
+    body: JSON.stringify({ note }),
+  });
+}
+
+export function fetchChatQueue() {
+  return request<{
+    items: Array<{
+      id: string;
+      lineUserId: string;
+      displayName: string;
+      preview: string;
+      status: string;
+      createdAt: string;
+    }>;
+  }>('/v1/line/chat-queue');
+}
+
+export function resolveChatQueueItem(id: string) {
+  return request<{ success: boolean }>(`/v1/line/chat-queue/${id}/resolve`, { method: 'POST' });
+}
+
+export function fetchLineFriendDetail(lineUserId: string) {
+  return request<{
+    friend: LineFriend;
+    recentDeliveries: unknown[];
+  }>(`/v1/line/friends/${encodeURIComponent(lineUserId)}`);
+}
+
+export function fetchConnectionHealth() {
+  return request<{
+    score: number;
+    checks: Array<{
+      id: string;
+      label: string;
+      ok: boolean;
+      warn: boolean;
+      detail: string;
+      ctaPath: string;
+    }>;
+    alerts: Array<{ id: string; label: string; detail: string; ctaPath: string; ok: boolean; warn: boolean }>;
+  }>('/v1/health');
+}
+
+export function fetchAuditLogs() {
+  return request<{
+    logs: Array<{ id: string; action: string; detail: string; createdAt: string }>;
+  }>('/v1/audit-logs');
+}
+
+export async function downloadExport(format: 'json' | 'csv' = 'json') {
+  if (format === 'json') return request<unknown>('/v1/export?format=json');
+  const res = await authFetch('/v1/export?format=csv');
+  if (!res.ok) throw new Error('CSVエクスポートに失敗しました');
+  return res.text();
+}
+
+export function fetchRegionalWatch() {
+  return request<{ ideas: Array<{ topic: string; hook: string; score: number }> }>('/v1/regional-watch');
+}
+
+export function fetchStoresProgress() {
+  return request<{
+    stores: Array<{
+      id: string;
+      name: string;
+      progress?: {
+        metaConnected: boolean;
+        lineConnected: boolean;
+        hasDestination: boolean;
+        lineFriends: number;
+        healthScore: number;
+      };
+    }>;
+  }>('/v1/stores/progress');
+}
+
+export function draftGbpReviewReply(reviewText: string) {
+  return request<{ reply: string; usedGemini: boolean }>('/v1/gbp/review-reply', {
+    method: 'POST',
+    body: JSON.stringify({ reviewText }),
+  });
+}
+
+export function previewLineFlex(body: {
+  title?: string;
+  body?: string;
+  ctaLabel?: string;
+  ctaUri?: string;
+}) {
+  return request<{ flex: unknown; quickReply: unknown }>('/v1/line/flex-preview', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function fetchExportJson() {
+  return downloadExport('json');
 }

@@ -2,6 +2,7 @@
 import { appPath, CORPORATE_URL } from '../lib/urls';
 
 const loginUrl = appPath('/login');
+const iconSrc = `${import.meta.env.BASE_URL}favicon.svg`;
 ---
 
 <footer class="border-t border-neutral-200 bg-neutral-900 pt-20 pb-10 text-neutral-400">
@@ -24,7 +25,7 @@ const loginUrl = appPath('/login');
     <div class="grid grid-cols-2 gap-10 border-t border-neutral-800 pt-12 md:grid-cols-5">
       <div class="col-span-2">
         <div class="mb-4 flex items-center gap-2.5">
-          <span class="flex h-8 w-8 items-center justify-center bg-white text-xs font-bold text-neutral-900">B</span>
+          <img src={iconSrc} alt="" width="32" height="32" class="h-8 w-8 object-contain" />
           <span class="font-display text-xl font-bold text-white">BuzzIt</span>
         </div>
         <p class="max-w-xs text-sm leading-relaxed text-neutral-500">
@@ -36,6 +37,7 @@ const loginUrl = appPath('/login');
         <ul class="space-y-2.5 text-sm">
           <li><a href="#features" class="transition-colors hover:text-white">機能一覧</a></li>
           <li><a href="#pricing" class="transition-colors hover:text-white">料金プラン</a></li>
+          <li><a href={`${import.meta.env.BASE_URL}guide/`} class="transition-colors hover:text-white">使い方説明書</a></li>
         </ul>
       </div>
       <div>

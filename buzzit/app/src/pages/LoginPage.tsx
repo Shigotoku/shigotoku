@@ -4,6 +4,7 @@ import { ArrowRight, Eye, EyeOff, LogIn, Mail } from 'lucide-react';
 import { BRAND_FULL, BRAND_NAME } from '../constants/brand';
 import { landingPath } from '../lib/urls';
 import { useAuth } from '../store/authContext';
+import BrandMark from '../components/BrandMark';
 
 type AuthMode = 'login' | 'signup' | 'reset';
 
@@ -79,11 +80,13 @@ export default function LoginPage() {
       <header className="border-b border-neutral-200 bg-[#f5f4f0]">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <Link to="/login" className="flex items-center gap-3">
-            <span className="buzz-logo-mark text-base">B</span>
+            <BrandMark className="buzz-logo-mark" size={32} />
             <span className="font-display text-lg font-bold">{BRAND_NAME}</span>
           </Link>
           <a
             href={landingPath('/')}
+            target="_blank"
+            rel="noopener noreferrer"
             className="text-sm text-neutral-600 transition-colors hover:text-neutral-900"
           >
             サービスサイトへ

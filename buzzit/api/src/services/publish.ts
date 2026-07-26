@@ -79,6 +79,23 @@ export async function executePublish(
       }
     }
 
+    case 'gbp': {
+      if (!settings.gbpConnected) {
+        return {
+          status: 'failed',
+          message: 'GBP未連携です。設定でロケーション名を保存するか、通知モードで手動投稿してください',
+        };
+      }
+      // APIキー未設定環境では通知にフォールバック（本番OAuth後に差替え）
+      const gbpText = contents.map((c) => `【GBP】${c.label}\n${c.content.slice(0, 600)}`).join('\n\n');
+      const notified = await notifyUser(settings, contents, scheduledAt);
+      return {
+        status: notified.status === 'notified' ? 'notified' : 'failed',
+        message: `GBP投稿ドラフトを通知しました（${settings.gbpLocationName ?? '店舗'}）。${notified.message}`,
+        results: [{ platform: 'gbp', success: true, message: gbpText.slice(0, 120) }],
+      };
+    }
+
     default:
       return notifyUser(settings, contents, scheduledAt);
   }

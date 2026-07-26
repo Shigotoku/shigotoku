@@ -2,7 +2,8 @@
   "projects": {
     "default": "shigotoku-prod",
     "buzzit": "shigotoku-prod",
-    "runwith": "shigotoku-runwith-prod"
+    "runwith": "shigotoku-runwith-prod",
+    "clipit": "shigotoku-clipit-prod-ad9ee"
   },
   "targets": {
     "shigotoku-prod": {
@@ -14,6 +15,11 @@
     "shigotoku-runwith-prod": {
       "hosting": {
         "runwith-app": ["shigotoku-runwith-app"]
+      }
+    },
+    "shigotoku-clipit-prod-ad9ee": {
+      "hosting": {
+        "clipit-app": ["shigotoku-clipit-app-ad9ee"]
       }
     }
   }

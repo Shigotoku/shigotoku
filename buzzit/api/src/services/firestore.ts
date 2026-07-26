@@ -35,6 +35,19 @@ export interface UserSettings {
   storeIds?: string[];
   /** 現在操作中の店舗ID */
   activeStoreId?: string;
+  /** HPB / 予約サイトURL */
+  hpbStoreUrl?: string;
+  /** Googleビジネスプロフィール */
+  gbpConnected?: boolean;
+  gbpLocationName?: string;
+  gbpAccessToken?: string;
+  /** 店長通知用メール（将来拡張・現状はSlack/LINE優先） */
+  notifyEmail?: string;
+  /**
+   * SNS追加アカウント枠数（各媒体の1アカウント目はプランに含む。
+   * 例: Instagram公式＋採用用の2アカウント目 → 1枠）
+   */
+  extraSnsAccounts?: number;
 }
 
 export interface MetricsSummary {
@@ -433,7 +446,7 @@ export async function getScheduledJobs(
     .doc(uid)
     .collection('scheduled')
     .orderBy('scheduledAt', 'desc')
-    .limit(30);
+    .limit(100);
 
   if (status) {
     const statuses = Array.isArray(status) ? status : [status];
@@ -556,11 +569,65 @@ export async function getSlackIdeas(uid: string): Promise<SlackIdea[]> {
   });
 }
 
-export async function approveSlackIdea(uid: string, ideaId: string): Promise<void> {
+export async function getSlackIdea(uid: string, ideaId: string): Promise<SlackIdea | null> {
+  const snap = await db().collection('users').doc(uid).collection('slackIdeas').doc(ideaId).get();
+  if (!snap.exists) return null;
+  const data = snap.data()!;
+  const created =
+    data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : new Date().toISOString();
+  return {
+    id: snap.id,
+    text: data.text as string,
+    author: data.author as string,
+    scriptPreview: data.scriptPreview as string,
+    status: data.status as SlackIdea['status'],
+    createdAt: created,
+  };
+}
+
+export async function approveSlackIdea(uid: string, ideaId: string): Promise<SlackIdea | null> {
+  const idea = await getSlackIdea(uid, ideaId);
+  if (!idea) return null;
   await db().collection('users').doc(uid).collection('slackIdeas').doc(ideaId).update({
     status: 'approved',
     approvedAt: FieldValue.serverTimestamp(),
   });
+  return { ...idea, status: 'approved' };
+}
+
+export async function retryScheduledJob(uid: string, jobId: string): Promise<ScheduledJobDoc | null> {
+  const ref = db().collection('users').doc(uid).collection('scheduled').doc(jobId);
+  const snap = await ref.get();
+  if (!snap.exists) return null;
+  const data = snap.data()!;
+  if (data.status !== 'failed') return null;
+
+  await ref.update({
+    status: 'pending',
+    errorMessage: FieldValue.delete(),
+    retryCount: FieldValue.increment(1),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+
+  const updated = await ref.get();
+  return mapScheduledDoc(uid, jobId, updated.data()!);
+}
+
+export async function revertScheduledJobToDraft(uid: string, jobId: string): Promise<ScheduledJobDoc | null> {
+  const ref = db().collection('users').doc(uid).collection('scheduled').doc(jobId);
+  const snap = await ref.get();
+  if (!snap.exists) return null;
+  const data = snap.data()!;
+  if (data.status !== 'failed' && data.status !== 'pending_approval') return null;
+
+  await ref.update({
+    status: 'draft',
+    errorMessage: FieldValue.delete(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+
+  const updated = await ref.get();
+  return mapScheduledDoc(uid, jobId, updated.data()!);
 }
 
 export async function trackMetricEvent(
@@ -603,12 +670,12 @@ export async function trackMetricEvent(
 
 export async function getAutoModeUsers(): Promise<UserSettings[]> {
   const snap = await db().collection('users').where('autoModeEnabled', '==', true).get();
-  return snap.docs.map((d) => d.data() as UserSettings);
+  return snap.docs.map((d) => ({ ...(d.data() as UserSettings), uid: d.id }));
 }
 
 export async function getAllUsersWithSlack(): Promise<UserSettings[]> {
   const snap = await db().collection('users').get();
   return snap.docs
-    .map((d) => d.data() as UserSettings)
+    .map((d) => ({ ...(d.data() as UserSettings), uid: d.id }))
     .filter((u) => !!u.slackWebhookUrl);
 }

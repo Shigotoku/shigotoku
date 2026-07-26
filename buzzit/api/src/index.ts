@@ -9,7 +9,7 @@ import {
   MAX_VIDEO_BYTES,
   checkBrandSafety,
 } from './services/repurpose';
-import { generateRepurposeWithGemini } from './services/gemini';
+import { generateRepurposeWithGemini, voiceDraftWithGemini } from './services/gemini';
 import { getAyrshareProfiles } from './services/ayrshare';
 import {
   ensureUser,
@@ -24,12 +24,52 @@ import {
   createScheduledJob,
   getScheduledJobs,
   approveScheduledJob,
+  retryScheduledJob,
+  revertScheduledJobToDraft,
   trackMetricEvent,
   createTrackingLink,
   getTrackingLink,
   recordTrackingClick,
   findUserByLineDestination,
 } from './services/firestore';
+import { buildWeeklyReportForUser } from './services/weeklyReport';
+import {
+  listLineFriends,
+  setFriendTags,
+  fetchProfileAndUpsert,
+  markLineFriendUnfollowed,
+  enrollInFollowSteps,
+  handlePostbackTag,
+  touchFriendMessage,
+  sendSegmentMessage,
+  estimateSegmentReach,
+  recordSourceClick,
+  listDeliveries,
+} from './services/lineCrm';
+import {
+  addIdeaInbox,
+  listIdeaInbox,
+  markIdeaUsed,
+  listWinningPatterns,
+  addWinningPattern,
+  listCoupons,
+  createCoupon,
+  redeemCoupon,
+  listChatQueue,
+  enqueueChatNeedReply,
+  resolveChatQueue,
+  buildConnectionHealth,
+  notifyApprovalNeeded,
+  listHpbConversions,
+  upsertHpbConversion,
+  draftGbpReviewReply,
+  regionalWatchIdeas,
+  buildExportBundle,
+  toCsv,
+  listAuditLogs,
+  writeAuditLog,
+  listStoreProgress,
+} from './services/productExtras';
 import {
   verifySlackSignature,
   formatSlackIdeaReply,
@@ -47,6 +87,7 @@ import {
   staffLimitLabel,
   storeLimitLabel,
   ADDITIONAL_STORE_DISCOUNT,
+  EXTRA_SNS_ACCOUNT_MONTHLY,
 } from './services/billing';
 import {
   listStoresForUser,
@@ -257,13 +298,22 @@ api.post('/v1/schedule', requireAuth, async (req: AuthedRequest, res) => {
       trackingLinks,
     });
 
+    if (mode === 'approval') {
+      await notifyApprovalNeeded(
+        req.uid!,
+        jobId,
+        contents.map((c) => c.label).join(' / '),
+      );
+    }
+    await writeAuditLog(req.uid!, 'schedule.create', `${mode} ${contents.length}件`, { jobId });
+
     const when = new Date(scheduledAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
     const modeLabel: Record<PublishMode, string> = {
       notify: '通知リマインダー',
       approval: '承認待ちキュー',
       meta: 'Meta 自動投稿',
       line: 'LINE 配信',
-      gbp: 'Google Business Profile（準備中）',
+      gbp: 'Googleマップ投稿',
       ayrshare: 'Ayrshare 予約',
       auto: '自動（接続に応じて）',
     };
@@ -301,6 +351,36 @@ api.post('/v1/scheduled/:id/approve', requireAuth, async (req: AuthedRequest, re
     return;
   }
   res.json({ success: true, job });
+});
+
+api.post('/v1/scheduled/:id/retry', requireAuth, async (req: AuthedRequest, res) => {
+  const job = await retryScheduledJob(req.uid!, String(req.params.id));
+  if (!job) {
+    res.status(404).json({ error: '再試行できる失敗ジョブが見つかりません' });
+    return;
+  }
+  await writeAuditLog(req.uid!, 'schedule.retry', job.id);
+  res.json({ success: true, job });
+});
+
+api.post('/v1/scheduled/:id/draft', requireAuth, async (req: AuthedRequest, res) => {
+  const job = await revertScheduledJobToDraft(req.uid!, String(req.params.id));
+  if (!job) {
+    res.status(404).json({ error: '下書きに戻せるジョブが見つかりません' });
+    return;
+  }
+  await writeAuditLog(req.uid!, 'schedule.draft', job.id);
+  res.json({ success: true, job });
+});
+
+api.get('/v1/reports/weekly', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const report = await buildWeeklyReportForUser(req.uid!);
+    res.json({ report });
+  } catch (err) {
+    console.error('weekly report failed', err);
+    res.status(500).json({ error: '週次レポートの生成に失敗しました' });
+  }
 });
 
 // --- Meta OAuth ---
@@ -381,19 +461,35 @@ api.get('/v1/analytics', requireAuth, async (req: AuthedRequest, res) => {
   res.json({ metrics, topPosts: posts });
 });
 
+const DEFAULT_SNS_CONNECTIONS = [
+  { name: 'Instagram', connected: false },
+  { name: 'X (Twitter)', connected: false },
+  { name: 'TikTok', connected: false },
+  { name: 'LINE Official', connected: false },
+];
+
 // --- Settings ---
 api.get('/v1/settings', requireAuth, async (req: AuthedRequest, res) => {
   const settings = await getUserSettings(req.uid!);
-  const snsConnections = await getAyrshareProfiles();
   const metaConnected = !!(settings.metaAccessToken && settings.metaIgUserId);
+  // Ayrshare 外部 API は別エンドポイントへ分離（設定画面の初期表示を高速化）
   res.json({
     ...settings,
-    snsConnections,
+    snsConnections: DEFAULT_SNS_CONNECTIONS,
     metaConnected,
     canUseSlack: canUseSlack(settings),
     canUseAutoMode: settings.plan === 'growth',
     lineWebhookUrl: lineWebhookUrl(req.uid!),
   });
+});
+
+api.get('/v1/sns-connections', requireAuth, async (_req: AuthedRequest, res) => {
+  try {
+    const snsConnections = await getAyrshareProfiles();
+    res.json({ snsConnections });
+  } catch {
+    res.json({ snsConnections: DEFAULT_SNS_CONNECTIONS });
+  }
 });
 
 api.put('/v1/settings', requireAuth, async (req: AuthedRequest, res) => {
@@ -402,10 +498,16 @@ api.put('/v1/settings', requireAuth, async (req: AuthedRequest, res) => {
     'displayName', 'lineChannelSecret', 'lineChannelAccessToken', 'lineAdminUserId',
     'lineDestinationId', 'defaultDestinationUrl', 'defaultPublishMode',
     'metaAccessToken', 'metaPageAccessToken', 'metaIgUserId', 'metaPageId', 'metaTokenExpiresAt',
+    'hpbStoreUrl', 'gbpConnected', 'gbpLocationName', 'notifyEmail', 'industry',
+    'extraSnsAccounts',
   ];
   const patch: Record<string, unknown> = {};
   for (const key of allowed) {
     if (key in req.body) patch[key] = req.body[key];
+  }
+  if ('extraSnsAccounts' in patch) {
+    const n = Number(patch.extraSnsAccounts);
+    patch.extraSnsAccounts = Number.isFinite(n) ? Math.max(0, Math.min(20, Math.floor(n))) : 0;
   }
   const settings = await updateUserSettings(req.uid!, patch);
   res.json(settings);
@@ -499,7 +601,12 @@ api.post('/v1/webhooks/line', async (req: AuthedRequest, res) => {
 
   const body = req.body as {
     destination?: string;
-    events?: Array<{ type?: string; postback?: { data?: string } }>;
+    events?: Array<{
+      type?: string;
+      source?: { userId?: string; type?: string };
+      postback?: { data?: string };
+      message?: { type?: string; text?: string };
+    }>;
   };
 
   let uid = queryUid ?? null;
@@ -521,11 +628,26 @@ api.post('/v1/webhooks/line', async (req: AuthedRequest, res) => {
   }
 
   for (const event of body.events ?? []) {
+    const lineUserId = event.source?.userId;
+    if (!lineUserId) continue;
+
     if (event.type === 'follow') {
-      const postId = event.postback?.data?.startsWith('post=')
-        ? event.postback.data.slice(5)
-        : undefined;
-      await trackMetricEvent(uid, 'line_signup', 1, postId);
+      await fetchProfileAndUpsert(uid, lineUserId);
+      await enrollInFollowSteps(uid, lineUserId);
+      await trackMetricEvent(uid, 'line_signup', 1);
+    } else if (event.type === 'unfollow') {
+      await markLineFriendUnfollowed(uid, lineUserId);
+    } else if (event.type === 'postback' && event.postback?.data) {
+      await handlePostbackTag(uid, lineUserId, event.postback.data);
+      if (event.postback.data.startsWith('post=')) {
+        await trackMetricEvent(uid, 'line_signup', 1, event.postback.data.slice(5));
+      }
+    } else if (event.type === 'message') {
+      await touchFriendMessage(uid, lineUserId);
+      const text = event.message?.text ?? '';
+      if (text) {
+        await enqueueChatNeedReply(uid, lineUserId, text);
+      }
     }
   }
 
@@ -620,8 +742,16 @@ api.get('/v1/slack/ideas', requireAuth, async (req: AuthedRequest, res) => {
 
 api.post('/v1/slack/ideas/:id/approve', requireAuth, async (req: AuthedRequest, res) => {
   const ideaId = String(req.params.id);
-  await approveSlackIdea(req.uid!, ideaId);
-  res.json({ success: true });
+  const idea = await approveSlackIdea(req.uid!, ideaId);
+  if (!idea) {
+    res.status(404).json({ error: 'ネタが見つかりません' });
+    return;
+  }
+  res.json({
+    success: true,
+    idea,
+    magicCreatorPath: `/magic-creator?idea=${encodeURIComponent(idea.text)}&from=slack`,
+  });
 });
 
 api.post('/v1/slack/ideas', requireAuth, async (req: AuthedRequest, res) => {
@@ -706,7 +836,7 @@ api.post('/v1/auto-mode/run', requireAuth, async (req: AuthedRequest, res) => {
   res.json(result);
 });
 
-// --- Voice Draft (Phase 4 skeleton) ---
+// --- Voice Draft（Gemini マルチモーダル文字起こし + 4媒体下書き） ---
 api.post('/v1/voice-draft', requireAuth, async (req: AuthedRequest, res) => {
   const { audioBase64, mimeType, hint } = req.body as {
     audioBase64?: string;
@@ -717,17 +847,27 @@ api.post('/v1/voice-draft', requireAuth, async (req: AuthedRequest, res) => {
     res.status(400).json({ error: 'audioBase64 が必要です' });
     return;
   }
-  const audioSizeKb = Math.round((audioBase64.length * 0.75) / 1024);
+  // 約 12MB base64 上限（Gemini 実用サイズ）
+  if (audioBase64.length > 16_000_000) {
+    res.status(413).json({ error: '音声が大きすぎます。2分以内の録音にしてください' });
+    return;
+  }
   const settings = await getUserSettings(req.uid!);
-  const baseIdea = hint?.trim() || '今日の施術・接客についてのカウンセリング会話';
-  const { results, usedGemini } = await generateRepurposeWithGemini(
-    `（${audioSizeKb}KBのボイス素材より自動生成）\n${baseIdea}`,
+  const { transcript, results, usedGemini } = await voiceDraftWithGemini(
+    audioBase64,
+    mimeType || 'audio/webm',
     settings.plan,
-    undefined,
+    hint,
   );
   res.json({
-    transcript: `[音声 ${audioSizeKb}KB / ${mimeType ?? 'audio/webm'}] ${baseIdea}`,
-    drafts: results.map((r) => ({ kind: r.platform, label: r.label, content: r.content })),
+    transcript,
+    drafts: results.map((r) => ({
+      kind: r.platform,
+      platform: r.platform,
+      label: r.label,
+      content: r.content,
+      carouselSlides: r.carouselSlides,
+    })),
     usedGemini,
   });
 });
@@ -790,8 +930,6 @@ api.get('/v1/line/cost-estimate', requireAuth, async (req: AuthedRequest, res) =
 // --- LINE CRM (Lstep Replacement / Phase 5) ---
 
 import {
-  sendLineNarrowcast,
-  createLineAudienceGroup,
   getLineFollowerInsight,
   getLineDemographicInsight,
   createLineRichMenu,
@@ -880,12 +1018,57 @@ api.get('/r/line/:sourceId', async (req, res) => {
       return;
     }
     const data = doc.data() as { addFriendUrl: string };
+    const ownerUid = doc.ref.parent.parent?.id;
+    if (ownerUid) {
+      await recordSourceClick(ownerUid, sourceId).catch(() => {});
+    }
     res.cookie('buzz_line_src', sourceId, { maxAge: 60 * 60 * 24 * 1000, httpOnly: false, sameSite: 'lax' });
     res.redirect(302, data.addFriendUrl);
   } catch (err) {
     console.error('line source redirect failed', err);
     res.status(500).send('リダイレクトに失敗しました');
   }
+});
+
+// 友だち台帳
+api.get('/v1/line/friends', requireAuth, async (req: AuthedRequest, res) => {
+  const tag = typeof req.query.tag === 'string' ? req.query.tag : undefined;
+  const sourceId = typeof req.query.sourceId === 'string' ? req.query.sourceId : undefined;
+  const q = typeof req.query.q === 'string' ? req.query.q : undefined;
+  const friends = await listLineFriends(req.uid!, { tag, sourceId, q, status: 'followed' });
+  res.json({ friends });
+});
+
+api.patch('/v1/line/friends/:lineUserId/tags', requireAuth, async (req: AuthedRequest, res) => {
+  const { tags } = req.body as { tags?: string[] };
+  if (!Array.isArray(tags)) {
+    res.status(400).json({ error: 'tags 配列が必要です' });
+    return;
+  }
+  const friend = await setFriendTags(req.uid!, String(req.params.lineUserId), tags);
+  if (!friend) {
+    res.status(404).json({ error: '友だちが見つかりません' });
+    return;
+  }
+  res.json({ friend });
+});
+
+api.get('/v1/line/deliveries', requireAuth, async (req: AuthedRequest, res) => {
+  const deliveries = await listDeliveries(req.uid!);
+  res.json({ deliveries });
+});
+
+api.post('/v1/line/segments/:id/estimate', requireAuth, async (req: AuthedRequest, res) => {
+  const { getFirestore } = await import('firebase-admin/firestore');
+  const snap = await getFirestore().doc(lineCrmDocPath(req.uid!, 'lineSegments', String(req.params.id))).get();
+  if (!snap.exists) {
+    res.status(404).json({ error: 'セグメントが見つかりません' });
+    return;
+  }
+  const conditions = (snap.data()?.conditions ?? []) as import('./services/lineCrm').SegmentCondition[];
+  const reach = await estimateSegmentReach(req.uid!, conditions);
+  await snap.ref.update({ estimatedReach: reach });
+  res.json({ estimatedReach: reach });
 });
 
 // セグメント
@@ -911,11 +1094,19 @@ api.post('/v1/line/segments', requireAuth, async (req: AuthedRequest, res) => {
   res.json({ id: ref.id });
 });
 
-// Narrowcast 配信
+// セグメント配信（multicast / narrowcast 自動切替）
 api.post('/v1/line/narrowcast', requireAuth, async (req: AuthedRequest, res) => {
-  const { segmentId, text, userIds } = req.body as { segmentId?: string; text?: string; userIds?: string[] };
+  const { segmentId, text, conditions } = req.body as {
+    segmentId?: string;
+    text?: string;
+    conditions?: import('./services/lineCrm').SegmentCondition[];
+  };
   if (!text?.trim()) {
     res.status(400).json({ error: 'text が必要です' });
+    return;
+  }
+  if (!segmentId && !conditions?.length) {
+    res.status(400).json({ error: 'segmentId または conditions が必要です' });
     return;
   }
   const settings = await getUserSettings(req.uid!);
@@ -923,24 +1114,15 @@ api.post('/v1/line/narrowcast', requireAuth, async (req: AuthedRequest, res) => 
     res.status(403).json({ error: 'Pro プラン以上が必要です' });
     return;
   }
-  if (!settings.lineChannelAccessToken) {
-    res.status(400).json({ error: 'LINE Channel Access Token 未設定' });
+  const result = await sendSegmentMessage(req.uid!, {
+    segmentId,
+    conditions,
+    text: text.trim(),
+  });
+  if (!result.success) {
+    res.status(400).json(result);
     return;
   }
-  if (!userIds?.length) {
-    res.status(400).json({ error: 'userIds（最小100名）が必要です' });
-    return;
-  }
-  const ag = await createLineAudienceGroup(
-    settings.lineChannelAccessToken,
-    `buzzit_${segmentId ?? 'manual'}_${Date.now()}`,
-    userIds,
-  );
-  if (!ag.success || !ag.audienceGroupId) {
-    res.status(500).json({ error: ag.message });
-    return;
-  }
-  const result = await sendLineNarrowcast(settings.lineChannelAccessToken, ag.audienceGroupId, text);
   res.json(result);
 });
 
@@ -966,10 +1148,26 @@ api.post('/v1/line/steps', requireAuth, async (req: AuthedRequest, res) => {
     res.status(403).json({ error: 'Pro プラン以上が必要です' });
     return;
   }
+  // UI の { delayMinutes, message: { text } } と { delayMinutes, text } の両方を正規化
+  const normalizedMessages = (messages as Array<{
+    delayMinutes?: number;
+    text?: string;
+    message?: { text?: string };
+  }>).map((m) => ({
+    delayMinutes: Number(m.delayMinutes ?? 0),
+    text: String(m.text ?? m.message?.text ?? '').trim(),
+  })).filter((m) => m.text);
+
   const { getFirestore } = await import('firebase-admin/firestore');
   const ref = await getFirestore().collection(lineCrmDocPath(req.uid!, 'lineSteps')).add({
-    name: name.trim(), segmentId: segmentId ?? null, messages, triggers,
-    status: 'active', createdAt: new Date().toISOString(),
+    name: name.trim(),
+    segmentId: segmentId ?? null,
+    messages: normalizedMessages.length
+      ? normalizedMessages
+      : [{ delayMinutes: 0, text: 'ご登録ありがとうございます！' }],
+    triggers,
+    status: 'active',
+    createdAt: new Date().toISOString(),
   });
   res.json({ id: ref.id });
 });
@@ -1029,19 +1227,228 @@ api.get('/v1/line/insights', requireAuth, async (req: AuthedRequest, res) => {
   });
 });
 
-// --- HPB Conversions (Phase 5 skeleton) ---
+// --- HPB Conversions ---
 api.get('/v1/hpb/conversions', requireAuth, async (req: AuthedRequest, res) => {
-  const settings = await getUserSettings(req.uid!);
-  if (settings.plan !== 'growth' && settings.plan !== 'enterprise') {
-    res.json({ conversions: [] });
-    return;
-  }
-  res.json({ conversions: [] });
+  const conversions = await listHpbConversions(req.uid!);
+  res.json({ conversions });
 });
 
-// --- GBP OAuth (Phase 4 skeleton) ---
-api.get('/v1/oauth/google/start', requireAuth, async (_req: AuthedRequest, res) => {
-  res.status(503).json({ error: 'Google Business Profile OAuth は Phase 4 で提供予定です' });
+api.post('/v1/hpb/conversions', requireAuth, async (req: AuthedRequest, res) => {
+  const { postId, title, reservations, estimatedRevenue } = req.body as {
+    postId?: string; title?: string; reservations?: number; estimatedRevenue?: number;
+  };
+  if (!postId || !title) {
+    res.status(400).json({ error: 'postId と title が必要です' });
+    return;
+  }
+  await upsertHpbConversion(req.uid!, {
+    postId,
+    title,
+    reservations: Number(reservations ?? 1),
+    estimatedRevenue: Number(estimatedRevenue ?? 0),
+  });
+  res.json({ success: true });
+});
+
+// --- GBP ---
+api.get('/v1/oauth/google/start', requireAuth, async (req: AuthedRequest, res) => {
+  // 本番OAuth前の接続フロー: ロケーション名保存で「連携済み」扱いにできる
+  res.json({
+    mode: 'manual',
+    message: '設定画面で店舗名・ロケーションを保存すると GBP モードが使えます（OAuth本番接続は順次開放）',
+    settingsPath: '/settings',
+  });
+});
+
+api.post('/v1/gbp/review-reply', requireAuth, async (req: AuthedRequest, res) => {
+  const { reviewText } = req.body as { reviewText?: string };
+  if (!reviewText?.trim()) {
+    res.status(400).json({ error: 'reviewText が必要です' });
+    return;
+  }
+  const settings = await getUserSettings(req.uid!);
+  const result = await draftGbpReviewReply(reviewText.trim(), settings.plan);
+  res.json(result);
+});
+
+// --- Product extras: inbox / patterns / coupons / chat / health / export / watch ---
+api.get('/v1/inbox', requireAuth, async (req: AuthedRequest, res) => {
+  res.json({ ideas: await listIdeaInbox(req.uid!) });
+});
+
+api.post('/v1/inbox', requireAuth, async (req: AuthedRequest, res) => {
+  const { text, author, authorRole, photoDataUrl } = req.body as {
+    text?: string; author?: string; authorRole?: string; photoDataUrl?: string;
+  };
+  if (!text?.trim()) {
+    res.status(400).json({ error: 'text が必要です' });
+    return;
+  }
+  const idea = await addIdeaInbox(req.uid!, { text, author, authorRole, photoDataUrl });
+  res.json({ idea });
+});
+
+api.post('/v1/inbox/:id/use', requireAuth, async (req: AuthedRequest, res) => {
+  const idea = await markIdeaUsed(req.uid!, String(req.params.id));
+  if (!idea) {
+    res.status(404).json({ error: 'ネタが見つかりません' });
+    return;
+  }
+  res.json({
+    idea,
+    magicCreatorPath: `/magic-creator?idea=${encodeURIComponent(idea.text)}&from=inbox`,
+  });
+});
+
+api.get('/v1/winning-patterns', requireAuth, async (req: AuthedRequest, res) => {
+  res.json({ patterns: await listWinningPatterns(req.uid!) });
+});
+
+api.post('/v1/winning-patterns', requireAuth, async (req: AuthedRequest, res) => {
+  const { title, hook, platform, notes, sourcePostId } = req.body as {
+    title?: string; hook?: string; platform?: string; notes?: string; sourcePostId?: string;
+  };
+  if (!title?.trim() || !hook?.trim()) {
+    res.status(400).json({ error: 'title と hook が必要です' });
+    return;
+  }
+  const pattern = await addWinningPattern(req.uid!, { title, hook, platform, notes, sourcePostId });
+  res.json({ pattern });
+});
+
+api.get('/v1/coupons', requireAuth, async (req: AuthedRequest, res) => {
+  res.json({ coupons: await listCoupons(req.uid!) });
+});
+
+api.post('/v1/coupons', requireAuth, async (req: AuthedRequest, res) => {
+  const { name, code, benefit, maxUses } = req.body as {
+    name?: string; code?: string; benefit?: string; maxUses?: number;
+  };
+  if (!name?.trim() || !benefit?.trim()) {
+    res.status(400).json({ error: 'name と benefit が必要です' });
+    return;
+  }
+  res.json({ coupon: await createCoupon(req.uid!, { name, code, benefit, maxUses }) });
+});
+
+api.post('/v1/coupons/:id/redeem', requireAuth, async (req: AuthedRequest, res) => {
+  const { note } = req.body as { note?: string };
+  const result = await redeemCoupon(req.uid!, String(req.params.id), note);
+  res.status(result.success ? 200 : 400).json(result);
+});
+
+api.get('/v1/line/chat-queue', requireAuth, async (req: AuthedRequest, res) => {
+  res.json({ items: await listChatQueue(req.uid!) });
+});
+
+api.post('/v1/line/chat-queue/:id/resolve', requireAuth, async (req: AuthedRequest, res) => {
+  await resolveChatQueue(req.uid!, String(req.params.id));
+  res.json({ success: true });
+});
+
+api.get('/v1/line/friends/:lineUserId', requireAuth, async (req: AuthedRequest, res) => {
+  const friends = await listLineFriends(req.uid!, { limit: 5000 });
+  const friend = friends.find((f) => f.lineUserId === String(req.params.lineUserId));
+  if (!friend) {
+    res.status(404).json({ error: '友だちが見つかりません' });
+    return;
+  }
+  const deliveries = await listDeliveries(req.uid!, 20);
+  res.json({ friend, recentDeliveries: deliveries.slice(0, 10) });
+});
+
+api.get('/v1/health', requireAuth, async (req: AuthedRequest, res) => {
+  res.json(await buildConnectionHealth(req.uid!));
+});
+
+api.get('/v1/audit-logs', requireAuth, async (req: AuthedRequest, res) => {
+  res.json({ logs: await listAuditLogs(req.uid!) });
+});
+
+api.get('/v1/export', requireAuth, async (req: AuthedRequest, res) => {
+  const format = String(req.query.format ?? 'json');
+  const bundle = await buildExportBundle(req.uid!);
+  await writeAuditLog(req.uid!, 'export.download', format);
+  if (format === 'csv') {
+    const friendsCsv = toCsv(
+      (bundle.friends as Array<Record<string, unknown>>).map((f) => ({
+        lineUserId: f.lineUserId,
+        displayName: f.displayName,
+        tags: Array.isArray(f.tags) ? (f.tags as string[]).join('|') : '',
+        sourceId: f.sourceId,
+        score: f.score,
+        status: f.status,
+      })),
+    );
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="buzzit-friends.csv"');
+    res.send(friendsCsv);
+    return;
+  }
+  res.json(bundle);
+});
+
+api.get('/v1/regional-watch', requireAuth, async (req: AuthedRequest, res) => {
+  const settings = await getUserSettings(req.uid!);
+  res.json({ ideas: regionalWatchIdeas(settings.industry) });
+});
+
+api.get('/v1/stores/progress', requireAuth, async (req: AuthedRequest, res) => {
+  const stores = await listStoresForUser(req.uid!);
+  const progress = await listStoreProgress(
+    req.uid!,
+    stores.map((s) => s.id),
+  );
+  res.json({
+    stores: stores.map((s) => ({
+      ...s,
+      progress: progress.find((p) => p.storeId === s.id),
+    })),
+  });
+});
+
+api.post('/v1/line/flex-preview', requireAuth, async (req: AuthedRequest, res) => {
+  const { title, body, ctaLabel, ctaUri } = req.body as {
+    title?: string; body?: string; ctaLabel?: string; ctaUri?: string;
+  };
+  const flex = {
+    type: 'flex',
+    altText: title?.slice(0, 40) || 'BuzzIt お知らせ',
+    contents: {
+      type: 'bubble',
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          { type: 'text', text: title || 'お知らせ', weight: 'bold', size: 'lg', wrap: true },
+          { type: 'text', text: body || '', size: 'sm', wrap: true, margin: 'md' },
+        ],
+      },
+      footer: ctaUri
+        ? {
+            type: 'box',
+            layout: 'vertical',
+            contents: [
+              {
+                type: 'button',
+                style: 'primary',
+                action: { type: 'uri', label: ctaLabel || '詳しく見る', uri: ctaUri },
+              },
+            ],
+          }
+        : undefined,
+    },
+  };
+  res.json({
+    flex,
+    quickReply: {
+      items: [
+        { type: 'action', action: { type: 'message', label: '予約したい', text: '予約したい' } },
+        { type: 'action', action: { type: 'message', label: 'クーポンを見る', text: 'クーポンを見る' } },
+        { type: 'action', action: { type: 'message', label: '営業時間', text: '営業時間を教えて' } },
+      ],
+    },
+  });
 });
 
 // --- Stores & billing ---
@@ -1049,7 +1456,9 @@ api.get('/v1/stores', requireAuth, async (req: AuthedRequest, res) => {
   try {
     const stores = await listStoresForUser(req.uid!);
     const settings = await getUserSettings(req.uid!);
-    res.json({ stores, activeStoreId: settings.activeStoreId ?? stores[0]?.id ?? null });
+    const activeStoreId = settings.activeStoreId ?? stores[0]?.id ?? null;
+    const role = activeStoreId ? await getUserRoleInStore(activeStoreId, req.uid!) : null;
+    res.json({ stores, activeStoreId, role });
   } catch (err) {
     console.error('stores list failed', err);
     res.status(500).json({ error: '店舗一覧の取得に失敗しました' });
@@ -1090,21 +1499,21 @@ api.get('/v1/billing', requireAuth, async (req: AuthedRequest, res) => {
   try {
     const settings = await getUserSettings(req.uid!);
     const plan = settings.plan;
-    const stores = await listStoresForUser(req.uid!);
+    const extraSnsAccounts = Math.max(0, Number(settings.extraSnsAccounts) || 0);
+    const stores = await listStoresForUser(req.uid!, settings);
     const activeStoreId = settings.activeStoreId ?? stores[0]?.id ?? null;
-    let memberCount = 1;
-    let pendingInviteCount = 0;
-    if (activeStoreId) {
-      const members = await listStoreMembers(activeStoreId);
-      memberCount = members.length;
-      pendingInviteCount = await countPendingInvites(activeStoreId);
-    }
+    const [members, pendingInviteCount] = activeStoreId
+      ? await Promise.all([listStoreMembers(activeStoreId), countPendingInvites(activeStoreId)])
+      : [[], 0];
+    const memberCount = members.length || 1;
     res.json({
       plan,
       storeCount: stores.length,
       memberCount,
       pendingInviteCount,
-      monthlyTotal: computeMonthlyTotal(plan, stores.length),
+      extraSnsAccounts,
+      extraSnsAccountPrice: EXTRA_SNS_ACCOUNT_MONTHLY,
+      monthlyTotal: computeMonthlyTotal(plan, stores.length, extraSnsAccounts),
       baseMonthly: PLAN_BASE_MONTHLY[plan],
       additionalStoreDiscount: ADDITIONAL_STORE_DISCOUNT,
       maxStores: MAX_STORES_BY_PLAN[plan],
@@ -1265,4 +1674,9 @@ const functionOptions = {
 
 export const buzzitApi = onRequest({ ...functionOptions, secrets: [...functionSecrets] }, app);
 
-export { buzzitScheduler, buzzitPublishWorker } from './scheduler';
+export {
+  buzzitScheduler,
+  buzzitPublishWorker,
+  buzzitLineStepWorker,
+  buzzitWeeklyReport,
+} from './scheduler';

@@ -1,3 +1,9 @@
+---
+import { FORMSPREE_FORM_ID } from '../lib/urls';
+
+const formspreeConfigured = Boolean(FORMSPREE_FORM_ID);
+---
+
 <section id="contact" class="py-32 bg-gray-50">
   <div class="mx-auto max-w-7xl px-6 lg:px-8">
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
@@ -21,6 +27,12 @@
       </div>
 
       <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sm:p-8">
+        {!formspreeConfigured && (
+          <p class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            お問い合わせフォームは管理者設定待ちです。直接 <a href="mailto:support@shigotoku.com" class="font-semibold underline">support@shigotoku.com</a> までご連絡ください。
+          </p>
+        )}
+
         <div id="contact-success" class="hidden text-center py-12">
           <div class="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center mx-auto mb-4">
             <svg class="h-8 w-8 text-green-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
@@ -30,7 +42,9 @@
           <button id="contact-reset" type="button" class="mt-6 text-sm text-blue-600 hover:underline">別のお問い合わせをする</button>
         </div>
 
-        <form id="contact-form" class="space-y-4">
+        <form id="contact-form" class="space-y-4" data-formspree-id={FORMSPREE_FORM_ID || ''}>
+          <input type="hidden" name="_subject" value="【シゴトク】お問い合わせ" />
+          <input type="text" name="_gotcha" tabindex="-1" autocomplete="off" class="hidden" aria-hidden="true" />
           <div>
             <label class="block text-xs font-semibold text-gray-600 mb-1.5">会社名</label>
             <input type="text" name="company" placeholder="株式会社〇〇" class="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-base sm:py-2.5 sm:text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-colors" />
@@ -52,7 +66,7 @@
             <label for="agree" class="text-xs text-gray-500 leading-relaxed"><a href="/privacy" class="text-blue-600 hover:underline">プライバシーポリシー</a>に同意する</label>
           </div>
           <p id="contact-error" class="hidden text-sm text-red-600 bg-red-50 rounded-lg px-4 py-2.5">送信に失敗しました。時間をおいて再度お試しください。</p>
-          <button type="submit" id="contact-submit" class="w-full rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed shadow-sm">送信する</button>
+          <button type="submit" id="contact-submit" disabled={!formspreeConfigured} class="w-full rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed shadow-sm">送信する</button>
           <p class="text-xs text-gray-400 text-center"><span class="text-red-500">*</span> は必須項目です</p>
         </form>
       </div>
@@ -66,16 +80,23 @@
   const error = document.getElementById('contact-error');
   const submit = document.getElementById('contact-submit');
   const reset = document.getElementById('contact-reset');
+  const formspreeId = form?.dataset.formspreeId ?? '';
 
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (!formspreeId) {
+      error?.classList.remove('hidden');
+      if (error) error.textContent = 'フォームが未設定です。support@shigotoku.com まで直接ご連絡ください。';
+      return;
+    }
+
     error?.classList.add('hidden');
     submit?.setAttribute('disabled', 'true');
     if (submit) submit.textContent = '送信中...';
 
     const data = new FormData(form);
     try {
-      const res = await fetch('https://formspree.io/f/REPLACE_WITH_YOUR_ID', {
+      const res = await fetch(`https://formspree.io/f/${formspreeId}`, {
         method: 'POST',
         headers: { Accept: 'application/json' },
         body: data,
@@ -86,9 +107,11 @@
         form.reset();
       } else {
         error?.classList.remove('hidden');
+        if (error) error.textContent = '送信に失敗しました。時間をおいて再度お試しください。';
       }
     } catch {
       error?.classList.remove('hidden');
+      if (error) error.textContent = '送信に失敗しました。時間をおいて再度お試しください。';
     } finally {
       submit?.removeAttribute('disabled');
       if (submit) submit.textContent = '送信する';

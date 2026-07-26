@@ -6,7 +6,8 @@ export type ScheduledJobStatus =
   | 'processing'
   | 'published'
   | 'notified'
-  | 'failed';
+  | 'failed'
+  | 'draft';
 
 export interface ScheduleContentItem {
   platform: string;

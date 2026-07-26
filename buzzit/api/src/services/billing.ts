@@ -15,6 +15,9 @@ export const PLAN_BASE_MONTHLY: Record<PlanTier, number> = {
 /** 2店舗目以降の割引率 */
 export const ADDITIONAL_STORE_DISCOUNT = 0.2;
 
+/** SNSごとに2アカウント目以降の追加枠（月額・1枠） */
+export const EXTRA_SNS_ACCOUNT_MONTHLY = 980;
+
 /** プランごとの最大店舗数 */
 export const MAX_STORES_BY_PLAN: Record<PlanTier, number> = {
   free: 1,
@@ -39,12 +42,22 @@ export const MAX_STAFF_BY_PLAN: Record<PlanTier, number> = {
   enterprise: Number.POSITIVE_INFINITY,
 };
 
-export function computeMonthlyTotal(plan: PlanTier, storeCount: number): number {
+export function computeMonthlyTotal(
+  plan: PlanTier,
+  storeCount: number,
+  extraSnsAccounts = 0,
+): number {
   const base = PLAN_BASE_MONTHLY[plan];
-  if (storeCount <= 0 || base === 0) return 0;
+  if (storeCount <= 0) return 0;
   const additional = Math.max(0, storeCount - 1);
-  const additionalCost = additional * base * (1 - ADDITIONAL_STORE_DISCOUNT);
-  return Math.round(base + additionalCost);
+  const storeCost =
+    base === 0 ? 0 : Math.round(base + additional * base * (1 - ADDITIONAL_STORE_DISCOUNT));
+  const snsExtra = Math.max(0, extraSnsAccounts) * EXTRA_SNS_ACCOUNT_MONTHLY;
+  return storeCost + snsExtra;
+}
+
+export function extraSnsAccountsCost(extraSnsAccounts: number): number {
+  return Math.max(0, extraSnsAccounts) * EXTRA_SNS_ACCOUNT_MONTHLY;
 }
 
 export function canAddStore(plan: PlanTier, currentStoreCount: number): boolean {
