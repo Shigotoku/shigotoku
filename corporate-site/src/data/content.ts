@@ -19,12 +19,6 @@ export const missionCards = [
   { img: '/images/exit.png', title: '創業からEXITまで', description: 'アイデア段階からIPO・M&Aまで、成長フェーズに応じたツールと情報を一気通貫で提供します。' },
 ];
 
-export const news = [
-  { date: '2026.03.24', category: 'Product', categoryColor: 'bg-blue-50 text-blue-700', title: 'ランウィズ (Runwith) を正式リリースしました' },
-  { date: '2026.03.24', category: 'Company', categoryColor: 'bg-gray-100 text-gray-700', title: '株式会社シゴトク コーポレートサイトを公開しました' },
-  { date: '2026.03.20', category: 'Product', categoryColor: 'bg-blue-50 text-blue-700', title: '事業シミュレーション機能（60ヶ月収支予測・バリュエーション算定）を搭載' },
-];
-
 export const companyInfo = [
   { label: '会社名', value: '株式会社シゴトク' },
   { label: '設立', value: '準備中' },

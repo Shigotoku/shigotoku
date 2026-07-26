@@ -1,15 +1,15 @@
 ---
-import { RUNWITH_LP, RUNWITH_APP, BUZZIT_LP, BUZZIT_APP, CLIPIT_LP, CLIPIT_APP, runwithAppPath } from '../lib/urls';
+import { RUNWITH_LP, BUZZIT_LP, CLIPIT_LP, runwithLoginUrl, buzzitLoginUrl, clipitLoginUrl } from '../lib/urls';
 
 /** 右カラムのビジュアル枠（ランウィズ・バジット・クリッピットで同一サイズ） */
 const productVisual =
   'flex w-full min-h-[220px] flex-col items-center justify-center rounded-2xl p-8 text-center';
 
 const features = [
-  { color: 'bg-blue-50', iconColor: 'text-blue-600', title: 'ジャーニーマップ', description: '創業前〜EXITまでの全タスクを可視化。進捗バーで次のアクションが一目でわかります。', demoUrl: runwithAppPath('/journey') },
-  { color: 'bg-amber-50', iconColor: 'text-amber-600', title: '補助金・助成金マッチング', description: 'AIが会社情報から最適な補助金を自動マッチング。締切管理・申請支援まで一括対応。', demoUrl: runwithAppPath('/funding') },
-  { color: 'bg-emerald-50', iconColor: 'text-emerald-600', title: '事業シミュレーション', description: '60ヶ月収支予測・バリュエーション算定・感度分析。投資家への説明データを瞬時に生成。', demoUrl: runwithAppPath('/simulator') },
-  { color: 'bg-violet-50', iconColor: 'text-violet-600', title: 'AI壁打ち支援', description: '入力内容からプロンプトを自動生成。ビジネスモデル、定款、ピッチ資料をAIと一緒に作成。', demoUrl: runwithAppPath('/journey/business-idea') },
+  { color: 'bg-blue-50', iconColor: 'text-blue-600', title: 'ジャーニーマップ', description: '創業前〜EXITまでの全タスクを可視化。進捗バーで次のアクションが一目でわかります。', demoUrl: runwithLoginUrl() },
+  { color: 'bg-amber-50', iconColor: 'text-amber-600', title: '補助金・助成金マッチング', description: 'AIが会社情報から最適な補助金を自動マッチング。締切管理・申請支援まで一括対応。', demoUrl: runwithLoginUrl() },
+  { color: 'bg-emerald-50', iconColor: 'text-emerald-600', title: '事業シミュレーション', description: '60ヶ月収支予測・バリュエーション算定・感度分析。投資家への説明データを瞬時に生成。', demoUrl: runwithLoginUrl() },
+  { color: 'bg-violet-50', iconColor: 'text-violet-600', title: 'AI壁打ち支援', description: '入力内容からプロンプトを自動生成。ビジネスモデル、定款、ピッチ資料をAIと一緒に作成。', demoUrl: runwithLoginUrl() },
 ];
 ---
 
@@ -33,7 +33,7 @@ const features = [
                 サービスサイトへ
                 <svg class="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
               </a>
-              <a href={RUNWITH_APP} class="group inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-5 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-100 transition-colors">
+              <a href={runwithLoginUrl()} class="group inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-5 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-100 transition-colors">
                 デモを試す
                 <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 010 1.972l-11.54 6.347a1.125 1.125 0 01-1.667-.986V5.653z" /></svg>
               </a>
@@ -69,7 +69,7 @@ const features = [
                 サービスサイトへ
                 <svg class="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
               </a>
-              <a href={`${BUZZIT_APP}/login`} class="group inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-5 py-2.5 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 transition-colors">
+              <a href={buzzitLoginUrl()} class="group inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-5 py-2.5 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 transition-colors">
                 デモを試す
                 <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 010 1.972l-11.54 6.347a1.125 1.125 0 01-1.667-.986V5.653z" /></svg>
               </a>
@@ -105,7 +105,7 @@ const features = [
                 サービスサイトへ
                 <svg class="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
               </a>
-              <a href={`${CLIPIT_APP}/login`} class="group inline-flex items-center gap-2 rounded-lg border border-orange-200 bg-orange-50 px-5 py-2.5 text-sm font-semibold text-orange-700 hover:bg-orange-100 transition-colors">
+              <a href={clipitLoginUrl()} class="group inline-flex items-center gap-2 rounded-lg border border-orange-200 bg-orange-50 px-5 py-2.5 text-sm font-semibold text-orange-700 hover:bg-orange-100 transition-colors">
                 デモを試す
                 <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 010 1.972l-11.54 6.347a1.125 1.125 0 01-1.667-.986V5.653z" /></svg>
               </a>
