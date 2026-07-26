@@ -3,7 +3,6 @@ import { Link2, QrCode, Copy, ArrowRight } from 'lucide-react';
 import { createLineSource, fetchSettings, createTrackingLink } from '../lib/api';
 import { loadOnboarding } from '../lib/onboarding';
 import { getIndustryTemplate, type IndustryId } from '../data/industryTemplates';
-import GlossTooltip from '../components/GlossTooltip';
 
 export default function FunnelBuilderPage() {
   const onboarding = loadOnboarding();
@@ -73,13 +72,6 @@ export default function FunnelBuilderPage() {
 
   return (
     <div className="buzz-page">
-      <div>
-        <h2 className="mb-2 text-2xl font-bold">導線ビルダー</h2>
-        <p className="text-neutral-600">
-          SNS → <GlossTooltip term="LINE" /> → 予約を、プロフィール文言・短縮URL・QRでセット生成します。
-        </p>
-      </div>
-
       <div className="grid gap-4 md:grid-cols-3">
         {['認知（SNS）', '関係（LINE）', '来店（予約）'].map((label, i) => (
           <div key={label} className="buzz-card-pad">

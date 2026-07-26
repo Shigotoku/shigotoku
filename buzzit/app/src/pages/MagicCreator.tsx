@@ -331,15 +331,11 @@ export default function MagicCreator() {
 
   return (
     <div className="buzz-page">
-      <div>
-        <h2 className="text-2xl font-bold mb-2">マジック・クリエイター</h2>
-        <p className="text-neutral-600">
-          1つのアイデアや素材から、全SNSプラットフォーム向けコンテンツを自動生成（Repurpose）。
-          {plan === 'starter' && (
-            <span className="text-neutral-700 ml-1">Starterプランでは透かし「{WATERMARK}」が付与されます。</span>
-          )}
+      {plan === 'starter' && (
+        <p className="text-sm text-neutral-600">
+          Starterプランでは透かし「{WATERMARK}」が付与されます。
         </p>
-      </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-1 space-y-6">

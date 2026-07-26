@@ -239,18 +239,12 @@ export default function LineCrmPage() {
 
   return (
     <div className="buzz-page">
-      <div>
-        <h2 className="mb-2 flex items-center gap-2 text-2xl font-bold">
-          <MessageCircle className="h-6 w-6 text-neutral-700" />
-          LINE CRM
-          <span className="ml-2 rounded-full border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs font-normal text-neutral-600">
-            Lステップ完全代替
-          </span>
-        </h2>
-        <p className="text-neutral-600">
-          LINE Messaging API 直結。タグ・流入経路・セグメント・ステップ配信・リッチメニュー・インサイトを統合。
-        </p>
-      </div>
+      <p className="text-sm text-neutral-600">
+        <span className="mr-2 rounded-full border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs font-medium text-neutral-600">
+          Lステップ完全代替
+        </span>
+        LINE Messaging API 直結。タグ・流入経路・セグメント・ステップ配信・リッチメニュー・インサイトを統合。
+      </p>
 
       {message && <p className="buzz-alert buzz-alert-info">{message}</p>}
 

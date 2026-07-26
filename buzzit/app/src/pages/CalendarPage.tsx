@@ -189,16 +189,7 @@ export default function CalendarPage() {
 
   return (
     <div className="buzz-page">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2 className="mb-2 flex items-center gap-2 text-2xl font-bold">
-            <CalendarDays className="h-6 w-6 text-neutral-700" />
-            投稿カレンダー
-          </h2>
-          <p className="text-neutral-600">
-            予約・承認待ち・失敗を一覧で管理。失敗はワンタップで再試行できます。
-          </p>
-        </div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
         <Link to="/magic-creator" className="buzz-btn-primary shrink-0">
           新しい投稿を作る
         </Link>

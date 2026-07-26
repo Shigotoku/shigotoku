@@ -294,13 +294,6 @@ export default function RoadmapPage() {
             <Compass className="h-3.5 w-3.5" />
             Growth Roadmap
           </p>
-          <h2 className="mb-3 max-w-2xl text-2xl font-bold tracking-tight md:text-3xl">
-            何から始める？を終わらせる成長ロードマップ
-          </h2>
-          <p className="max-w-2xl text-sm leading-relaxed text-neutral-600 md:text-base">
-            業種選びから、各SNSの公式登録・初投稿・BuzzIt自動投稿・バズ/フォロワー増まで順番に伴走します。連携状態はチェックに自動反映されます。
-          </p>
-
           <div className="mt-6">
             <p className="mb-2 text-xs font-medium text-neutral-500">あなたの業種</p>
             <div className="flex flex-wrap gap-2">

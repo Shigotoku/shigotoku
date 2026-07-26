@@ -24,8 +24,6 @@ import {
   type LineCostEstimate,
   type CustomerTag,
 } from '../lib/api';
-import { loadOnboarding } from '../lib/onboarding';
-import { getPlatformCompanion } from '../data/platformCompanions';
 import LineCostComparison from '../components/LineCostComparison';
 import StoreBillingSection from '../components/StoreBillingSection';
 import { useApp } from '../store/appContext';
@@ -249,19 +247,8 @@ export default function SettingsPage() {
     }
   };
 
-  const primaryPlatform = loadOnboarding().primaryPlatform;
-  const primaryCompanion = primaryPlatform ? getPlatformCompanion(primaryPlatform) : null;
-  const settingsSubtitle = primaryCompanion
-    ? `プラン・${primaryCompanion.name} 連携・Slack などの管理`
-    : 'プラン・連携（Meta / LINE / X / Slack）の管理';
-
   return (
     <div className="buzz-page-narrow">
-      <div>
-        <h2 className="mb-2 text-2xl font-bold">設定</h2>
-        <p className="text-neutral-600">{settingsSubtitle}</p>
-      </div>
-
       {message && <p className="buzz-alert buzz-alert-info">{message}</p>}
 
       <StoreBillingSection />

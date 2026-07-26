@@ -1,5 +1,5 @@
 /* BuzzIt service worker — HTML/JS は常に最新を優先（古いUIが残らないようにする） */
-const CACHE = 'buzzit-shell-v4';
+const CACHE = 'buzzit-shell-v6';
 const PRECACHE = ['/favicon.svg', '/site.webmanifest'];
 
 self.addEventListener('message', (event) => {

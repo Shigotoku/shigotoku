@@ -62,14 +62,6 @@ export default function InboxPage() {
 
   return (
     <div className="buzz-page">
-      <div>
-        <h2 className="mb-2 flex items-center gap-2 text-2xl font-bold">
-          <Inbox className="h-6 w-6" />
-          ネタInbox
-        </h2>
-        <p className="text-neutral-600">写真1枚＋一言でOK。孤独なSNS担当をチームで支えます。</p>
-      </div>
-
       <div className="buzz-card-pad space-y-3">
         <h3 className="font-medium">投稿ネタを投げる</h3>
         <textarea

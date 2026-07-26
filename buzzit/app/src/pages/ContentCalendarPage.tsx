@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CalendarRange } from 'lucide-react';
 import { buildFirst30Calendar } from '../data/first30Calendar';
 import { loadOnboarding } from '../lib/onboarding';
 import type { IndustryId } from '../data/industryTemplates';
@@ -13,14 +12,6 @@ export default function ContentCalendarPage() {
 
   return (
     <div className="buzz-page">
-      <div>
-        <h2 className="mb-2 flex items-center gap-2 text-2xl font-bold">
-          <CalendarRange className="h-6 w-6" />
-          最初の30本カレンダー
-        </h2>
-        <p className="text-neutral-600">業種テンプレから4週間分を自動展開。貼るだけで回り始めます。</p>
-      </div>
-
       <div className="flex flex-wrap gap-2">
         {[0, 1, 2, 3].map((w) => (
           <button

@@ -124,11 +124,6 @@ export default function AnalyticsPage() {
 
   return (
     <div className="buzz-page">
-      <div>
-        <h2 className="mb-2 text-2xl font-bold">分析・売上</h2>
-        <p className="text-neutral-600">トレンド波乗り・A/B テスト・UTM/LINE 自動計測</p>
-      </div>
-
       <DemoDataBanner isSample={isSample || (analyticsLoaded && topPosts.length === 0 && metrics.reach === 0)} />
 
       {message && <p className="buzz-alert buzz-alert-info">{message}</p>}
