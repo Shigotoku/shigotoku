@@ -1,3 +1,5 @@
+import { siteImages } from '../lib/assets';
+
 export const navItems = [
   { label: 'ミッション', href: '/#mission' },
   { label: 'サービス', href: '/#service' },
@@ -14,9 +16,9 @@ export const stats = [
 ];
 
 export const missionCards = [
-  { img: '/images/speed.png', title: '圧倒的な速度', description: 'アイデアから創業、資金調達まで。スタートアップに必要なすべてのプロセスを加速します。' },
-  { img: '/images/ai.png', title: 'AI × 専門知識', description: 'AIの力とスタートアップ支援の専門知識を組み合わせ、最適な意思決定をサポートします。' },
-  { img: '/images/exit.png', title: '創業からEXITまで', description: 'アイデア段階からIPO・M&Aまで、成長フェーズに応じたツールと情報を一気通貫で提供します。' },
+  { img: siteImages.speed, title: '圧倒的な速度', description: 'アイデアから創業、資金調達まで。スタートアップに必要なすべてのプロセスを加速します。' },
+  { img: siteImages.ai, title: 'AI × 専門知識', description: 'AIの力とスタートアップ支援の専門知識を組み合わせ、最適な意思決定をサポートします。' },
+  { img: siteImages.exit, title: '創業からEXITまで', description: 'アイデア段階からIPO・M&Aまで、成長フェーズに応じたツールと情報を一気通貫で提供します。' },
 ];
 
 export const companyInfo = [

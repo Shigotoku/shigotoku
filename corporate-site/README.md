@@ -11,6 +11,13 @@ npm run dev
 
 http://localhost:4321 で起動します。
 
+## 画像アセット
+
+HP / LP で使う画像はリポジトリルートの `web-assets/` に集約しています。  
+詳細は [`web-assets/README.md`](../web-assets/README.md) を参照してください。
+
+`npm run dev` / `npm run build` 実行時に自動同期されます。
+
 ## 環境変数
 
 `.env.example` を `.env` にコピーして、プロダクト URL を設定してください。

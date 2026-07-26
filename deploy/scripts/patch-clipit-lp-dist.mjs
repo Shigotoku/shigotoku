@@ -9,7 +9,7 @@ const scriptDir = dirname(fileURLToPath(import.meta.url));
 const deployDir = join(scriptDir, '..');
 const root = join(deployDir, '..');
 const lpOut = join(deployDir, 'dist', 'web', 'clipit');
-const iconSrc = join(root, 'corporate-site', 'public', 'clipit-icon.png');
+const iconSrc = join(root, 'web-assets', 'corporate', 'products', 'clipit-icon.png');
 const iconDest = join(lpOut, 'icon.png');
 const ICON_URL = '/clipit/icon.png?v=5';
 

@@ -13,8 +13,7 @@ if (!fs.existsSync(src)) {
 
 for (const d of [
   'clipit/app/public/icon.png',
-  'clipit/landing-page/public/icon.png',
-  'corporate-site/public/clipit-icon.png',
+  'web-assets/corporate/products/clipit-icon.png',
 ]) {
   const p = path.join(root, d);
   fs.mkdirSync(path.dirname(p), { recursive: true });

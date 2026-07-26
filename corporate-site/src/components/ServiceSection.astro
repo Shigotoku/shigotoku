@@ -1,5 +1,6 @@
 ---
 import { RUNWITH_LP, BUZZIT_LP, CLIPIT_LP, runwithLoginUrl, buzzitLoginUrl, clipitLoginUrl } from '../lib/urls';
+import { productImages } from '../lib/assets';
 
 /** 右カラムのビジュアル枠（ランウィズ・バジット・クリッピットで同一サイズ） */
 const productVisual =
@@ -42,7 +43,7 @@ const features = [
           <div class="flex-1 w-full min-w-0">
             <div class={`${productVisual} bg-gradient-to-br from-blue-50 to-violet-50 border border-blue-100`}>
               <div class="mb-4 flex h-28 w-28 items-center justify-center rounded-2xl bg-white p-2 shadow-sm ring-1 ring-blue-100">
-                <img src="/images/runwith-logo.png" alt="ランウィズ" class="h-full w-full object-contain" />
+                <img src={productImages.runwith} alt="ランウィズ" class="h-full w-full object-contain" />
               </div>
               <p class="text-2xl font-black text-gray-900">30+ ツール搭載</p>
               <p class="text-sm text-gray-500 mt-1">創業前 〜 IPO・M&A まで対応</p>
@@ -114,7 +115,7 @@ const features = [
           <div class="flex-1 w-full min-w-0">
             <div class={`${productVisual} bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-100`}>
               <img
-                src="/clipit-icon.png?v=5"
+                src={`${productImages.clipit}?v=5`}
                 alt="クリッピット"
                 width="112"
                 height="112"

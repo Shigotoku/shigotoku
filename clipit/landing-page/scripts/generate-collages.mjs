@@ -12,7 +12,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..', '..', '..');
 const require = createRequire(path.join(root, 'clipit/api/package.json'));
 const sharp = require('sharp');
-const OUT_DIR = path.join(__dirname, '../public');
+const OUT_DIR = path.join(__dirname, '../../../web-assets/landing-pages/clipit');
 
 /** 研修・オフィスでの説明シーン（1枚写真） */
 const HERO_SOURCE =

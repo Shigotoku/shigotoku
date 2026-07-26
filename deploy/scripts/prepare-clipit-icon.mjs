@@ -56,9 +56,8 @@ async function stripBlackBackground(inputPath) {
 }
 
 const outputs = [
-  join(root, 'corporate-site/public/clipit-icon.png'),
+  join(root, 'web-assets/corporate/products/clipit-icon.png'),
   join(root, 'clipit/app/public/icon.png'),
-  join(root, 'clipit/landing-page/public/icon.png'),
 ].filter((p) => existsSync(dirname(p)));
 
 if (!existsSync(src)) {

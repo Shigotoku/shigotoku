@@ -18,7 +18,7 @@ const deployDir = join(scriptDir, '..');
 const root = join(deployDir, '..');
 const webOut = join(deployDir, 'dist', 'web');
 const clipitIconSrc = join(root, 'clipit', 'extension', 'public', 'icon.png');
-const clipitIconPrepared = join(root, 'corporate-site', 'public', 'clipit-icon.png');
+const clipitIconPrepared = join(root, 'web-assets', 'corporate', 'products', 'clipit-icon.png');
 const clipitLpCacheDir = join(deployDir, '.cache', 'clipit-lp-build');
 
 const landingPages = [
@@ -102,21 +102,14 @@ function buildStandardLanding(job) {
 
 mkdirSync(webOut, { recursive: true });
 
+run('node scripts/sync-web-assets.mjs', deployDir);
+
 if (existsSync(clipitIconSrc)) {
   try {
     run('node scripts/prepare-clipit-icon.mjs', deployDir);
+    run('node scripts/sync-web-assets.mjs', deployDir);
   } catch {
     console.warn('⚠ prepare-clipit-icon failed; using existing clipit-icon.png');
-  }
-}
-
-const lpIcon = join(root, 'clipit', 'landing-page', 'public', 'icon.png');
-if (existsSync(clipitIconPrepared)) {
-  try {
-    cpSync(clipitIconPrepared, lpIcon);
-    console.log('✓ transparent icon -> clipit/landing-page/public/icon.png');
-  } catch {
-    console.warn('⚠ could not update LP icon.png (close file in IDE)');
   }
 }
 
@@ -147,7 +140,7 @@ if (existsSync(iconForWeb)) {
     cpSync(iconForWeb, lpDeployedIcon);
     console.log('✓ clipit/icon.png -> dist/web/clipit/ (transparent)');
   }
-  console.log('✓ clipit-icon.png -> dist/web/ (transparent, from corporate-site/public)');
+  console.log('✓ clipit-icon.png -> dist/web/ (transparent, from web-assets)');
 }
 
 console.log('\nDone. Deploy: firebase deploy --project buzzit --config firebase.buzzit.json --only hosting:shigotoku-web');

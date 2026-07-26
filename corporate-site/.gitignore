@@ -11,3 +11,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# sync-web-assets.mjs が生成（ソースは web-assets/）
+public/images/brand/
+public/images/site/
+public/images/products/
+public/clipit-icon.png
