@@ -25,6 +25,7 @@ import { useAuth } from '../store/authContext';
 import { useStore } from '../store/storeContext';
 import StoreSwitcher from '../components/StoreSwitcher';
 import PwaInstallBanner from '../components/PwaInstallBanner';
+import BrandMark from '../components/BrandMark';
 import { ROLE_LABELS, canEditSettings, canManageLineCrm, isStaffOnly } from '../lib/permissions';
 
 const planLabels = {
@@ -93,7 +94,7 @@ function SidebarContent({
     <>
       <div className="flex h-16 items-center border-b border-neutral-200 px-5 lg:h-20 lg:px-6">
         <div className="flex items-center gap-3">
-          <span className="buzz-logo-mark text-base">B</span>
+          <BrandMark className="buzz-logo-mark" size={32} />
           <span className="font-display text-xl font-bold tracking-tight">{BRAND_NAME}</span>
         </div>
       </div>
@@ -122,6 +123,8 @@ function SidebarContent({
         </NavLink>
         <a
           href={landingPath('/')}
+          target="_blank"
+          rel="noopener noreferrer"
           className="flex min-h-[44px] items-center gap-2 text-xs text-neutral-500 transition-colors hover:text-neutral-900"
         >
           <ExternalLink className="h-3.5 w-3.5" />

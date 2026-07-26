@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Check, Compass, Sparkles } from 'lucide-react';
 import { BRAND_NAME } from '../constants/brand';
+import BrandMark from '../components/BrandMark';
 import { industryTemplates, type IndustryId } from '../data/industryTemplates';
 import { getPlatformCompanion, platformCompanions } from '../data/platformCompanions';
 import {
@@ -12,6 +13,43 @@ import {
 } from '../lib/onboarding';
 
 const steps = ['ようこそ', '業種', '目的', '媒体', '次の一手'] as const;
+
+function connectHintForPlatform(platformId: string): { body: string; ctaHint: string } {
+  switch (platformId) {
+    case 'x':
+      return {
+        body: '設定の「Ayrshare（オプション）」で X を接続するか、通知モードで予約リマインドを受け取ると投稿が進みます。',
+        ctaHint: 'X連携の設定を開く',
+      };
+    case 'instagram':
+    case 'facebook-threads':
+      return {
+        body: '設定で Meta を連携すると、Instagram / Facebook / Threads の予約投稿と診断が進みます。',
+        ctaHint: 'Meta連携の設定を開く',
+      };
+    case 'line':
+      return {
+        body: '設定で LINE Messaging API のトークンを入れると、配信と診断が進みます。',
+        ctaHint: 'LINE連携の設定を開く',
+      };
+    case 'gbp':
+      return {
+        body: '設定で Google ビジネスプロフィールを連携すると、投稿と口コミ返信が進みます。',
+        ctaHint: 'GBP連携の設定を開く',
+      };
+    case 'tiktok':
+    case 'youtube-shorts':
+      return {
+        body: '設定で投稿モードと通知先を整えると、台本→予約投稿の流れが進みます。',
+        ctaHint: '投稿設定を開く',
+      };
+    default:
+      return {
+        body: '設定で選択した媒体の連携を完了すると、予約投稿と診断が進みます。',
+        ctaHint: '設定を開く',
+      };
+  }
+}
 
 function defaultPlatformForGoal(goal: OnboardingGoal, industryId: IndustryId): string {
   const industry = industryTemplates.find((t) => t.id === industryId);
@@ -37,6 +75,7 @@ export default function OnboardingPage() {
 
   const companion = getPlatformCompanion(platformId) ?? platformCompanions[0];
   const industry = industryTemplates.find((t) => t.id === industryId)!;
+  const connectHint = connectHintForPlatform(platformId);
 
   const recommendedPlatforms = useMemo(() => {
     const ids = new Set<string>();
@@ -64,7 +103,7 @@ export default function OnboardingPage() {
       <header className="border-b border-neutral-200 bg-[#f5f4f0]/95 px-4 py-4 md:px-8">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span className="buzz-logo-mark text-sm">B</span>
+            <BrandMark className="buzz-logo-mark" size={28} />
             <span className="font-display text-lg font-bold">{BRAND_NAME}</span>
           </div>
           <button
@@ -286,12 +325,10 @@ export default function OnboardingPage() {
               </li>
               <li className="border border-neutral-200 bg-white p-4">
                 <p className="text-xs font-semibold tracking-wider text-neutral-400 uppercase">2</p>
-                <p className="mt-1 font-semibold">BuzzItに連携する</p>
-                <p className="mt-1 text-sm text-neutral-600">
-                  Meta / LINE のトークンを設定すると、予約投稿と診断が進みます。
-                </p>
+                <p className="mt-1 font-semibold">BuzzItに {companion.name} を連携する</p>
+                <p className="mt-1 text-sm text-neutral-600">{connectHint.body}</p>
                 <Link to="/settings" className="buzz-btn-secondary mt-3" onClick={() => finish(false)}>
-                  設定を開く
+                  {connectHint.ctaHint}
                 </Link>
               </li>
               <li className="border border-[#6b4a3a]/25 bg-[#faf6f2] p-4">

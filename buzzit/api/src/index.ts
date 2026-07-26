@@ -87,6 +87,7 @@ import {
   staffLimitLabel,
   storeLimitLabel,
   ADDITIONAL_STORE_DISCOUNT,
+  EXTRA_SNS_ACCOUNT_MONTHLY,
 } from './services/billing';
 import {
   listStoresForUser,
@@ -460,19 +461,35 @@ api.get('/v1/analytics', requireAuth, async (req: AuthedRequest, res) => {
   res.json({ metrics, topPosts: posts });
 });
 
+const DEFAULT_SNS_CONNECTIONS = [
+  { name: 'Instagram', connected: false },
+  { name: 'X (Twitter)', connected: false },
+  { name: 'TikTok', connected: false },
+  { name: 'LINE Official', connected: false },
+];
+
 // --- Settings ---
 api.get('/v1/settings', requireAuth, async (req: AuthedRequest, res) => {
   const settings = await getUserSettings(req.uid!);
-  const snsConnections = await getAyrshareProfiles();
   const metaConnected = !!(settings.metaAccessToken && settings.metaIgUserId);
+  // Ayrshare 外部 API は別エンドポイントへ分離（設定画面の初期表示を高速化）
   res.json({
     ...settings,
-    snsConnections,
+    snsConnections: DEFAULT_SNS_CONNECTIONS,
     metaConnected,
     canUseSlack: canUseSlack(settings),
     canUseAutoMode: settings.plan === 'growth',
     lineWebhookUrl: lineWebhookUrl(req.uid!),
   });
+});
+
+api.get('/v1/sns-connections', requireAuth, async (_req: AuthedRequest, res) => {
+  try {
+    const snsConnections = await getAyrshareProfiles();
+    res.json({ snsConnections });
+  } catch {
+    res.json({ snsConnections: DEFAULT_SNS_CONNECTIONS });
+  }
 });
 
 api.put('/v1/settings', requireAuth, async (req: AuthedRequest, res) => {
@@ -482,10 +499,15 @@ api.put('/v1/settings', requireAuth, async (req: AuthedRequest, res) => {
     'lineDestinationId', 'defaultDestinationUrl', 'defaultPublishMode',
     'metaAccessToken', 'metaPageAccessToken', 'metaIgUserId', 'metaPageId', 'metaTokenExpiresAt',
     'hpbStoreUrl', 'gbpConnected', 'gbpLocationName', 'notifyEmail', 'industry',
+    'extraSnsAccounts',
   ];
   const patch: Record<string, unknown> = {};
   for (const key of allowed) {
     if (key in req.body) patch[key] = req.body[key];
+  }
+  if ('extraSnsAccounts' in patch) {
+    const n = Number(patch.extraSnsAccounts);
+    patch.extraSnsAccounts = Number.isFinite(n) ? Math.max(0, Math.min(20, Math.floor(n))) : 0;
   }
   const settings = await updateUserSettings(req.uid!, patch);
   res.json(settings);
@@ -1477,21 +1499,21 @@ api.get('/v1/billing', requireAuth, async (req: AuthedRequest, res) => {
   try {
     const settings = await getUserSettings(req.uid!);
     const plan = settings.plan;
-    const stores = await listStoresForUser(req.uid!);
+    const extraSnsAccounts = Math.max(0, Number(settings.extraSnsAccounts) || 0);
+    const stores = await listStoresForUser(req.uid!, settings);
     const activeStoreId = settings.activeStoreId ?? stores[0]?.id ?? null;
-    let memberCount = 1;
-    let pendingInviteCount = 0;
-    if (activeStoreId) {
-      const members = await listStoreMembers(activeStoreId);
-      memberCount = members.length;
-      pendingInviteCount = await countPendingInvites(activeStoreId);
-    }
+    const [members, pendingInviteCount] = activeStoreId
+      ? await Promise.all([listStoreMembers(activeStoreId), countPendingInvites(activeStoreId)])
+      : [[], 0];
+    const memberCount = members.length || 1;
     res.json({
       plan,
       storeCount: stores.length,
       memberCount,
       pendingInviteCount,
-      monthlyTotal: computeMonthlyTotal(plan, stores.length),
+      extraSnsAccounts,
+      extraSnsAccountPrice: EXTRA_SNS_ACCOUNT_MONTHLY,
+      monthlyTotal: computeMonthlyTotal(plan, stores.length, extraSnsAccounts),
       baseMonthly: PLAN_BASE_MONTHLY[plan],
       additionalStoreDiscount: ADDITIONAL_STORE_DISCOUNT,
       maxStores: MAX_STORES_BY_PLAN[plan],

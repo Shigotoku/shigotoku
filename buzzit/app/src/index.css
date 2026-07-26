@@ -134,7 +134,7 @@
   }
 
   .buzz-logo-mark {
-    @apply flex h-8 w-8 items-center justify-center bg-neutral-900 text-xs font-bold text-white;
+    @apply inline-block h-8 w-8 shrink-0 object-contain;
   }
 }
 

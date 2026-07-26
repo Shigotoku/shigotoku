@@ -1,5 +1,5 @@
 /* BuzzIt minimal service worker — offline shell cache */
-const CACHE = 'buzzit-shell-v1';
+const CACHE = 'buzzit-shell-v3';
 const ASSETS = ['/', '/login', '/site.webmanifest', '/favicon.svg'];
 
 self.addEventListener('install', (event) => {

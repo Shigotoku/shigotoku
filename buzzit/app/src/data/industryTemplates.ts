@@ -6,6 +6,9 @@ export type IndustryId =
   | 'fitness'
   | 'retail'
   | 'education'
+  | 'medical'
+  | 'service'
+  | 'professional'
   | 'general';
 
 export type IndustryTemplate = {
@@ -309,6 +312,174 @@ export const industryTemplates: IndustryTemplate[] = [
     ],
   },
   {
+    id: 'medical',
+    label: '医療・クリニック',
+    blurb: '専門性と安心感が信頼の核。予約導線と口コミ（GBP）を丁寧に設計する。',
+    primaryPlatforms: ['Instagram', 'Googleマップ', 'LINE'],
+    funnel: 'リール / 検索 → プロフィール・GBP → LINE相談 or Web予約',
+    profileNameExample: '渋谷｜皮膚科・美容皮膚科 ○○クリニック',
+    bioExample:
+      '肌のお悩みに寄り添う診療\n初診予約・よくある質問は下のリンクから\n※医療広告ガイドラインに配慮',
+    kpi: 'Web予約数・LINE相談数・GBP口コミ数',
+    weekIdeas: [
+      'よくある症状の正しい知識（誇大表現なし）',
+      '初診の流れを30秒で',
+      '先生・スタッフの紹介',
+      '医院の雰囲気・設備',
+      '予約の空き案内（ストーリーズ）',
+      '口コミへの丁寧な返信事例',
+      '季節の注意（紫外線・花粉など）',
+    ],
+    hooks: [
+      { id: 'm1', name: '不安解消', example: '「初めての方へ。初診で聞くことはこの3つだけです」' },
+      { id: 'm2', name: '専門性', example: '「シミとそばかす、見分け方と相談のタイミング」' },
+      { id: 'm3', name: 'ターゲット', example: '「仕事が忙しくて通院を後回しにしている方へ」' },
+      { id: 'm4', name: '導線', example: '「今日の予約枠、残りわずか。Webから24時間受付」' },
+    ],
+    pillars: [
+      {
+        id: 'educate',
+        name: '正しい知識',
+        ratio: '約50%',
+        description: '誇大せず、保存される解説で専門性を示す。',
+        examples: ['症状の見分け', 'セルフケアの限界', '受診の目安'],
+      },
+      {
+        id: 'relate',
+        name: '安心・人柄',
+        ratio: '約30%',
+        description: '医院の空気感と人で「相談していい」と思わせる。',
+        examples: ['スタッフ紹介', '院内ツアー', '患者さんの声（許諾）'],
+      },
+      {
+        id: 'offer',
+        name: '予約・相談',
+        ratio: '約20%',
+        description: '押し売りせず、次の一歩だけ明確に。',
+        examples: ['Web予約', 'LINE相談', '初診ガイド'],
+      },
+    ],
+    startOrder: [
+      'Googleビジネスプロフィールを整備',
+      'Instagramプロフィールに地域＋診療科目',
+      'BuzzIt で Meta / GBP 連携',
+      '教育リールを週2＋予約導線',
+      '口コミ返信テンプレを設定',
+    ],
+  },
+  {
+    id: 'service',
+    label: 'サービス・非店舗',
+    blurb: '店舗がなくても「誰のどんな悩みを解決するか」を軸に。相談・申込導線を短く。',
+    primaryPlatforms: ['X', 'Instagram', 'LINE'],
+    funnel: '投稿・スレッド → プロフィール / LINE → 相談・予約・購入',
+    profileNameExample: 'オンライン相談｜○○（出張可）',
+    bioExample:
+      '店舗なしでも全国対応\n無料相談の受付はLINE\n実績・料金は下のリンク',
+    kpi: '相談申込数・成約数・リピート率',
+    weekIdeas: [
+      'よくある相談の答えを短く',
+      'ビフォーアフター（成果事例・許諾済み）',
+      '作業風景・準備の舞台裏',
+      '今週の空き枠',
+      'お客様の声',
+      '料金・進め方の透明化',
+      'FAQストック',
+    ],
+    hooks: [
+      { id: 's1', name: '痛み共感', example: '「店舗がないから不安…という方へ。実はこう進みます」' },
+      { id: 's2', name: '結論先出し', example: '「オンライン相談で決めるべきは、この1点だけ」' },
+      { id: 's3', name: 'ターゲット', example: '「本業の合間に副業を始めたい人へ」' },
+      { id: 's4', name: '数字', example: '「初回相談30分で、次の一手が決まる理由」' },
+    ],
+    pillars: [
+      {
+        id: 'educate',
+        name: 'ノウハウ・選び方',
+        ratio: '約45%',
+        description: '信頼の土台。無料で価値を出し、相談のハードルを下げる。',
+        examples: ['進め方', '失敗パターン', 'チェックリスト'],
+      },
+      {
+        id: 'relate',
+        name: '実績・人柄',
+        ratio: '約35%',
+        description: '顔とプロセスが見えると非店舗でも安心される。',
+        examples: ['事例', '一日の流れ', '想い'],
+      },
+      {
+        id: 'offer',
+        name: '相談・申込',
+        ratio: '約20%',
+        description: 'LINEやフォームへの一歩を明確に。',
+        examples: ['無料相談', '空き枠', '限定特典'],
+      },
+    ],
+    startOrder: [
+      'プロフィールに「誰向け・何を解決」を明記',
+      '主戦場を1つ決める（X or Instagram）',
+      'BuzzIt で連携と初投稿',
+      'LINE相談導線を1本',
+      '週3投稿を4週間継続',
+    ],
+  },
+  {
+    id: 'professional',
+    label: '士業・専門サービス',
+    blurb: '信頼と専門性が先。無料解説→相談→契約。誇大表現を避け、地域名も入れる。',
+    primaryPlatforms: ['X', 'Googleマップ', 'LINE'],
+    funnel: '解説投稿 → プロフィール / GBP → LINE相談・予約',
+    profileNameExample: '港区｜〇〇専門 行政書士○○',
+    bioExample:
+      'わかりにくい手続きを、かみ砕いて説明します\n初回相談の予約は下のリンクから\n営業電話はしません',
+    kpi: '相談予約数・資料請求数',
+    weekIdeas: [
+      'よくある誤解を1つ訂正',
+      '手続きの流れを図解',
+      '事例（個人情報に配慮）',
+      '今週の相談枠',
+      '事務所・人柄の紹介',
+      '制度改正の要点',
+      'FAQストック',
+    ],
+    hooks: [
+      { id: 'p1', name: '常識壊し', example: '「実は自分でやらなくていい手続き、あります」' },
+      { id: 'p2', name: 'ターゲット', example: '「開業準備で何から手を付けるか迷っている方へ」' },
+      { id: 'p3', name: '結論先出し', example: '「この書類、提出前に見るべきはここだけ」' },
+      { id: 'p4', name: '安心', example: '「相談だけでも大丈夫。押し売りしません」' },
+    ],
+    pillars: [
+      {
+        id: 'educate',
+        name: '無料解説',
+        ratio: '約55%',
+        description: '検索・保存される解説が資産になる。',
+        examples: ['制度の要点', 'チェックリスト', 'よくある失敗'],
+      },
+      {
+        id: 'relate',
+        name: '人柄・信頼',
+        ratio: '約25%',
+        description: '士業は人で選ばれる。顔出し・価値観を見せる。',
+        examples: ['想い', '一日の仕事', 'お客様の声'],
+      },
+      {
+        id: 'offer',
+        name: '相談・申込',
+        ratio: '約20%',
+        description: '次の一歩を1つだけ。',
+        examples: ['初回相談', '資料請求', '空き枠'],
+      },
+    ],
+    startOrder: [
+      'Googleビジネスプロフィールを整備',
+      'X or Instagram で解説投稿を週3',
+      'BuzzIt で連携と台本化',
+      'LINE相談導線を用意',
+      '口コミ・事例を丁寧に蓄積',
+    ],
+  },
+  {
     id: 'general',
     label: 'その他・店舗全般',
     blurb: '迷ったら Instagram＋LINE。地域名を入れ、来店直前層にも届く設計に。',
@@ -377,6 +548,30 @@ export function resolveIndustryId(raw?: string | null): IndustryId {
     { id: 'fitness', keys: ['fitness', 'gym', 'personal', 'ジム', 'フィットネス', 'パーソナル', 'ヨガ', 'トレーニング'] },
     { id: 'retail', keys: ['retail', 'ec', 'shop', '小売', '物販', 'アパレル', '雑貨', '通販'] },
     { id: 'education', keys: ['education', 'school', '塾', '教育', 'スクール', '習い事', '教室', 'レッスン'] },
+    {
+      id: 'medical',
+      keys: ['medical', 'clinic', 'hospital', '医療', 'クリニック', '病院', '歯科', '皮膚科', '整骨', '整体', '薬局'],
+    },
+    {
+      id: 'service',
+      keys: ['service', 'online', 'freelance', 'サービス', '非店舗', 'オンライン', '出張', 'フリーランス', 'コンサル'],
+    },
+    {
+      id: 'professional',
+      keys: [
+        'professional',
+        'lawyer',
+        '会計',
+        '士業',
+        '弁護士',
+        '税理士',
+        '行政書士',
+        '社労士',
+        '不動産',
+        '保険',
+        '専門',
+      ],
+    },
   ];
 
   for (const row of table) {

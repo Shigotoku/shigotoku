@@ -1,6 +1,6 @@
 import { randomBytes } from 'crypto';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
-import type { PlanTier } from './firestore';
+import type { PlanTier, UserSettings } from './firestore';
 import { getUserSettings } from './firestore';
 import { canAddStaff, canAddStore } from './billing';
 
@@ -88,9 +88,12 @@ export async function ensureDefaultStore(
   return { id: storeRef.id, ...store };
 }
 
-export async function listStoresForUser(uid: string): Promise<StoreRecord[]> {
-  const settings = await getUserSettings(uid);
-  const storeIds: string[] = (settings as { storeIds?: string[] }).storeIds ?? [];
+export async function listStoresForUser(
+  uid: string,
+  preloadedSettings?: UserSettings,
+): Promise<StoreRecord[]> {
+  const settings = preloadedSettings ?? (await getUserSettings(uid));
+  const storeIds: string[] = settings.storeIds ?? [];
 
   if (!storeIds.length) {
     const created = await ensureDefaultStore(uid, settings.displayName);

@@ -43,6 +43,11 @@ export interface UserSettings {
   gbpAccessToken?: string;
   /** 店長通知用メール（将来拡張・現状はSlack/LINE優先） */
   notifyEmail?: string;
+  /**
+   * SNS追加アカウント枠数（各媒体の1アカウント目はプランに含む。
+   * 例: Instagram公式＋採用用の2アカウント目 → 1枠）
+   */
+  extraSnsAccounts?: number;
 }
 
 export interface MetricsSummary {

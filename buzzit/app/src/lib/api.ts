@@ -98,6 +98,7 @@ export interface SettingsResponse {
   gbpLocationName?: string;
   notifyEmail?: string;
   industry?: string;
+  extraSnsAccounts?: number;
   snsConnections: Array<{ name: string; connected: boolean }>;
   canUseSlack: boolean;
   canUseAutoMode: boolean;
@@ -105,6 +106,10 @@ export interface SettingsResponse {
 
 export function fetchSettings() {
   return request<SettingsResponse>('/v1/settings');
+}
+
+export function fetchSnsConnections() {
+  return request<{ snsConnections: Array<{ name: string; connected: boolean }> }>('/v1/sns-connections');
 }
 
 export function updateSettings(patch: Partial<SettingsResponse>) {
@@ -589,6 +594,8 @@ export interface BillingResponse {
   storeCount: number;
   memberCount: number;
   pendingInviteCount: number;
+  extraSnsAccounts: number;
+  extraSnsAccountPrice: number;
   monthlyTotal: number;
   baseMonthly: number;
   additionalStoreDiscount: number;

@@ -4,6 +4,7 @@ import { Check, Link2, MessageSquare, Zap, Save, BarChart3, Share2, MapPin, Spar
 import { WATERMARK } from '../constants/brand';
 import {
   fetchSettings,
+  fetchSnsConnections,
   updateSettings,
   submitSlackIdea,
   fetchSlackIdeas,
@@ -23,6 +24,8 @@ import {
   type LineCostEstimate,
   type CustomerTag,
 } from '../lib/api';
+import { loadOnboarding } from '../lib/onboarding';
+import { getPlatformCompanion } from '../data/platformCompanions';
 import LineCostComparison from '../components/LineCostComparison';
 import StoreBillingSection from '../components/StoreBillingSection';
 import { useApp } from '../store/appContext';
@@ -137,15 +140,26 @@ export default function SettingsPage() {
         setNotifyEmail(s.notifyEmail ?? '');
       })
       .catch(() => {});
-    fetchSlackIdeas()
-      .then((r) => setSlackIdeas(r.ideas))
-      .catch(() => {});
-    fetchLineCostEstimate()
-      .then(setLineCost)
-      .catch(() => {});
-    fetchCustomerTags()
-      .then((r) => setCustomerTags(r.tags))
-      .catch(() => {});
+
+    // Ayrshare / LINE 系は初期表示後に遅延取得（店舗・請求カードをブロックしない）
+    const idle =
+      typeof requestIdleCallback === 'function'
+        ? requestIdleCallback
+        : (cb: () => void) => window.setTimeout(cb, 200);
+    idle(() => {
+      fetchSnsConnections()
+        .then((r) => setSnsConnections(r.snsConnections))
+        .catch(() => {});
+      fetchSlackIdeas()
+        .then((r) => setSlackIdeas(r.ideas))
+        .catch(() => {});
+      fetchLineCostEstimate()
+        .then(setLineCost)
+        .catch(() => {});
+      fetchCustomerTags()
+        .then((r) => setCustomerTags(r.tags))
+        .catch(() => {});
+    });
 
     const planParam = searchParams.get('plan') as PlanTier | null;
     const campaign = searchParams.get('campaign');
@@ -235,11 +249,17 @@ export default function SettingsPage() {
     }
   };
 
+  const primaryPlatform = loadOnboarding().primaryPlatform;
+  const primaryCompanion = primaryPlatform ? getPlatformCompanion(primaryPlatform) : null;
+  const settingsSubtitle = primaryCompanion
+    ? `プラン・${primaryCompanion.name} 連携・Slack などの管理`
+    : 'プラン・連携（Meta / LINE / X / Slack）の管理';
+
   return (
     <div className="buzz-page-narrow">
       <div>
         <h2 className="mb-2 text-2xl font-bold">設定</h2>
-        <p className="text-neutral-600">プラン・Meta / LINE / Slack 連携の管理</p>
+        <p className="text-neutral-600">{settingsSubtitle}</p>
       </div>
 
       {message && <p className="buzz-alert buzz-alert-info">{message}</p>}
@@ -250,7 +270,12 @@ export default function SettingsPage() {
         <h3 className="mb-2 text-lg font-bold">LINE CRM プラン（Lステップ代替）</h3>
         <p className="mb-4 text-sm text-neutral-600">
           SNS 不要の店舗向け。LINE 公式の請求は各店舗への直接請求のまま。BuzzIt は CRM ツール代のみ。
-          <a href="https://shigotoku.com/buzzit/#line-simulator" className="ml-1 font-medium text-neutral-900 underline">
+          <a
+            href="https://shigotoku.com/buzzit/#line-simulator"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-1 font-medium text-neutral-900 underline"
+          >
             試算ツール
           </a>
         </p>
@@ -373,8 +398,13 @@ export default function SettingsPage() {
       <section className="buzz-card-pad space-y-4">
         <h3 className="flex items-center gap-2 text-lg font-bold">
           <Link2 className="h-5 w-5 text-neutral-700" />
-          Ayrshare（オプション）
+          Ayrshare（オプション・X連携向け）
         </h3>
+        <p className="text-sm text-neutral-600">
+          Ayrshare は外部の投稿予約サービスです。X（旧Twitter）は公式 API の料金が高いため、BuzzIt では
+          Ayrshare 経由での予約投稿に対応しています。プロファイルキーを入れると Instagram / X / TikTok
+          などの接続状態を確認でき、投稿モード「Ayrshare」で予約できます。未設定でも通知モードで運用可能です。
+        </p>
         <div className="space-y-3">
           {snsConnections.map((sns) => (
             <div

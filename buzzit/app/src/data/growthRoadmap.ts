@@ -139,8 +139,9 @@ export const journeyPhases: JourneyPhase[] = [
       },
       {
         id: 'f4',
-        title: 'BuzzIt で Meta / LINE を接続',
-        detail: '設定から Instagram・Facebook・Threads・LINE を連携。投稿と配信の土台になる。',
+        title: 'BuzzIt で主戦場の媒体を接続',
+        detail:
+          '設定から、選んだ媒体に合わせて連携します（Meta / LINE / Ayrshare経由のX / GBP など）。投稿と配信の土台になります。',
         link: { label: '設定へ', path: '/settings' },
         autoSignal: 'meta_or_line',
       },
