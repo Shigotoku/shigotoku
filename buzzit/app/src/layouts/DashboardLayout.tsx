@@ -17,6 +17,7 @@ import {
   Inbox,
   Route,
   CalendarRange,
+  BookOpen,
 } from 'lucide-react';
 import { BRAND_NAME } from '../constants/brand';
 import { landingPath } from '../lib/urls';
@@ -149,6 +150,16 @@ function SidebarContent({
             <LogOut className="h-4 w-4" />
           </button>
         </div>
+        <a
+          href={landingPath('/guide/')}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex min-h-[44px] w-full items-center justify-center gap-2 border border-neutral-900 bg-neutral-900 px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-neutral-800"
+        >
+          <BookOpen className="h-4 w-4 shrink-0" />
+          使い方説明書
+          <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-70" />
+        </a>
       </div>
     </>
   );

@@ -1,0 +1,569 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { appPath } from '../../lib/urls';
+
+const loginUrl = appPath('/login');
+const homeUrl = `${import.meta.env.BASE_URL}`;
+const iconSrc = `${import.meta.env.BASE_URL}favicon.svg`;
+
+const toc = [
+  { id: 'overview', label: '1. BuzzItとは・何ができるか' },
+  { id: 'start', label: '2. はじめての使い方' },
+  { id: 'screens', label: '3. 画面の見方（サイドバー）' },
+  { id: 'dashboard', label: '4. 経営コクピット' },
+  { id: 'roadmap', label: '5. 成長ロードマップ' },
+  { id: 'inbox', label: '6. ネタInbox' },
+  { id: 'magic', label: '7. マジック・クリエイター' },
+  { id: 'calendar', label: '8. 投稿カレンダー' },
+  { id: 'content-calendar', label: '9. 30本カレンダー' },
+  { id: 'funnel', label: '10. 導線ビルダー' },
+  { id: 'line', label: '11. LINE CRM' },
+  { id: 'analytics', label: '12. 分析・売上' },
+  { id: 'team', label: '13. スタッフ管理' },
+  { id: 'settings', label: '14. 設定・連携' },
+  { id: 'billing', label: '15. 料金・店舗・追加アカウント' },
+  { id: 'roles', label: '16. 権限（オーナー／店長／スタッフ）' },
+  { id: 'daily', label: '17. おすすめの一日の流れ' },
+  { id: 'faq', label: '18. よくある質問' },
+];
+---
+
+<Layout
+  title="BuzzIt 使い方説明書 | 店舗SNS・LINE運用の操作ガイド"
+  description="BuzzIt（バジット）の使い方説明書。ログインから投稿、LINE CRM、設定まで、ユーザー目線で全機能をわかりやすく解説します。"
+  preloadHero={false}
+>
+  <header class="sticky top-0 z-40 border-b border-neutral-200/80 bg-[#f5f4f0]/95 backdrop-blur-md">
+    <div class="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
+      <a href={homeUrl} class="flex min-h-[44px] items-center gap-2.5">
+        <img src={iconSrc} alt="" width="28" height="28" class="h-7 w-7 object-contain" />
+        <span class="font-display text-base font-bold tracking-tight text-neutral-900">BuzzIt</span>
+        <span class="hidden text-sm text-neutral-500 sm:inline">使い方説明書</span>
+      </a>
+      <div class="flex items-center gap-2 sm:gap-3">
+        <a href={homeUrl} class="text-sm text-neutral-600 hover:text-neutral-900">サービスサイト</a>
+        <a
+          href={loginUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="rounded-sm bg-neutral-900 px-3 py-2 text-sm font-semibold text-white hover:bg-neutral-700 sm:px-4"
+        >
+          アプリを開く
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:py-14">
+    <div class="mb-10 max-w-3xl">
+      <p class="mb-3 text-xs font-semibold tracking-wider text-[#6b4a3a] uppercase">User Guide</p>
+      <h1 class="font-display text-3xl font-bold tracking-tight text-[var(--color-buzz-title)] sm:text-4xl">
+        BuzzIt 使い方説明書
+      </h1>
+      <p class="mt-4 text-base leading-relaxed text-neutral-600" data-jp-wrap>
+        「何から手を付ければいいか分からない」方向けに、アプリでできることと実際の操作手順をまとめました。
+        目次から気になる項目へジャンプできます。いつでも左サイドバーの「使い方説明書」から開けます。
+      </p>
+    </div>
+
+    <div class="grid gap-10 lg:grid-cols-[240px_minmax(0,1fr)] lg:items-start">
+      <aside class="lg:sticky lg:top-20">
+        <nav aria-label="目次" class="border border-neutral-200 bg-white p-4">
+          <p class="mb-3 text-xs font-bold tracking-wider text-neutral-500 uppercase">目次</p>
+          <ol class="space-y-1.5 text-sm">
+            {toc.map((item) => (
+              <li>
+                <a href={`#${item.id}`} class="block text-neutral-700 hover:text-neutral-900 hover:underline">
+                  {item.label}
+                </a>
+              </li>
+            ))}
+          </ol>
+        </nav>
+      </aside>
+
+      <article class="guide-prose space-y-14 text-neutral-800">
+        <!-- 1 -->
+        <section id="overview" class="scroll-mt-24">
+          <h2>1. BuzzItとは・何ができるか</h2>
+          <p>
+            BuzzIt（バジット）は、美容室・飲食店・クリニックなどの<strong>来店型・サービス業</strong>向けに、
+            SNS投稿・LINE運用・集客導線・売上の見える化をひとつにまとめたクラウドサービスです。
+          </p>
+          <h3>一言でいうと</h3>
+          <ul>
+            <li>「今日何を投稿するか」をAIが提案する</li>
+            <li>1本のネタから Instagram / LINE / X など向けの文章に展開する</li>
+            <li>予約投稿・承認・カレンダーで運用を回す</li>
+            <li>LINE友だちへのタグ・配信・クーポンでリピートにつなげる</li>
+            <li>投稿→来店・予約までの流れをダッシュボードで見る</li>
+          </ul>
+          <h3>主なできること</h3>
+          <div class="not-prose grid gap-3 sm:grid-cols-2">
+            {[
+              ['台本生成', 'マジック・クリエイターでAI台本・ボイスドラフト'],
+              ['予約投稿', 'カレンダーで承認・失敗時のやり直し'],
+              ['チーム運用', 'SlackやネタInboxでスタッフのネタを集める'],
+              ['LINE CRM', 'タグ・セグメント・ステップ・クーポン'],
+              ['導線設計', 'プロフィール文・短縮URL・店頭QR'],
+              ['連携', 'Meta / LINE / Slack / Ayrshare(X) / GBP / HPB'],
+            ].map(([title, desc]) => (
+              <div class="border border-neutral-200 bg-white p-4">
+                <p class="font-semibold text-neutral-900">{title}</p>
+                <p class="mt-1 text-sm text-neutral-600">{desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <!-- 2 -->
+        <section id="start" class="scroll-mt-24">
+          <h2>2. はじめての使い方</h2>
+          <h3>ステップ1：ログイン／新規登録</h3>
+          <ol>
+            <li>
+              <a href={loginUrl} target="_blank" rel="noopener noreferrer">アプリのログイン画面</a>
+              を開く
+            </li>
+            <li>メールアドレス＋パスワード、または Google で登録／ログイン</li>
+            <li>はじめての場合は、続く「はじめに」画面で業種・目的・媒体を選びます（約2分）</li>
+          </ol>
+          <h3>ステップ2：はじめに（オンボーディング）</h3>
+          <p>次の5ステップで進めます。</p>
+          <ol>
+            <li><strong>ようこそ</strong> — 進め方の説明</li>
+            <li><strong>業種</strong> — 美容・飲食・医療・非店舗など近いものを選択</li>
+            <li><strong>目的</strong> — 新規集客／リピート／認知／採用など</li>
+            <li><strong>媒体</strong> — 最初に集中するSNS（Instagram / LINE / X など）</li>
+            <li><strong>次の一手</strong> — 公式登録 → BuzzIt連携 → 初投稿の順を提示</li>
+          </ol>
+          <p class="guide-tip">
+            「あとで設定する」でもダッシュボードへ進めます。あとからサイドバーの「はじめにを見直す」でやり直せます。
+          </p>
+          <h3>ステップ3：最初にやること（おすすめ順）</h3>
+          <ol>
+            <li><strong>設定</strong>で選んだ媒体の連携（Meta / LINE / Ayrshare など）</li>
+            <li><strong>マジック・クリエイター</strong>で最初の1本を作る</li>
+            <li><strong>投稿カレンダー</strong>で予約・承認する</li>
+            <li>LINEを使うなら<strong>LINE CRM</strong>でタグとあいさつを整える</li>
+          </ol>
+        </section>
+
+        <!-- 3 -->
+        <section id="screens" class="scroll-mt-24">
+          <h2>3. 画面の見方（サイドバー）</h2>
+          <p>ログイン後、左側のメニューから各機能へ移動します。権限によって見える項目が変わります。</p>
+          <div class="not-prose overflow-x-auto">
+            <table class="guide-table">
+              <thead>
+                <tr>
+                  <th>メニュー</th>
+                  <th>できること</th>
+                  <th>誰向け</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>経営コクピット</td><td>今日のミッション・健康スコア・承認待ち</td><td>全員</td></tr>
+                <tr><td>成長ロードマップ</td><td>SNS立ち上げの順番・伴走ガイド</td><td>全員</td></tr>
+                <tr><td>ネタInbox</td><td>スタッフが写真・ネタを投稿 → 店長が採用</td><td>全員</td></tr>
+                <tr><td>マジック・クリエイター</td><td>AI台本・音声・予約作成</td><td>全員</td></tr>
+                <tr><td>投稿カレンダー</td><td>予約一覧・承認・再試行</td><td>全員</td></tr>
+                <tr><td>30本カレンダー</td><td>最初の30日分のネタ計画</td><td>全員</td></tr>
+                <tr><td>導線ビルダー</td><td>プロフィール文・URL・QR</td><td>店長以上</td></tr>
+                <tr><td>LINE CRM</td><td>友だち・タグ・配信・ステップ</td><td>店長以上</td></tr>
+                <tr><td>分析・売上</td><td>週次レポート・KPI</td><td>店長以上</td></tr>
+                <tr><td>スタッフ</td><td>招待・権限</td><td>店長以上</td></tr>
+                <tr><td>設定</td><td>プラン・連携・請求</td><td>店長以上</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            サイドバー最下部の<strong>「使い方説明書」</strong>を押すと、このページが別タブで開きます。
+          </p>
+        </section>
+
+        <!-- 4 -->
+        <section id="dashboard" class="scroll-mt-24">
+          <h2>4. 経営コクピット</h2>
+          <p>アプリを開いたときのホーム画面です。「今日やること」が一目で分かるようになっています。</p>
+          <h3>見られるもの</h3>
+          <ul>
+            <li><strong>今日のミッション</strong> — AIが提案する今日の投稿・承認タスク</li>
+            <li><strong>SNS健康スコア</strong> — 連携状況や運用の健全性の目安</li>
+            <li><strong>承認待ち投稿</strong> — ワンタップで承認できる予約</li>
+            <li><strong>トレンド／地域ネタ</strong> — 波乗り用のアイデア</li>
+            <li><strong>接続アラート</strong> — Metaトークン期限切れなど</li>
+          </ul>
+          <h3>操作のコツ</h3>
+          <ol>
+            <li>朝いちにコクピットを開く</li>
+            <li>承認待ちがあれば内容を確認して承認</li>
+            <li>ミッションの「台本を作る」からマジック・クリエイターへ進む</li>
+          </ol>
+        </section>
+
+        <!-- 5 -->
+        <section id="roadmap" class="scroll-mt-24">
+          <h2>5. 成長ロードマップ</h2>
+          <p>
+            SNSをゼロから整えるときの<strong>順番つきガイド</strong>です。業種を選ぶと、おすすめ媒体・投稿の型・初投稿ネタが具体化されます。
+          </p>
+          <h3>使い方</h3>
+          <ol>
+            <li>業種を選ぶ（オンボーディングと連動）</li>
+            <li>「公式登録 → 初投稿 → 自動投稿」のステージを順に進める</li>
+            <li>各ステップの公式サイトリンクやアプリ内リンクから作業する</li>
+            <li>完了したらチェックを入れて進捗を見える化する</li>
+          </ol>
+          <p class="guide-tip">迷ったらロードマップの「次にやること」だけ進めてください。全部を一度にやる必要はありません。</p>
+        </section>
+
+        <!-- 6 -->
+        <section id="inbox" class="scroll-mt-24">
+          <h2>6. ネタInbox</h2>
+          <p>現場スタッフが「今日の仕上がり写真」「お客様の一言」などを送る箱です。店長が採用して台本化できます。</p>
+          <h3>スタッフの操作</h3>
+          <ol>
+            <li>ネタInboxを開く</li>
+            <li>テキストと任意で写真を添付して送信</li>
+          </ol>
+          <h3>店長・オーナーの操作</h3>
+          <ol>
+            <li>届いたネタを確認</li>
+            <li>「使う」を押すとマジック・クリエイターへ引き継がれます</li>
+          </ol>
+        </section>
+
+        <!-- 7 -->
+        <section id="magic" class="scroll-mt-24">
+          <h2>7. マジック・クリエイター</h2>
+          <p>BuzzItの中心機能です。1つのネタから、複数媒体向けの投稿文をまとめて作り、予約できます。</p>
+          <h3>基本の流れ</h3>
+          <ol>
+            <li>アイデア（今日の一言・メニュー名・出来事）を入力</li>
+            <li>必要なら写真／動画をアップロード（添削ヒントが出ます）</li>
+            <li>「生成」で Instagramリール／カルーセル／X／LINE 向け文案を取得</li>
+            <li>内容を確認・編集</li>
+            <li>日時と投稿モードを選んで予約</li>
+          </ol>
+          <h3>ボイスドラフト</h3>
+          <ol>
+            <li>マイクボタンで録音（施術中の説明など）</li>
+            <li>停止すると文字起こし＋台本化</li>
+            <li>生成結果をそのまま予約へ進める</li>
+          </ol>
+          <h3>勝ち型・Xのコピー</h3>
+          <ul>
+            <li>過去にうまくいった型（勝ち型）を保存・再利用できます</li>
+            <li>Xは自動投稿の代わりに、コピーして公式アプリへ貼る運用も想定しています（Ayrshare連携時は予約投稿可）</li>
+          </ul>
+          <p class="guide-tip">
+            Freeプランでは透かしや月間生成上限があります。本格運用は Starter 以上がおすすめです。
+          </p>
+        </section>
+
+        <!-- 8 -->
+        <section id="calendar" class="scroll-mt-24">
+          <h2>8. 投稿カレンダー</h2>
+          <p>予約済み・承認待ち・失敗した投稿をカレンダー／一覧で管理します。</p>
+          <h3>できること</h3>
+          <ul>
+            <li>週・月表示の切り替え</li>
+            <li>投稿の承認</li>
+            <li>失敗した投稿の<strong>再試行</strong>／<strong>下書きに戻す</strong></li>
+            <li>投稿の空き（コンテンツギャップ）の警告</li>
+          </ul>
+          <h3>失敗したときの3択</h3>
+          <ol>
+            <li>もう一度送る（再試行）</li>
+            <li>下書きに戻して文案を直す</li>
+            <li>連携（Meta / LINE など）を設定で確認する</li>
+          </ol>
+        </section>
+
+        <!-- 9 -->
+        <section id="content-calendar" class="scroll-mt-24">
+          <h2>9. 30本カレンダー</h2>
+          <p>
+            業種テンプレに基づく<strong>最初の30日分のネタ計画</strong>です。「何を書けばいいか分からない」時期の道しるべになります。
+          </p>
+          <ol>
+            <li>はじめにで選んだ業種に合わせてアイデアが表示されます</li>
+            <li>気になるネタをマジック・クリエイターで台本化</li>
+            <li>投稿カレンダーに予約していく</li>
+          </ol>
+        </section>
+
+        <!-- 10 -->
+        <section id="funnel" class="scroll-mt-24">
+          <h2>10. 導線ビルダー</h2>
+          <p>SNSプロフィールから予約・LINEへの流れを整える画面です（店長以上）。</p>
+          <h3>作れるもの</h3>
+          <ul>
+            <li>プロフィール名・自己紹介文のたたき台</li>
+            <li>短縮URL（計測用）</li>
+            <li>店頭用QRコード</li>
+          </ul>
+          <h3>おすすめの流れ</h3>
+          <p>リール／投稿 → プロフィール → LINE or 予約サイト → 来店。導線ビルダーで「プロフィールの看板」を先に固めると成果が出やすくなります。</p>
+        </section>
+
+        <!-- 11 -->
+        <section id="line" class="scroll-mt-24">
+          <h2>11. LINE CRM</h2>
+          <p>Lステップ等の代わりに使える、LINE公式アカウント運用機能です（店長以上）。</p>
+          <h3>タブごとの使い方</h3>
+          <ul>
+            <li><strong>友だち</strong> — 一覧・検索・タグ付け・詳細</li>
+            <li><strong>タグ</strong> — 来店回数・興味などのラベル管理</li>
+            <li><strong>流入経路</strong> — QR・広告ごとの友だち追加を計測</li>
+            <li><strong>セグメント配信</strong> — 条件に合う人だけにメッセージ</li>
+            <li><strong>ステップ配信</strong> — 登録後の自動メッセージシナリオ</li>
+            <li><strong>チャットキュー</strong> — お客様からの返信対応</li>
+            <li><strong>クーポン</strong> — 発行・利用（リデーム）</li>
+            <li><strong>Flex／リッチメニュー</strong> — 見た目の良いメッセージや下部メニュー</li>
+            <li><strong>インサイト</strong> — 友だち数・配信コスト試算</li>
+          </ul>
+          <h3>初期セットアップ</h3>
+          <ol>
+            <li>設定で LINE Channel Secret / Access Token を保存</li>
+            <li>表示される Webhook URL を LINE Developers に登録</li>
+            <li>タグとあいさつ（ステップ）を1本作る</li>
+            <li>店頭QRを導線ビルダー／流入経路で発行</li>
+          </ol>
+          <p class="guide-tip">
+            LINEの<strong>配信料金自体</strong>はLINE公式から各店舗へ請求されます。BuzzItは管理ツール料のみです。絞り込み配信で通数を抑えるのがポイントです。
+          </p>
+        </section>
+
+        <!-- 12 -->
+        <section id="analytics" class="scroll-mt-24">
+          <h2>12. 分析・売上</h2>
+          <p>リーチ・クリック・LINE登録・推計売上などをまとめて見る画面です。</p>
+          <ul>
+            <li>週次レポート（月曜想定）の要約</li>
+            <li>投稿ごとの成果</li>
+            <li>HPB（ホットペッパー）など予約サイトとの関連（プランによる）</li>
+          </ul>
+          <p>連携が少ないうちはデモ／サンプル表示になることがあります。Meta・LINE・予約URLを設定すると実データに近づきます。</p>
+        </section>
+
+        <!-- 13 -->
+        <section id="team" class="scroll-mt-24">
+          <h2>13. スタッフ管理</h2>
+          <ol>
+            <li>スタッフ画面でメールアドレスを入力して招待</li>
+            <li>役割（店長／スタッフ）を選ぶ</li>
+            <li>相手が招待リンクから参加</li>
+          </ol>
+          <p>スタッフはネタ投稿・台本作成が中心。承認・配信・設定は店長／オーナー向けです。</p>
+        </section>
+
+        <!-- 14 -->
+        <section id="settings" class="scroll-mt-24">
+          <h2>14. 設定・連携</h2>
+          <p>設定画面ではプラン変更と各種連携を行います。</p>
+          <h3>Meta（Instagram / Facebook / Threads）</h3>
+          <ol>
+            <li>「Meta で連携する」を押す</li>
+            <li>店舗のFacebook／Instagramビジネスアカウントで許可</li>
+            <li>投稿モードを「Meta 自動投稿」や「自動」にすると予約投稿が可能</li>
+          </ol>
+          <h3>LINE</h3>
+          <p>Channel Secret と Channel Access Token を貼り付けて保存。Webhook URLをLINE側に設定します。</p>
+          <h3>Slack</h3>
+          <p>Incoming Webhook URL を入れると、朝の通知やネタ会議がSlackに届きます（プランによる）。</p>
+          <h3>Ayrshare（X連携向け・オプション）</h3>
+          <p>
+            Ayrshareは外部の投稿予約サービスです。X（旧Twitter）の公式APIは料金が高いため、BuzzItでは
+            <strong>Ayrshare経由でXの予約投稿</strong>に対応しています。プロファイルキーを設定し、投稿モードで「Ayrshare」を選ぶと使えます。
+            未設定でも、文案をコピーしてXアプリに貼る運用が可能です。
+          </p>
+          <h3>Googleビジネスプロフィール（GBP）／ホットペッパー（HPB）</h3>
+          <ul>
+            <li>GBP — 口コミ返信の下書きや投稿連携（段階的に拡充）</li>
+            <li>HPB — 店舗URLを登録し、投稿と予約のつながりを追う</li>
+          </ul>
+          <h3>投稿モード（デフォルト）</h3>
+          <ul>
+            <li><strong>通知</strong> — Slack/LINEに文案を送り、手元で投稿（半自動）</li>
+            <li><strong>承認後</strong> — ダッシュボードで承認してから投稿</li>
+            <li><strong>Meta / LINE / GBP</strong> — 各APIで自動投稿</li>
+            <li><strong>自動</strong> — 接続状況に応じて最適化</li>
+            <li><strong>Ayrshare</strong> — Xなどを含む外部予約</li>
+          </ul>
+        </section>
+
+        <!-- 15 -->
+        <section id="billing" class="scroll-mt-24">
+          <h2>15. 料金・店舗・追加アカウント</h2>
+          <ul>
+            <li>料金は<strong>店舗単位</strong>。1店舗目はプラン基本料、2店舗目以降は基本料の20%OFF</li>
+            <li>各SNSの<strong>1アカウント目はプランに含む</strong></li>
+            <li>同じ媒体で2つ目（例: Instagram公式＋採用用）は<strong>追加枠 ¥980/月</strong></li>
+            <li>設定の「店舗・請求」カードで店舗追加とSNS追加枠を変更</li>
+          </ul>
+          <p>
+            詳細な料金表は
+            <a href={`${homeUrl}#pricing`}>サービスサイトの料金セクション</a>
+            をご覧ください。
+          </p>
+        </section>
+
+        <!-- 16 -->
+        <section id="roles" class="scroll-mt-24">
+          <h2>16. 権限（オーナー／店長／スタッフ）</h2>
+          <div class="not-prose overflow-x-auto">
+            <table class="guide-table">
+              <thead>
+                <tr>
+                  <th>操作</th>
+                  <th>オーナー</th>
+                  <th>店長</th>
+                  <th>スタッフ</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>ネタ投稿・台本作成</td><td>○</td><td>○</td><td>○</td></tr>
+                <tr><td>投稿の承認</td><td>○</td><td>○</td><td>—</td></tr>
+                <tr><td>LINE配信・CRM</td><td>○</td><td>○</td><td>—</td></tr>
+                <tr><td>設定・連携</td><td>○</td><td>○</td><td>—</td></tr>
+                <tr><td>プラン・請求・店舗追加</td><td>○</td><td>—</td><td>—</td></tr>
+                <tr><td>スタッフ招待</td><td>○</td><td>○</td><td>—</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- 17 -->
+        <section id="daily" class="scroll-mt-24">
+          <h2>17. おすすめの一日の流れ</h2>
+          <ol>
+            <li><strong>朝（5分）</strong> — コクピットを開き、承認待ちを処理。ミッションを確認</li>
+            <li><strong>業務中</strong> — スタッフがネタInboxやボイスドラフトで素材を送る</li>
+            <li><strong>昼／空き時間</strong> — マジック・クリエイターで1〜2本を予約</li>
+            <li><strong>週1回</strong> — 分析・週次レポートとLINEセグメント配信を確認</li>
+            <li><strong>月1回</strong> — 導線（プロフィール・QR）と追加アカウント枠を見直し</li>
+          </ol>
+        </section>
+
+        <!-- 18 -->
+        <section id="faq" class="scroll-mt-24">
+          <h2>18. よくある質問</h2>
+          <h3>Q. Xを選んだのに Meta / LINE の話が出る</h3>
+          <p>
+            オンボーディングの「次の一手」は、選んだ媒体に合わせて案内が切り替わります。古い表示の場合はハードリロードするか、はじめにを見直してください。
+          </p>
+          <h3>Q. Ayrshareとは？ Xは自動投稿できる？</h3>
+          <p>
+            Ayrshareは投稿予約の仲介サービスです。プロファイルキーを設定し投稿モードで指定すると、X向けの予約投稿ができます。未設定でもコピー運用が可能です。
+          </p>
+          <h3>Q. ログイン画面が真っ白</h3>
+          <p>ブラウザのスーパーリロード（Ctrl+Shift+R）やキャッシュ削除を試してください。改善しない場合はサポートへご連絡ください。</p>
+          <h3>Q. 設定の「店舗・請求」が遅い</h3>
+          <p>最新版では初期表示を高速化しています。それでも遅い場合は通信環境とログイン状態をご確認ください。</p>
+          <h3>Q. スマホでも使える？</h3>
+          <p>はい。PWA対応のため、ブラウザの「ホーム画面に追加」でアプリのように開けます。</p>
+        </section>
+
+        <section class="border border-neutral-200 bg-white p-6 sm:p-8">
+          <h2 class="!mt-0">次のアクション</h2>
+          <p class="mb-6">説明を読んだら、アプリで1本だけ投稿を作ってみましょう。</p>
+          <div class="not-prose flex flex-wrap gap-3">
+            <a
+              href={loginUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex bg-neutral-900 px-5 py-3 text-sm font-semibold text-white hover:bg-neutral-700"
+            >
+              アプリを開く
+            </a>
+            <a
+              href={homeUrl}
+              class="inline-flex border border-neutral-300 bg-white px-5 py-3 text-sm font-semibold text-neutral-900 hover:bg-neutral-50"
+            >
+              サービスサイトへ
+            </a>
+          </div>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer class="mt-8 border-t border-neutral-200 py-8 text-center text-xs text-neutral-500">
+    <p>
+      <a href={homeUrl} class="underline-offset-2 hover:underline">BuzzIt トップ</a>
+      ｜ © 2026 株式会社シゴトク
+    </p>
+  </footer>
+</Layout>
+
+<style>
+  .guide-prose h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    color: var(--color-buzz-title);
+  }
+  .guide-prose h3 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+    color: #171717;
+  }
+  .guide-prose p,
+  .guide-prose li {
+    font-size: 0.95rem;
+    line-height: 1.75;
+    color: #404040;
+  }
+  .guide-prose p + p {
+    margin-top: 0.75rem;
+  }
+  .guide-prose ul,
+  .guide-prose ol {
+    margin: 0.75rem 0 0;
+    padding-left: 1.25rem;
+  }
+  .guide-prose ul {
+    list-style: disc;
+  }
+  .guide-prose ol {
+    list-style: decimal;
+  }
+  .guide-prose li + li {
+    margin-top: 0.35rem;
+  }
+  .guide-prose a {
+    color: #171717;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .guide-tip {
+    margin-top: 1rem;
+    border: 1px solid #e5e5e5;
+    background: #fff;
+    padding: 0.875rem 1rem;
+    font-size: 0.875rem !important;
+  }
+  .guide-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+    background: #fff;
+  }
+  .guide-table th,
+  .guide-table td {
+    border: 1px solid #e5e5e5;
+    padding: 0.65rem 0.75rem;
+    text-align: left;
+    vertical-align: top;
+  }
+  .guide-table th {
+    background: #fafafa;
+    font-weight: 700;
+    color: #525252;
+  }
+</style>
