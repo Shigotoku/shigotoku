@@ -25,7 +25,7 @@ export function loadOnboarding(): OnboardingState {
     const raw = localStorage.getItem(ONBOARDING_STORAGE_KEY);
     if (!raw) return { completed: false };
     const parsed = JSON.parse(raw) as OnboardingState;
-    return { completed: false, ...parsed };
+    return { ...parsed, completed: !!parsed.completed };
   } catch {
     return { completed: false };
   }

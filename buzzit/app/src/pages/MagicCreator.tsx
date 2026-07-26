@@ -181,18 +181,17 @@ export default function MagicCreator() {
           hint: idea,
         });
         if (res.transcript) setIdea(res.transcript);
-        const mapped = res.drafts
-          .map((d) => {
-            const platform = asPlatform(d.platform ?? d.kind);
-            if (!platform) return null;
-            return {
-              platform,
-              label: d.label,
-              content: d.content,
-              carouselSlides: d.carouselSlides,
-            } satisfies RepurposeContent;
-          })
-          .filter((d): d is RepurposeContent => !!d);
+        const mapped: RepurposeContent[] = [];
+        for (const d of res.drafts) {
+          const platform = asPlatform(d.platform ?? d.kind);
+          if (!platform) continue;
+          mapped.push({
+            platform,
+            label: d.label,
+            content: d.content,
+            ...(d.carouselSlides ? { carouselSlides: d.carouselSlides } : {}),
+          });
+        }
         if (mapped.length) {
           setResults(mapped);
           setPublishMode('notify');
