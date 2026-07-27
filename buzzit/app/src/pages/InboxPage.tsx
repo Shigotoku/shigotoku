@@ -1,9 +1,23 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Inbox, ImagePlus, Send } from 'lucide-react';
+import { Inbox, ImagePlus, Send, Wand2 } from 'lucide-react';
 import { fetchIdeaInbox, submitIdeaInbox, useIdeaInbox, type IdeaInboxItem } from '../lib/api';
+import { storeInboxHandoff } from '../lib/inboxHandoff';
 import { useStore } from '../store/storeContext';
 import EmptyState from '../components/EmptyState';
+
+function statusLabel(status: string) {
+  switch (status) {
+    case 'pending':
+      return '未使用';
+    case 'used':
+      return '使用済み';
+    case 'archived':
+      return 'アーカイブ';
+    default:
+      return status;
+  }
+}
 
 export default function InboxPage() {
   const navigate = useNavigate();
@@ -12,6 +26,7 @@ export default function InboxPage() {
   const [text, setText] = useState('');
   const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [usingId, setUsingId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   const load = () => {
@@ -31,11 +46,21 @@ export default function InboxPage() {
     reader.readAsDataURL(file);
   };
 
-  const handleSubmit = async () => {
+  const goToCreator = (idea: IdeaInboxItem, path: string) => {
+    storeInboxHandoff({
+      ideaId: idea.id,
+      text: idea.text,
+      photoDataUrl: idea.photoDataUrl,
+    });
+    navigate(path);
+  };
+
+  const handleSubmit = async (andUse: boolean) => {
     if (!text.trim()) return;
     setBusy(true);
+    setMessage(null);
     try {
-      await submitIdeaInbox({
+      const { idea } = await submitIdeaInbox({
         text: text.trim(),
         author: userRole === 'staff' ? 'スタッフ' : 'メンバー',
         authorRole: userRole ?? 'staff',
@@ -43,7 +68,16 @@ export default function InboxPage() {
       });
       setText('');
       setPhotoDataUrl(null);
-      setMessage('ネタを送りました。店長がクリエイターで使えます。');
+      if (andUse) {
+        try {
+          const r = await useIdeaInbox(idea.id);
+          goToCreator(r.idea, r.magicCreatorPath);
+        } catch {
+          goToCreator(idea, `/magic-creator?idea=${encodeURIComponent(idea.text)}&from=inbox&inboxId=${idea.id}`);
+        }
+        return;
+      }
+      setMessage('ネタを送りました。「クリエイターで使う」ですぐ台本化できます。');
       load();
     } catch {
       setMessage('送信に失敗しました');
@@ -51,13 +85,22 @@ export default function InboxPage() {
     setBusy(false);
   };
 
-  const handleUse = async (id: string) => {
+  const handleUse = async (idea: IdeaInboxItem) => {
+    setUsingId(idea.id);
+    setMessage(null);
     try {
-      const r = await useIdeaInbox(id);
-      navigate(r.magicCreatorPath);
+      const r = await useIdeaInbox(idea.id);
+      goToCreator(r.idea, r.magicCreatorPath);
     } catch {
-      setMessage('採用に失敗しました');
+      // API 失敗時も手元のネタでクリエイターへ渡す
+      storeInboxHandoff({
+        ideaId: idea.id,
+        text: idea.text,
+        photoDataUrl: idea.photoDataUrl,
+      });
+      navigate(`/magic-creator?idea=${encodeURIComponent(idea.text)}&from=inbox&inboxId=${idea.id}`);
     }
+    setUsingId(null);
   };
 
   return (
@@ -84,15 +127,26 @@ export default function InboxPage() {
           {photoDataUrl && (
             <img src={photoDataUrl} alt="" className="h-14 w-14 border border-neutral-200 object-cover" />
           )}
-          <button
-            type="button"
-            disabled={busy || !text.trim()}
-            onClick={handleSubmit}
-            className="buzz-btn-primary ml-auto disabled:opacity-60"
-          >
-            <Send className="h-4 w-4" />
-            送信
-          </button>
+          <div className="ml-auto flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={busy || !text.trim()}
+              onClick={() => handleSubmit(false)}
+              className="inline-flex min-h-[44px] items-center gap-2 border border-neutral-300 px-3 text-sm disabled:opacity-60"
+            >
+              <Send className="h-4 w-4" />
+              送信のみ
+            </button>
+            <button
+              type="button"
+              disabled={busy || !text.trim()}
+              onClick={() => handleSubmit(true)}
+              className="buzz-btn-primary disabled:opacity-60"
+            >
+              <Wand2 className="h-4 w-4" />
+              送信してクリエイターへ
+            </button>
+          </div>
         </div>
         {message && <p className="text-sm text-neutral-600">{message}</p>}
       </div>
@@ -101,7 +155,7 @@ export default function InboxPage() {
         <EmptyState
           icon={Inbox}
           title="まだネタがありません"
-          description="施術後や接客の一言を写真付きで送ると、店長がマジック・クリエイターに流せます。"
+          description="施術後や接客の一言を写真付きで送ると、すぐマジック・クリエイターで台本化できます。"
           primaryLabel="クリエイターを開く"
           primaryTo="/magic-creator"
         />
@@ -120,17 +174,21 @@ export default function InboxPage() {
                 <div className="min-w-0 flex-1">
                   <p className="text-sm text-neutral-900">{idea.text}</p>
                   <p className="mt-1 text-xs text-neutral-500">
-                    {idea.author} · {new Date(idea.createdAt).toLocaleString('ja-JP')} · {idea.status}
+                    {idea.author} · {new Date(idea.createdAt).toLocaleString('ja-JP')} · {statusLabel(idea.status)}
                   </p>
-                  {idea.status === 'pending' && userRole !== 'staff' && (
-                    <button
-                      type="button"
-                      onClick={() => handleUse(idea.id)}
-                      className="mt-2 text-xs font-medium underline-offset-2 hover:underline"
-                    >
-                      採用してクリエイターへ
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    disabled={usingId === idea.id}
+                    onClick={() => handleUse(idea)}
+                    className="buzz-btn-primary mt-3 min-h-[44px] px-3 py-1.5 text-xs disabled:opacity-60"
+                  >
+                    <Wand2 className="h-3.5 w-3.5" />
+                    {usingId === idea.id
+                      ? '開いています...'
+                      : idea.status === 'used'
+                        ? 'もう一度クリエイターで使う'
+                        : 'クリエイターで使う'}
+                  </button>
                 </div>
               </div>
             </div>

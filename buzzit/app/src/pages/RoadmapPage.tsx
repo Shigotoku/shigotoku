@@ -41,6 +41,8 @@ import {
   getPlatformCompanion,
   platformCompanions,
 } from '../data/platformCompanions';
+import { getPlatformShowcase, primaryPlatformToCompanionId } from '../data/platformShowcase';
+import PlatformShowcasePanel from '../components/PlatformShowcasePanel';
 import {
   fetchLineSteps,
   fetchSettings,
@@ -220,6 +222,17 @@ export default function RoadmapPage() {
 
   const phase = journeyPhases.find((p) => p.id === activePhase) ?? journeyPhases[0];
   const companion = getPlatformCompanion(platformId) ?? platformCompanions[0];
+  const platformShowcase = useMemo(
+    () => getPlatformShowcase(platformId, industry),
+    [platformId, industry],
+  );
+  const primaryPlatformId = primaryPlatformToCompanionId(industry.primaryPlatforms[0] ?? 'Instagram');
+  const primaryShowcase = useMemo(
+    () => getPlatformShowcase(primaryPlatformId, industry),
+    [primaryPlatformId, industry],
+  );
+  const primaryPlatformName =
+    getPlatformCompanion(primaryPlatformId)?.name ?? industry.primaryPlatforms[0] ?? 'Instagram';
   const companionStage =
     companion.stages.find((s) => s.id === companionStageId) ?? companion.stages[0];
   const companionStepIds = useMemo(() => {
@@ -816,6 +829,17 @@ export default function RoadmapPage() {
               </ul>
             </div>
           </div>
+
+          {platformShowcase && (
+            <section className="buzz-card-pad border border-[#6b4a3a]/15 bg-white">
+              <PlatformShowcasePanel showcase={platformShowcase} platformName={companion.name} />
+              <Link to="/magic-creator" className="buzz-btn-primary mt-6">
+                <Sparkles className="h-4 w-4" />
+                見本を参考に台本を作る
+              </Link>
+            </section>
+          )}
+
           <GuideBlock title="やりがちな失敗" items={companion.commonMistakes} muted />
         </div>
       )}
@@ -870,6 +894,23 @@ export default function RoadmapPage() {
               フック付き台本を生成する
             </Link>
           </section>
+
+          {primaryShowcase && (
+            <section className="buzz-card-pad border border-[#6b4a3a]/15 bg-white">
+              <p className="buzz-section-label mb-4">
+                {industry.label} · 主戦場 {primaryPlatformName}
+              </p>
+              <PlatformShowcasePanel
+                showcase={primaryShowcase}
+                platformName={primaryPlatformName}
+                compact
+              />
+              <Link to="/magic-creator" className="buzz-btn-primary mt-6">
+                <Sparkles className="h-4 w-4" />
+                見本を参考に台本を作る
+              </Link>
+            </section>
+          )}
 
           <section className="grid gap-4 md:grid-cols-3">
             {[

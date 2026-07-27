@@ -102,15 +102,20 @@ export async function markIdeaUsed(uid: string, id: string): Promise<IdeaInboxIt
   const ref = col(uid, 'ideaInbox').doc(id);
   const snap = await ref.get();
   if (!snap.exists) return null;
-  await ref.update({ status: 'used', usedAt: FieldValue.serverTimestamp() });
   const data = snap.data()!;
+  const created =
+    data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : new Date().toISOString();
+  if (data.status !== 'used') {
+    await ref.update({ status: 'used', usedAt: FieldValue.serverTimestamp() });
+  }
   return {
     id,
     text: String(data.text ?? ''),
     author: String(data.author ?? ''),
+    authorRole: data.authorRole as string | undefined,
     photoDataUrl: (data.photoDataUrl as string | null) ?? null,
     status: 'used',
-    createdAt: new Date().toISOString(),
+    createdAt: created,
   };
 }
 

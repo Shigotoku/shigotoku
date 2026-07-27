@@ -8,17 +8,28 @@ import {
   RefreshCw,
   ChevronLeft,
   ChevronRight,
+  Pencil,
+  X,
 } from 'lucide-react';
 import {
   fetchScheduledJobs,
   approveScheduledJob,
   retryScheduledJob,
   revertScheduledJobToDraft,
+  updateScheduledJob,
+  type PublishMode,
   type ScheduledJob,
 } from '../lib/api';
+import { defaultScheduleLocalValue, isFutureLocalDatetime, toDatetimeLocalValue } from '../lib/datetime';
 import EmptyState from '../components/EmptyState';
 import { useStore } from '../store/storeContext';
 import { canApprovePosts } from '../lib/permissions';
+
+type EditableStatus = 'pending' | 'pending_approval' | 'draft' | 'failed';
+
+function isEditableStatus(status: ScheduledJob['status']): status is EditableStatus {
+  return status === 'pending' || status === 'pending_approval' || status === 'draft' || status === 'failed';
+}
 
 type FilterKey = 'all' | 'pending_approval' | 'pending' | 'failed' | 'done' | 'draft';
 type ViewMode = 'month' | 'week';
@@ -81,6 +92,12 @@ export default function CalendarPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [editingJob, setEditingJob] = useState<ScheduledJob | null>(null);
+  const [editDate, setEditDate] = useState('');
+  const [editMode, setEditMode] = useState<PublishMode>('notify');
+  const [editContents, setEditContents] = useState<ScheduledJob['contents']>([]);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -176,12 +193,57 @@ export default function CalendarPage() {
     setBusyId(id);
     try {
       await revertScheduledJobToDraft(id);
-      setMessage('下書きに戻しました。クリエイターで作り直せます。');
+      setMessage('下書きに戻しました。内容を編集して再予約できます。');
       load();
     } catch {
       setMessage('下書き化に失敗しました');
     }
     setBusyId(null);
+  };
+
+  const openEdit = (job: ScheduledJob) => {
+    const at = new Date(job.scheduledAt);
+    let local = defaultScheduleLocalValue(2);
+    if (!Number.isNaN(at.getTime()) && at.getTime() > Date.now()) {
+      local = toDatetimeLocalValue(at);
+    }
+    setEditingJob(job);
+    setEditDate(local);
+    setEditMode(job.publishMode);
+    setEditContents(
+      job.contents.map((c) => ({
+        ...c,
+        carouselSlides: c.carouselSlides ? [...c.carouselSlides] : undefined,
+      })),
+    );
+    setEditError(null);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingJob) return;
+    setEditError(null);
+    if (!isFutureLocalDatetime(editDate)) {
+      setEditError('過去の日時には予約できません。未来の日時を指定してください。');
+      return;
+    }
+    if (editContents.some((c) => !c.content.trim())) {
+      setEditError('本文が空のプラットフォームがあります');
+      return;
+    }
+    setEditSaving(true);
+    try {
+      await updateScheduledJob(editingJob.id, {
+        scheduledAt: new Date(editDate).toISOString(),
+        publishMode: editMode,
+        contents: editContents,
+      });
+      setMessage('予約内容を更新しました');
+      setEditingJob(null);
+      load();
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : '更新に失敗しました');
+    }
+    setEditSaving(false);
   };
 
   const failedCount = jobs.filter((j) => j.status === 'failed').length;
@@ -446,6 +508,16 @@ export default function CalendarPage() {
                 <p className="mt-2 text-xs text-red-700">{job.errorMessage}</p>
               )}
               <div className="mt-3 flex flex-wrap gap-2">
+                {isEditableStatus(job.status) && (
+                  <button
+                    type="button"
+                    onClick={() => openEdit(job)}
+                    className="inline-flex min-h-[44px] items-center gap-1 border border-neutral-900 bg-neutral-900 px-3 py-1.5 text-xs text-white"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    編集
+                  </button>
+                )}
                 {job.status === 'pending_approval' && canApprove && (
                   <button
                     type="button"
@@ -457,28 +529,26 @@ export default function CalendarPage() {
                     {busyId === job.id ? '承認中...' : '承認'}
                   </button>
                 )}
-                {(job.status === 'failed' || job.status === 'pending_approval') && (
-                  <>
-                    {job.status === 'failed' && (
-                      <button
-                        type="button"
-                        disabled={busyId === job.id}
-                        onClick={() => handleRetry(job.id)}
-                        className="inline-flex min-h-[44px] items-center gap-1 border border-red-300 bg-red-50 px-3 py-1.5 text-xs text-red-800 disabled:opacity-60"
-                      >
-                        <RefreshCw className="h-3.5 w-3.5" />
-                        再送
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      disabled={busyId === job.id}
-                      onClick={() => handleDraft(job.id)}
-                      className="min-h-[44px] border border-neutral-300 px-3 py-1.5 text-xs"
-                    >
-                      下書きに戻す
-                    </button>
-                  </>
+                {job.status === 'failed' && (
+                  <button
+                    type="button"
+                    disabled={busyId === job.id}
+                    onClick={() => handleRetry(job.id)}
+                    className="inline-flex min-h-[44px] items-center gap-1 border border-red-300 bg-red-50 px-3 py-1.5 text-xs text-red-800 disabled:opacity-60"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    再送
+                  </button>
+                )}
+                {(job.status === 'failed' || job.status === 'pending_approval' || job.status === 'pending') && (
+                  <button
+                    type="button"
+                    disabled={busyId === job.id}
+                    onClick={() => handleDraft(job.id)}
+                    className="min-h-[44px] border border-neutral-300 px-3 py-1.5 text-xs"
+                  >
+                    下書きに戻す
+                  </button>
                 )}
                 <button
                   type="button"
@@ -496,6 +566,86 @@ export default function CalendarPage() {
           ))}
         </div>
       </div>
+
+      {editingJob && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/40 p-4"
+          onClick={() => !editSaving && setEditingJob(null)}
+        >
+          <div
+            className="w-full max-w-lg max-h-[90dvh] overflow-y-auto border border-neutral-200 bg-white p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-bold">予約を編集</h3>
+              <button
+                type="button"
+                disabled={editSaving}
+                onClick={() => setEditingJob(null)}
+                className="p-1 text-neutral-600 hover:text-neutral-900"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <label className="mb-1 block text-xs text-neutral-600">投稿モード</label>
+            <select
+              value={editMode}
+              onChange={(e) => setEditMode(e.target.value as PublishMode)}
+              className="mb-4 w-full border border-neutral-200 bg-white px-3 py-2 text-sm focus:border-neutral-900 focus:outline-none"
+            >
+              <option value="notify">通知リマインダー</option>
+              <option value="approval">承認後投稿</option>
+              <option value="meta">Meta 自動投稿</option>
+              <option value="line">LINE ブロードキャスト</option>
+              <option value="ayrshare">Ayrshare</option>
+              <option value="gbp">Google Business Profile</option>
+              <option value="auto">自動</option>
+            </select>
+
+            <label className="mb-1 block text-xs text-neutral-600">投稿日時</label>
+            <input
+              type="datetime-local"
+              value={editDate}
+              min={toDatetimeLocalValue(new Date())}
+              onChange={(e) => {
+                setEditDate(e.target.value);
+                setEditError(null);
+              }}
+              className="mb-4 w-full border border-neutral-200 bg-white px-3 py-2 text-sm focus:border-neutral-900 focus:outline-none"
+            />
+
+            <div className="mb-4 space-y-3">
+              {editContents.map((item, idx) => (
+                <label key={`${item.platform}-${idx}`} className="block">
+                  <span className="mb-1 block text-xs font-medium text-neutral-700">{item.label}</span>
+                  <textarea
+                    value={item.content}
+                    onChange={(e) => {
+                      const next = [...editContents];
+                      next[idx] = { ...next[idx], content: e.target.value };
+                      setEditContents(next);
+                    }}
+                    rows={5}
+                    className="w-full resize-y border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm focus:border-neutral-900 focus:outline-none"
+                  />
+                </label>
+              ))}
+            </div>
+
+            {editError && <p className="mb-3 text-sm text-red-700">{editError}</p>}
+
+            <button
+              type="button"
+              disabled={editSaving || !isFutureLocalDatetime(editDate)}
+              onClick={handleSaveEdit}
+              className="buzz-btn-primary w-full disabled:opacity-70"
+            >
+              {editSaving ? '保存中...' : '変更を保存'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

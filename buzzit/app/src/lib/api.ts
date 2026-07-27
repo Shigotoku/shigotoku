@@ -398,6 +398,20 @@ export function revertScheduledJobToDraft(id: string) {
   });
 }
 
+export function updateScheduledJob(
+  id: string,
+  body: {
+    scheduledAt?: string;
+    contents?: ScheduleApiRequest['contents'];
+    publishMode?: PublishMode;
+  },
+) {
+  return request<{ success: boolean; job: ScheduledJob }>(`/v1/scheduled/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
 export interface WeeklyReport {
   periodLabel: string;
   healthScore: number;

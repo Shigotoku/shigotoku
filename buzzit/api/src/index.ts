@@ -26,6 +26,7 @@ import {
   approveScheduledJob,
   retryScheduledJob,
   revertScheduledJobToDraft,
+  updateScheduledJob,
   trackMetricEvent,
   createTrackingLink,
   getTrackingLink,
@@ -260,6 +261,16 @@ api.post('/v1/schedule', requireAuth, async (req: AuthedRequest, res) => {
     return;
   }
 
+  const scheduledDate = new Date(scheduledAt);
+  if (Number.isNaN(scheduledDate.getTime())) {
+    res.status(400).json({ error: '投稿日時の形式が正しくありません' });
+    return;
+  }
+  if (scheduledDate.getTime() <= Date.now()) {
+    res.status(400).json({ error: '過去の日時には予約できません。未来の日時を指定してください' });
+    return;
+  }
+
   try {
     const settings = await getUserSettings(req.uid!);
     const dest = destinationUrl ?? settings.defaultDestinationUrl;
@@ -291,7 +302,7 @@ api.post('/v1/schedule', requireAuth, async (req: AuthedRequest, res) => {
 
     const jobId = await createScheduledJob(req.uid!, {
       contents,
-      scheduledAt,
+      scheduledAt: scheduledDate.toISOString(),
       publishMode: mode,
       mediaUrls,
       destinationUrl: dest,
@@ -370,6 +381,50 @@ api.post('/v1/scheduled/:id/draft', requireAuth, async (req: AuthedRequest, res)
     return;
   }
   await writeAuditLog(req.uid!, 'schedule.draft', job.id);
+  res.json({ success: true, job });
+});
+
+api.patch('/v1/scheduled/:id', requireAuth, async (req: AuthedRequest, res) => {
+  const { scheduledAt, contents, publishMode } = req.body as {
+    scheduledAt?: string;
+    contents?: Array<{ platform: string; label: string; content: string; carouselSlides?: string[] }>;
+    publishMode?: PublishMode;
+  };
+
+  if (scheduledAt === undefined && contents === undefined && publishMode === undefined) {
+    res.status(400).json({ error: '更新する項目がありません' });
+    return;
+  }
+
+  let normalizedScheduledAt: string | undefined;
+  if (scheduledAt !== undefined) {
+    const when = new Date(scheduledAt);
+    if (Number.isNaN(when.getTime())) {
+      res.status(400).json({ error: '投稿日時の形式が正しくありません' });
+      return;
+    }
+    if (when.getTime() <= Date.now()) {
+      res.status(400).json({ error: '過去の日時には予約できません。未来の日時を指定してください' });
+      return;
+    }
+    normalizedScheduledAt = when.toISOString();
+  }
+
+  if (contents !== undefined && (!Array.isArray(contents) || contents.length === 0)) {
+    res.status(400).json({ error: 'contents が空です' });
+    return;
+  }
+
+  const job = await updateScheduledJob(req.uid!, String(req.params.id), {
+    scheduledAt: normalizedScheduledAt,
+    contents,
+    publishMode,
+  });
+  if (!job) {
+    res.status(404).json({ error: '編集できる予約が見つかりません（処理中・完了済みは編集不可）' });
+    return;
+  }
+  await writeAuditLog(req.uid!, 'schedule.update', job.id);
   res.json({ success: true, job });
 });
 
@@ -1294,9 +1349,14 @@ api.post('/v1/inbox/:id/use', requireAuth, async (req: AuthedRequest, res) => {
     res.status(404).json({ error: 'ネタが見つかりません' });
     return;
   }
+  const params = new URLSearchParams({
+    idea: idea.text,
+    from: 'inbox',
+    inboxId: idea.id,
+  });
   res.json({
     idea,
-    magicCreatorPath: `/magic-creator?idea=${encodeURIComponent(idea.text)}&from=inbox`,
+    magicCreatorPath: `/magic-creator?${params.toString()}`,
   });
 });
 

@@ -618,7 +618,8 @@ export async function revertScheduledJobToDraft(uid: string, jobId: string): Pro
   const snap = await ref.get();
   if (!snap.exists) return null;
   const data = snap.data()!;
-  if (data.status !== 'failed' && data.status !== 'pending_approval') return null;
+  const editable: ScheduledJobStatus[] = ['failed', 'pending_approval', 'pending'];
+  if (!editable.includes(data.status as ScheduledJobStatus)) return null;
 
   await ref.update({
     status: 'draft',
@@ -626,6 +627,51 @@ export async function revertScheduledJobToDraft(uid: string, jobId: string): Pro
     updatedAt: FieldValue.serverTimestamp(),
   });
 
+  const updated = await ref.get();
+  return mapScheduledDoc(uid, jobId, updated.data()!);
+}
+
+const EDITABLE_SCHEDULE_STATUSES: ScheduledJobStatus[] = [
+  'pending',
+  'pending_approval',
+  'draft',
+  'failed',
+];
+
+export async function updateScheduledJob(
+  uid: string,
+  jobId: string,
+  patch: {
+    scheduledAt?: string;
+    contents?: ScheduleContentItem[];
+    publishMode?: PublishMode;
+  },
+): Promise<ScheduledJobDoc | null> {
+  const ref = db().collection('users').doc(uid).collection('scheduled').doc(jobId);
+  const snap = await ref.get();
+  if (!snap.exists) return null;
+  const data = snap.data()!;
+  const status = data.status as ScheduledJobStatus;
+  if (!EDITABLE_SCHEDULE_STATUSES.includes(status)) return null;
+
+  const updates: Record<string, unknown> = {
+    updatedAt: FieldValue.serverTimestamp(),
+  };
+  if (patch.scheduledAt !== undefined) updates.scheduledAt = patch.scheduledAt;
+  if (patch.contents !== undefined) updates.contents = patch.contents;
+  if (patch.publishMode !== undefined) {
+    updates.publishMode = patch.publishMode;
+    if (status === 'draft' || status === 'failed') {
+      updates.status = patch.publishMode === 'approval' ? 'pending_approval' : 'pending';
+      updates.errorMessage = FieldValue.delete();
+    } else if (status === 'pending_approval' && patch.publishMode !== 'approval') {
+      updates.status = 'pending';
+    } else if (status === 'pending' && patch.publishMode === 'approval') {
+      updates.status = 'pending_approval';
+    }
+  }
+
+  await ref.update(updates);
   const updated = await ref.get();
   return mapScheduledDoc(uid, jobId, updated.data()!);
 }

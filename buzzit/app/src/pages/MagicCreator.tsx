@@ -29,6 +29,8 @@ import {
   createWinningPattern,
   type PublishMode,
 } from '../lib/api';
+import { defaultScheduleLocalValue, isFutureLocalDatetime, toDatetimeLocalValue } from '../lib/datetime';
+import { INBOX_HANDOFF_KEY, type InboxHandoffPayload } from '../lib/inboxHandoff';
 import { checkBrandSafety } from '../services/brandSafety';
 import { generateScript } from '../services/scriptGenerator';
 import { repurposeContent, scheduleToAyrshare } from '../services/repurposeEngine';
@@ -37,6 +39,25 @@ import { useApp } from '../store/appContext';
 import { critiqueMedia } from '../lib/mediaCritique';
 import type { Platform, RepurposeContent } from '../types';
 import type { LocalMediaFile, UploadedMedia } from '../types/media';
+
+async function dataUrlToLocalMedia(dataUrl: string, name = 'inbox-photo.jpg'): Promise<LocalMediaFile | null> {
+  try {
+    const res = await fetch(dataUrl);
+    const blob = await res.blob();
+    const mime = blob.type || 'image/jpeg';
+    const file = new File([blob], name, { type: mime });
+    return {
+      id: crypto.randomUUID(),
+      file,
+      kind: 'image',
+      previewUrl: URL.createObjectURL(file),
+      name: file.name,
+      size: file.size,
+    };
+  } catch {
+    return null;
+  }
+}
 
 const platformIcons = {
   reels: Smartphone,
@@ -73,11 +94,8 @@ export default function MagicCreator() {
   const [scheduleModal, setScheduleModal] = useState(false);
   const [isScheduling, setIsScheduling] = useState(false);
   const [scheduleMessage, setScheduleMessage] = useState<string | null>(null);
-  const [scheduleDate, setScheduleDate] = useState(() => {
-    const d = new Date();
-    d.setHours(d.getHours() + 2);
-    return d.toISOString().slice(0, 16);
-  });
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const [scheduleDate, setScheduleDate] = useState(() => defaultScheduleLocalValue(2));
   const [publishMode, setPublishMode] = useState<PublishMode>('notify');
   const [recording, setRecording] = useState(false);
   const [voiceMessage, setVoiceMessage] = useState<string | null>(null);
@@ -94,6 +112,22 @@ export default function MagicCreator() {
   useEffect(() => {
     const fromTrend = searchParams.get('idea');
     if (fromTrend) setIdea(fromTrend);
+
+    if (searchParams.get('from') !== 'inbox') return;
+    try {
+      const raw = sessionStorage.getItem(INBOX_HANDOFF_KEY);
+      if (!raw) return;
+      const payload = JSON.parse(raw) as InboxHandoffPayload;
+      sessionStorage.removeItem(INBOX_HANDOFF_KEY);
+      if (payload.text && !fromTrend) setIdea(payload.text);
+      if (payload.photoDataUrl) {
+        void dataUrlToLocalMedia(payload.photoDataUrl).then((media) => {
+          if (media) setLocalMedia((prev) => (prev.length === 0 ? [media] : prev));
+        });
+      }
+    } catch {
+      sessionStorage.removeItem(INBOX_HANDOFF_KEY);
+    }
   }, [searchParams]);
 
   useEffect(() => {
@@ -298,6 +332,13 @@ export default function MagicCreator() {
 
   const handleScheduleAll = async () => {
     if (!results) return;
+    setScheduleError(null);
+
+    if (!isFutureLocalDatetime(scheduleDate)) {
+      setScheduleError('過去の日時には予約できません。未来の日時を指定してください。');
+      return;
+    }
+
     setIsScheduling(true);
 
     try {
@@ -320,13 +361,42 @@ export default function MagicCreator() {
           ? ' 時刻になったら通知が届きます。Xはコピーして公式アプリへ貼り付けてください。'
           : '';
       setScheduleMessage(`${result.message}${trackingNote}${xNote}`);
-    } catch {
-      const result = await scheduleToAyrshare(results, new Date(scheduleDate));
-      setScheduleMessage(result.message);
+      setScheduleModal(false);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '予約に失敗しました';
+      if (msg.includes('過去')) {
+        setScheduleError(msg);
+      } else {
+        try {
+          const result = await scheduleToAyrshare(results, new Date(scheduleDate));
+          setScheduleMessage(result.message);
+          setScheduleModal(false);
+        } catch {
+          setScheduleError(msg);
+        }
+      }
     }
 
     setIsScheduling(false);
-    setScheduleModal(false);
+  };
+
+  const updateResultContent = (platform: Platform, content: string) => {
+    setResults((prev) =>
+      prev ? prev.map((r) => (r.platform === platform ? { ...r, content } : r)) : prev,
+    );
+  };
+
+  const updateCarouselSlide = (platform: Platform, index: number, value: string) => {
+    setResults((prev) =>
+      prev
+        ? prev.map((r) => {
+            if (r.platform !== platform || !r.carouselSlides) return r;
+            const slides = [...r.carouselSlides];
+            slides[index] = value;
+            return { ...r, carouselSlides: slides, content: slides.join('\n') };
+          })
+        : prev,
+    );
   };
 
   return (
@@ -569,7 +639,13 @@ export default function MagicCreator() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setScheduleModal(true)}
+                    onClick={() => {
+                      setScheduleError(null);
+                      if (!isFutureLocalDatetime(scheduleDate)) {
+                        setScheduleDate(defaultScheduleLocalValue(2));
+                      }
+                      setScheduleModal(true);
+                    }}
                     className="buzz-btn-primary text-sm px-4 py-2"
                   >
                     <Calendar className="w-4 h-4" />
@@ -596,25 +672,40 @@ export default function MagicCreator() {
                         )}
                       </div>
                       {item.carouselSlides ? (
-                        <div className="mb-4 grid grid-cols-2 gap-2 sm:flex sm:gap-2">
+                        <div className="mb-4 space-y-2">
+                          <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-2">
+                            {item.carouselSlides.map((slide, i) => (
+                              <div
+                                key={`${item.platform}-slide-${i}`}
+                                className="aspect-[4/5] rounded-lg border border-neutral-200 bg-neutral-50 flex items-center justify-center text-[10px] text-neutral-500 p-1 text-center overflow-hidden sm:w-1/4"
+                              >
+                                {i === 0 && localMedia[0]?.kind === 'image' ? (
+                                  <img src={localMedia[0].previewUrl} alt="" className="w-full h-full object-cover" />
+                                ) : (
+                                  i === 0 ? '表紙' : slide.slice(0, 12)
+                                )}
+                              </div>
+                            ))}
+                          </div>
                           {item.carouselSlides.map((slide, i) => (
-                            <div
-                              key={slide}
-                              className="aspect-[4/5] rounded-lg border border-neutral-200 bg-neutral-50 flex items-center justify-center text-[10px] text-neutral-500 p-1 text-center overflow-hidden sm:w-1/4"
-                            >
-                              {i === 0 && localMedia[0]?.kind === 'image' ? (
-                                <img src={localMedia[0].previewUrl} alt="" className="w-full h-full object-cover" />
-                              ) : (
-                                i === 0 ? '表紙' : slide.slice(0, 12)
-                              )}
-                            </div>
+                            <label key={`${item.platform}-edit-${i}`} className="block">
+                              <span className="mb-1 block text-[10px] text-neutral-500">スライド {i + 1}</span>
+                              <textarea
+                                value={slide}
+                                onChange={(e) => updateCarouselSlide(item.platform, i, e.target.value)}
+                                rows={2}
+                                className="w-full resize-y border border-neutral-200 bg-white px-2 py-1.5 text-xs text-neutral-800 focus:border-neutral-900 focus:outline-none"
+                              />
+                            </label>
                           ))}
                         </div>
                       ) : (
-                        <div className="mb-4 h-32 overflow-hidden whitespace-pre-wrap border border-neutral-200 bg-neutral-50 p-3 text-sm text-neutral-700 relative">
-                          {item.content}
-                          <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-neutral-50 to-transparent"></div>
-                        </div>
+                        <textarea
+                          value={item.content}
+                          onChange={(e) => updateResultContent(item.platform, e.target.value)}
+                          rows={8}
+                          className="mb-4 w-full resize-y whitespace-pre-wrap border border-neutral-200 bg-neutral-50 p-3 text-sm text-neutral-700 focus:border-neutral-900 focus:outline-none"
+                        />
                       )}
                       <div className="flex gap-2">
                         <button
@@ -629,6 +720,10 @@ export default function MagicCreator() {
                           type="button"
                           onClick={() => {
                             if (isX) setPublishMode('notify');
+                            setScheduleError(null);
+                            if (!isFutureLocalDatetime(scheduleDate)) {
+                              setScheduleDate(defaultScheduleLocalValue(2));
+                            }
                             setScheduleModal(true);
                           }}
                           className="flex-1 border border-neutral-200 py-2 text-xs font-medium transition-colors hover:border-neutral-900"
@@ -698,13 +793,21 @@ export default function MagicCreator() {
               <input
                 type="datetime-local"
                 value={scheduleDate}
-                onChange={(e) => setScheduleDate(e.target.value)}
-                className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-base sm:text-sm mb-6 focus:outline-none focus:border-neutral-900"
+                min={toDatetimeLocalValue(new Date())}
+                onChange={(e) => {
+                  setScheduleDate(e.target.value);
+                  setScheduleError(null);
+                }}
+                className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-base sm:text-sm mb-2 focus:outline-none focus:border-neutral-900"
               />
+              {scheduleError && (
+                <p className="mb-4 text-sm text-red-700">{scheduleError}</p>
+              )}
+              {!scheduleError && <div className="mb-4" />}
               <button
                 type="button"
                 onClick={handleScheduleAll}
-                disabled={isScheduling}
+                disabled={isScheduling || !isFutureLocalDatetime(scheduleDate)}
                 className="buzz-btn-primary w-full disabled:opacity-70"
               >
                 {isScheduling ? '予約中...' : `${results?.length ?? 0}件を予約する`}
