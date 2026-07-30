@@ -12,13 +12,13 @@ import MagicCreator from './pages/MagicCreator';
 import AnalyticsPage from './pages/AnalyticsPage';
 import LineCrmPage from './pages/LineCrmPage';
 import SettingsPage from './pages/SettingsPage';
-import TeamPage from './pages/TeamPage';
 import RoadmapPage from './pages/RoadmapPage';
 import CalendarPage from './pages/CalendarPage';
 import FunnelBuilderPage from './pages/FunnelBuilderPage';
 import InboxPage from './pages/InboxPage';
 import ContentCalendarPage from './pages/ContentCalendarPage';
 import XSeriesPage from './pages/XSeriesPage';
+import SnsHubPage from './pages/SnsHubPage';
 import OnboardingPage from './pages/OnboardingPage';
 import AcceptInvitePage from './pages/AcceptInvitePage';
 
@@ -41,6 +41,7 @@ function App() {
                     <Route path="roadmap" element={<RoadmapPage />} />
                     <Route path="magic-creator" element={<MagicCreator />} />
                     <Route path="calendar" element={<CalendarPage />} />
+                    <Route path="sns/:platformId" element={<SnsHubPage />} />
                     <Route path="x-series" element={<XSeriesPage />} />
                     <Route path="inbox" element={<InboxPage />} />
                     <Route path="funnel" element={<FunnelBuilderPage />} />
@@ -48,7 +49,7 @@ function App() {
                     <Route path="analytics" element={<AnalyticsPage />} />
                     <Route path="line-crm" element={<LineCrmPage />} />
                     <Route path="settings" element={<SettingsPage />} />
-                    <Route path="team" element={<TeamPage />} />
+                    <Route path="team" element={<Navigate to="/settings?tab=staff" replace />} />
                   </Route>
                 </Route>
               </Route>

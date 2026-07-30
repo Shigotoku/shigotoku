@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   Wand2,
   MessageSquare,
@@ -10,7 +10,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   Calendar,
-  X,
   CloudUpload,
   Mic,
   StopCircle,
@@ -18,10 +17,10 @@ import {
   Inbox,
 } from 'lucide-react';
 import MediaDropzone from '../components/MediaDropzone';
+import BulkScheduleModal from '../components/BulkScheduleModal';
 import { WATERMARK } from '../constants/brand';
 import {
   repurposeViaApi,
-  scheduleViaApi,
   voiceDraft,
   fetchSlackIdeas,
   approveSlackIdea,
@@ -33,11 +32,11 @@ import {
   type PublishMode,
   type XSeries,
 } from '../lib/api';
-import { defaultScheduleLocalValue, isFutureLocalDatetime, toDatetimeLocalValue } from '../lib/datetime';
 import { INBOX_HANDOFF_KEY, type InboxHandoffPayload } from '../lib/inboxHandoff';
+import { getPostTemplates } from '../data/postTemplates';
 import { checkBrandSafety } from '../services/brandSafety';
 import { generateScript } from '../services/scriptGenerator';
-import { repurposeContent, scheduleToAyrshare } from '../services/repurposeEngine';
+import { repurposeContent } from '../services/repurposeEngine';
 import { uploadAllMedia } from '../services/mediaUpload';
 import { useApp } from '../store/appContext';
 import { critiqueMedia } from '../lib/mediaCritique';
@@ -96,11 +95,9 @@ export default function MagicCreator() {
   const [safetyWarning, setSafetyWarning] = useState<string[] | null>(null);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
   const [scheduleModal, setScheduleModal] = useState(false);
-  const [isScheduling, setIsScheduling] = useState(false);
   const [scheduleMessage, setScheduleMessage] = useState<string | null>(null);
-  const [scheduleError, setScheduleError] = useState<string | null>(null);
-  const [scheduleDate, setScheduleDate] = useState(() => defaultScheduleLocalValue(2));
   const [publishMode, setPublishMode] = useState<PublishMode>('notify');
+  const [connected, setConnected] = useState<{ x?: boolean; meta?: boolean; line?: boolean }>({});
   const [recording, setRecording] = useState(false);
   const [voiceMessage, setVoiceMessage] = useState<string | null>(null);
   const [voiceProcessing, setVoiceProcessing] = useState(false);
@@ -112,12 +109,17 @@ export default function MagicCreator() {
   const [critique, setCritique] = useState<ReturnType<typeof critiqueMedia> | null>(null);
   const [xSeriesList, setXSeriesList] = useState<XSeries[]>([]);
   const [seriesTargetId, setSeriesTargetId] = useState('');
+  const [brandProfile, setBrandProfile] = useState('');
+  const [focusSns, setFocusSns] = useState<string | null>(null);
+  const templates = useMemo(() => getPostTemplates(), []);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
 
   useEffect(() => {
     const fromTrend = searchParams.get('idea');
     if (fromTrend) setIdea(fromTrend);
+    const sns = searchParams.get('sns');
+    if (sns) setFocusSns(sns);
 
     if (searchParams.get('from') !== 'inbox') return;
     try {
@@ -147,6 +149,15 @@ export default function MagicCreator() {
       .then((s) => {
         if (s.defaultPublishMode) setPublishMode(s.defaultPublishMode);
         else if (s.xConnected) setPublishMode('x_free');
+        setBrandProfile(s.brandProfile?.trim() ?? '');
+        setConnected({
+          x: !!s.xConnected,
+          meta: !!s.metaConnected,
+          line: !!s.lineChannelAccessToken?.trim(),
+        });
+        if (searchParams.get('sns') === 'x' && s.xConnected) setPublishMode('x_free');
+        if (searchParams.get('sns') === 'instagram' && s.metaConnected) setPublishMode('meta');
+        if (searchParams.get('sns') === 'line' && s.lineChannelAccessToken) setPublishMode('line');
       })
       .catch(() => {});
     fetchXSeries()
@@ -292,9 +303,12 @@ export default function MagicCreator() {
     setScheduleMessage(null);
     setUploadMessage(null);
 
-    const effectiveIdea =
+    const baseIdea =
       idea.trim() ||
       `アップロードした${localMedia[0]?.kind === 'video' ? '動画' : '画像'}「${localMedia[0]?.name ?? '素材'}」を使った投稿`;
+    const effectiveIdea = brandProfile
+      ? `${baseIdea}\n\n【お店の特徴・トーン】\n${brandProfile}`
+      : baseIdea;
 
     try {
       let mediaUrls: string[] = [];
@@ -346,56 +360,6 @@ export default function MagicCreator() {
     } finally {
       setIsGenerating(false);
     }
-  };
-
-  const handleScheduleAll = async () => {
-    if (!results) return;
-    setScheduleError(null);
-
-    if (!isFutureLocalDatetime(scheduleDate)) {
-      setScheduleError('過去の日時には予約できません。未来の日時を指定してください。');
-      return;
-    }
-
-    setIsScheduling(true);
-
-    try {
-      const result = await scheduleViaApi({
-        contents: results.map((r) => ({
-          platform: r.platform,
-          label: r.label,
-          content: r.content,
-          carouselSlides: r.carouselSlides,
-        })),
-        scheduledAt: new Date(scheduleDate).toISOString(),
-        publishMode,
-        mediaUrls: uploadedMedia.length > 0 ? uploadedMedia.map((m) => m.publicUrl) : undefined,
-      });
-      const trackingNote = result.trackingLinks?.length
-        ? ` 計測リンク ${result.trackingLinks.length} 件を生成しました。`
-        : '';
-      const xNote =
-        publishMode === 'notify' && results.some((r) => r.platform === 'x_thread')
-          ? ' 時刻になったら通知が届きます。Xはコピーして公式アプリへ貼り付けてください。'
-          : '';
-      setScheduleMessage(`${result.message}${trackingNote}${xNote}`);
-      setScheduleModal(false);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : '予約に失敗しました';
-      if (msg.includes('過去')) {
-        setScheduleError(msg);
-      } else {
-        try {
-          const result = await scheduleToAyrshare(results, new Date(scheduleDate));
-          setScheduleMessage(result.message);
-          setScheduleModal(false);
-        } catch {
-          setScheduleError(msg);
-        }
-      }
-    }
-
-    setIsScheduling(false);
   };
 
   const updateResultContent = (platform: Platform, content: string) => {
@@ -468,6 +432,37 @@ export default function MagicCreator() {
                     </button>
                   ))}
                 </div>
+              )}
+
+              {templates.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-neutral-600">業種別テンプレ（タップで入力）</p>
+                  <div className="flex flex-wrap gap-2">
+                    {templates.slice(0, 8).map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        className="border border-neutral-200 bg-white px-2.5 py-1.5 text-left text-xs hover:border-neutral-900"
+                        onClick={() => setIdea(t.idea)}
+                        title={t.pillar}
+                      >
+                        {t.title}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {brandProfile && (
+                <p className="text-xs text-neutral-500">
+                  設定の事業所特徴を生成に反映します。
+                  <Link to="/settings?tab=business" className="ml-1 underline-offset-2 hover:underline">
+                    編集
+                  </Link>
+                </p>
+              )}
+              {focusSns && (
+                <p className="text-xs text-neutral-500">フォーカス媒体: {focusSns}（予約モードを合わせています）</p>
               )}
 
               <div>
@@ -622,9 +617,17 @@ export default function MagicCreator() {
                   <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
                   <div>
                     <p>{scheduleMessage}</p>
-                    <Link to="/calendar" className="mt-1 inline-block text-xs underline-offset-2 hover:underline">
-                      投稿カレンダーで確認 →
-                    </Link>
+                    <div className="mt-2 flex flex-wrap gap-3 text-xs">
+                      <Link to="/calendar" className="underline-offset-2 hover:underline">
+                        投稿カレンダーで確認 →
+                      </Link>
+                      <Link to="/sns/instagram" className="underline-offset-2 hover:underline">
+                        Instagram で整える →
+                      </Link>
+                      <Link to="/sns/x" className="underline-offset-2 hover:underline">
+                        X で整える →
+                      </Link>
+                    </div>
                   </div>
                 </div>
               )}
@@ -695,17 +698,11 @@ export default function MagicCreator() {
                   )}
                   <button
                     type="button"
-                    onClick={() => {
-                      setScheduleError(null);
-                      if (!isFutureLocalDatetime(scheduleDate)) {
-                        setScheduleDate(defaultScheduleLocalValue(2));
-                      }
-                      setScheduleModal(true);
-                    }}
+                    onClick={() => setScheduleModal(true)}
                     className="buzz-btn-primary text-sm px-4 py-2"
                   >
                     <Calendar className="w-4 h-4" />
-                    すべて一括予約
+                    かんたん一括予約
                   </button>
                 </div>
               </div>
@@ -774,13 +771,7 @@ export default function MagicCreator() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => {
-                            setScheduleError(null);
-                            if (!isFutureLocalDatetime(scheduleDate)) {
-                              setScheduleDate(defaultScheduleLocalValue(2));
-                            }
-                            setScheduleModal(true);
-                          }}
+                          onClick={() => setScheduleModal(true)}
                           className="flex-1 border border-neutral-200 py-2 text-xs font-medium transition-colors hover:border-neutral-900"
                         >
                           予約
@@ -800,78 +791,20 @@ export default function MagicCreator() {
         </div>
       </div>
 
-      <AnimatePresence>
-        {scheduleModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/40 p-4"
-            onClick={() => !isScheduling && setScheduleModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-2xl border border-neutral-200 bg-white p-6 shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-bold">投稿を予約</h3>
-                <button
-                  type="button"
-                  onClick={() => setScheduleModal(false)}
-                  className="p-1 rounded-lg hover:bg-white/5 text-neutral-600"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <p className="text-sm text-neutral-600 mb-4">
-                投稿モードと日時を選んで予約登録します。時刻到来時に Worker が処理します。
-                X は「通知リマインダー」でコピー投稿するのがおすすめです。
-              </p>
-              <label className="text-xs text-neutral-600 mb-1 block">投稿モード</label>
-              <select
-                value={publishMode}
-                onChange={(e) => setPublishMode(e.target.value as PublishMode)}
-                className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-base sm:text-sm mb-4 focus:outline-none focus:border-neutral-900"
-              >
-                <option value="notify">通知リマインダー（Slack/LINE に文案・Xコピー向け）</option>
-                <option value="approval">承認後投稿（ダッシュボードで承認）</option>
-                <option value="x_free">X API 自動投稿（設定でキー登録後）</option>
-                <option value="meta">Meta 自動投稿（IG/FB）</option>
-                <option value="line">LINE ブロードキャスト</option>
-                <option value="ayrshare">Ayrshare（外部予約）</option>
-                <option value="gbp">Google Business Profile（準備中）</option>
-                <option value="auto">自動（接続に応じて）</option>
-              </select>
-              <label className="text-xs text-neutral-600 mb-1 block">投稿日時</label>
-              <input
-                type="datetime-local"
-                value={scheduleDate}
-                min={toDatetimeLocalValue(new Date())}
-                onChange={(e) => {
-                  setScheduleDate(e.target.value);
-                  setScheduleError(null);
-                }}
-                className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-base sm:text-sm mb-2 focus:outline-none focus:border-neutral-900"
-              />
-              {scheduleError && (
-                <p className="mb-4 text-sm text-red-700">{scheduleError}</p>
-              )}
-              {!scheduleError && <div className="mb-4" />}
-              <button
-                type="button"
-                onClick={handleScheduleAll}
-                disabled={isScheduling || !isFutureLocalDatetime(scheduleDate)}
-                className="buzz-btn-primary w-full disabled:opacity-70"
-              >
-                {isScheduling ? '予約中...' : `${results?.length ?? 0}件を予約する`}
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <BulkScheduleModal
+        open={scheduleModal && !!results?.length}
+        onClose={() => setScheduleModal(false)}
+        contents={(results ?? []).map((r) => ({
+          platform: r.platform,
+          label: r.label,
+          content: r.content,
+          carouselSlides: r.carouselSlides,
+        }))}
+        mediaUrls={uploadedMedia.length > 0 ? uploadedMedia.map((m) => m.publicUrl) : undefined}
+        defaultPublishMode={publishMode}
+        connected={connected}
+        onDone={(msg) => setScheduleMessage(msg)}
+      />
     </div>
   );
 }

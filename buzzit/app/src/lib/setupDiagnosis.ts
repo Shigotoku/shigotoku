@@ -8,6 +8,8 @@ export type SetupSignals = {
   hasLineStep: boolean;
   /** APIから実データを取れたか（サンプル表示の判定） */
   liveDashboard: boolean;
+  xConnected?: boolean;
+  hasBrandProfile?: boolean;
 };
 
 export type SetupItem = {
@@ -33,12 +35,28 @@ export function buildSetupItems(signals: SetupSignals): SetupItem[] {
       ctaPath: onboarding.completed ? '/onboarding?edit=1' : '/onboarding',
     },
     {
+      id: 'brand',
+      title: '事業所の特徴を書く',
+      detail: '強み・話し方を設定すると投稿文のトーンが揃います',
+      done: !!signals.hasBrandProfile,
+      ctaLabel: '設定で書く',
+      ctaPath: '/settings?tab=business',
+    },
+    {
       id: 'meta',
       title: 'Instagram（Meta）を連携',
       detail: 'リール・投稿の予約に必要です',
       done: signals.metaConnected,
       ctaLabel: '設定で連携',
-      ctaPath: '/settings',
+      ctaPath: '/settings?tab=sns',
+    },
+    {
+      id: 'x',
+      title: 'X API を連携（任意）',
+      detail: '自分の開発者キーで自動投稿できます',
+      done: !!signals.xConnected,
+      ctaLabel: 'X BYOK を設定',
+      ctaPath: '/settings?tab=sns',
     },
     {
       id: 'line',
@@ -46,7 +64,7 @@ export function buildSetupItems(signals: SetupSignals): SetupItem[] {
       detail: '友だち追加・ステップ配信・リピートに必要です',
       done: signals.lineConnected,
       ctaLabel: '設定で連携',
-      ctaPath: '/settings',
+      ctaPath: '/settings?tab=sns',
     },
     {
       id: 'destination',
@@ -54,12 +72,12 @@ export function buildSetupItems(signals: SetupSignals): SetupItem[] {
       detail: 'プロフィールや投稿の行き先を1本に決めます',
       done: signals.hasDestinationUrl,
       ctaLabel: '予約URLを入れる',
-      ctaPath: '/settings',
+      ctaPath: '/settings?tab=business',
     },
     {
       id: 'first-post',
       title: '最初の投稿を予約する',
-      detail: 'マジック・クリエイターで1本作れば運用が始まります',
+      detail: 'ネタInbox → ネタクリエイターで1本作れば運用が始まります',
       done: signals.hasScheduledOrPost,
       ctaLabel: '台本を作る',
       ctaPath: '/magic-creator',

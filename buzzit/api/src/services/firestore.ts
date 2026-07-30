@@ -12,6 +12,8 @@ export interface UserSettings {
   ayrshareProfileKey?: string;
   autoModeEnabled?: boolean;
   industry?: string;
+  /** 事業所の特徴・トーン（投稿文生成に反映） */
+  brandProfile?: string;
   slackTeamId?: string;
   /** LINE Messaging API Channel Secret（Webhook 署名検証） */
   lineChannelSecret?: string;

@@ -1,3 +1,5 @@
+import { getSnsNavPlatform } from './snsPlatforms';
+
 export type PageMeta = {
   title: string;
   subtitle?: string;
@@ -5,6 +7,14 @@ export type PageMeta = {
 
 /** ダッシュボード各画面のヘッダー表示（本文タイトルと重複させない） */
 export function getPageMeta(pathname: string): PageMeta {
+  if (pathname.startsWith('/sns/')) {
+    const id = pathname.split('/')[2] ?? '';
+    const sns = getSnsNavPlatform(id);
+    return {
+      title: sns ? sns.name : 'SNS',
+      subtitle: '投稿内容・予約予定・カレンダー。媒体ごとに整えて予約します。',
+    };
+  }
   if (pathname.startsWith('/roadmap')) {
     return {
       title: '成長ロードマップ',
@@ -14,13 +24,13 @@ export function getPageMeta(pathname: string): PageMeta {
   if (pathname.startsWith('/inbox')) {
     return {
       title: 'ネタInbox',
-      subtitle: '写真1枚＋一言でOK。チームのネタを集めて台本化します。',
+      subtitle: '投稿ネタをためておく場所。写真1枚＋一言でOK。',
     };
   }
   if (pathname.startsWith('/magic-creator')) {
     return {
-      title: 'マジック・クリエイター',
-      subtitle: '1つのアイデアから全SNS向けコンテンツを自動生成（Repurpose）。',
+      title: 'ネタクリエイター',
+      subtitle: 'Inboxや直接入力から、各SNS向けの投稿文・台本を自動生成します。',
     };
   }
   if (pathname.startsWith('/content-calendar')) {
@@ -32,7 +42,7 @@ export function getPageMeta(pathname: string): PageMeta {
   if (pathname.startsWith('/calendar')) {
     return {
       title: '投稿カレンダー',
-      subtitle: '予約・承認待ち・失敗を一覧で管理。失敗はワンタップで再試行できます。',
+      subtitle: 'DnD・週シフト・テンポ複製・穴埋めで予約を一気に回せます。',
     };
   }
   if (pathname.startsWith('/x-series')) {
@@ -59,23 +69,17 @@ export function getPageMeta(pathname: string): PageMeta {
       subtitle: 'トレンド波乗り・A/B テスト・UTM/LINE 自動計測',
     };
   }
-  if (pathname.startsWith('/team')) {
-    return {
-      title: 'スタッフ',
-      subtitle: '店舗メンバーの招待と権限管理',
-    };
-  }
   if (pathname.startsWith('/settings')) {
     return {
       title: '設定',
-      subtitle: 'プラン・連携（Meta / LINE / X / Slack）の管理',
+      subtitle: '事業所 / SNS連携 / スタッフ / プラン / 高度な設定',
     };
   }
   if (pathname.startsWith('/dashboard')) {
     return {
-      title: '経営コクピット',
-      subtitle: '今日のミッション・健康スコア・承認待ちをひと目で',
+      title: 'ダッシュボード',
+      subtitle: '各SNSのまとめ。今日のミッション・健康スコア・承認待ちをひと目で',
     };
   }
-  return { title: '経営コクピット' };
+  return { title: 'ダッシュボード' };
 }

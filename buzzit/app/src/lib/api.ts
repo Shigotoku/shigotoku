@@ -98,6 +98,7 @@ export interface SettingsResponse {
   gbpLocationName?: string;
   notifyEmail?: string;
   industry?: string;
+  brandProfile?: string;
   extraSnsAccounts?: number;
   xConnected?: boolean;
   xUsername?: string;
@@ -381,6 +382,8 @@ export interface ScheduleApiRequest {
   destinationUrl?: string;
   publishMode?: PublishMode;
   mediaUrls?: string[];
+  /** true なら予約せず下書きとして保存（あとからカレンダーで編集・予約） */
+  asDraft?: boolean;
 }
 
 export interface ScheduledJob {
@@ -389,6 +392,7 @@ export interface ScheduledJob {
   scheduledAt: string;
   publishMode: PublishMode;
   status: 'pending_approval' | 'pending' | 'processing' | 'published' | 'notified' | 'failed' | 'draft';
+  mediaUrls?: string[];
   completedMessage?: string;
   errorMessage?: string;
   createdAt: string;

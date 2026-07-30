@@ -113,6 +113,14 @@
     @apply border border-transparent text-neutral-600 hover:bg-white/70 hover:text-neutral-900;
   }
 
+  .buzz-nav-group-btn {
+    @apply flex w-full items-center gap-2 rounded-sm px-2.5 py-1.5 text-[13px] font-medium leading-snug text-neutral-700 transition-colors hover:bg-white/70 hover:text-neutral-900;
+  }
+
+  .buzz-nav-divider {
+    @apply px-2.5 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-neutral-400;
+  }
+
   .buzz-alert {
     @apply border p-3 text-sm;
   }

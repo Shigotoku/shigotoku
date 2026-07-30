@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ComponentType } from 'react';
 import { Outlet, NavLink, useLocation, Navigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -11,7 +11,6 @@ import {
   LogOut,
   Menu,
   X,
-  Users,
   Map,
   CalendarDays,
   Inbox,
@@ -19,6 +18,9 @@ import {
   CalendarRange,
   BookOpen,
   Layers,
+  ChevronDown,
+  Share2,
+  PenLine,
 } from 'lucide-react';
 import { BRAND_NAME } from '../constants/brand';
 import { landingPath } from '../lib/urls';
@@ -30,6 +32,7 @@ import PwaInstallBanner from '../components/PwaInstallBanner';
 import BrandMark from '../components/BrandMark';
 import { ROLE_LABELS, canEditSettings, canManageLineCrm, isStaffOnly } from '../lib/permissions';
 import { getPageMeta } from '../lib/pageMeta';
+import { SNS_NAV_PLATFORMS } from '../lib/snsPlatforms';
 
 const planLabels = {
   free: 'Free',
@@ -42,44 +45,147 @@ const planLabels = {
   enterprise: 'Enterprise',
 } as const;
 
-type NavItem = {
+type IconType = ComponentType<{ className?: string }>;
+
+type NavLinkItem = {
+  kind: 'link';
   name: string;
   path: string;
-  icon: typeof LayoutDashboard;
+  icon: IconType;
   staffOk?: boolean;
   managerOnly?: boolean;
 };
 
-const allNavItems: NavItem[] = [
-  { name: '経営コクピット', path: '/dashboard', icon: LayoutDashboard, staffOk: true },
-  { name: '成長ロードマップ', path: '/roadmap', icon: Map, staffOk: true },
-  { name: 'ネタInbox', path: '/inbox', icon: Inbox, staffOk: true },
-  { name: 'マジック・クリエイター', path: '/magic-creator', icon: Wand2, staffOk: true },
-  { name: '投稿カレンダー', path: '/calendar', icon: CalendarDays, staffOk: true },
-  { name: 'Xシリーズ', path: '/x-series', icon: Layers, staffOk: true },
-  { name: '30本カレンダー', path: '/content-calendar', icon: CalendarRange, staffOk: true },
-  { name: '導線ビルダー', path: '/funnel', icon: Route, managerOnly: true },
-  { name: 'LINE CRM', path: '/line-crm', icon: MessageCircle, managerOnly: true },
-  { name: '分析・売上', path: '/analytics', icon: BarChart3, managerOnly: true },
-  { name: 'スタッフ', path: '/team', icon: Users, managerOnly: true },
-  { name: '設定', path: '/settings', icon: Settings, managerOnly: true },
+type NavGroupItem = {
+  kind: 'group';
+  id: string;
+  name: string;
+  icon: IconType;
+  children: NavLinkItem[];
+  staffOk?: boolean;
+  managerOnly?: boolean;
+};
+
+type NavDivider = {
+  kind: 'divider';
+  label: string;
+};
+
+type NavEntry = NavLinkItem | NavGroupItem | NavDivider;
+
+const mainNav: NavEntry[] = [
+  { kind: 'link', name: 'ダッシュボード', path: '/dashboard', icon: LayoutDashboard, staffOk: true },
+  {
+    kind: 'group',
+    id: 'ideas',
+    name: 'ネタ作成',
+    icon: PenLine,
+    staffOk: true,
+    children: [
+      { kind: 'link', name: 'ネタInbox', path: '/inbox', icon: Inbox, staffOk: true },
+      { kind: 'link', name: 'ネタクリエイター', path: '/magic-creator', icon: Wand2, staffOk: true },
+    ],
+  },
+  {
+    kind: 'group',
+    id: 'sns',
+    name: 'SNS',
+    icon: Share2,
+    staffOk: true,
+    children: SNS_NAV_PLATFORMS.map((p) => ({
+      kind: 'link' as const,
+      name: p.name,
+      path: `/sns/${p.id}`,
+      icon: Share2,
+      staffOk: true,
+    })),
+  },
+  { kind: 'link', name: '投稿カレンダー', path: '/calendar', icon: CalendarDays, staffOk: true },
+  { kind: 'link', name: '導線ビルダー', path: '/funnel', icon: Route, managerOnly: true },
+  { kind: 'link', name: 'LINE CRM', path: '/line-crm', icon: MessageCircle, managerOnly: true },
+  { kind: 'link', name: '設定', path: '/settings', icon: Settings, managerOnly: true },
+  { kind: 'divider', label: 'その他の機能' },
+  { kind: 'link', name: '成長ロードマップ', path: '/roadmap', icon: Map, staffOk: true },
+  { kind: 'link', name: '30本カレンダー', path: '/content-calendar', icon: CalendarRange, staffOk: true },
+  { kind: 'link', name: 'Xシリーズ', path: '/x-series', icon: Layers, staffOk: true },
+  { kind: 'link', name: '分析・売上', path: '/analytics', icon: BarChart3, managerOnly: true },
 ];
+
+function filterNav(entries: NavEntry[], staffOnly: boolean): NavEntry[] {
+  const out: NavEntry[] = [];
+  for (const entry of entries) {
+    if (entry.kind === 'divider') {
+      if (out.some((e) => e.kind !== 'divider')) out.push(entry);
+      continue;
+    }
+    if (staffOnly) {
+      if (entry.kind === 'link') {
+        if (entry.staffOk) out.push(entry);
+      } else {
+        const children = entry.children.filter((c) => c.staffOk);
+        if (children.length > 0 && entry.staffOk !== false) {
+          out.push({ ...entry, children });
+        }
+      }
+      continue;
+    }
+    if (entry.kind === 'link') {
+      out.push(entry);
+    } else {
+      out.push(entry);
+    }
+  }
+  // 末尾の divider だけなら除去
+  while (out.length > 0 && out[out.length - 1]?.kind === 'divider') out.pop();
+  // divider の直後が無い場合も除去
+  return out.filter((e, i, arr) => {
+    if (e.kind !== 'divider') return true;
+    const next = arr[i + 1];
+    return next != null && next.kind !== 'divider';
+  });
+}
+
+function pathInGroup(pathname: string, group: NavGroupItem) {
+  return group.children.some((c) => pathname === c.path || pathname.startsWith(`${c.path}/`));
+}
 
 function SidebarContent({
   displayName,
   plan,
   roleLabel,
-  navItems,
+  navEntries,
   onNavigate,
   onLogout,
 }: {
   displayName: string;
   plan: keyof typeof planLabels;
   roleLabel: string;
-  navItems: NavItem[];
+  navEntries: NavEntry[];
   onNavigate?: () => void;
   onLogout: () => void;
 }) {
+  const location = useLocation();
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => ({
+    ideas: true,
+    sns: true,
+  }));
+
+  useEffect(() => {
+    setOpenGroups((prev) => {
+      const next = { ...prev };
+      for (const entry of navEntries) {
+        if (entry.kind === 'group' && pathInGroup(location.pathname, entry)) {
+          next[entry.id] = true;
+        }
+      }
+      return next;
+    });
+  }, [location.pathname, navEntries]);
+
+  const toggleGroup = (id: string) => {
+    setOpenGroups((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex h-12 shrink-0 items-center border-b border-neutral-200 px-3 lg:h-14 lg:px-4">
@@ -89,21 +195,65 @@ function SidebarContent({
         </div>
       </div>
       <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto overscroll-contain px-2 py-2">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            onClick={onNavigate}
-            className={({ isActive }) =>
-              `buzz-nav-link ${isActive ? 'buzz-nav-link-active' : 'buzz-nav-link-inactive'}`
-            }
-          >
-            <item.icon className="h-4 w-4 shrink-0" />
-            {item.name}
-          </NavLink>
-        ))}
+        {navEntries.map((entry) => {
+          if (entry.kind === 'divider') {
+            return (
+              <div key={entry.label} className="buzz-nav-divider">
+                {entry.label}
+              </div>
+            );
+          }
+          if (entry.kind === 'group') {
+            const open = openGroups[entry.id] ?? false;
+            const groupActive = pathInGroup(location.pathname, entry);
+            return (
+              <div key={entry.id} className="pt-0.5">
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(entry.id)}
+                  className={`buzz-nav-group-btn ${groupActive ? 'text-neutral-900' : ''}`}
+                  aria-expanded={open}
+                >
+                  <entry.icon className="h-4 w-4 shrink-0" />
+                  <span className="min-w-0 flex-1 text-left">{entry.name}</span>
+                  <ChevronDown
+                    className={`h-3.5 w-3.5 shrink-0 text-neutral-400 transition-transform ${open ? 'rotate-0' : '-rotate-90'}`}
+                  />
+                </button>
+                {open && (
+                  <div className="mb-1 ml-2 space-y-0.5 border-l border-neutral-200 pl-2">
+                    {entry.children.map((child) => (
+                      <NavLink
+                        key={child.path}
+                        to={child.path}
+                        onClick={onNavigate}
+                        className={({ isActive }) =>
+                          `buzz-nav-link ${isActive ? 'buzz-nav-link-active' : 'buzz-nav-link-inactive'}`
+                        }
+                      >
+                        {child.name}
+                      </NavLink>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          }
+          return (
+            <NavLink
+              key={entry.path}
+              to={entry.path}
+              onClick={onNavigate}
+              className={({ isActive }) =>
+                `buzz-nav-link ${isActive ? 'buzz-nav-link-active' : 'buzz-nav-link-inactive'}`
+              }
+            >
+              <entry.icon className="h-4 w-4 shrink-0" />
+              {entry.name}
+            </NavLink>
+          );
+        })}
       </nav>
-      {/* 下部は常に表示・コンパクト */}
       <div className="shrink-0 space-y-1.5 border-t border-neutral-200 bg-[#f5f4f0] px-2.5 py-2">
         <div className="flex items-center gap-2 text-[11px] text-neutral-500">
           <NavLink
@@ -129,7 +279,10 @@ function SidebarContent({
           <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-neutral-300 bg-white text-[10px] font-bold text-neutral-700">
             {displayName.slice(0, 1)}
           </div>
-          <p className="min-w-0 flex-1 truncate text-[11px] text-neutral-700" title={`${displayName} · ${roleLabel} (${planLabels[plan]})`}>
+          <p
+            className="min-w-0 flex-1 truncate text-[11px] text-neutral-700"
+            title={`${displayName} · ${roleLabel} (${planLabels[plan]})`}
+          >
             <span className="font-medium text-neutral-900">{displayName}</span>
             <span className="text-neutral-400"> · {roleLabel}</span>
           </p>
@@ -168,12 +321,7 @@ export default function DashboardLayout() {
   const title = pageMeta.title;
   const roleLabel = userRole ? ROLE_LABELS[userRole] : 'メンバー';
 
-  const navItems = useMemo(() => {
-    if (isStaffOnly(userRole)) {
-      return allNavItems.filter((i) => i.staffOk);
-    }
-    return allNavItems;
-  }, [userRole]);
+  const navEntries = useMemo(() => filterNav(mainNav, isStaffOnly(userRole)), [userRole]);
 
   useEffect(() => {
     refreshStores().catch(() => {});
@@ -190,7 +338,6 @@ export default function DashboardLayout() {
     };
   }, [navOpen]);
 
-  // スタッフが設定・CRM等へ直URLで来た場合のガード
   if (isStaffOnly(userRole)) {
     if (location.pathname.startsWith('/settings') && !canEditSettings(userRole)) {
       return <Navigate to="/inbox" replace />;
@@ -198,11 +345,7 @@ export default function DashboardLayout() {
     if (location.pathname.startsWith('/line-crm') && !canManageLineCrm(userRole)) {
       return <Navigate to="/inbox" replace />;
     }
-    if (
-      location.pathname.startsWith('/funnel') ||
-      location.pathname.startsWith('/analytics') ||
-      location.pathname.startsWith('/team')
-    ) {
+    if (location.pathname.startsWith('/funnel') || location.pathname.startsWith('/analytics')) {
       return <Navigate to="/inbox" replace />;
     }
   }
@@ -235,7 +378,7 @@ export default function DashboardLayout() {
           displayName={displayName}
           plan={plan}
           roleLabel={roleLabel}
-          navItems={navItems}
+          navEntries={navEntries}
           onNavigate={() => setNavOpen(false)}
           onLogout={() => logout()}
         />

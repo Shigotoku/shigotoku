@@ -29,6 +29,7 @@ import LineCostComparison from '../components/LineCostComparison';
 import StoreBillingSection from '../components/StoreBillingSection';
 import { useApp } from '../store/appContext';
 import type { PlanTier } from '../types';
+import TeamPage from './TeamPage';
 
 const lineCrmPlans: { id: PlanTier; name: string; price: string; tagline: string; features: string[]; promo?: string }[] = [
   {
@@ -124,6 +125,27 @@ export default function SettingsPage() {
   const [xAccessToken, setXAccessToken] = useState('');
   const [xAccessSecret, setXAccessSecret] = useState('');
   const [xTesting, setXTesting] = useState(false);
+  const [brandProfile, setBrandProfile] = useState('');
+  const [industry, setIndustry] = useState('');
+
+  type SettingsTab = 'business' | 'sns' | 'staff' | 'plan' | 'advanced';
+  const SETTINGS_TABS: { id: SettingsTab; label: string }[] = [
+    { id: 'business', label: '事業所' },
+    { id: 'sns', label: 'SNS連携' },
+    { id: 'staff', label: 'スタッフ' },
+    { id: 'plan', label: 'プラン' },
+    { id: 'advanced', label: '高度な設定' },
+  ];
+  const tabParam = searchParams.get('tab');
+  const activeTab: SettingsTab = SETTINGS_TABS.some((t) => t.id === tabParam)
+    ? (tabParam as SettingsTab)
+    : 'business';
+  const setTab = (id: SettingsTab) => {
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', id);
+    next.delete('meta');
+    setSearchParams(next, { replace: true });
+  };
 
   useEffect(() => {
     fetchSettings()
@@ -150,6 +172,8 @@ export default function SettingsPage() {
         setXUsername(s.xUsername ?? '');
         setXApiPostsThisMonth(s.xApiPostsThisMonth ?? 0);
         setXApiMonthlyLimit(s.xApiMonthlyLimit ?? 500);
+        setBrandProfile(s.brandProfile ?? '');
+        setIndustry(s.industry ?? '');
       })
       .catch(() => {});
 
@@ -185,13 +209,13 @@ export default function SettingsPage() {
     const metaStatus = searchParams.get('meta');
     if (metaStatus === 'connected') {
       setMessage('Meta（Instagram / Facebook）を連携しました');
-      setSearchParams({}, { replace: true });
+      setSearchParams({ tab: 'sns' }, { replace: true });
     } else if (metaStatus === 'error') {
       setMessage('Meta 連携に失敗しました。アプリ設定を確認してください');
-      setSearchParams({}, { replace: true });
+      setSearchParams({ tab: 'sns' }, { replace: true });
     } else if (metaStatus === 'expired') {
       setMessage('Meta 連携の有効期限が切れました。再度お試しください');
-      setSearchParams({}, { replace: true });
+      setSearchParams({ tab: 'sns' }, { replace: true });
     }
   }, [setPlan, searchParams, setSearchParams]);
 
@@ -272,6 +296,8 @@ export default function SettingsPage() {
       const s = await fetchSettings();
       setXApiPostsThisMonth(s.xApiPostsThisMonth ?? 0);
       setXApiMonthlyLimit(s.xApiMonthlyLimit ?? 500);
+        setBrandProfile(s.brandProfile ?? '');
+        setIndustry(s.industry ?? '');
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'X API の接続確認に失敗しました');
     }
@@ -302,8 +328,66 @@ export default function SettingsPage() {
     <div className="buzz-page-narrow">
       {message && <p className="buzz-alert buzz-alert-info">{message}</p>}
 
-      <StoreBillingSection />
+      <div className="flex flex-wrap gap-1 border-b border-neutral-200 pb-1">
+        {SETTINGS_TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setTab(t.id)}
+            className={`min-h-[40px] px-3 text-sm transition-colors ${
+              activeTab === t.id
+                ? 'border-b-2 border-neutral-900 font-semibold text-neutral-900'
+                : 'text-neutral-500 hover:text-neutral-900'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
 
+      {activeTab === 'staff' && <TeamPage embedded />}
+
+      {activeTab === 'business' && (
+        <>
+          <StoreBillingSection />
+          <section className="buzz-card-pad space-y-4">
+            <h3 className="text-lg font-bold">事業所の特徴</h3>
+            <p className="text-sm text-neutral-600">
+              ここに書いた強み・トーン・禁則は、ネタクリエイターの投稿文生成に反映されます。
+            </p>
+            <label className="buzz-label">業種メモ（任意）</label>
+            <input
+              value={industry}
+              onChange={(e) => setIndustry(e.target.value)}
+              placeholder="例: 美容室・髪質改善特化"
+              className="buzz-input"
+            />
+            <label className="buzz-label">お店の特徴・話し方</label>
+            <textarea
+              value={brandProfile}
+              onChange={(e) => setBrandProfile(e.target.value)}
+              placeholder="例: 初めての方に丁寧。専門用語は避ける。地域は渋谷。押し売りしない。"
+              className="buzz-input h-28 resize-none"
+            />
+            <label className="buzz-label">予約・来店URL</label>
+            <input
+              value={defaultDestinationUrl}
+              onChange={(e) => setDefaultDestinationUrl(e.target.value)}
+              placeholder="https://example.com/reserve"
+              className="buzz-input"
+            />
+            <label className="buzz-label">店長通知メール（任意）</label>
+            <input
+              value={notifyEmail}
+              onChange={(e) => setNotifyEmail(e.target.value)}
+              placeholder="owner@example.com"
+              className="buzz-input"
+            />
+          </section>
+        </>
+      )}
+
+      {activeTab === 'plan' && (
       <section className="buzz-card-pad">
         <h3 className="mb-2 text-lg font-bold">LINE CRM プラン（Lステップ代替）</h3>
         <p className="mb-4 text-sm text-neutral-600">
@@ -385,6 +469,10 @@ export default function SettingsPage() {
         </div>
       </section>
 
+      )}
+
+      {activeTab === 'sns' && (
+        <>
       <section className="buzz-card-pad space-y-4">
         <h3 className="flex items-center gap-2 text-lg font-bold">
           <Share2 className="h-5 w-5 text-neutral-700" />
@@ -751,6 +839,11 @@ export default function SettingsPage() {
         />
       </section>
 
+        </>
+      )}
+
+      {activeTab === 'advanced' && (
+        <>
       <section className="buzz-card-pad space-y-4">
         <h3 className="text-lg font-bold">接続ヘルス / バックアップ / 操作ログ</h3>
         <div className="flex flex-wrap gap-2">
@@ -874,10 +967,15 @@ export default function SettingsPage() {
         </button>
       </section>
 
+        </>
+      )}
+
+      {activeTab !== 'staff' && (
       <button type="button" onClick={handleSave} disabled={saving} className="buzz-btn-primary disabled:opacity-70">
         <Save className="h-4 w-4" />
         {saving ? '保存中...' : '設定を保存'}
       </button>
+      )}
     </div>
   );
 }

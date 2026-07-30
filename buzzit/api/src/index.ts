@@ -273,12 +273,13 @@ api.post('/v1/repurpose', requireAuth, async (req: AuthedRequest, res) => {
 
 // --- Schedule (Firestore + Worker / Meta / LINE / Notify) ---
 api.post('/v1/schedule', requireAuth, async (req: AuthedRequest, res) => {
-  const { contents, scheduledAt, destinationUrl, publishMode, mediaUrls } = req.body as {
+  const { contents, scheduledAt, destinationUrl, publishMode, mediaUrls, asDraft } = req.body as {
     contents?: Array<{ platform: string; label: string; content: string; carouselSlides?: string[] }>;
     scheduledAt?: string;
     destinationUrl?: string;
     publishMode?: PublishMode;
     mediaUrls?: string[];
+    asDraft?: boolean;
   };
 
   if (!contents?.length || !scheduledAt) {
@@ -329,19 +330,20 @@ api.post('/v1/schedule', requireAuth, async (req: AuthedRequest, res) => {
       contents,
       scheduledAt: scheduledDate.toISOString(),
       publishMode: mode,
+      status: asDraft ? 'draft' : undefined,
       mediaUrls,
       destinationUrl: dest,
       trackingLinks,
     });
 
-    if (mode === 'approval') {
+    if (!asDraft && mode === 'approval') {
       await notifyApprovalNeeded(
         req.uid!,
         jobId,
         contents.map((c) => c.label).join(' / '),
       );
     }
-    await writeAuditLog(req.uid!, 'schedule.create', `${mode} ${contents.length}件`, { jobId });
+    await writeAuditLog(req.uid!, 'schedule.create', `${asDraft ? 'draft' : mode} ${contents.length}件`, { jobId });
 
     const when = new Date(scheduledAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
     const modeLabel: Record<PublishMode, string> = {
@@ -358,9 +360,12 @@ api.post('/v1/schedule', requireAuth, async (req: AuthedRequest, res) => {
     res.json({
       success: true,
       jobId,
-      message: `${contents.length}件を ${when} に登録しました（${modeLabel[mode]}）`,
+      message: asDraft
+        ? `${contents.length}件を下書き保存しました。カレンダーから整えて予約できます`
+        : `${contents.length}件を ${when} に登録しました（${modeLabel[mode]}）`,
       trackingLinks,
       publishMode: mode,
+      status: asDraft ? 'draft' : undefined,
     });
   } catch (err) {
     console.error(err);
@@ -595,6 +600,7 @@ api.put('/v1/settings', requireAuth, async (req: AuthedRequest, res) => {
     'lineDestinationId', 'defaultDestinationUrl', 'defaultPublishMode',
     'metaAccessToken', 'metaPageAccessToken', 'metaIgUserId', 'metaPageId', 'metaTokenExpiresAt',
     'hpbStoreUrl', 'gbpConnected', 'gbpLocationName', 'notifyEmail', 'industry',
+    'brandProfile',
     'extraSnsAccounts',
     'xApiKey', 'xApiSecret', 'xAccessToken', 'xAccessSecret', 'xUsername',
   ];

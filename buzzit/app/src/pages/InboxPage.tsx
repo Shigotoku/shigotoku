@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Inbox, ImagePlus, Send, Wand2 } from 'lucide-react';
 import { fetchIdeaInbox, submitIdeaInbox, useIdeaInbox, type IdeaInboxItem } from '../lib/api';
 import { storeInboxHandoff } from '../lib/inboxHandoff';
+import { getPostTemplates } from '../data/postTemplates';
 import { useStore } from '../store/storeContext';
 import EmptyState from '../components/EmptyState';
 
@@ -28,6 +29,7 @@ export default function InboxPage() {
   const [busy, setBusy] = useState(false);
   const [usingId, setUsingId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const templates = useMemo(() => getPostTemplates(), []);
 
   const load = () => {
     fetchIdeaInbox()
@@ -149,13 +151,30 @@ export default function InboxPage() {
           </div>
         </div>
         {message && <p className="text-sm text-neutral-600">{message}</p>}
+        {templates.length > 0 && (
+          <div className="border-t border-neutral-100 pt-3">
+            <p className="mb-2 text-xs font-medium text-neutral-600">業種別テンプレから入れる</p>
+            <div className="flex flex-wrap gap-2">
+              {templates.slice(0, 6).map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  className="border border-neutral-200 bg-[#f5f4f0] px-2.5 py-1.5 text-xs hover:border-neutral-900"
+                  onClick={() => setText(t.idea)}
+                >
+                  {t.title}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {ideas.length === 0 ? (
         <EmptyState
           icon={Inbox}
           title="まだネタがありません"
-          description="施術後や接客の一言を写真付きで送ると、すぐマジック・クリエイターで台本化できます。"
+          description="施術後や接客の一言を写真付きで送ると、すぐネタクリエイターで台本化できます。上のテンプレも使えます。"
           primaryLabel="クリエイターを開く"
           primaryTo="/magic-creator"
         />

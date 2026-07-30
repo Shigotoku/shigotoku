@@ -24,10 +24,12 @@ import {
   useTrend,
   fetchConnectionHealth,
   fetchRegionalWatch,
+  fetchWeeklyReport,
   type TrendTopic,
   type ScheduledJob,
   type LineCostEstimate,
   type HpbConversion,
+  type WeeklyReport,
 } from '../lib/api';
 import SetupDiagnosisCard from '../components/SetupDiagnosisCard';
 import DemoDataBanner from '../components/DemoDataBanner';
@@ -50,6 +52,7 @@ export default function Dashboard() {
   const [healthScore, setHealthScore] = useState<number | null>(null);
   const [healthAlerts, setHealthAlerts] = useState<string[]>([]);
   const [regional, setRegional] = useState<Array<{ topic: string; hook: string; score: number }>>([]);
+  const [weekly, setWeekly] = useState<WeeklyReport | null>(null);
 
   useEffect(() => {
     fetchDashboard()
@@ -96,6 +99,9 @@ export default function Dashboard() {
     fetchRegionalWatch()
       .then((r) => setRegional(r.ideas.slice(0, 3)))
       .catch(() => {});
+    fetchWeeklyReport()
+      .then((r) => setWeekly(r.report))
+      .catch(() => {});
   }, []);
 
   const handleApproveJob = async (jobId: string) => {
@@ -127,7 +133,78 @@ export default function Dashboard() {
       {loading && <p className="text-sm text-neutral-500">データを読み込み中...</p>}
 
       <DemoDataBanner isSample={isSample} />
+
+      <section className="border border-neutral-200 bg-white p-4 sm:p-5">
+        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">はじめての流れ</p>
+        <ol className="mt-3 grid gap-2 sm:grid-cols-4">
+          {[
+            { step: '1', label: 'ネタを溜める', to: '/inbox', hint: 'ネタInbox' },
+            { step: '2', label: '各SNS用に作る', to: '/magic-creator', hint: 'ネタクリエイター' },
+            { step: '3', label: '媒体で整えて予約', to: '/sns/instagram', hint: 'SNS' },
+            { step: '4', label: '全体を確認', to: '/calendar', hint: '投稿カレンダー' },
+          ].map((item) => (
+            <Link
+              key={item.step}
+              to={item.to}
+              className="border border-neutral-200 bg-[#f5f4f0] p-3 transition-colors hover:border-neutral-900"
+            >
+              <p className="text-[10px] font-bold text-neutral-400">STEP {item.step}</p>
+              <p className="mt-1 text-sm font-semibold text-neutral-900">{item.label}</p>
+              <p className="mt-0.5 text-xs text-neutral-500">{item.hint}</p>
+            </Link>
+          ))}
+        </ol>
+        <p className="mt-3 text-xs text-neutral-500">
+          事業所の特徴や X / Meta などの API は{' '}
+          <Link to="/settings" className="underline-offset-2 hover:underline">
+            設定
+          </Link>
+          で先に整えると、投稿文にも反映しやすくなります。
+        </p>
+      </section>
+
       <SetupDiagnosisCard signals={signals} />
+
+      {weekly && (
+        <section className="border border-neutral-200 bg-white p-4 sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">週次レポート</p>
+              <p className="mt-1 text-sm text-neutral-600">{weekly.periodLabel}</p>
+            </div>
+            <Link to="/analytics" className="text-xs underline-offset-2 hover:underline">
+              分析・売上で詳しく →
+            </Link>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div>
+              <p className="text-xs text-neutral-500">健康スコア</p>
+              <p className="text-lg font-bold tabular-nums">{weekly.healthScore}</p>
+            </div>
+            <div>
+              <p className="text-xs text-neutral-500">リーチ</p>
+              <p className="text-lg font-bold tabular-nums">{weekly.funnel.reach.toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-xs text-neutral-500">LINE友だち</p>
+              <p className="text-lg font-bold tabular-nums">{weekly.funnel.lineSignups}</p>
+            </div>
+            <div>
+              <p className="text-xs text-neutral-500">失敗 / 承認待ち</p>
+              <p className="text-lg font-bold tabular-nums">
+                {weekly.scheduled.failed} / {weekly.scheduled.pendingApproval}
+              </p>
+            </div>
+          </div>
+          {weekly.nextWeekActions && weekly.nextWeekActions.length > 0 && (
+            <ul className="mt-3 space-y-1 text-xs text-neutral-600">
+              {weekly.nextWeekActions.slice(0, 3).map((a) => (
+                <li key={a}>• {a}</li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
 
       {healthScore != null && (
         <div className="border border-neutral-200 bg-white p-4 text-sm">

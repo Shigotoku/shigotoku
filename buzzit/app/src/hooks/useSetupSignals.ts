@@ -31,6 +31,8 @@ export function useSetupSignals() {
         next.metaConnected = !!settings.metaConnected;
         next.lineConnected = !!settings.lineChannelAccessToken?.trim();
         next.hasDestinationUrl = !!settings.defaultDestinationUrl?.trim();
+        next.xConnected = !!settings.xConnected;
+        next.hasBrandProfile = !!settings.brandProfile?.trim();
       } catch {
         /* ignore */
       }
