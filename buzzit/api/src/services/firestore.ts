@@ -59,6 +59,36 @@ export interface UserSettings {
    * 例: Instagram公式＋採用用の2アカウント目 → 1枠）
    */
   extraSnsAccounts?: number;
+  /** インサイト自動取得（Meta 等）。未設定は有効扱い */
+  insightsEnabled?: boolean;
+  /**
+   * X インサイト取得（impression 読み取り）。従量課金の可能性あり。
+   * 未設定・false はオフ（追加費用プラン検討用の費用ガード）
+   */
+  xInsightsEnabled?: boolean;
+  insightsLastSyncedAt?: string;
+}
+
+export interface PostInsightDoc {
+  id: string;
+  uid?: string;
+  jobId: string;
+  platform: string;
+  externalId: string;
+  impressions: number;
+  reach?: number;
+  likes?: number;
+  comments?: number;
+  replies?: number;
+  reposts?: number;
+  quotes?: number;
+  bookmarks?: number;
+  saved?: number;
+  fetchedAt: string;
+  source: 'meta' | 'x';
+  lastError?: string;
+  scheduledAt?: string;
+  preview?: string;
 }
 
 export interface MetricsSummary {
@@ -764,4 +794,44 @@ export async function getAllUsersWithSlack(): Promise<UserSettings[]> {
   return snap.docs
     .map((d) => ({ ...(d.data() as UserSettings), uid: d.id }))
     .filter((u) => !!u.slackWebhookUrl);
+}
+
+export async function getPostInsight(uid: string, id: string): Promise<PostInsightDoc | null> {
+  const snap = await db().collection('users').doc(uid).collection('postInsights').doc(id).get();
+  if (!snap.exists) return null;
+  return { id: snap.id, ...(snap.data() as Omit<PostInsightDoc, 'id'>) };
+}
+
+export async function upsertPostInsight(
+  uid: string,
+  doc: Omit<PostInsightDoc, 'uid'>,
+): Promise<void> {
+  await db()
+    .collection('users')
+    .doc(uid)
+    .collection('postInsights')
+    .doc(doc.id)
+    .set(
+      {
+        ...doc,
+        uid,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+}
+
+export async function listPostInsights(
+  uid: string,
+  options: { limit?: number } = {},
+): Promise<PostInsightDoc[]> {
+  const limit = options.limit ?? 100;
+  const snap = await db()
+    .collection('users')
+    .doc(uid)
+    .collection('postInsights')
+    .orderBy('fetchedAt', 'desc')
+    .limit(limit)
+    .get();
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<PostInsightDoc, 'id'>) }));
 }

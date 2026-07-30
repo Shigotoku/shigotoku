@@ -34,8 +34,10 @@ import {
   getTrackingLink,
   recordTrackingClick,
   findUserByLineDestination,
+  listPostInsights,
 } from './services/firestore';
 import { buildWeeklyReportForUser } from './services/weeklyReport';
+import { buildInsightsSummary, syncInsightsForUser } from './services/insightsSync';
 import {
   listLineFriends,
   setFriendTags,
@@ -180,7 +182,7 @@ api.get('/health', (_req, res) => {
   res.json({
     ok: true,
     service: 'buzzit-api',
-    features: ['gemini', 'firestore', 'slack', 'meta-oauth', 'publish-worker', 'auto-mode', 'utm-tracking', 'line-webhook', 'trends', 'ab-tests'],
+    features: ['gemini', 'firestore', 'slack', 'meta-oauth', 'publish-worker', 'auto-mode', 'utm-tracking', 'line-webhook', 'trends', 'ab-tests', 'insights'],
   });
 });
 
@@ -469,6 +471,55 @@ api.get('/v1/reports/weekly', requireAuth, async (req: AuthedRequest, res) => {
   }
 });
 
+// --- SNS Insights（インプレッション自動取得の土台） ---
+api.get('/v1/insights/summary', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const platform = typeof req.query.platform === 'string' ? req.query.platform : undefined;
+    const summary = await buildInsightsSummary(req.uid!, platform);
+    res.json({ summary });
+  } catch (err) {
+    console.error('insights summary failed', err);
+    res.status(500).json({ error: 'インサイト集計に失敗しました' });
+  }
+});
+
+api.get('/v1/insights/posts', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 40));
+    const platform = typeof req.query.platform === 'string' ? req.query.platform : undefined;
+    let posts = await listPostInsights(req.uid!, { limit: 200 });
+    if (platform) {
+      const want = platform.toLowerCase();
+      posts = posts.filter((p) => {
+        if (want === 'instagram') return p.platform === 'instagram';
+        if (want === 'x') return p.platform === 'x';
+        return p.platform === want;
+      });
+    }
+    res.json({ posts: posts.slice(0, limit) });
+  } catch (err) {
+    console.error('insights posts failed', err);
+    res.status(500).json({ error: 'インサイト一覧の取得に失敗しました' });
+  }
+});
+
+api.post('/v1/insights/sync', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const force = req.body?.force === true;
+    const result = await syncInsightsForUser(req.uid!, { force });
+    const summary = await buildInsightsSummary(req.uid!);
+    await writeAuditLog(req.uid!, 'insights.sync', JSON.stringify({
+      fetched: result.fetched,
+      errors: result.errors,
+      force,
+    }));
+    res.json({ success: true, result, summary });
+  } catch (err) {
+    console.error('insights sync failed', err);
+    res.status(500).json({ error: 'インサイト同期に失敗しました' });
+  }
+});
+
 // --- Meta OAuth ---
 const META_APP_ORIGIN = process.env.BUZZIT_APP_ORIGIN ?? 'https://app.buzzit.shigotoku.com';
 
@@ -602,6 +653,8 @@ api.put('/v1/settings', requireAuth, async (req: AuthedRequest, res) => {
     'hpbStoreUrl', 'gbpConnected', 'gbpLocationName', 'notifyEmail', 'industry',
     'brandProfile',
     'extraSnsAccounts',
+    'insightsEnabled',
+    'xInsightsEnabled',
     'xApiKey', 'xApiSecret', 'xAccessToken', 'xAccessSecret', 'xUsername',
   ];
   const patch: Record<string, unknown> = {};

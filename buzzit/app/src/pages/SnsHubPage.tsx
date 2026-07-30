@@ -1,9 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
-import { BarChart3, CalendarDays, Settings2, Wand2 } from 'lucide-react';
+import { BarChart3, CalendarDays, RefreshCw, Settings2, Wand2 } from 'lucide-react';
 import { getPlatformCompanion } from '../data/platformCompanions';
 import { getSnsNavPlatform, jobMatchesSnsPlatform } from '../lib/snsPlatforms';
-import { fetchScheduledJobs, fetchSettings, type ScheduledJob } from '../lib/api';
+import {
+  fetchInsightsSummary,
+  fetchScheduledJobs,
+  fetchSettings,
+  syncInsights,
+  type InsightsSummary,
+  type ScheduledJob,
+} from '../lib/api';
 import CalendarPage from './CalendarPage';
 
 function connectionLabel(platformId: string, s: {
@@ -40,6 +47,13 @@ function connectionLabel(platformId: string, s: {
   }
 }
 
+function insightsPlatformKey(platformId: string): string | undefined {
+  if (platformId === 'instagram') return 'instagram';
+  if (platformId === 'x') return 'x';
+  if (platformId === 'facebook-threads') return 'facebook-threads';
+  return undefined;
+}
+
 /**
  * SNS別ハブ: 予約投稿・予定カレンダーを媒体ごとに扱う入口。
  * 既存の CalendarPage / Xシリーズ / 設定を再利用する。
@@ -50,6 +64,19 @@ export default function SnsHubPage() {
   const companion = getPlatformCompanion(platformId);
   const [jobs, setJobs] = useState<ScheduledJob[]>([]);
   const [conn, setConn] = useState({ connected: false, label: '確認中…' });
+  const [insights, setInsights] = useState<InsightsSummary | null>(null);
+  const [syncing, setSyncing] = useState(false);
+
+  const loadInsights = () => {
+    const key = insightsPlatformKey(platformId);
+    if (!key) {
+      setInsights(null);
+      return;
+    }
+    fetchInsightsSummary(key)
+      .then((r) => setInsights(r.summary))
+      .catch(() => setInsights(null));
+  };
 
   useEffect(() => {
     fetchScheduledJobs()
@@ -58,6 +85,7 @@ export default function SnsHubPage() {
     fetchSettings()
       .then((s) => setConn(connectionLabel(platformId, s)))
       .catch(() => setConn({ connected: false, label: '接続状態を取得できませんでした' }));
+    loadInsights();
   }, [platformId]);
 
   const scoped = useMemo(
@@ -76,6 +104,8 @@ export default function SnsHubPage() {
   if (!sns) {
     return <Navigate to="/calendar" replace />;
   }
+
+  const canSyncInsights = platformId === 'instagram' || platformId === 'x' || platformId === 'facebook-threads';
 
   return (
     <div className="buzz-page space-y-6">
@@ -137,16 +167,98 @@ export default function SnsHubPage() {
               <span className="text-base font-normal text-neutral-400"> / {stats.done}</span>
             </p>
           </div>
-          <div className="border border-dashed border-neutral-300 bg-[#f5f4f0] p-3">
-            <div className="flex items-center gap-2 text-xs font-medium text-neutral-500">
-              <BarChart3 className="h-3.5 w-3.5" />
-              インプレッション
+          <div className="border border-neutral-200 bg-[#f5f4f0] p-3">
+            <div className="flex items-center justify-between gap-2 text-xs font-medium text-neutral-500">
+              <span className="inline-flex items-center gap-2">
+                <BarChart3 className="h-3.5 w-3.5" />
+                インプレッション
+              </span>
+              {canSyncInsights && (
+                <button
+                  type="button"
+                  disabled={syncing}
+                  title="今すぐ同期"
+                  className="inline-flex items-center gap-1 text-neutral-700 disabled:opacity-50"
+                  onClick={async () => {
+                    setSyncing(true);
+                    try {
+                      await syncInsights(true);
+                      loadInsights();
+                    } catch {
+                      /* ignore */
+                    }
+                    setSyncing(false);
+                  }}
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${syncing ? 'animate-spin' : ''}`} />
+                </button>
+              )}
             </div>
-            <p className="mt-1 text-sm text-neutral-600">
-              API からの自動取得は準備中。予約件数 {stats.total} 件をこの画面で管理できます。
-            </p>
+            {!canSyncInsights ? (
+              <p className="mt-1 text-sm text-neutral-600">この媒体の自動取得は未対応です。</p>
+            ) : insights == null ? (
+              <p className="mt-1 text-sm text-neutral-600">読み込み中…</p>
+            ) : platformId === 'x' && !insights.xInsightsEnabled ? (
+              <p className="mt-1 text-sm text-amber-900">
+                X 取得は費用ガードでオフ。
+                <Link to="/settings?tab=sns" className="ml-1 underline">
+                  設定で有効化
+                </Link>
+              </p>
+            ) : insights.postCount === 0 ? (
+              <p className="mt-1 text-sm text-neutral-600">
+                まだデータがありません。自動投稿済みの投稿から同期されます。
+              </p>
+            ) : (
+              <>
+                <p className="mt-1 text-2xl font-bold tabular-nums">
+                  {insights.totalImpressions.toLocaleString()}
+                </p>
+                <p className="mt-0.5 text-xs text-neutral-500">
+                  {insights.postCount} 投稿
+                  {insights.totalReach > 0 ? ` · リーチ ${insights.totalReach.toLocaleString()}` : ''}
+                  {insights.lastSyncedAt
+                    ? ` · ${new Date(insights.lastSyncedAt).toLocaleString('ja-JP', {
+                        month: 'numeric',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}`
+                    : ''}
+                </p>
+              </>
+            )}
           </div>
         </div>
+
+        {insights && insights.recent.length > 0 && canSyncInsights && (
+          <ul className="mt-4 divide-y divide-neutral-100 border border-neutral-200">
+            {insights.recent.slice(0, 5).map((row) => (
+              <li key={row.id} className="flex items-start justify-between gap-3 px-3 py-2 text-sm">
+                <div className="min-w-0">
+                  <p className="truncate text-neutral-800">{row.preview || row.externalId}</p>
+                  {row.lastError ? (
+                    <p className="text-xs text-amber-800">{row.lastError}</p>
+                  ) : (
+                    <p className="text-xs text-neutral-500">
+                      {row.scheduledAt
+                        ? new Date(row.scheduledAt).toLocaleString('ja-JP', {
+                            month: 'numeric',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })
+                        : ''}
+                    </p>
+                  )}
+                </div>
+                <p className="shrink-0 font-medium tabular-nums text-neutral-900">
+                  {(row.impressions || 0).toLocaleString()}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <CalendarPage platformId={platformId} embedded />

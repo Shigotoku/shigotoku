@@ -12,9 +12,12 @@ import {
   evaluateAbTest,
   evaluateAllAbTests,
   fetchWeeklyReport,
+  fetchInsightsSummary,
+  syncInsights,
   type AbTestRecord,
   type TrendTopic,
   type WeeklyReport,
+  type InsightsSummary,
 } from '../lib/api';
 import EmptyState from '../components/EmptyState';
 import DemoDataBanner from '../components/DemoDataBanner';
@@ -41,6 +44,8 @@ export default function AnalyticsPage() {
   const [busy, setBusy] = useState(false);
   const [analyticsLoaded, setAnalyticsLoaded] = useState(false);
   const [weekly, setWeekly] = useState<WeeklyReport | null>(null);
+  const [insights, setInsights] = useState<InsightsSummary | null>(null);
+  const [insightsSyncing, setInsightsSyncing] = useState(false);
 
   const loadAll = () => {
     fetchAnalytics()
@@ -50,6 +55,9 @@ export default function AnalyticsPage() {
         setAnalyticsLoaded(true);
       })
       .catch(() => setAnalyticsLoaded(true));
+    fetchInsightsSummary()
+      .then((r) => setInsights(r.summary))
+      .catch(() => setInsights(null));
     fetchTrends()
       .then((r) => setTrends(r.trends))
       .catch(() => {});
@@ -127,6 +135,74 @@ export default function AnalyticsPage() {
       <DemoDataBanner isSample={isSample || (analyticsLoaded && topPosts.length === 0 && metrics.reach === 0)} />
 
       {message && <p className="buzz-alert buzz-alert-info">{message}</p>}
+
+      {insights && (
+        <div className="buzz-card-pad mb-4">
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-neutral-700" />
+            <h3 className="text-lg font-bold">SNSインプレッション（自動取得）</h3>
+            <button
+              type="button"
+              disabled={insightsSyncing || !insights.insightsEnabled}
+              className="ml-auto inline-flex items-center gap-1 text-xs underline-offset-2 hover:underline disabled:opacity-50"
+              onClick={async () => {
+                setInsightsSyncing(true);
+                try {
+                  const r = await syncInsights(true);
+                  setInsights(r.summary);
+                  setMessage('インサイトを同期しました');
+                } catch {
+                  setMessage('インサイト同期に失敗しました');
+                }
+                setInsightsSyncing(false);
+              }}
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${insightsSyncing ? 'animate-spin' : ''}`} />
+              {insightsSyncing ? '同期中…' : '今すぐ同期'}
+            </button>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-4">
+            <div className="border border-neutral-200 bg-neutral-50 p-3">
+              <p className="text-xs text-neutral-500">合計表示</p>
+              <p className="mt-1 text-xl font-bold tabular-nums">{insights.totalImpressions.toLocaleString()}</p>
+            </div>
+            <div className="border border-neutral-200 bg-neutral-50 p-3">
+              <p className="text-xs text-neutral-500">リーチ</p>
+              <p className="mt-1 text-xl font-bold tabular-nums">{insights.totalReach.toLocaleString()}</p>
+            </div>
+            <div className="border border-neutral-200 bg-neutral-50 p-3">
+              <p className="text-xs text-neutral-500">計測投稿</p>
+              <p className="mt-1 text-xl font-bold tabular-nums">{insights.postCount}</p>
+            </div>
+            <div className="border border-neutral-200 bg-neutral-50 p-3">
+              <p className="text-xs text-neutral-500">X取得</p>
+              <p className="mt-1 text-sm font-medium">
+                {insights.xInsightsEnabled ? 'オン' : 'オフ（費用ガード）'}
+              </p>
+            </div>
+          </div>
+          {insights.recent.length > 0 && (
+            <ul className="mt-4 divide-y divide-neutral-100 border border-neutral-200">
+              {insights.recent.slice(0, 8).map((row) => (
+                <li key={row.id} className="flex justify-between gap-3 px-3 py-2 text-sm">
+                  <span className="truncate text-neutral-700">
+                    [{row.platform}] {row.preview || row.externalId}
+                  </span>
+                  <span className="shrink-0 tabular-nums font-medium">
+                    {(row.impressions || 0).toLocaleString()}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-3 text-xs text-neutral-500">
+            <Link to="/settings?tab=sns" className="underline-offset-2 hover:underline">
+              SNS連携設定
+            </Link>
+            で Meta 再連携（insights 権限）と X 費用ガードを管理できます。
+          </p>
+        </div>
+      )}
 
       {weekly && (
         <div className="buzz-card-pad">

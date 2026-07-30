@@ -100,6 +100,9 @@ export interface SettingsResponse {
   industry?: string;
   brandProfile?: string;
   extraSnsAccounts?: number;
+  insightsEnabled?: boolean;
+  xInsightsEnabled?: boolean;
+  insightsLastSyncedAt?: string;
   xConnected?: boolean;
   xUsername?: string;
   xApiPostsThisMonth?: number;
@@ -107,6 +110,36 @@ export interface SettingsResponse {
   snsConnections: Array<{ name: string; connected: boolean }>;
   canUseSlack: boolean;
   canUseAutoMode: boolean;
+}
+
+export interface PostInsight {
+  id: string;
+  jobId: string;
+  platform: string;
+  externalId: string;
+  impressions: number;
+  reach?: number;
+  likes?: number;
+  comments?: number;
+  replies?: number;
+  reposts?: number;
+  fetchedAt: string;
+  source: 'meta' | 'x';
+  lastError?: string;
+  scheduledAt?: string;
+  preview?: string;
+}
+
+export interface InsightsSummary {
+  totalImpressions: number;
+  totalReach: number;
+  postCount: number;
+  byPlatform: Record<string, { impressions: number; reach: number; postCount: number }>;
+  lastSyncedAt?: string;
+  insightsEnabled: boolean;
+  xInsightsEnabled: boolean;
+  xInsightsBillingNote: string;
+  recent: PostInsight[];
 }
 
 export function fetchSettings() {
@@ -472,6 +505,26 @@ export interface WeeklyReport {
 
 export function fetchWeeklyReport() {
   return request<{ report: WeeklyReport }>('/v1/reports/weekly');
+}
+
+export function fetchInsightsSummary(platform?: string) {
+  const q = platform ? `?platform=${encodeURIComponent(platform)}` : '';
+  return request<{ summary: InsightsSummary }>(`/v1/insights/summary${q}`);
+}
+
+export function fetchInsightsPosts(opts?: { platform?: string; limit?: number }) {
+  const params = new URLSearchParams();
+  if (opts?.platform) params.set('platform', opts.platform);
+  if (opts?.limit) params.set('limit', String(opts.limit));
+  const q = params.toString() ? `?${params}` : '';
+  return request<{ posts: PostInsight[] }>(`/v1/insights/posts${q}`);
+}
+
+export function syncInsights(force = false) {
+  return request<{ success: boolean; result: Record<string, unknown>; summary: InsightsSummary }>(
+    '/v1/insights/sync',
+    { method: 'POST', body: JSON.stringify({ force }) },
+  );
 }
 
 export function startMetaOAuth() {

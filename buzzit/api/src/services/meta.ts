@@ -251,6 +251,7 @@ export function getMetaOAuthUrl(state: string, redirectUri: string): string | nu
   const scopes = [
     'instagram_basic',
     'instagram_content_publish',
+    'instagram_manage_insights',
     'pages_show_list',
     'pages_read_engagement',
     'pages_manage_posts',

@@ -7,6 +7,7 @@ import { processDueScheduledJobs } from './services/schedulerWorker';
 import { processDueStepProgress } from './services/lineCrm';
 import { sendWeeklyReportsToSlack } from './services/weeklyReport';
 import { processXSeriesSchedules } from './services/xSeries';
+import { syncInsightsForEligibleUsers } from './services/insightsSync';
 import { functionSecrets } from './config/secrets';
 
 if (!getApps().length) initializeApp();
@@ -33,6 +34,9 @@ export const buzzitScheduler = onSchedule(
     if (slot === 'evening') {
       await evaluateAbTestsForAllUsers();
     }
+    // 朝・昼・夜にインサイト同期（X はユーザー側の費用ガードで既定オフ）
+    const insights = await syncInsightsForEligibleUsers();
+    console.log('buzzitScheduler insights:', insights);
   },
 );
 

@@ -25,11 +25,13 @@ import {
   fetchConnectionHealth,
   fetchRegionalWatch,
   fetchWeeklyReport,
+  fetchInsightsSummary,
   type TrendTopic,
   type ScheduledJob,
   type LineCostEstimate,
   type HpbConversion,
   type WeeklyReport,
+  type InsightsSummary,
 } from '../lib/api';
 import SetupDiagnosisCard from '../components/SetupDiagnosisCard';
 import DemoDataBanner from '../components/DemoDataBanner';
@@ -53,8 +55,13 @@ export default function Dashboard() {
   const [healthAlerts, setHealthAlerts] = useState<string[]>([]);
   const [regional, setRegional] = useState<Array<{ topic: string; hook: string; score: number }>>([]);
   const [weekly, setWeekly] = useState<WeeklyReport | null>(null);
+  const [insights, setInsights] = useState<InsightsSummary | null>(null);
 
   useEffect(() => {
+    fetchInsightsSummary()
+      .then((r) => setInsights(r.summary))
+      .catch(() => setInsights(null));
+
     fetchDashboard()
       .then((data) => {
         setMetrics({
@@ -164,6 +171,49 @@ export default function Dashboard() {
       </section>
 
       <SetupDiagnosisCard signals={signals} />
+
+      {insights && (
+        <section className="border border-neutral-200 bg-white p-4 sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                SNSインプレッション（自動取得）
+              </p>
+              <p className="mt-1 text-sm text-neutral-600">
+                {insights.lastSyncedAt
+                  ? `最終同期 ${new Date(insights.lastSyncedAt).toLocaleString('ja-JP')}`
+                  : '未同期 — 投稿後に朝・昼・夜で取得、または設定から手動同期'}
+              </p>
+            </div>
+            <Link to="/settings?tab=sns" className="text-xs underline-offset-2 hover:underline">
+              同期設定 →
+            </Link>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div>
+              <p className="text-xs text-neutral-500">合計表示</p>
+              <p className="text-lg font-bold tabular-nums">{insights.totalImpressions.toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-xs text-neutral-500">リーチ</p>
+              <p className="text-lg font-bold tabular-nums">{insights.totalReach.toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-xs text-neutral-500">計測投稿</p>
+              <p className="text-lg font-bold tabular-nums">{insights.postCount}</p>
+            </div>
+            <div>
+              <p className="text-xs text-neutral-500">X取得</p>
+              <p className="text-sm font-medium">
+                {insights.xInsightsEnabled ? 'オン' : 'オフ（費用ガード）'}
+              </p>
+            </div>
+          </div>
+          {!insights.insightsEnabled && (
+            <p className="mt-2 text-xs text-amber-800">インサイト同期がオフです。設定から有効化できます。</p>
+          )}
+        </section>
+      )}
 
       {weekly && (
         <section className="border border-neutral-200 bg-white p-4 sm:p-5">
