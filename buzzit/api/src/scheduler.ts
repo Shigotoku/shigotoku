@@ -6,6 +6,7 @@ import { evaluateAbTestsForAllUsers } from './services/abTest';
 import { processDueScheduledJobs } from './services/schedulerWorker';
 import { processDueStepProgress } from './services/lineCrm';
 import { sendWeeklyReportsToSlack } from './services/weeklyReport';
+import { processXSeriesSchedules } from './services/xSeries';
 import { functionSecrets } from './config/secrets';
 
 if (!getApps().length) initializeApp();
@@ -35,7 +36,7 @@ export const buzzitScheduler = onSchedule(
   },
 );
 
-/** 5分ごと: Firestore 予約ジョブを処理（notify / meta / line / ayrshare） */
+/** 5分ごと: Firestore 予約ジョブ＋Xシリーズ枠を処理 */
 export const buzzitPublishWorker = onSchedule(
   {
     schedule: '*/5 * * * *',
@@ -46,7 +47,8 @@ export const buzzitPublishWorker = onSchedule(
   },
   async () => {
     const result = await processDueScheduledJobs();
-    console.log('buzzitPublishWorker:', result);
+    const series = await processXSeriesSchedules();
+    console.log('buzzitPublishWorker:', result, 'xSeries:', series);
   },
 );
 

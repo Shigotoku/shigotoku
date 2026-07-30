@@ -27,7 +27,11 @@ import {
   approveSlackIdea,
   fetchWinningPatterns,
   createWinningPattern,
+  fetchSettings,
+  fetchXSeries,
+  addXSeriesItems,
   type PublishMode,
+  type XSeries,
 } from '../lib/api';
 import { defaultScheduleLocalValue, isFutureLocalDatetime, toDatetimeLocalValue } from '../lib/datetime';
 import { INBOX_HANDOFF_KEY, type InboxHandoffPayload } from '../lib/inboxHandoff';
@@ -106,6 +110,8 @@ export default function MagicCreator() {
   >([]);
   const [patterns, setPatterns] = useState<Array<{ id: string; title: string; hook: string }>>([]);
   const [critique, setCritique] = useState<ReturnType<typeof critiqueMedia> | null>(null);
+  const [xSeriesList, setXSeriesList] = useState<XSeries[]>([]);
+  const [seriesTargetId, setSeriesTargetId] = useState('');
   const recorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
 
@@ -136,6 +142,18 @@ export default function MagicCreator() {
       .catch(() => {});
     fetchWinningPatterns()
       .then((r) => setPatterns(r.patterns.slice(0, 5)))
+      .catch(() => {});
+    fetchSettings()
+      .then((s) => {
+        if (s.defaultPublishMode) setPublishMode(s.defaultPublishMode);
+        else if (s.xConnected) setPublishMode('x_free');
+      })
+      .catch(() => {});
+    fetchXSeries()
+      .then((r) => {
+        setXSeriesList(r.series);
+        if (r.series[0]) setSeriesTargetId(r.series[0].id);
+      })
       .catch(() => {});
   }, []);
 
@@ -637,6 +655,44 @@ export default function MagicCreator() {
                   >
                     勝ち型に保存
                   </button>
+                  {xSeriesList.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <select
+                        value={seriesTargetId}
+                        onChange={(e) => setSeriesTargetId(e.target.value)}
+                        className="border border-neutral-300 bg-white px-2 py-2 text-xs"
+                      >
+                        {xSeriesList.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const x = results.find((r) => r.platform === 'x_thread');
+                          if (!x || !seriesTargetId) return;
+                          try {
+                            await addXSeriesItems(seriesTargetId, {
+                              text: x.content,
+                              approved: false,
+                              imageUrl: uploadedMedia.find((m) => m.kind === 'image')?.publicUrl,
+                            });
+                            setUploadMessage('Xシリーズのキューに追加しました（投稿OKはシリーズ画面で）');
+                          } catch {
+                            setUploadMessage('Xシリーズへの追加に失敗しました');
+                          }
+                        }}
+                        className="border border-neutral-300 px-3 py-2 text-xs"
+                      >
+                        Xシリーズへ
+                      </button>
+                      <Link to="/x-series" className="px-2 py-2 text-xs underline-offset-2 hover:underline">
+                        シリーズ管理
+                      </Link>
+                    </div>
+                  )}
                   <button
                     type="button"
                     onClick={() => {
@@ -719,7 +775,6 @@ export default function MagicCreator() {
                         <button
                           type="button"
                           onClick={() => {
-                            if (isX) setPublishMode('notify');
                             setScheduleError(null);
                             if (!isFutureLocalDatetime(scheduleDate)) {
                               setScheduleDate(defaultScheduleLocalValue(2));
@@ -733,7 +788,7 @@ export default function MagicCreator() {
                       </div>
                       {isX && (
                         <p className="mt-2 text-[10px] leading-relaxed text-neutral-500">
-                          X APIは従量課金のため、Free/Starterでは「通知＋コピー」が標準です。時刻に通知が届いたら公式アプリへ貼るだけで、自動投稿に近い体験になります。
+                          設定で X API キーを登録すると「X API 自動投稿」で予約できます。未設定の場合は「通知＋コピー」が標準です。
                         </p>
                       )}
                     </div>
@@ -783,9 +838,10 @@ export default function MagicCreator() {
               >
                 <option value="notify">通知リマインダー（Slack/LINE に文案・Xコピー向け）</option>
                 <option value="approval">承認後投稿（ダッシュボードで承認）</option>
+                <option value="x_free">X API 自動投稿（設定でキー登録後）</option>
                 <option value="meta">Meta 自動投稿（IG/FB）</option>
                 <option value="line">LINE ブロードキャスト</option>
-                <option value="ayrshare">Ayrshare（X含む外部予約）</option>
+                <option value="ayrshare">Ayrshare（外部予約）</option>
                 <option value="gbp">Google Business Profile（準備中）</option>
                 <option value="auto">自動（接続に応じて）</option>
               </select>

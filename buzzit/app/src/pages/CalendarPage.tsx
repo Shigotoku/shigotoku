@@ -252,9 +252,14 @@ export default function CalendarPage() {
   return (
     <div className="buzz-page">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-        <Link to="/magic-creator" className="buzz-btn-primary shrink-0">
-          新しい投稿を作る
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link to="/x-series" className="min-h-[44px] border border-neutral-300 px-3 py-2 text-sm">
+            Xシリーズ
+          </Link>
+          <Link to="/magic-creator" className="buzz-btn-primary shrink-0">
+            新しい投稿を作る
+          </Link>
+        </div>
       </div>
 
       {(failedCount > 0 || approvalCount > 0) && (
@@ -596,6 +601,7 @@ export default function CalendarPage() {
             >
               <option value="notify">通知リマインダー</option>
               <option value="approval">承認後投稿</option>
+              <option value="x_free">X API 自動投稿</option>
               <option value="meta">Meta 自動投稿</option>
               <option value="line">LINE ブロードキャスト</option>
               <option value="ayrshare">Ayrshare</option>

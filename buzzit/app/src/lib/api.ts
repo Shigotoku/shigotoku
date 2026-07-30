@@ -99,6 +99,10 @@ export interface SettingsResponse {
   notifyEmail?: string;
   industry?: string;
   extraSnsAccounts?: number;
+  xConnected?: boolean;
+  xUsername?: string;
+  xApiPostsThisMonth?: number;
+  xApiMonthlyLimit?: number;
   snsConnections: Array<{ name: string; connected: boolean }>;
   canUseSlack: boolean;
   canUseAutoMode: boolean;
@@ -112,10 +116,30 @@ export function fetchSnsConnections() {
   return request<{ snsConnections: Array<{ name: string; connected: boolean }> }>('/v1/sns-connections');
 }
 
-export function updateSettings(patch: Partial<SettingsResponse>) {
+export function updateSettings(
+  patch: Partial<SettingsResponse> & {
+    xApiKey?: string;
+    xApiSecret?: string;
+    xAccessToken?: string;
+    xAccessSecret?: string;
+    xDisconnect?: boolean;
+  },
+) {
   return request<SettingsResponse>('/v1/settings', {
     method: 'PUT',
     body: JSON.stringify(patch),
+  });
+}
+
+export function testXApiConnection(body?: {
+  xApiKey?: string;
+  xApiSecret?: string;
+  xAccessToken?: string;
+  xAccessSecret?: string;
+}) {
+  return request<{ ok: boolean; message: string; username?: string }>('/v1/x/selftest', {
+    method: 'POST',
+    body: JSON.stringify(body ?? {}),
   });
 }
 
@@ -143,7 +167,15 @@ export function repurposeViaApi(body: RepurposeApiRequest) {
   });
 }
 
-export type PublishMode = 'notify' | 'approval' | 'meta' | 'line' | 'gbp' | 'ayrshare' | 'auto';
+export type PublishMode =
+  | 'notify'
+  | 'approval'
+  | 'meta'
+  | 'line'
+  | 'gbp'
+  | 'ayrshare'
+  | 'x_free'
+  | 'auto';
 
 export interface VoiceDraftResponse {
   transcript: string;
@@ -888,4 +920,184 @@ export function previewLineFlex(body: {
 
 export function fetchExportJson() {
   return downloadExport('json');
+}
+
+export interface XSeries {
+  id: string;
+  name: string;
+  description?: string;
+  enabled: boolean;
+  createdAt: string;
+  pendingCount?: number;
+  approvedCount?: number;
+}
+
+export interface XSeriesItem {
+  id: string;
+  seriesId: string;
+  text: string;
+  tags?: string;
+  title?: string;
+  linkUrl?: string;
+  imageUrl?: string;
+  imageAlt?: string;
+  approved: boolean;
+  status: string;
+  publishedAt?: string;
+  tweetId?: string;
+  errorMessage?: string;
+  createdAt: string;
+  sortOrder: number;
+}
+
+export interface XScheduleRule {
+  id: string;
+  seriesId: string;
+  seriesName?: string;
+  days: string;
+  timeHHMM: string;
+  take: number;
+  enabled: boolean;
+  jitterMaxMin: number;
+  publishMode: 'x_free' | 'notify';
+  createdAt: string;
+}
+
+export function fetchXSeries() {
+  return request<{ series: XSeries[] }>('/v1/x/series');
+}
+
+export function createXSeries(body: { name: string; description?: string }) {
+  return request<{ series: XSeries }>('/v1/x/series', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function seedDefaultXSeries() {
+  return request<{ series: XSeries[]; rules: XScheduleRule[] }>('/v1/x/series/seed-defaults', {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}
+
+export function updateXSeries(id: string, body: Partial<{ name: string; description: string; enabled: boolean }>) {
+  return request<{ series: XSeries }>(`/v1/x/series/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
+export function deleteXSeries(id: string) {
+  return request<{ success: boolean }>(`/v1/x/series/${id}`, { method: 'DELETE' });
+}
+
+export function fetchXSeriesItems(seriesId: string, status?: string) {
+  const q = status ? `?status=${encodeURIComponent(status)}` : '';
+  return request<{ items: XSeriesItem[] }>(`/v1/x/series/${seriesId}/items${q}`);
+}
+
+export function addXSeriesItems(
+  seriesId: string,
+  body:
+    | { text: string; tags?: string; title?: string; linkUrl?: string; imageUrl?: string; imageAlt?: string; approved?: boolean }
+    | {
+        items: Array<{
+          text: string;
+          tags?: string;
+          title?: string;
+          linkUrl?: string;
+          imageUrl?: string;
+          imageAlt?: string;
+          approved?: boolean;
+        }>;
+      },
+) {
+  return request<{ items: XSeriesItem[] }>(`/v1/x/series/${seriesId}/items`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function importXSeriesCsv(seriesId: string, csv: string) {
+  return request<{ imported: number; items: XSeriesItem[] }>(`/v1/x/series/${seriesId}/import-csv`, {
+    method: 'POST',
+    body: JSON.stringify({ csv }),
+  });
+}
+
+export function updateXSeriesItem(
+  seriesId: string,
+  itemId: string,
+  body: Partial<{
+    text: string;
+    tags: string;
+    title: string;
+    linkUrl: string;
+    imageUrl: string;
+    imageAlt: string;
+    approved: boolean;
+    status: string;
+  }>,
+) {
+  return request<{ item: XSeriesItem }>(`/v1/x/series/${seriesId}/items/${itemId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
+export function deleteXSeriesItem(seriesId: string, itemId: string) {
+  return request<{ success: boolean }>(`/v1/x/series/${seriesId}/items/${itemId}`, { method: 'DELETE' });
+}
+
+export function fetchXScheduleRules() {
+  return request<{ rules: XScheduleRule[] }>('/v1/x/schedule-rules');
+}
+
+export function createXScheduleRule(body: {
+  seriesId: string;
+  days: string;
+  timeHHMM: string;
+  take?: number;
+  jitterMaxMin?: number;
+  publishMode?: 'x_free' | 'notify';
+}) {
+  return request<{ rule: XScheduleRule }>('/v1/x/schedule-rules', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateXScheduleRule(
+  id: string,
+  body: Partial<{
+    days: string;
+    timeHHMM: string;
+    take: number;
+    enabled: boolean;
+    jitterMaxMin: number;
+    publishMode: 'x_free' | 'notify';
+    seriesId: string;
+  }>,
+) {
+  return request<{ rule: XScheduleRule }>(`/v1/x/schedule-rules/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
+export function deleteXScheduleRule(id: string) {
+  return request<{ success: boolean }>(`/v1/x/schedule-rules/${id}`, { method: 'DELETE' });
+}
+
+export function runXSeriesNow(body: {
+  seriesId?: string;
+  take?: number;
+  mode?: 'x_free' | 'notify';
+  forceAllRules?: boolean;
+}) {
+  return request<{ success: boolean; posted?: number; errors?: number; messages?: string[] }>(
+    '/v1/x/series/run-now',
+    { method: 'POST', body: JSON.stringify(body) },
+  );
 }

@@ -18,6 +18,7 @@ import {
   Route,
   CalendarRange,
   BookOpen,
+  Layers,
 } from 'lucide-react';
 import { BRAND_NAME } from '../constants/brand';
 import { landingPath } from '../lib/urls';
@@ -55,6 +56,7 @@ const allNavItems: NavItem[] = [
   { name: 'ネタInbox', path: '/inbox', icon: Inbox, staffOk: true },
   { name: 'マジック・クリエイター', path: '/magic-creator', icon: Wand2, staffOk: true },
   { name: '投稿カレンダー', path: '/calendar', icon: CalendarDays, staffOk: true },
+  { name: 'Xシリーズ', path: '/x-series', icon: Layers, staffOk: true },
   { name: '30本カレンダー', path: '/content-calendar', icon: CalendarRange, staffOk: true },
   { name: '導線ビルダー', path: '/funnel', icon: Route, managerOnly: true },
   { name: 'LINE CRM', path: '/line-crm', icon: MessageCircle, managerOnly: true },

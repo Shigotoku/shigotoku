@@ -15,6 +15,8 @@ import {
   ensureUser,
   getUserSettings,
   updateUserSettings,
+  getXApiPostsThisMonth,
+  type UserSettings,
   getMetrics,
   getPosts,
   addPost,
@@ -118,6 +120,29 @@ import {
   getMetaOAuthUrl,
   resolveMetaAccounts,
 } from './services/meta';
+import {
+  credentialsFromSettings,
+  verifyXCredentials,
+  X_FREE_MONTHLY_SOFT_LIMIT,
+} from './services/xApi';
+import {
+  listXSeries,
+  createXSeries,
+  updateXSeries,
+  deleteXSeries,
+  listXSeriesItems,
+  addXSeriesItems,
+  updateXSeriesItem,
+  deleteXSeriesItem,
+  listXScheduleRules,
+  createXScheduleRule,
+  updateXScheduleRule,
+  deleteXScheduleRule,
+  parseSeriesCsv,
+  seedDefaultXSeriesPack,
+  processXSeriesSchedules,
+  publishSeriesNow,
+} from './services/xSeries';
 import { saveOAuthState, consumeOAuthState } from './services/schedulerWorker';
 import type { PublishMode } from './types/schedule';
 import {
@@ -326,6 +351,7 @@ api.post('/v1/schedule', requireAuth, async (req: AuthedRequest, res) => {
       line: 'LINE 配信',
       gbp: 'Googleマップ投稿',
       ayrshare: 'Ayrshare 予約',
+      x_free: 'X API 自動投稿',
       auto: '自動（接続に応じて）',
     };
 
@@ -527,11 +553,26 @@ const DEFAULT_SNS_CONNECTIONS = [
 api.get('/v1/settings', requireAuth, async (req: AuthedRequest, res) => {
   const settings = await getUserSettings(req.uid!);
   const metaConnected = !!(settings.metaAccessToken && settings.metaIgUserId);
+  const xConnected = !!credentialsFromSettings(settings);
+  // 秘密鍵はクライアントに返さない
+  const {
+    xApiKey: _xk,
+    xApiSecret: _xs,
+    xAccessToken: _xt,
+    xAccessSecret: _xas,
+    metaAccessToken: _mt,
+    metaPageAccessToken: _mpt,
+    ...safeSettings
+  } = settings as UserSettings & Record<string, unknown>;
   // Ayrshare 外部 API は別エンドポイントへ分離（設定画面の初期表示を高速化）
   res.json({
-    ...settings,
+    ...safeSettings,
     snsConnections: DEFAULT_SNS_CONNECTIONS,
     metaConnected,
+    xConnected,
+    xUsername: settings.xUsername,
+    xApiPostsThisMonth: getXApiPostsThisMonth(settings),
+    xApiMonthlyLimit: X_FREE_MONTHLY_SOFT_LIMIT,
     canUseSlack: canUseSlack(settings),
     canUseAutoMode: settings.plan === 'growth',
     lineWebhookUrl: lineWebhookUrl(req.uid!),
@@ -555,17 +596,257 @@ api.put('/v1/settings', requireAuth, async (req: AuthedRequest, res) => {
     'metaAccessToken', 'metaPageAccessToken', 'metaIgUserId', 'metaPageId', 'metaTokenExpiresAt',
     'hpbStoreUrl', 'gbpConnected', 'gbpLocationName', 'notifyEmail', 'industry',
     'extraSnsAccounts',
+    'xApiKey', 'xApiSecret', 'xAccessToken', 'xAccessSecret', 'xUsername',
   ];
   const patch: Record<string, unknown> = {};
   for (const key of allowed) {
     if (key in req.body) patch[key] = req.body[key];
   }
+  // 空文字の X 鍵は「未変更」扱い（誤上書き防止）。切断は xDisconnect
+  for (const key of ['xApiKey', 'xApiSecret', 'xAccessToken', 'xAccessSecret'] as const) {
+    if (key in patch && String(patch[key] ?? '').trim() === '') {
+      delete patch[key];
+    }
+  }
+  if (req.body?.xDisconnect === true) {
+    patch.xApiKey = '';
+    patch.xApiSecret = '';
+    patch.xAccessToken = '';
+    patch.xAccessSecret = '';
+    patch.xUsername = '';
+  }
   if ('extraSnsAccounts' in patch) {
     const n = Number(patch.extraSnsAccounts);
     patch.extraSnsAccounts = Number.isFinite(n) ? Math.max(0, Math.min(20, Math.floor(n))) : 0;
   }
-  const settings = await updateUserSettings(req.uid!, patch);
-  res.json(settings);
+  const settings = await updateUserSettings(req.uid!, patch as Partial<UserSettings>);
+  const {
+    xApiKey: _xk,
+    xApiSecret: _xs,
+    xAccessToken: _xt,
+    xAccessSecret: _xas,
+    metaAccessToken: _mt,
+    metaPageAccessToken: _mpt,
+    ...safe
+  } = settings;
+  res.json({
+    ...safe,
+    xConnected: !!credentialsFromSettings(settings),
+    xApiPostsThisMonth: getXApiPostsThisMonth(settings),
+    xApiMonthlyLimit: X_FREE_MONTHLY_SOFT_LIMIT,
+  });
+});
+
+api.post('/v1/x/selftest', requireAuth, async (req: AuthedRequest, res) => {
+  const body = req.body as {
+    xApiKey?: string;
+    xApiSecret?: string;
+    xAccessToken?: string;
+    xAccessSecret?: string;
+  };
+  const stored = await getUserSettings(req.uid!);
+  const creds = credentialsFromSettings({
+    xApiKey: body.xApiKey?.trim() || stored.xApiKey,
+    xApiSecret: body.xApiSecret?.trim() || stored.xApiSecret,
+    xAccessToken: body.xAccessToken?.trim() || stored.xAccessToken,
+    xAccessSecret: body.xAccessSecret?.trim() || stored.xAccessSecret,
+  });
+  if (!creds) {
+    res.status(400).json({ error: 'X API の4つのキーをすべて入力してください' });
+    return;
+  }
+  const result = await verifyXCredentials(creds);
+  if (result.ok && result.username) {
+    await updateUserSettings(req.uid!, {
+      xApiKey: creds.apiKey,
+      xApiSecret: creds.apiSecret,
+      xAccessToken: creds.accessToken,
+      xAccessSecret: creds.accessSecret,
+      xUsername: result.username,
+    });
+  }
+  res.status(result.ok ? 200 : 400).json(result);
+});
+
+// --- X シリーズ（キュー＋曜日スケジュール） ---
+api.get('/v1/x/series', requireAuth, async (req: AuthedRequest, res) => {
+  res.json({ series: await listXSeries(req.uid!) });
+});
+
+api.post('/v1/x/series', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const { name, description } = req.body as { name?: string; description?: string };
+    const series = await createXSeries(req.uid!, { name: name ?? '', description });
+    res.json({ series });
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : '作成に失敗しました' });
+  }
+});
+
+api.post('/v1/x/series/seed-defaults', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const pack = await seedDefaultXSeriesPack(req.uid!);
+    res.json(pack);
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : 'テンプレ作成に失敗しました' });
+  }
+});
+
+api.patch('/v1/x/series/:id', requireAuth, async (req: AuthedRequest, res) => {
+  const series = await updateXSeries(req.uid!, String(req.params.id), req.body ?? {});
+  if (!series) {
+    res.status(404).json({ error: 'シリーズが見つかりません' });
+    return;
+  }
+  res.json({ series });
+});
+
+api.delete('/v1/x/series/:id', requireAuth, async (req: AuthedRequest, res) => {
+  const ok = await deleteXSeries(req.uid!, String(req.params.id));
+  if (!ok) {
+    res.status(404).json({ error: 'シリーズが見つかりません' });
+    return;
+  }
+  res.json({ success: true });
+});
+
+api.get('/v1/x/series/:id/items', requireAuth, async (req: AuthedRequest, res) => {
+  const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+  const items = await listXSeriesItems(req.uid!, String(req.params.id), {
+    status: status as 'pending' | 'published' | 'failed' | undefined,
+  });
+  res.json({ items });
+});
+
+api.post('/v1/x/series/:id/items', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const { items, text, tags, title, linkUrl, imageUrl, imageAlt, approved } = req.body as {
+      items?: Array<{
+        text: string;
+        tags?: string;
+        title?: string;
+        linkUrl?: string;
+        imageUrl?: string;
+        imageAlt?: string;
+        approved?: boolean;
+      }>;
+      text?: string;
+      tags?: string;
+      title?: string;
+      linkUrl?: string;
+      imageUrl?: string;
+      imageAlt?: string;
+      approved?: boolean;
+    };
+    const list =
+      items ??
+      (text
+        ? [{ text, tags, title, linkUrl, imageUrl, imageAlt, approved }]
+        : []);
+    const created = await addXSeriesItems(req.uid!, String(req.params.id), list);
+    res.json({ items: created });
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : '追加に失敗しました' });
+  }
+});
+
+api.post('/v1/x/series/:id/import-csv', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const { csv } = req.body as { csv?: string };
+    if (!csv?.trim()) {
+      res.status(400).json({ error: 'csv が必要です' });
+      return;
+    }
+    const parsed = parseSeriesCsv(csv);
+    const created = await addXSeriesItems(req.uid!, String(req.params.id), parsed);
+    res.json({ imported: created.length, items: created });
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : 'インポートに失敗しました' });
+  }
+});
+
+api.patch('/v1/x/series/:seriesId/items/:itemId', requireAuth, async (req: AuthedRequest, res) => {
+  const item = await updateXSeriesItem(
+    req.uid!,
+    String(req.params.seriesId),
+    String(req.params.itemId),
+    req.body ?? {},
+  );
+  if (!item) {
+    res.status(404).json({ error: 'ネタが見つかりません' });
+    return;
+  }
+  res.json({ item });
+});
+
+api.delete('/v1/x/series/:seriesId/items/:itemId', requireAuth, async (req: AuthedRequest, res) => {
+  const ok = await deleteXSeriesItem(req.uid!, String(req.params.seriesId), String(req.params.itemId));
+  if (!ok) {
+    res.status(404).json({ error: 'ネタが見つかりません' });
+    return;
+  }
+  res.json({ success: true });
+});
+
+api.get('/v1/x/schedule-rules', requireAuth, async (req: AuthedRequest, res) => {
+  res.json({ rules: await listXScheduleRules(req.uid!) });
+});
+
+api.post('/v1/x/schedule-rules', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const rule = await createXScheduleRule(req.uid!, req.body ?? {});
+    res.json({ rule });
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : '作成に失敗しました' });
+  }
+});
+
+api.patch('/v1/x/schedule-rules/:id', requireAuth, async (req: AuthedRequest, res) => {
+  const rule = await updateXScheduleRule(req.uid!, String(req.params.id), req.body ?? {});
+  if (!rule) {
+    res.status(404).json({ error: 'ルールが見つかりません' });
+    return;
+  }
+  res.json({ rule });
+});
+
+api.delete('/v1/x/schedule-rules/:id', requireAuth, async (req: AuthedRequest, res) => {
+  const ok = await deleteXScheduleRule(req.uid!, String(req.params.id));
+  if (!ok) {
+    res.status(404).json({ error: 'ルールが見つかりません' });
+    return;
+  }
+  res.json({ success: true });
+});
+
+/** 手動でシリーズ在庫を即時消化 / 全ルール強制実行 */
+api.post('/v1/x/series/run-now', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const { seriesId, take, mode, forceAllRules } = req.body as {
+      seriesId?: string;
+      take?: number;
+      mode?: 'x_free' | 'notify';
+      forceAllRules?: boolean;
+    };
+    if (seriesId) {
+      const result = await publishSeriesNow(
+        req.uid!,
+        seriesId,
+        Math.max(1, Math.min(5, take ?? 1)),
+        mode === 'notify' ? 'notify' : 'x_free',
+      );
+      res.json({ success: true, ...result });
+      return;
+    }
+    if (forceAllRules) {
+      const result = await processXSeriesSchedules({ onlyUid: req.uid!, force: true });
+      res.json({ success: true, ...result });
+      return;
+    }
+    res.status(400).json({ error: 'seriesId または forceAllRules が必要です' });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : '実行に失敗しました' });
+  }
 });
 
 // --- Metrics tracking ---

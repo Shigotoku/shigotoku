@@ -35,6 +35,12 @@ export function getPageMeta(pathname: string): PageMeta {
       subtitle: '予約・承認待ち・失敗を一覧で管理。失敗はワンタップで再試行できます。',
     };
   }
+  if (pathname.startsWith('/x-series')) {
+    return {
+      title: 'Xシリーズ',
+      subtitle: 'カテゴリ別キューを曜日×時刻で自動消化。投稿OKとジッター付き。',
+    };
+  }
   if (pathname.startsWith('/funnel')) {
     return {
       title: '導線ビルダー',

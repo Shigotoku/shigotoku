@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Check, Link2, MessageSquare, Zap, Save, BarChart3, Share2, MapPin, Sparkles, Users } from 'lucide-react';
 import { WATERMARK } from '../constants/brand';
 import {
@@ -20,6 +20,7 @@ import {
   fetchExportJson,
   downloadExport,
   fetchStoresProgress,
+  testXApiConnection,
   type PublishMode,
   type LineCostEstimate,
   type CustomerTag,
@@ -114,6 +115,15 @@ export default function SettingsPage() {
   const [customerTags, setCustomerTags] = useState<CustomerTag[]>([]);
   const [gbpReview, setGbpReview] = useState('');
   const [gbpReply, setGbpReply] = useState('');
+  const [xConnected, setXConnected] = useState(false);
+  const [xUsername, setXUsername] = useState('');
+  const [xApiPostsThisMonth, setXApiPostsThisMonth] = useState(0);
+  const [xApiMonthlyLimit, setXApiMonthlyLimit] = useState(500);
+  const [xApiKey, setXApiKey] = useState('');
+  const [xApiSecret, setXApiSecret] = useState('');
+  const [xAccessToken, setXAccessToken] = useState('');
+  const [xAccessSecret, setXAccessSecret] = useState('');
+  const [xTesting, setXTesting] = useState(false);
 
   useEffect(() => {
     fetchSettings()
@@ -136,6 +146,10 @@ export default function SettingsPage() {
         setGbpConnected(!!s.gbpConnected);
         setGbpLocationName(s.gbpLocationName ?? '');
         setNotifyEmail(s.notifyEmail ?? '');
+        setXConnected(!!s.xConnected);
+        setXUsername(s.xUsername ?? '');
+        setXApiPostsThisMonth(s.xApiPostsThisMonth ?? 0);
+        setXApiMonthlyLimit(s.xApiMonthlyLimit ?? 500);
       })
       .catch(() => {});
 
@@ -235,6 +249,43 @@ export default function SettingsPage() {
       window.location.href = url;
     } catch {
       setMessage('Meta OAuth が未設定です。管理者に META_APP_ID を設定してもらってください');
+    }
+  };
+
+  const handleXTestAndSave = async () => {
+    setXTesting(true);
+    setMessage(null);
+    try {
+      const result = await testXApiConnection({
+        xApiKey: xApiKey.trim() || undefined,
+        xApiSecret: xApiSecret.trim() || undefined,
+        xAccessToken: xAccessToken.trim() || undefined,
+        xAccessSecret: xAccessSecret.trim() || undefined,
+      });
+      setXConnected(true);
+      setXUsername(result.username ?? '');
+      setXApiKey('');
+      setXApiSecret('');
+      setXAccessToken('');
+      setXAccessSecret('');
+      setMessage(result.message);
+      const s = await fetchSettings();
+      setXApiPostsThisMonth(s.xApiPostsThisMonth ?? 0);
+      setXApiMonthlyLimit(s.xApiMonthlyLimit ?? 500);
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'X API の接続確認に失敗しました');
+    }
+    setXTesting(false);
+  };
+
+  const handleXDisconnect = async () => {
+    try {
+      await updateSettings({ xDisconnect: true });
+      setXConnected(false);
+      setXUsername('');
+      setMessage('X API 連携を解除しました');
+    } catch {
+      setMessage('X API 連携の解除に失敗しました');
     }
   };
 
@@ -364,6 +415,102 @@ export default function SettingsPage() {
 
       <section className="buzz-card-pad space-y-4">
         <h3 className="flex items-center gap-2 text-lg font-bold">
+          <Share2 className="h-5 w-5 text-neutral-700" />
+          X（旧Twitter）API 連携
+        </h3>
+        <p className="text-sm text-neutral-600">
+          ご自身の X Developer アプリのキー（Read and Write）を登録すると、予約時刻に公式 API で自動投稿できます。
+          鍵はサーバーのみに保存し、画面には再表示しません。自アカウントへの投稿用途向けです。
+        </p>
+        <div className="flex flex-wrap items-center justify-between gap-2 border border-neutral-200 bg-neutral-50 p-4">
+          <div>
+            <p className="text-sm font-medium">
+              {xConnected ? `接続済み${xUsername ? ` (@${xUsername})` : ''}` : '未接続'}
+            </p>
+            <p className="text-xs text-neutral-500">
+              今月の投稿: {xApiPostsThisMonth} / {xApiMonthlyLimit}（ソフト上限・開発者枠に準拠）
+            </p>
+          </div>
+          <span
+            className={`rounded-full px-3 py-1 text-xs ${
+              xConnected
+                ? 'border border-neutral-300 bg-white text-neutral-800'
+                : 'bg-neutral-200 text-neutral-600'
+            }`}
+          >
+            {xConnected ? '接続済み' : '未接続'}
+          </span>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label className="buzz-label">API Key</label>
+            <input
+              value={xApiKey}
+              onChange={(e) => setXApiKey(e.target.value)}
+              placeholder={xConnected ? '変更する場合のみ入力' : 'API Key'}
+              className="buzz-input"
+              autoComplete="off"
+            />
+          </div>
+          <div>
+            <label className="buzz-label">API Secret</label>
+            <input
+              type="password"
+              value={xApiSecret}
+              onChange={(e) => setXApiSecret(e.target.value)}
+              placeholder={xConnected ? '変更する場合のみ入力' : 'API Secret'}
+              className="buzz-input"
+              autoComplete="off"
+            />
+          </div>
+          <div>
+            <label className="buzz-label">Access Token</label>
+            <input
+              value={xAccessToken}
+              onChange={(e) => setXAccessToken(e.target.value)}
+              placeholder={xConnected ? '変更する場合のみ入力' : 'Access Token'}
+              className="buzz-input"
+              autoComplete="off"
+            />
+          </div>
+          <div>
+            <label className="buzz-label">Access Token Secret</label>
+            <input
+              type="password"
+              value={xAccessSecret}
+              onChange={(e) => setXAccessSecret(e.target.value)}
+              placeholder={xConnected ? '変更する場合のみ入力' : 'Access Token Secret'}
+              className="buzz-input"
+              autoComplete="off"
+            />
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={xTesting}
+            onClick={handleXTestAndSave}
+            className="buzz-btn-primary disabled:opacity-60"
+          >
+            {xTesting ? '確認中...' : xConnected ? '再接続テスト' : '接続テストして保存'}
+          </button>
+          {xConnected && (
+            <button type="button" onClick={handleXDisconnect} className="buzz-btn-secondary">
+              連携解除
+            </button>
+          )}
+        </div>
+        <p className="text-xs text-neutral-500">
+          Developer Portal で App permissions を Read and Write にし、ユーザートークンを発行してください。
+          いいね・フォロー自動化などは行いません（投稿のみ）。料金・枠は X の開発者プランに従います。
+        </p>
+        <Link to="/x-series" className="inline-block text-sm underline-offset-2 hover:underline">
+          Xシリーズ（曜日キュー）の管理へ →
+        </Link>
+      </section>
+
+      <section className="buzz-card-pad space-y-4">
+        <h3 className="flex items-center gap-2 text-lg font-bold">
           <Link2 className="h-5 w-5 text-neutral-700" />
           投稿モード（デフォルト）
         </h3>
@@ -374,6 +521,7 @@ export default function SettingsPage() {
         >
           <option value="notify">通知リマインダー（Slack/LINE に文案送信・半自動）</option>
           <option value="approval">承認後投稿（ダッシュボードで承認）</option>
+          <option value="x_free">X API 自動投稿（BYOK）</option>
           <option value="meta">Meta 自動投稿（IG/FB/Threads）</option>
           <option value="line">LINE ブロードキャスト</option>
           <option value="gbp">Google Business Profile（Phase 4）</option>
@@ -385,12 +533,11 @@ export default function SettingsPage() {
       <section className="buzz-card-pad space-y-4">
         <h3 className="flex items-center gap-2 text-lg font-bold">
           <Link2 className="h-5 w-5 text-neutral-700" />
-          Ayrshare（オプション・X連携向け）
+          Ayrshare（オプション）
         </h3>
         <p className="text-sm text-neutral-600">
-          Ayrshare は外部の投稿予約サービスです。X（旧Twitter）は公式 API の料金が高いため、BuzzIt では
-          Ayrshare 経由での予約投稿に対応しています。プロファイルキーを入れると Instagram / X / TikTok
-          などの接続状態を確認でき、投稿モード「Ayrshare」で予約できます。未設定でも通知モードで運用可能です。
+          Ayrshare は外部の投稿予約サービスです。X は上記「X API 連携」または通知＋コピーが標準です。
+          プロファイルキーを入れると Instagram / X / TikTok などの接続状態を確認でき、投稿モード「Ayrshare」でも予約できます。
         </p>
         <div className="space-y-3">
           {snsConnections.map((sns) => (

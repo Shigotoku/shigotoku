@@ -27,8 +27,17 @@ export interface UserSettings {
   metaIgUserId?: string;
   metaPageId?: string;
   metaTokenExpiresAt?: string;
-  /** 通知モード（notify / meta / line / approval / auto） */
-  defaultPublishMode?: 'notify' | 'meta' | 'line' | 'approval' | 'auto';
+  /** 通知モード（notify / meta / line / approval / x_free / auto） */
+  defaultPublishMode?: PublishMode;
+  /** X API BYOK（OAuth 1.0a）— ユーザー自身の開発者アプリ鍵 */
+  xApiKey?: string;
+  xApiSecret?: string;
+  xAccessToken?: string;
+  xAccessSecret?: string;
+  xUsername?: string;
+  /** 当月の X API 投稿成功数（ソフト上限管理用） */
+  xApiPostsMonthKey?: string;
+  xApiPostsThisMonth?: number;
   /** クリック計測のリダイレクト先（店舗サイト・予約ページ等） */
   defaultDestinationUrl?: string;
   /** 所属店舗ID一覧 */
@@ -189,6 +198,35 @@ export async function updateUserSettings(uid: string, patch: Partial<UserSetting
     { merge: true },
   );
   return getUserSettings(uid);
+}
+
+/** X API 投稿成功時に当月カウントをインクリメント */
+export async function incrementXApiPostCount(uid: string): Promise<number> {
+  const monthKey = new Date().toISOString().slice(0, 7); // YYYY-MM
+  const ref = db().collection('users').doc(uid);
+  await db().runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const data = snap.data() ?? {};
+    const currentKey = (data.xApiPostsMonthKey as string | undefined) ?? '';
+    const currentCount = currentKey === monthKey ? Number(data.xApiPostsThisMonth ?? 0) : 0;
+    tx.set(
+      ref,
+      {
+        xApiPostsMonthKey: monthKey,
+        xApiPostsThisMonth: currentCount + 1,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+  });
+  const after = await getUserSettings(uid);
+  return after.xApiPostsThisMonth ?? 0;
+}
+
+export function getXApiPostsThisMonth(settings: UserSettings): number {
+  const monthKey = new Date().toISOString().slice(0, 7);
+  if (settings.xApiPostsMonthKey !== monthKey) return 0;
+  return Number(settings.xApiPostsThisMonth ?? 0);
 }
 
 export async function getMetrics(uid: string): Promise<MetricsSummary> {

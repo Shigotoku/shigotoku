@@ -18,6 +18,7 @@ import CalendarPage from './pages/CalendarPage';
 import FunnelBuilderPage from './pages/FunnelBuilderPage';
 import InboxPage from './pages/InboxPage';
 import ContentCalendarPage from './pages/ContentCalendarPage';
+import XSeriesPage from './pages/XSeriesPage';
 import OnboardingPage from './pages/OnboardingPage';
 import AcceptInvitePage from './pages/AcceptInvitePage';
 
@@ -40,6 +41,7 @@ function App() {
                     <Route path="roadmap" element={<RoadmapPage />} />
                     <Route path="magic-creator" element={<MagicCreator />} />
                     <Route path="calendar" element={<CalendarPage />} />
+                    <Route path="x-series" element={<XSeriesPage />} />
                     <Route path="inbox" element={<InboxPage />} />
                     <Route path="funnel" element={<FunnelBuilderPage />} />
                     <Route path="content-calendar" element={<ContentCalendarPage />} />
