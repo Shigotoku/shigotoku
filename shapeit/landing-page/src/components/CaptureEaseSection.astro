@@ -1,0 +1,80 @@
+---
+import { assetPath } from '../lib/urls';
+
+const captureUrl = assetPath('capture-ease.png');
+
+const points = [
+  { title: '必須は「内容」だけ', body: 'カテゴリ・優先度・担当は入力不要。AIが後から付けます。' },
+  { title: 'スクショとURLは自動', body: '拡張やウィジェットなら、見ている画面の文脈ごと残ります。' },
+  { title: '音声でもOK', body: '手が離せないときは話すだけ。テキスト化して投稿できます。' },
+  { title: '機微情報も前提設計', body: 'スクショに個人情報が写る前提で、マスク・権限・監査を用意。' },
+];
+---
+
+<section id="capture" class="border-y border-ink/10 bg-paper py-12 sm:py-20">
+  <div class="mx-auto grid max-w-6xl items-center gap-10 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16">
+    <div class="order-2 lg:order-1">
+      <p class="text-sm font-semibold uppercase tracking-widest text-mint">Effortless capture</p>
+      <h2 class="font-display mt-3 text-2xl font-bold tracking-tight text-ink sm:text-3xl" data-jp-heading>
+        エラーも使いにくさも、<br class="hidden sm:block" />できるだけ手間をかけずに。
+      </h2>
+      <p class="mt-4 text-base leading-relaxed text-ink/65" data-jp-wrap>
+        「あとで書こう」は大抵、書かれません。ShapeItは気づいた<strong class="font-semibold text-ink">その場で10秒</strong>残せるように設計しています。
+      </p>
+      <ul class="mt-8 space-y-5">
+        {points.map((p) => (
+          <li class="flex gap-3">
+            <span class="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-mint" aria-hidden="true"></span>
+            <div>
+              <p class="font-semibold text-ink" data-jp-heading>{p.title}</p>
+              <p class="mt-1 text-sm leading-relaxed text-ink/60" data-jp-wrap>{p.body}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+
+    <div class="order-1 shapeit-capture-visual relative lg:order-2">
+      <div class="overflow-hidden rounded-2xl border border-ink/10 shadow-xl shadow-ink/10">
+        <img
+          src={captureUrl}
+          alt="ノートPCで画面の気づきを素早く記録する様子"
+          class="shapeit-capture-img aspect-[16/11] w-full object-cover"
+          width={1280}
+          height={880}
+          loading="lazy"
+          decoding="async"
+        />
+      </div>
+      <p class="pointer-events-none absolute -bottom-3 left-4 right-4 rounded-xl border border-mint/30 bg-ink px-4 py-3 text-center text-sm font-semibold text-paper shadow-lg sm:left-8 sm:right-auto sm:text-left" data-jp-wrap>
+        「このボタン分かりにくい」+ スクショ → 完了
+      </p>
+    </div>
+  </div>
+</section>
+
+<style>
+  .shapeit-capture-visual {
+    padding-bottom: 1.25rem;
+  }
+
+  .shapeit-capture-img {
+    animation: shapeit-soft-float 7s ease-in-out infinite;
+  }
+
+  @keyframes shapeit-soft-float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-5px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .shapeit-capture-img {
+      animation: none;
+    }
+  }
+</style>

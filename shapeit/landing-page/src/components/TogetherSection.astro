@@ -1,0 +1,43 @@
+---
+const roles = [
+  {
+    role: '現場・CS・営業',
+    body: 'お客様の声や操作中のつまずきを、チャットに流さずそのまま残せる。',
+  },
+  {
+    role: 'デザイナー・PM',
+    body: '生のFeedbackを保持したまま、Issueへ統合。優先度の根拠が見える。',
+  },
+  {
+    role: 'エンジニア',
+    body: '再現に必要なURL・環境付き。InboxからBoardへ、迷いなく着手。',
+  },
+  {
+    role: '経営・プロダクト責任者',
+    body: '報告数とClosed Loopで「直した実感」が組織に蓄積される。',
+  },
+];
+---
+
+<section id="together" class="bg-white py-12 sm:py-20">
+  <div class="mx-auto max-w-6xl px-4 sm:px-6">
+    <div class="mx-auto max-w-2xl text-center">
+      <p class="text-sm font-semibold uppercase tracking-widest text-mint">Together</p>
+      <h2 class="font-display mt-3 text-2xl font-bold tracking-tight text-ink sm:text-3xl" data-jp-heading>
+        サービス改善は、一部の人の仕事ではない。
+      </h2>
+      <p class="mt-4 text-base text-ink/65" data-jp-wrap>
+        触った人が気づき、AIが整え、開発が直し、投稿者が確認する。ShapeItはその循環を、組織の標準にします。
+      </p>
+    </div>
+
+    <div class="mt-12 grid gap-px overflow-hidden rounded-2xl border border-ink/10 bg-ink/10 sm:grid-cols-2">
+      {roles.map((r) => (
+        <div class="bg-white px-6 py-7 sm:px-8">
+          <h3 class="font-display text-lg font-bold text-ink" data-jp-heading>{r.role}</h3>
+          <p class="mt-2 text-sm leading-relaxed text-ink/60" data-jp-wrap>{r.body}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>

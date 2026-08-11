@@ -1,0 +1,59 @@
+---
+import Layout from '../layouts/Layout.astro';
+import HeroSection from '../components/HeroSection.astro';
+import TrustBar from '../components/TrustBar.astro';
+import ProblemSection from '../components/ProblemSection.astro';
+import FeaturesSection from '../components/FeaturesSection.astro';
+import HowItWorksSection from '../components/HowItWorksSection.astro';
+import CaptureEaseSection from '../components/CaptureEaseSection.astro';
+import TogetherSection from '../components/TogetherSection.astro';
+import UseCasesSection from '../components/UseCasesSection.astro';
+import PricingPreviewSection from '../components/PricingPreviewSection.astro';
+import FaqSection from '../components/FaqSection.astro';
+import { appPath, sitePath } from '../lib/urls';
+
+const loginUrl = appPath('/login');
+const pricingUrl = sitePath('pricing');
+---
+
+<Layout
+  title="ShapeIt（シェイプイット）— みんなで気づき、みんなで良くする"
+  description="バグ・使いにくさを最短10秒で記録。AIが整理し、チーム全員でサービスを改善する Product Feedback OS。"
+>
+  <HeroSection />
+  <TrustBar />
+  <ProblemSection />
+  <FeaturesSection />
+  <HowItWorksSection />
+  <CaptureEaseSection />
+  <TogetherSection />
+  <UseCasesSection />
+  <PricingPreviewSection />
+  <FaqSection />
+
+  <section class="shapeit-final-cta relative overflow-hidden bg-ink py-14 text-center sm:py-20">
+    <div class="shapeit-cta-glow pointer-events-none absolute inset-0" aria-hidden="true"></div>
+    <div class="relative mx-auto max-w-3xl px-4 sm:px-6">
+      <h2 class="font-display text-2xl font-bold tracking-tight text-paper sm:text-3xl" data-jp-heading>
+        まずは、1件だけ投稿してみてください。
+      </h2>
+      <p class="mt-3 text-base text-paper/55 sm:text-lg" data-jp-wrap>
+        Googleログインで登録。気づきを残すだけで、改善の循環が始まります。
+      </p>
+      <div class="mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
+        <a href={loginUrl} class="inline-flex justify-center rounded-xl bg-mint px-8 py-3.5 text-base font-bold text-white transition-all hover:bg-mint-bright">
+          無料で始める
+        </a>
+        <a href={pricingUrl} class="inline-flex justify-center rounded-xl border border-paper/20 px-8 py-3.5 text-base font-semibold text-paper/80 hover:border-paper/40 hover:text-paper">
+          料金プランの詳細
+        </a>
+      </div>
+    </div>
+  </section>
+</Layout>
+
+<style>
+  .shapeit-cta-glow {
+    background: radial-gradient(ellipse 70% 60% at 50% 100%, rgba(46, 196, 168, 0.28), transparent);
+  }
+</style>

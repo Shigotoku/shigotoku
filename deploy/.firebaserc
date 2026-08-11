@@ -3,7 +3,8 @@
     "default": "shigotoku-prod",
     "buzzit": "shigotoku-prod",
     "runwith": "shigotoku-runwith-prod",
-    "clipit": "shigotoku-clipit-prod-ad9ee"
+    "clipit": "shigotoku-clipit-prod-ad9ee",
+    "shapeit": "shigotoku-shapeit-prod"
   },
   "targets": {
     "shigotoku-prod": {
@@ -20,6 +21,11 @@
     "shigotoku-clipit-prod-ad9ee": {
       "hosting": {
         "clipit-app": ["shigotoku-clipit-app-ad9ee"]
+      }
+    },
+    "shigotoku-shapeit-prod": {
+      "hosting": {
+        "shapeit-app": ["shigotoku-shapeit-app-3abb1"]
       }
     }
   }

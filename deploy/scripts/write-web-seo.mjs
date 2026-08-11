@@ -13,6 +13,7 @@ Allow: /
 Allow: /runwith/
 Allow: /buzzit/
 Allow: /clipit/
+Allow: /shapeit/
 
 Sitemap: https://shigotoku.com/sitemap.xml
 `,
@@ -29,6 +30,8 @@ Sitemap: https://shigotoku.com/sitemap.xml
     { loc: 'https://shigotoku.com/buzzit/', changefreq: 'weekly', priority: '0.9' },
     { loc: 'https://shigotoku.com/clipit/', changefreq: 'weekly', priority: '0.9' },
     { loc: 'https://shigotoku.com/clipit/pricing/', changefreq: 'monthly', priority: '0.8' },
+    { loc: 'https://shigotoku.com/shapeit/', changefreq: 'weekly', priority: '0.9' },
+    { loc: 'https://shigotoku.com/shapeit/pricing/', changefreq: 'monthly', priority: '0.8' },
   ];
 
   const today = new Date().toISOString().slice(0, 10);

@@ -1,0 +1,38 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Privacy · ShapeIt" description="ShapeIt のデータ取扱い・Subprocessors・DPA 導線">
+  <section class="mx-auto max-w-3xl px-4 py-16 sm:px-6">
+    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-mint">Legal</p>
+    <h1 class="font-display mt-3 text-4xl font-bold text-ink">Privacy & Data</h1>
+    <p class="mt-4 text-ink/70 leading-relaxed">
+      ShapeIt（シェイプイット）は Product Feedback を扱う SaaS です。外販時に求められる基本的なプライバシー権利行使（開示・削除・保持）に対応できる設計を目指しています（CMP-004）。
+    </p>
+
+    <h2 class="font-display mt-10 text-2xl font-semibold">取り扱うデータ</h2>
+    <ul class="mt-3 list-disc space-y-2 pl-5 text-ink/70">
+      <li>Feedback 原文、スクリーンショット、環境メタデータ（URL / UA 等）</li>
+      <li>アカウント識別子（Google ログイン時のメール等）</li>
+      <li>Issue / コメント / 通知 / Changelog</li>
+    </ul>
+
+    <h2 class="font-display mt-10 text-2xl font-semibold">権利行使</h2>
+    <p class="mt-3 text-ink/70">
+      アプリ設定から JSON/CSV エクスポート、匿名化、削除を実行できます（デモ環境はブラウザ内データ）。本番では組織 Admin 経由のリクエストフローを提供予定です。
+    </p>
+
+    <h2 class="font-display mt-10 text-2xl font-semibold">Subprocessors（予定）</h2>
+    <ul class="mt-3 list-disc space-y-2 pl-5 text-ink/70">
+      <li>Google Cloud / Firebase（Hosting, Auth, Firestore, Storage）</li>
+      <li>AI Provider（Vertex AI / Gemini 等）— Feedback 分析</li>
+    </ul>
+
+    <h2 class="font-display mt-10 text-2xl font-semibold">DPA</h2>
+    <p class="mt-3 text-ink/70">
+      企業導入時の Data Processing Agreement は契約時に個別提供します。お問い合わせは
+      <a class="text-mint hover:underline" href="https://shigotoku.com/">シゴトク</a>
+      まで。
+    </p>
+  </section>
+</Layout>

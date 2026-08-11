@@ -14,9 +14,11 @@ const projects = [
   { name: 'runwith-landing', cwd: join(root, 'runwith/landing-page'), out: join(out, 'web/runwith') },
   { name: 'buzzit-landing', cwd: join(root, 'buzzit/landing-page'), out: join(out, 'web/buzzit') },
   { name: 'clipit-landing', cwd: join(root, 'clipit/landing-page'), out: join(out, 'web/clipit') },
+  { name: 'shapeit-landing', cwd: join(root, 'shapeit/landing-page'), out: join(out, 'web/shapeit') },
   { name: 'runwith-app', cwd: join(root, 'runwith/app'), out: join(out, 'runwith-app') },
   { name: 'buzzit-app', cwd: join(root, 'buzzit/app'), out: join(out, 'buzzit-app') },
   { name: 'clipit-app', cwd: join(root, 'clipit/app'), out: join(out, 'clipit-app') },
+  { name: 'shapeit-app', cwd: join(root, 'shapeit/app'), out: join(out, 'shapeit-app') },
 ];
 
 function run(command, cwd, env = {}) {

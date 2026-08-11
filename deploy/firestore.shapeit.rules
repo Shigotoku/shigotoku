@@ -1,0 +1,101 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isShapeItAdmin() {
+      return request.auth != null
+        && request.auth.token.email in [
+          'meditoku.jp@gmail.com',
+          'admin@shigotoku.com'
+        ];
+    }
+
+    function isShapeItMember(orgId) {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/shapeit_organizations/$(orgId)/members/$(request.auth.uid));
+    }
+
+    function canAccessOrgData(orgId) {
+      return isShapeItMember(orgId)
+        || isShapeItAdmin()
+        || (request.auth != null && orgId == request.auth.uid);
+    }
+
+    function memberDoc(orgId) {
+      return get(/databases/$(database)/documents/shapeit_organizations/$(orgId)/members/$(request.auth.uid));
+    }
+
+    function isOrgAdmin(orgId) {
+      return isShapeItMember(orgId)
+        && memberDoc(orgId).data.role in ['admin', 'owner'];
+    }
+
+    match /shapeit_organizations/{orgId} {
+      allow read: if request.auth != null && (isShapeItMember(orgId) || isShapeItAdmin());
+      allow create: if request.auth != null;
+      allow update: if isOrgAdmin(orgId) || isShapeItAdmin();
+      allow delete: if isShapeItAdmin();
+
+      match /invites/{inviteId} {
+        allow read: if request.auth != null && (isShapeItMember(orgId) || isShapeItAdmin());
+        allow create, delete: if isOrgAdmin(orgId) || isShapeItAdmin();
+      }
+
+      match /members/{memberId} {
+        allow read: if request.auth != null && (isShapeItMember(orgId) || isShapeItAdmin());
+        allow create: if request.auth != null && (
+          (request.auth.uid == memberId && memberId == request.auth.uid)
+          || isOrgAdmin(orgId)
+          || isShapeItAdmin()
+        );
+        allow update: if request.auth != null && (
+          request.auth.uid == memberId
+          || isOrgAdmin(orgId)
+          || isShapeItAdmin()
+        );
+        allow delete: if isOrgAdmin(orgId) || isShapeItAdmin();
+      }
+    }
+
+    match /shapeit_feedback/{id} {
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid
+        && canAccessOrgData(request.resource.data.organizationId);
+      allow read, update, delete: if request.auth != null
+        && canAccessOrgData(resource.data.organizationId);
+    }
+
+    match /shapeit_issues/{id} {
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid
+        && canAccessOrgData(request.resource.data.organizationId);
+      allow read, update, delete: if request.auth != null
+        && canAccessOrgData(resource.data.organizationId);
+    }
+
+    match /shapeit_comments/{id} {
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid;
+      allow read: if request.auth != null;
+      allow update, delete: if request.auth != null
+        && resource.data.uid == request.auth.uid;
+    }
+
+    match /shapeit_notifications/{id} {
+      allow create: if request.auth != null;
+      allow read, update, delete: if request.auth != null
+        && resource.data.uid == request.auth.uid;
+    }
+
+    match /shapeit_changelog/{id} {
+      allow create: if request.auth != null
+        && canAccessOrgData(request.resource.data.organizationId);
+      allow read, update, delete: if request.auth != null
+        && canAccessOrgData(resource.data.organizationId);
+    }
+
+    match /shapeit_project_keys/{id} {
+      allow read: if false;
+      allow write: if isShapeItAdmin();
+    }
+  }
+}

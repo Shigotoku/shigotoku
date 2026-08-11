@@ -1,0 +1,119 @@
+---
+import { assetPath } from '../lib/urls';
+
+const collageUrl = assetPath('use-cases-collage.png');
+
+const audiences = [
+  {
+    tag: 'SaaS・プロダクトチーム',
+    body: 'Dogfoodingから外販まで。社内の気づきと顧客要望を同じ基盤で。',
+  },
+  {
+    tag: 'カスタマーサポート',
+    body: '問い合わせの裏にあるバグ・要望を、開発Todoへ最短で橋渡し。',
+  },
+  {
+    tag: 'スタートアップ',
+    body: '少人数でも投稿文化を作る。席課金を気にせず全員に開く。',
+  },
+  {
+    tag: '大企業・複数プロダクト',
+    body: 'テナント分離・監査・権限。複数Productでも優先度を横断把握。',
+  },
+  {
+    tag: '受託・制作会社',
+    body: 'クライアントからの修正依頼をIssue化し、確認までクローズ。',
+  },
+  {
+    tag: '社内ツール担当',
+    body: '情シス・業務アプリの「使いにくい」を集め、改善サイクルを回す。',
+  },
+];
+---
+
+<section id="use-cases" class="shapeit-use-cases relative overflow-hidden py-12 sm:py-16">
+  <div class="shapeit-use-cases-bg" aria-hidden="true">
+    <img
+      src={collageUrl}
+      alt=""
+      class="shapeit-use-cases-bg-img"
+      width={1920}
+      height={1080}
+      loading="lazy"
+      decoding="async"
+    />
+  </div>
+  <div class="shapeit-use-cases-overlay" aria-hidden="true"></div>
+
+  <div class="relative z-10 mx-auto max-w-6xl px-4 sm:px-6">
+    <div class="text-center">
+      <p class="text-sm font-semibold uppercase tracking-widest text-mint">Use cases</p>
+      <h2 class="font-display mt-3 text-2xl font-bold tracking-tight text-ink sm:text-3xl" data-jp-heading>
+        こんなチームに
+      </h2>
+      <p class="mx-auto mt-3 max-w-2xl text-base text-ink/65" data-jp-wrap>
+        「気づきはあるのに、改善につながらない」現場ほど、ShapeItの効果が大きいです。
+      </p>
+    </div>
+
+    <div class="mt-10 grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+      {audiences.map((a) => (
+        <div class="min-w-0 rounded-2xl border border-ink/10 bg-white/95 p-5 backdrop-blur-sm transition-shadow hover:shadow-md">
+          <h3 class="text-sm font-bold text-ink sm:text-base" data-jp-heading>{a.tag}</h3>
+          <p class="mt-1.5 text-xs leading-relaxed text-ink/60 sm:text-sm" data-jp-wrap>{a.body}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .shapeit-use-cases {
+    isolation: isolate;
+  }
+
+  .shapeit-use-cases-bg {
+    position: absolute;
+    inset: -8%;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .shapeit-use-cases-bg-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.38;
+    animation: shapeit-use-cases-drift 30s ease-in-out infinite alternate;
+  }
+
+  .shapeit-use-cases-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background: linear-gradient(
+      180deg,
+      rgba(243, 246, 244, 0.88) 0%,
+      rgba(243, 246, 244, 0.72) 50%,
+      rgba(243, 246, 244, 0.9) 100%
+    );
+  }
+
+  @keyframes shapeit-use-cases-drift {
+    0% {
+      transform: scale(1.04) translate(0, 0);
+    }
+    100% {
+      transform: scale(1.1) translate(-1%, -0.6%);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .shapeit-use-cases-bg-img {
+      animation: none;
+      opacity: 0.28;
+    }
+  }
+</style>

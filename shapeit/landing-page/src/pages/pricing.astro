@@ -1,0 +1,34 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { appPath } from '../lib/urls';
+
+const loginUrl = appPath('/login');
+const plans = [
+  { name: 'Starter', price: '¥4,980', note: '小規模チーム', features: ['管理者3', '投稿者多数', '基本AI'] },
+  { name: 'Team', price: '¥14,800', note: 'SaaSチーム', features: ['管理者10', 'AI Triage/重複', 'GitHub/Slack'], highlight: true },
+  { name: 'Business', price: '¥39,800', note: '成長企業', features: ['複数Product', 'Analytics', 'SSO強化'] },
+  { name: 'Enterprise', price: '個別見積', note: '大企業', features: ['SAML/SCIM', '監査', 'データ地域', 'SLA'] },
+];
+---
+
+<Layout title="料金 - ShapeIt" description="投稿者席課金を抑え、管理・AI・連携側で課金する料金仮説。">
+  <section class="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-mint">Pricing</p>
+    <h1 class="font-display mt-3 text-4xl font-bold text-ink">投稿者を増やしても、導入しやすく</h1>
+    <p class="mt-4 max-w-2xl text-ink/65">Contributor/Memberは実質無制限寄り。管理者・AI・Integration・Enterprise機能で課金（仮説・変更あり）。</p>
+    <div class="mt-12 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+      {plans.map((p) => (
+        <div class={`flex flex-col rounded-2xl border bg-white p-6 ${p.highlight ? 'border-mint shadow-lg shadow-mint/10' : 'border-ink/10'}`}>
+          {p.highlight && <span class="mb-3 w-fit rounded-full bg-mint px-3 py-1 text-xs font-bold text-white">おすすめ</span>}
+          <h2 class="font-display text-xl font-semibold">{p.name}</h2>
+          <p class="mt-1 text-sm text-ink/50">{p.note}</p>
+          <p class="mt-4 text-2xl font-bold tabular-nums">{p.price}<span class="text-sm font-normal text-ink/50">/月</span></p>
+          <ul class="mt-4 space-y-2 text-sm text-ink/70">
+            {p.features.map((f) => <li>• {f}</li>)}
+          </ul>
+        </div>
+      ))}
+    </div>
+    <a href={loginUrl} class="mt-10 inline-flex rounded-lg bg-ink px-5 py-3 text-sm font-semibold text-paper">無料で始める</a>
+  </section>
+</Layout>

@@ -1,0 +1,54 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { appPath } from '../lib/urls';
+
+const loginUrl = appPath('/login');
+const features = [
+  {
+    title: 'Capture（手間なし投稿）',
+    body: 'コメントまたは音声。スクショ・URL・ブラウザ/OS/画面サイズを自動取得。必須入力は内容だけ。エラーも使いにくさも、その場で10秒。',
+  },
+  {
+    title: 'AI Triage',
+    body: 'Title / Summary / Category / Severity / Product Area / Priority / 重複候補を構造化。報告者に整理作業をさせません。',
+  },
+  {
+    title: 'Inbox',
+    body: 'Todoへ / 既存Issueへ統合 / 保留 / 却下を1〜2操作。原文は保持したまま、みんなの声を開発単位へ。',
+  },
+  {
+    title: 'Board',
+    body: 'Inbox → Todo → In Progress → Review → Verify → Done。Filterと担当管理で、チームの進捗を可視化。',
+  },
+  {
+    title: 'Closed Loop',
+    body: 'Done時に投稿者へ通知。「解決した / していない」で再オープン。改善が途切れない文化をつくります。',
+  },
+  {
+    title: 'Security',
+    body: 'Private Storage、RBAC、Audit、機微情報マスク前提。テナント分離必須で、外販にも耐える設計。',
+  },
+];
+---
+
+<Layout
+  title="機能 - ShapeIt"
+  description="手間なし投稿からClosed Loopまで。みんなでサービスを改善する ShapeIt の中核機能。"
+>
+  <section class="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-mint">Features</p>
+    <h1 class="font-display mt-3 text-4xl font-bold text-ink">投稿から確認まで、一つの流れ</h1>
+    <p class="mt-4 max-w-2xl text-ink/65" data-jp-wrap>
+      できるだけ手間をかけずに記録し、AIが整理し、チーム全員で直して確かめる。Jamの速さ × LinearのTriage × Cannyの要望管理を、一つの体験にまとめます。
+    </p>
+    <div class="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      {features.map((f) => (
+        <article class="rounded-2xl border border-ink/10 bg-white p-6">
+          <h2 class="font-display text-xl font-semibold text-ink">{f.title}</h2>
+          <p class="mt-2 text-sm leading-relaxed text-ink/65" data-jp-wrap>{f.body}</p>
+        </article>
+      ))}
+    </div>
+    <a href={loginUrl} class="mt-10 inline-flex rounded-lg bg-mint px-5 py-3 text-sm font-semibold text-white hover:bg-mint-bright">アプリで試す</a>
+  </section>
+</Layout>

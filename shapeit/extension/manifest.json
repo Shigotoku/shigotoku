@@ -1,0 +1,51 @@
+{
+  "manifest_version": 3,
+  "name": "ShapeIt - 気づきを投稿",
+  "version": "0.1.0",
+  "description": "開いている画面のスクショと一言で、ShapeIt に改善報告を送ります。",
+  "permissions": ["activeTab", "storage", "tabs"],
+  "host_permissions": [
+    "https://app.shapeit.shigotoku.com/*",
+    "https://shigotoku-shapeit-app.web.app/*",
+    "http://localhost/*",
+    "<all_urls>"
+  ],
+  "icons": {
+    "16": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  },
+  "action": {
+    "default_title": "ShapeIt に報告",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon.png",
+      "48": "icon.png",
+      "128": "icon.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "commands": {
+    "quick-report": {
+      "suggested_key": {
+        "default": "Alt+Shift+F",
+        "mac": "Alt+Shift+F"
+      },
+      "description": "今の画面を ShapeIt に報告"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://app.shapeit.shigotoku.com/*",
+        "https://shigotoku-shapeit-app.web.app/*",
+        "http://localhost:5178/*",
+        "http://127.0.0.1:5178/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
