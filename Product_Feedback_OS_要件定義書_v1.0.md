@@ -176,12 +176,27 @@
 - **ISS-006** [SHOULD] [V1] コメント、Activity、Audit Trailを時系列表示する。
 - **ISS-007** [SHOULD] [V1] AI Priorityの理由を表示し、人間のoverride値と理由を保存できる。
 
+## 4.5b Fix Packs（画面単位の一括修正）
+
+> **設計原則：同一問題は Issue に統合し、同一画面の別問題は Fix Pack に束ねる。投稿者には何もさせず、エンジニアには「この画面で直すことリスト＋修正プロンプト」を渡す。**
+
+- **PACK-001** [MUST] [V1] オープン Issue を正規化 URL（pageKey）で自動集約し、修正パック一覧を提供する。
+- **PACK-002** [MUST] [V1] パック詳細で「この画面の問題リスト」（Severity・報告数順）を表示する。
+- **PACK-003** [MUST] [V1] パック単位の Fix-with-AI プロンプト（受け入れ条件・原文サンプル込み）をワンクリックでコピーできる。
+- **PACK-004** [SHOULD] [V1] パック内 Issue を個別または一括で Done にできる。
+- **PACK-005** [MUST] [V1] pageKey 正規化はアルゴリズム優先（utm 除去・pathname 基準）。意味的な再分割が必要な場合のみ AI 補助とする。
+- **PACK-006** [SHOULD] [V1] Heatmap の URL 行から該当修正パックへ遷移できる。
+- **PACK-007** [SHOULD] [V1] 同一 URL 内でカテゴリ・文言類似によりサブパック分割し、塊ごとのプロンプト/Done ができる。
+- **PACK-008** [SHOULD] [V1] Fix Pack に担当・作業ステータス・Branch/PR・メモを保持できる（組織共有: Firestore）。
+- **PACK-009** [SHOULD] [V1] Issue Detail / Board カード / Heatmap から該当修正パックへ遷移できる。
+
 ## 4.6 My Feedback / Closed Loop
 - **MYF-001** [MUST] [MVP] 投稿者は自分のFeedback一覧と対応Statusを確認できる。
 - **MYF-002** [MUST] [MVP] 紐づくIssueがDone/Releasedになった際に投稿者へ通知する。
 - **MYF-003** [SHOULD] [V1] 投稿者が「解決した / まだ解決していない」を回答できる。
 - **MYF-004** [SHOULD] [V1] 「まだ解決していない」回答時にIssueをVerify/再オープン候補へ移行できる。
 - **MYF-005** [SHOULD] [V1] 却下・保留時は理由を投稿者に分かりやすく表示できる。
+- **MYF-006** [SHOULD] [V1] Done 通知文はカテゴリ・報告数からアルゴリズムで生成し、投稿原文を引用して確認を促す（難しい個別文面のみ AI）。
 
 ## 4.7 Ideas / Roadmap / Analytics（将来）
 - **IDEA-001** [SHOULD] [V2] Idea/Feature RequestをBug系Issueと論理的に分離して管理する。

@@ -103,6 +103,23 @@ export default function MyFeedbackPage() {
                     {STATUS_LABEL[fb.triageStatus] ?? fb.triageStatus}
                   </span>
                 </div>
+                {(fb.screenshotDataUrl || fb.audioDataUrl) && (
+                  <div className="mt-2 flex flex-wrap items-start gap-3">
+                    {fb.screenshotDataUrl && (
+                      <img
+                        src={fb.screenshotDataUrl}
+                        alt=""
+                        className="h-16 w-auto max-w-[40%] rounded-lg border border-ink/10 object-cover"
+                      />
+                    )}
+                    {fb.audioDataUrl && (
+                      <audio controls src={fb.audioDataUrl} className="h-8 max-w-full flex-1" />
+                    )}
+                  </div>
+                )}
+                {fb.source && (
+                  <p className="mt-1 text-[10px] uppercase tracking-wide text-ink/35">{fb.source}</p>
+                )}
                 <p className="mt-2 text-xs text-ink/45">
                   {formatInTz(fb.createdAt)}
                   {fb.analysis?.title ? ` · ${fb.analysis.title}` : ""}

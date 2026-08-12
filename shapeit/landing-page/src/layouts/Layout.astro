@@ -29,6 +29,7 @@ const featuresPageUrl = sitePath('features');
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b1320" />
     <meta name="description" content={description} />
     <link rel="icon" type="image/png" href={shapeitIconPath} />
     <link rel="apple-touch-icon" href={shapeitIconPath} />
@@ -41,15 +42,15 @@ const featuresPageUrl = sitePath('features');
     <title>{title}</title>
   </head>
   <body class="min-h-screen antialiased">
-    <header class="sticky top-0 z-50 border-b border-ink/10 bg-paper/90 backdrop-blur-md">
-      <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
-        <a href={homeUrl} class="flex items-center gap-2.5 transition-opacity hover:opacity-80">
+    <header class="sticky top-0 z-50 border-b border-ink/10 bg-paper/95 pt-[env(safe-area-inset-top)] backdrop-blur-md">
+      <div class="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2.5 sm:px-6 sm:py-3">
+        <a href={homeUrl} class="flex min-w-0 items-center gap-2 transition-opacity hover:opacity-80 sm:gap-2.5">
           <span class="shapeit-icon-frame shapeit-icon-frame--header">
             <img src={shapeitIconPath} alt="ShapeIt" class="shapeit-brand-icon" width="36" height="36" />
           </span>
-          <span class="font-display text-lg font-semibold tracking-tight text-ink">ShapeIt</span>
+          <span class="font-display truncate text-base font-semibold tracking-tight text-ink sm:text-lg">ShapeIt</span>
         </a>
-        <nav class="hidden items-center gap-6 md:flex">
+        <nav class="hidden items-center gap-5 lg:flex xl:gap-6">
           <a href={howUrl} class="text-sm font-medium text-ink/55 hover:text-ink">使い方</a>
           <a href={featuresUrl} class="text-sm font-medium text-ink/55 hover:text-ink">機能</a>
           <a href={pricingAnchorUrl} class="text-sm font-medium text-ink/55 hover:text-ink">料金</a>
@@ -57,29 +58,39 @@ const featuresPageUrl = sitePath('features');
           <a href={loginUrl} class="text-sm font-medium text-ink/55 hover:text-ink">ログイン</a>
           <a href={loginUrl} class="rounded-lg bg-mint px-4 py-2 text-sm font-semibold text-white hover:bg-mint-bright">無料で始める</a>
         </nav>
-        <button
-          id="menu-toggle"
-          type="button"
-          class="rounded-lg p-2 text-ink/70 transition-colors hover:bg-ink/5 md:hidden"
-          aria-label="メニューを開く"
-        >
-          <svg id="menu-icon-open" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
-          <svg id="menu-icon-close" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-        </button>
+        <div class="flex items-center gap-2 lg:hidden">
+          <a
+            href={loginUrl}
+            class="shapeit-tap inline-flex items-center justify-center rounded-lg bg-mint px-3.5 py-2 text-sm font-semibold text-white hover:bg-mint-bright"
+          >
+            始める
+          </a>
+          <button
+            id="menu-toggle"
+            type="button"
+            class="shapeit-tap inline-flex items-center justify-center rounded-lg p-2 text-ink/70 transition-colors hover:bg-ink/5"
+            aria-expanded="false"
+            aria-controls="mobile-menu"
+            aria-label="メニューを開く"
+          >
+            <svg id="menu-icon-open" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+            <svg id="menu-icon-close" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
+        </div>
       </div>
-      <div id="mobile-menu" class="hidden border-t border-ink/10 bg-paper px-4 pb-4 pt-2 md:hidden">
-        <a href={howUrl} class="block min-h-[44px] rounded-lg px-3 py-3 text-sm font-medium text-ink/70 hover:bg-ink/5">使い方</a>
-        <a href={featuresUrl} class="block min-h-[44px] rounded-lg px-3 py-3 text-sm font-medium text-ink/70 hover:bg-ink/5">機能</a>
-        <a href={pricingAnchorUrl} class="block min-h-[44px] rounded-lg px-3 py-3 text-sm font-medium text-ink/70 hover:bg-ink/5">料金</a>
-        <a href={faqUrl} class="block min-h-[44px] rounded-lg px-3 py-3 text-sm font-medium text-ink/70 hover:bg-ink/5">FAQ</a>
-        <a href={loginUrl} class="block min-h-[44px] rounded-lg px-3 py-3 text-sm font-medium text-ink/70 hover:bg-ink/5">ログイン</a>
-        <a href={loginUrl} class="mt-2 block min-h-[44px] rounded-xl bg-mint px-4 py-3.5 text-center text-sm font-semibold text-white">無料で始める</a>
+      <div id="mobile-menu" class="hidden border-t border-ink/10 bg-paper px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 lg:hidden">
+        <a href={howUrl} class="mobile-nav-link block min-h-[48px] rounded-lg px-3 py-3.5 text-base font-medium text-ink/80 hover:bg-ink/5">使い方</a>
+        <a href={featuresUrl} class="mobile-nav-link block min-h-[48px] rounded-lg px-3 py-3.5 text-base font-medium text-ink/80 hover:bg-ink/5">機能</a>
+        <a href={pricingAnchorUrl} class="mobile-nav-link block min-h-[48px] rounded-lg px-3 py-3.5 text-base font-medium text-ink/80 hover:bg-ink/5">料金</a>
+        <a href={faqUrl} class="mobile-nav-link block min-h-[48px] rounded-lg px-3 py-3.5 text-base font-medium text-ink/80 hover:bg-ink/5">FAQ</a>
+        <a href={loginUrl} class="mobile-nav-link block min-h-[48px] rounded-lg px-3 py-3.5 text-base font-medium text-ink/80 hover:bg-ink/5">ログイン</a>
+        <a href={loginUrl} class="mobile-nav-link mt-2 block min-h-[48px] rounded-xl bg-mint px-4 py-3.5 text-center text-base font-semibold text-white">無料で始める</a>
       </div>
     </header>
     <main>
       <slot />
     </main>
-    <footer class="border-t border-ink/10 bg-ink text-paper">
+    <footer class="border-t border-ink/10 bg-ink pb-[env(safe-area-inset-bottom)] text-paper">
       <div class="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 sm:flex-row sm:items-start sm:justify-between sm:px-6">
         <div class="flex items-start gap-3">
           <span class="shapeit-icon-frame shapeit-icon-frame--footer">
@@ -90,12 +101,12 @@ const featuresPageUrl = sitePath('features');
             <p class="mt-1 text-sm text-paper/55">みんなで気づき、みんなで良くする。</p>
           </div>
         </div>
-        <div class="flex flex-wrap gap-4 text-sm text-paper/65">
-          <a href={featuresPageUrl} class="hover:text-paper">機能詳細</a>
-          <a href={pricingUrl} class="hover:text-paper">料金</a>
-          <a href={securityUrl} class="hover:text-paper">セキュリティ</a>
-          <a href={privacyUrl} class="hover:text-paper">Privacy</a>
-          <a href="https://shigotoku.com/" class="hover:text-paper">シゴトク</a>
+        <div class="flex flex-wrap gap-x-1 gap-y-1 text-sm text-paper/65">
+          <a href={featuresPageUrl} class="inline-flex min-h-[44px] items-center px-2 hover:text-paper">機能詳細</a>
+          <a href={pricingUrl} class="inline-flex min-h-[44px] items-center px-2 hover:text-paper">料金</a>
+          <a href={securityUrl} class="inline-flex min-h-[44px] items-center px-2 hover:text-paper">セキュリティ</a>
+          <a href={privacyUrl} class="inline-flex min-h-[44px] items-center px-2 hover:text-paper">Privacy</a>
+          <a href="https://shigotoku.com/" class="inline-flex min-h-[44px] items-center px-2 hover:text-paper">シゴトク</a>
         </div>
       </div>
     </footer>
@@ -104,11 +115,22 @@ const featuresPageUrl = sitePath('features');
       const menu = document.getElementById('mobile-menu');
       const iconOpen = document.getElementById('menu-icon-open');
       const iconClose = document.getElementById('menu-icon-close');
-      toggle?.addEventListener('click', () => {
-        const open = menu?.classList.toggle('hidden') === false;
+
+      function setMenuOpen(open) {
+        menu?.classList.toggle('hidden', !open);
         iconOpen?.classList.toggle('hidden', open);
         iconClose?.classList.toggle('hidden', !open);
-        toggle.setAttribute('aria-label', open ? 'メニューを閉じる' : 'メニューを開く');
+        toggle?.setAttribute('aria-expanded', open ? 'true' : 'false');
+        toggle?.setAttribute('aria-label', open ? 'メニューを閉じる' : 'メニューを開く');
+      }
+
+      toggle?.addEventListener('click', () => {
+        const open = menu?.classList.contains('hidden') ?? true;
+        setMenuOpen(open);
+      });
+
+      menu?.querySelectorAll('a').forEach((link) => {
+        link.addEventListener('click', () => setMenuOpen(false));
       });
     </script>
   </body>

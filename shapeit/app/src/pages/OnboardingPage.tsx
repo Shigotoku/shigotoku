@@ -51,18 +51,39 @@ export default function OnboardingPage() {
       {step === 1 && (
         <section className="rounded-2xl border border-ink/10 bg-white p-5 text-sm">
           <h2 className="font-semibold">Capture の置き方</h2>
-          <ul className="mt-3 list-disc space-y-1 pl-5 text-ink/70">
-            <li>アプリ内の「気づき」FAB</li>
-            <li>Chrome 拡張（任意サイト）</li>
-            <li>埋め込み Widget（設定に snippet）</li>
-          </ul>
-          <button
-            type="button"
-            className="mt-4 rounded-lg bg-mint px-4 py-2 text-sm font-semibold text-white"
-            onClick={() => setStep(2)}
-          >
-            次へ
-          </button>
+          <div className="mt-3 space-y-3 text-ink/70">
+            <div>
+              <p className="font-medium text-ink">PC</p>
+              <ul className="mt-1 list-disc space-y-1 pl-5">
+                <li>Chrome 拡張（閲覧中ページのスクショ・URL 自動）</li>
+                <li>アプリ内の投稿 / 埋め込み Widget</li>
+              </ul>
+            </div>
+            <div>
+              <p className="font-medium text-ink">スマートフォン</p>
+              <ul className="mt-1 list-disc space-y-1 pl-5">
+                <li>ホーム画面に追加（PWA）※拡張は使えません</li>
+                <li>最速: スクショ → 話す（端末の音声認識）→ 送信</li>
+                <li>うまくいかないときはキーボードのマイク、または音声添付</li>
+              </ul>
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="min-h-[44px] rounded-xl bg-mint px-4 py-2 text-sm font-semibold text-white"
+              onClick={() => setStep(2)}
+            >
+              次へ
+            </button>
+            <button
+              type="button"
+              className="min-h-[44px] rounded-xl border border-ink/15 px-4 py-2 text-sm font-semibold"
+              onClick={() => navigate("/extension/install")}
+            >
+              詳細な使い方
+            </button>
+          </div>
         </section>
       )}
 

@@ -31,20 +31,20 @@ const pricingUrl = sitePath('pricing');
   <PricingPreviewSection />
   <FaqSection />
 
-  <section class="shapeit-final-cta relative overflow-hidden bg-ink py-14 text-center sm:py-20">
+  <section class="shapeit-final-cta relative overflow-hidden bg-ink py-12 text-center sm:py-20">
     <div class="shapeit-cta-glow pointer-events-none absolute inset-0" aria-hidden="true"></div>
-    <div class="relative mx-auto max-w-3xl px-4 sm:px-6">
-      <h2 class="font-display text-2xl font-bold tracking-tight text-paper sm:text-3xl" data-jp-heading>
+    <div class="relative mx-auto max-w-3xl px-4 pb-[env(safe-area-inset-bottom)] sm:px-6">
+      <h2 class="shapeit-h2 font-display font-bold tracking-tight text-paper" data-jp-heading>
         まずは、1件だけ投稿してみてください。
       </h2>
-      <p class="mt-3 text-base text-paper/55 sm:text-lg" data-jp-wrap>
+      <p class="shapeit-lead mt-3 text-paper/55" data-jp-wrap>
         Googleログインで登録。気づきを残すだけで、改善の循環が始まります。
       </p>
-      <div class="mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
-        <a href={loginUrl} class="inline-flex justify-center rounded-xl bg-mint px-8 py-3.5 text-base font-bold text-white transition-all hover:bg-mint-bright">
+      <div class="mt-7 flex flex-col items-stretch justify-center gap-3 sm:mt-8 sm:flex-row sm:items-center">
+        <a href={loginUrl} class="shapeit-tap inline-flex items-center justify-center rounded-xl bg-mint px-6 py-3.5 text-base font-bold text-white transition-all hover:bg-mint-bright sm:px-8">
           無料で始める
         </a>
-        <a href={pricingUrl} class="inline-flex justify-center rounded-xl border border-paper/20 px-8 py-3.5 text-base font-semibold text-paper/80 hover:border-paper/40 hover:text-paper">
+        <a href={pricingUrl} class="shapeit-tap inline-flex items-center justify-center rounded-xl border border-paper/20 px-6 py-3.5 text-base font-semibold text-paper/80 hover:border-paper/40 hover:text-paper sm:px-8">
           料金プランの詳細
         </a>
       </div>

@@ -31,7 +31,7 @@ const audiences = [
 ];
 ---
 
-<section id="use-cases" class="shapeit-use-cases relative overflow-hidden py-12 sm:py-16">
+<section id="use-cases" class="shapeit-use-cases shapeit-section relative overflow-hidden">
   <div class="shapeit-use-cases-bg" aria-hidden="true">
     <img
       src={collageUrl}
@@ -47,20 +47,20 @@ const audiences = [
 
   <div class="relative z-10 mx-auto max-w-6xl px-4 sm:px-6">
     <div class="text-center">
-      <p class="text-sm font-semibold uppercase tracking-widest text-mint">Use cases</p>
-      <h2 class="font-display mt-3 text-2xl font-bold tracking-tight text-ink sm:text-3xl" data-jp-heading>
+      <p class="text-xs font-semibold uppercase tracking-widest text-mint sm:text-sm">Use cases</p>
+      <h2 class="shapeit-h2 font-display mt-3 font-bold tracking-tight text-ink" data-jp-heading>
         こんなチームに
       </h2>
-      <p class="mx-auto mt-3 max-w-2xl text-base text-ink/65" data-jp-wrap>
+      <p class="shapeit-lead mx-auto mt-3 max-w-2xl text-ink/65" data-jp-wrap>
         「気づきはあるのに、改善につながらない」現場ほど、ShapeItの効果が大きいです。
       </p>
     </div>
 
-    <div class="mt-10 grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+    <div class="shapeit-grid-safe mt-8 grid gap-2.5 sm:mt-10 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
       {audiences.map((a) => (
-        <div class="min-w-0 rounded-2xl border border-ink/10 bg-white/95 p-5 backdrop-blur-sm transition-shadow hover:shadow-md">
+        <div class="min-w-0 rounded-2xl border border-ink/10 bg-white/95 p-4 backdrop-blur-sm transition-shadow hover:shadow-md sm:p-5">
           <h3 class="text-sm font-bold text-ink sm:text-base" data-jp-heading>{a.tag}</h3>
-          <p class="mt-1.5 text-xs leading-relaxed text-ink/60 sm:text-sm" data-jp-wrap>{a.body}</p>
+          <p class="shapeit-body mt-1.5 text-ink/60" data-jp-wrap>{a.body}</p>
         </div>
       ))}
     </div>
@@ -86,6 +86,13 @@ const audiences = [
     object-fit: cover;
     opacity: 0.38;
     animation: shapeit-use-cases-drift 30s ease-in-out infinite alternate;
+  }
+
+  @media (max-width: 639px) {
+    .shapeit-use-cases-bg-img {
+      animation: none;
+      opacity: 0.28;
+    }
   }
 
   .shapeit-use-cases-overlay {

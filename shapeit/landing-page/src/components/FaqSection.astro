@@ -23,10 +23,10 @@ const faqs = [
 ];
 ---
 
-<section id="faq" class="bg-white py-12 sm:py-20">
+<section id="faq" class="shapeit-section--lg bg-white">
   <div class="mx-auto max-w-3xl px-4 sm:px-6">
     <div class="text-center">
-      <h2 class="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl" data-jp-heading>
+      <h2 class="shapeit-h2 font-display font-bold tracking-tight text-ink" data-jp-heading>
         よくある質問
       </h2>
     </div>
@@ -34,7 +34,7 @@ const faqs = [
       {faqs.map((item) => (
         <div class="rounded-2xl border border-ink/10 bg-paper px-4 py-4 sm:px-6 sm:py-5">
           <dt class="text-sm font-bold text-ink sm:text-base" data-jp-wrap>{item.q}</dt>
-          <dd class="mt-2 text-sm leading-relaxed text-ink/60" data-jp-wrap>{item.a}</dd>
+          <dd class="shapeit-body mt-2 text-ink/60" data-jp-wrap>{item.a}</dd>
         </div>
       ))}
     </dl>

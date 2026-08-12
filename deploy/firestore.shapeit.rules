@@ -89,6 +89,17 @@ service cloud.firestore {
     match /shapeit_changelog/{id} {
       allow create: if request.auth != null
         && canAccessOrgData(request.resource.data.organizationId);
+      allow update, delete: if request.auth != null
+        && canAccessOrgData(resource.data.organizationId);
+      // 公開エントリは未ログインでも読める（CL-002）
+      allow read: if resource.data.visibility == 'public'
+        || (request.auth != null && canAccessOrgData(resource.data.organizationId));
+    }
+
+    match /shapeit_fix_pack_meta/{id} {
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid
+        && canAccessOrgData(request.resource.data.organizationId);
       allow read, update, delete: if request.auth != null
         && canAccessOrgData(resource.data.organizationId);
     }

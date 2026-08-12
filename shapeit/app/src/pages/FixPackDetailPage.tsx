@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
+  getPackMetaRemote,
   listIssuesRemote,
   listOrgFeedbackRemote,
   updateIssueStatusRemote,
+  upsertPackMetaRemote,
 } from "../lib/cloudStore";
 import { buildFixPackPrompt, buildPackDoneSummary } from "../lib/fixAgent";
 import {
@@ -14,12 +16,7 @@ import {
   type FixPackCluster,
 } from "../lib/fixPacks";
 import { decodePackId } from "../lib/pageKey";
-import {
-  getPackMeta,
-  upsertPackMeta,
-  type FixPackMeta,
-  type PackWorkStatus,
-} from "../lib/packMeta";
+import { type FixPackMeta, type PackWorkStatus } from "../lib/packMeta";
 import { suggestAssignees } from "../lib/demoStore";
 import type { Feedback, Issue } from "../lib/types";
 
@@ -54,7 +51,8 @@ export default function FixPackDetailPage() {
   }, [issues, feedback, packId]);
 
   useEffect(() => {
-    if (pack) setMeta(getPackMeta(pack.pageKey));
+    if (!pack) return;
+    void getPackMetaRemote(pack.pageKey).then(setMeta);
   }, [pack?.pageKey]);
 
   const clusters = useMemo(() => (pack ? splitPackIntoClusters(pack) : []), [pack]);
@@ -77,8 +75,8 @@ export default function FixPackDetailPage() {
     );
   }
 
-  const patchMeta = (patch: Parameters<typeof upsertPackMeta>[1]) => {
-    setMeta(upsertPackMeta(pack.pageKey, patch));
+  const patchMeta = async (patch: Parameters<typeof upsertPackMetaRemote>[1]) => {
+    setMeta(await upsertPackMetaRemote(pack.pageKey, patch));
   };
 
   const copyPrompt = async (label?: string, cluster?: FixPackCluster) => {
@@ -106,7 +104,7 @@ export default function FixPackDetailPage() {
         await updateIssueStatusRemote(id, "done");
       }
       if (issueIds.length === pack.openIssueCount) {
-        patchMeta({ workStatus: "shipped" });
+        await patchMeta({ workStatus: "shipped" });
       }
       setBanner(buildPackDoneSummary(pack, issueIds.length));
       await reload();
@@ -143,7 +141,7 @@ export default function FixPackDetailPage() {
       <section className="rounded-xl border border-ink/10 bg-white p-4">
         <h2 className="text-sm font-semibold">作業メタ</h2>
         <p className="mt-1 text-[11px] text-ink/45">
-          担当・PR はこの端末に保存されます（組織共有は今後）
+          担当・PR は組織で共有されます（オフライン時は端末にも保存）
         </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <label className="block text-xs">
@@ -152,7 +150,7 @@ export default function FixPackDetailPage() {
               list="pack-assignees"
               className="mt-1 w-full rounded-lg border border-ink/10 px-2 py-2 text-sm"
               value={meta?.assignee ?? ""}
-              onChange={(e) => patchMeta({ assignee: e.target.value })}
+              onChange={(e) => void patchMeta({ assignee: e.target.value })}
               placeholder="名前"
             />
             <datalist id="pack-assignees">
@@ -166,7 +164,7 @@ export default function FixPackDetailPage() {
             <select
               className="mt-1 w-full rounded-lg border border-ink/10 px-2 py-2 text-sm"
               value={meta?.workStatus ?? "open"}
-              onChange={(e) => patchMeta({ workStatus: e.target.value as PackWorkStatus })}
+              onChange={(e) => void patchMeta({ workStatus: e.target.value as PackWorkStatus })}
             >
               <option value="open">未着手</option>
               <option value="in_progress">作業中</option>
@@ -178,7 +176,7 @@ export default function FixPackDetailPage() {
             <input
               className="mt-1 w-full rounded-lg border border-ink/10 px-2 py-2 text-sm"
               value={meta?.branchName ?? ""}
-              onChange={(e) => patchMeta({ branchName: e.target.value })}
+              onChange={(e) => void patchMeta({ branchName: e.target.value })}
               placeholder="fix/settings-pack"
             />
           </label>
@@ -187,7 +185,7 @@ export default function FixPackDetailPage() {
             <input
               className="mt-1 w-full rounded-lg border border-ink/10 px-2 py-2 text-sm"
               value={meta?.prUrl ?? ""}
-              onChange={(e) => patchMeta({ prUrl: e.target.value })}
+              onChange={(e) => void patchMeta({ prUrl: e.target.value })}
               placeholder="https://github.com/..."
             />
           </label>
@@ -197,7 +195,7 @@ export default function FixPackDetailPage() {
               className="mt-1 w-full rounded-lg border border-ink/10 px-2 py-2 text-sm"
               rows={2}
               value={meta?.note ?? ""}
-              onChange={(e) => patchMeta({ note: e.target.value })}
+              onChange={(e) => void patchMeta({ note: e.target.value })}
               placeholder="この画面で一緒に直す方針など"
             />
           </label>
@@ -219,7 +217,7 @@ export default function FixPackDetailPage() {
           type="button"
           className="rounded-lg bg-ink px-3 py-2 text-xs font-semibold text-paper"
           onClick={() => {
-            patchMeta({ workStatus: "in_progress" });
+            void patchMeta({ workStatus: "in_progress" });
             void copyPrompt("all");
           }}
         >

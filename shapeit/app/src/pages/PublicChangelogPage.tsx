@@ -1,12 +1,21 @@
 import { useEffect, useState } from "react";
-import { listPublicChangelog } from "../lib/demoStore";
+import { listPublicChangelogRemote } from "../lib/cloudStore";
 import type { ChangelogEntry } from "../lib/types";
 
-/** CL-002: 公開 Changelog（ログイン不要） */
+/** CL-002: 公開 Changelog（ログイン不要・Firestore public） */
 export default function PublicChangelogPage() {
   const [items, setItems] = useState<ChangelogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    setItems(listPublicChangelog());
+    void (async () => {
+      setLoading(true);
+      try {
+        setItems(await listPublicChangelogRemote());
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, []);
 
   return (
@@ -22,7 +31,9 @@ export default function PublicChangelogPage() {
         >
           印刷
         </button>
-        {items.length === 0 ? (
+        {loading ? (
+          <p className="mt-8 text-sm text-ink/50">読み込み中…</p>
+        ) : items.length === 0 ? (
           <p className="mt-8 text-sm text-ink/50">まだ公開エントリがありません。</p>
         ) : (
           <ol className="mt-8 space-y-6 border-l border-ink/10 pl-6">

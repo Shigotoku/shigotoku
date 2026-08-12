@@ -1,10 +1,37 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { computeDigest, formatInTz, generateWeeklyReviewText } from "../lib/demoStore";
+import {
+  listIssuesRemote,
+  listNotificationsRemote,
+  listOrgFeedbackRemote,
+} from "../lib/cloudStore";
+import {
+  computeDigestFromData,
+  generateWeeklyReviewTextFromDigest,
+  type DigestData,
+} from "../lib/digest";
+import { formatInTz } from "../lib/demoStore";
 
 export default function DigestPage() {
-  const d = computeDigest();
-  const [review] = useState(() => generateWeeklyReviewText());
+  const [d, setD] = useState<DigestData | null>(null);
+  const [review, setReview] = useState("");
+
+  useEffect(() => {
+    void (async () => {
+      const [feedback, issues, notifications] = await Promise.all([
+        listOrgFeedbackRemote(),
+        listIssuesRemote(),
+        listNotificationsRemote(),
+      ]);
+      const digest = computeDigestFromData(feedback, issues, notifications);
+      setD(digest);
+      setReview(generateWeeklyReviewTextFromDigest(digest));
+    })();
+  }, []);
+
+  if (!d) {
+    return <p className="text-sm text-ink/50">集計中…</p>;
+  }
 
   return (
     <div className="w-full space-y-6 print:max-w-none">
@@ -14,13 +41,21 @@ export default function DigestPage() {
           <h1 className="font-display mt-1 text-3xl font-bold">週次ダイジェスト</h1>
           <p className="mt-2 text-sm text-ink/60">直近7日 · {d.weekLabel} 時点</p>
         </div>
-        <button
-          type="button"
-          className="rounded-lg border border-ink/15 px-3 py-2 text-xs font-semibold print:hidden"
-          onClick={() => window.print()}
-        >
-          印刷 / PDF
-        </button>
+        <div className="flex gap-2 print:hidden">
+          <Link
+            to="/fix-packs"
+            className="rounded-lg border border-mint/30 bg-mint/5 px-3 py-2 text-xs font-semibold text-mint"
+          >
+            修正パック
+          </Link>
+          <button
+            type="button"
+            className="rounded-lg border border-ink/15 px-3 py-2 text-xs font-semibold"
+            onClick={() => window.print()}
+          >
+            印刷 / PDF
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

@@ -1,15 +1,17 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { listChangelogRemote } from "../lib/cloudStore";
-import { updateChangelogEntry } from "../lib/demoStore";
-import { useAuth } from "../components/AuthProvider";
+import { listChangelogRemote, updateChangelogRemote } from "../lib/cloudStore";
 import type { ChangelogEntry } from "../lib/types";
 
 export default function ChangelogPage() {
-  const { mode } = useAuth();
   const [items, setItems] = useState<ChangelogEntry[]>([]);
   const [editing, setEditing] = useState<string | null>(null);
-  const [draft, setDraft] = useState({ title: "", summary: "", visibility: "public" as "public" | "internal" });
+  const [draft, setDraft] = useState({
+    title: "",
+    summary: "",
+    visibility: "public" as "public" | "internal",
+  });
+  const [saving, setSaving] = useState(false);
 
   const reload = async () => setItems(await listChangelogRemote());
 
@@ -23,7 +25,9 @@ export default function ChangelogPage() {
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">Closed Loop</p>
           <h1 className="font-display mt-1 text-3xl font-bold">Changelog</h1>
-          <p className="mt-2 text-sm text-ink/60">Done で自動追記。公開 / 社内の可視性を切り替えられます。</p>
+          <p className="mt-2 text-sm text-ink/60">
+            Done で自動追記（冪等）。公開 / 社内の可視性を切り替えられます。
+          </p>
         </div>
         <div className="flex gap-2 print:hidden">
           <a href="/public/changelog" className="rounded-lg border border-ink/15 px-3 py-2 text-xs font-semibold">
@@ -40,7 +44,7 @@ export default function ChangelogPage() {
       </div>
       {items.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-ink/20 bg-white p-8 text-sm text-ink/60">
-          まだエントリがありません。Board で Issue を Done にしてください。
+          まだエントリがありません。Board や修正パックで Issue を Done にしてください。
         </div>
       ) : (
         <ol className="relative space-y-4 border-l border-ink/10 pl-6">
@@ -77,11 +81,17 @@ export default function ChangelogPage() {
                   <div className="flex gap-2">
                     <button
                       type="button"
-                      className="rounded-lg bg-mint px-3 py-1.5 text-xs font-semibold text-white"
-                      onClick={() => {
-                        if (mode === "demo") updateChangelogEntry(c.id, draft);
-                        setEditing(null);
-                        void reload();
+                      disabled={saving}
+                      className="rounded-lg bg-mint px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
+                      onClick={async () => {
+                        setSaving(true);
+                        try {
+                          await updateChangelogRemote(c.id, draft);
+                          setEditing(null);
+                          await reload();
+                        } finally {
+                          setSaving(false);
+                        }
                       }}
                     >
                       保存
@@ -105,36 +115,32 @@ export default function ChangelogPage() {
                         Issue を開く →
                       </Link>
                     )}
-                    {mode === "demo" && (
-                      <>
-                        <button
-                          type="button"
-                          className="text-ink/50 hover:underline"
-                          onClick={() => {
-                            setEditing(c.id);
-                            setDraft({
-                              title: c.title,
-                              summary: c.summary,
-                              visibility: c.visibility ?? "public",
-                            });
-                          }}
-                        >
-                          編集
-                        </button>
-                        <button
-                          type="button"
-                          className="text-ink/50 hover:underline"
-                          onClick={() => {
-                            const next =
-                              (c.visibility ?? "public") === "public" ? "internal" : "public";
-                            updateChangelogEntry(c.id, { visibility: next });
-                            void reload();
-                          }}
-                        >
-                          {(c.visibility ?? "public") === "public" ? "社内のみに" : "公開する"}
-                        </button>
-                      </>
-                    )}
+                    <button
+                      type="button"
+                      className="text-ink/50 hover:underline"
+                      onClick={() => {
+                        setEditing(c.id);
+                        setDraft({
+                          title: c.title,
+                          summary: c.summary,
+                          visibility: c.visibility ?? "public",
+                        });
+                      }}
+                    >
+                      編集
+                    </button>
+                    <button
+                      type="button"
+                      className="text-ink/50 hover:underline"
+                      onClick={async () => {
+                        const next =
+                          (c.visibility ?? "public") === "public" ? "internal" : "public";
+                        await updateChangelogRemote(c.id, { visibility: next });
+                        await reload();
+                      }}
+                    >
+                      {(c.visibility ?? "public") === "public" ? "社内のみに" : "公開する"}
+                    </button>
                   </div>
                 </>
               )}

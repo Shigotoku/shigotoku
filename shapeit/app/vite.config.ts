@@ -16,4 +16,8 @@ export default defineConfig({
       "@": path.resolve(rootDir, "./src"),
     },
   },
+  test: {
+    environment: "jsdom",
+    include: ["src/**/*.test.ts"],
+  },
 });

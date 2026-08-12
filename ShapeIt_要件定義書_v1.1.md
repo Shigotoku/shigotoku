@@ -187,8 +187,8 @@
 - **PACK-005** [MUST] [V1] pageKey 正規化はアルゴリズム優先（utm 除去・pathname 基準）。意味的な再分割が必要な場合のみ AI 補助とする。
 - **PACK-006** [SHOULD] [V1] Heatmap の URL 行から該当修正パックへ遷移できる。
 - **PACK-007** [SHOULD] [V1] 同一 URL 内でカテゴリ・文言類似によりサブパック分割し、塊ごとのプロンプト/Done ができる。
-- **PACK-008** [SHOULD] [V1] Fix Pack に担当・作業ステータス・Branch/PR・メモを保持できる（初期はクライアント永続、V2で組織共有）。
-- **PACK-009** [SHOULD] [V1] Issue Detail / Board / Heatmap から該当修正パックへ遷移できる。
+- **PACK-008** [SHOULD] [V1] Fix Pack に担当・作業ステータス・Branch/PR・メモを保持できる（組織共有: Firestore `shapeit_fix_pack_meta`、ローカルフォールバックあり）。
+- **PACK-009** [SHOULD] [V1] Issue Detail / Board カード / Heatmap から該当修正パックへ遷移できる。
 
 ## 4.6 My Feedback / Closed Loop
 - **MYF-001** [MUST] [MVP] 投稿者は自分のFeedback一覧と対応Statusを確認できる。

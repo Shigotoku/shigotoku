@@ -1,23 +1,31 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { listIssuesRemote, listOrgFeedbackRemote } from "../lib/cloudStore";
+import { listIssuesRemote, listOrgFeedbackRemote, listPackMetaRemote } from "../lib/cloudStore";
 import { buildFixPacks, splitPackIntoClusters, type FixPack } from "../lib/fixPacks";
-import { getPackMeta } from "../lib/packMeta";
+import type { FixPackMeta } from "../lib/packMeta";
 import type { Feedback, Issue } from "../lib/types";
 
 /** 同一 URL のオープン Issue を束ねた「修正パック」一覧 */
 export default function FixPacksPage() {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [feedback, setFeedback] = useState<Feedback[]>([]);
+  const [metaByKey, setMetaByKey] = useState<Record<string, FixPackMeta>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     void (async () => {
       setLoading(true);
       try {
-        const [i, f] = await Promise.all([listIssuesRemote(), listOrgFeedbackRemote()]);
+        const [i, f, metas] = await Promise.all([
+          listIssuesRemote(),
+          listOrgFeedbackRemote(),
+          listPackMetaRemote(),
+        ]);
         setIssues(i);
         setFeedback(f);
+        const map: Record<string, FixPackMeta> = {};
+        for (const m of metas) map[m.pageKey] = m;
+        setMetaByKey(map);
       } finally {
         setLoading(false);
       }
@@ -72,7 +80,12 @@ export default function FixPacksPage() {
       ) : (
         <ul className="space-y-2">
           {packs.map((pack) => (
-            <PackRow key={pack.id} pack={pack} maxUrgency={maxUrgency} />
+            <PackRow
+              key={pack.id}
+              pack={pack}
+              maxUrgency={maxUrgency}
+              meta={metaByKey[pack.pageKey]}
+            />
           ))}
         </ul>
       )}
@@ -86,9 +99,16 @@ const WORK_LABEL = {
   shipped: "出荷済",
 } as const;
 
-function PackRow({ pack, maxUrgency }: { pack: FixPack; maxUrgency: number }) {
+function PackRow({
+  pack,
+  maxUrgency,
+  meta,
+}: {
+  pack: FixPack;
+  maxUrgency: number;
+  meta?: FixPackMeta;
+}) {
   const intensity = pack.urgencyScore / maxUrgency;
-  const meta = getPackMeta(pack.pageKey);
   const clusters = splitPackIntoClusters(pack);
   return (
     <li

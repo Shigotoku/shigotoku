@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { createManualIssueRemote, listIssuesRemote, updateIssueStatusRemote } from "../lib/cloudStore";
+import { createManualIssueRemote, listIssuesRemote, listOrgFeedbackRemote, updateIssueStatusRemote } from "../lib/cloudStore";
 import {
   deleteSavedView,
   listSavedViews,
   saveSavedView,
   type SavedView,
 } from "../lib/demoStore";
-import type { Issue, IssueStatus } from "../lib/types";
+import { encodePackId } from "../lib/pageKey";
+import { pageKeyOfIssue } from "../lib/fixPacks";
+import type { Feedback, Issue, IssueStatus } from "../lib/types";
 import { t } from "../lib/i18n";
 
 const COLUMNS: { id: IssueStatus; label: string }[] = [
@@ -23,6 +25,7 @@ export default function BoardPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [issues, setIssues] = useState<Issue[]>([]);
+  const [feedback, setFeedback] = useState<Feedback[]>([]);
   const [category, setCategory] = useState("all");
   const [severity, setSeverity] = useState("all");
   const [area, setArea] = useState(() => params.get("area") || "all");
@@ -35,7 +38,9 @@ export default function BoardPage() {
   const [views, setViews] = useState<SavedView[]>([]);
 
   const refresh = async () => {
-    setIssues(await listIssuesRemote());
+    const [i, f] = await Promise.all([listIssuesRemote(), listOrgFeedbackRemote()]);
+    setIssues(i);
+    setFeedback(f);
     setViews(listSavedViews());
   };
   useEffect(() => {
@@ -55,6 +60,17 @@ export default function BoardPage() {
     () => Array.from(new Set(issues.map((i) => i.assignee).filter(Boolean) as string[])),
     [issues],
   );
+
+  const packPathByIssue = useMemo(() => {
+    const map = new Map<string, string>();
+    const byId = new Map(feedback.map((f) => [f.id, f]));
+    for (const issue of issues) {
+      const linked = issue.feedbackIds.map((id) => byId.get(id)).filter(Boolean) as Feedback[];
+      const key = pageKeyOfIssue(issue, linked);
+      if (key) map.set(issue.id, `/fix-packs/${encodePackId(key)}`);
+    }
+    return map;
+  }, [issues, feedback]);
 
   const filtered = useMemo(() => {
     return issues.filter((i) => {
@@ -280,6 +296,18 @@ export default function BoardPage() {
                     <p className={`text-[10px] ${issue.assignee ? "text-ink/45" : "font-medium text-amber-700"}`}>
                       {issue.assignee || "未アサイン"}
                     </p>
+                    {packPathByIssue.get(issue.id) && (
+                      <button
+                        type="button"
+                        className="mt-1 text-[10px] font-semibold text-mint hover:underline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(packPathByIssue.get(issue.id)!);
+                        }}
+                      >
+                        修正パック
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>

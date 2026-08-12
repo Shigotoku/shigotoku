@@ -17,6 +17,7 @@ import { clearQueueItem, enqueueOffline, loadQueue } from "../lib/offlineQueue";
 import VoiceInputButton from "../components/VoiceInputButton";
 import ScreenshotAnnotator from "../components/ScreenshotAnnotator";
 import MobileScreenshotAttach from "../components/MobileScreenshotAttach";
+import MobileCaptureSteps from "../components/MobileCaptureSteps";
 import { APP_VERSION, detectEnvironment } from "../lib/meta";
 import { loadSettings } from "../lib/demoStore";
 import { detectPii, maskPii } from "../lib/privacy";
@@ -211,7 +212,7 @@ export default function CapturePage() {
     try {
       const raw =
         rawText.trim() ||
-        (hasAudio ? "（音声メモのみ。文字起こしなし）" : "");
+        (hasAudio ? "（音声メモ）" : "");
       const textToSend = loadSettings().autoMaskPii ? maskPii(raw).text : raw;
       const consoleSnippet =
         attachConsole && typeof performance !== "undefined"
@@ -248,7 +249,7 @@ export default function CapturePage() {
       enqueueOffline({
         rawText:
           rawText.trim() ||
-          (audioDataUrl ? "（音声メモのみ。文字起こしなし）" : ""),
+          (audioDataUrl ? "（音声メモ）" : ""),
         pageUrl,
         pageTitle,
         screenshotDataUrl,
@@ -274,7 +275,7 @@ export default function CapturePage() {
           <h1 className="font-display mt-1 text-2xl font-bold sm:text-3xl">{t("capture_title")}</h1>
           <p className="mt-2 text-sm text-ink/60">
             {mobile
-              ? "最速は スクショ → 話す → 送信。文字は端末の音声認識、ダメならキーボードのマイクか音声添付。"
+              ? "最速は スクショ → 話す → 送信。端末の音声認識（またはキーボードのマイク）で入力します。"
               : t("capture_hint")}
           </p>
         </div>
@@ -300,29 +301,46 @@ export default function CapturePage() {
         <p className="text-xs text-amber-800">オフラインキュー: {offlineCount} 件待機中</p>
       )}
 
+      {mobile && (
+        <MobileCaptureSteps
+          hasShot={Boolean(screenshotDataUrl)}
+          hasText={Boolean(rawText.trim())}
+          hasAudio={Boolean(audioDataUrl)}
+        />
+      )}
+
       {/* モバイル最速: スクショ → 話す → 送信 */}
       {mobile ? (
-        <MobileScreenshotAttach
-          screenshotDataUrl={screenshotDataUrl}
-          onChange={setScreenshotDataUrl}
-          onAnnotate={() => setAnnotateOpen(true)}
-        />
+        <div id="capture-shot">
+          <MobileScreenshotAttach
+            screenshotDataUrl={screenshotDataUrl}
+            onChange={(url) => {
+              setScreenshotDataUrl(url);
+              if (url) {
+                window.setTimeout(() => {
+                  document.getElementById("capture-voice")?.scrollIntoView({ behavior: "smooth", block: "center" });
+                }, 80);
+              }
+            }}
+            onAnnotate={() => setAnnotateOpen(true)}
+          />
+        </div>
       ) : null}
 
       {mobile && (
-        <VoiceInputButton
-          variant="hero"
-          value={rawText}
-          onChange={setRawText}
-          onFocusTextarea={() => {
-            const el = textareaRef.current;
-            if (!el) return;
-            el.focus();
-            setInfo(
-              "入力欄を開いたら、キーボードのマイク（🎤）をタップして話してください",
-            );
-          }}
-        />
+        <div id="capture-voice">
+          <VoiceInputButton
+            variant="hero"
+            value={rawText}
+            onChange={setRawText}
+            onFocusTextarea={() => {
+              const el = textareaRef.current;
+              if (!el) return;
+              el.focus();
+              setInfo("入力欄を開いたら、キーボードのマイク（🎤）をタップして話してください");
+            }}
+          />
+        </div>
       )}
 
       <label className="block">

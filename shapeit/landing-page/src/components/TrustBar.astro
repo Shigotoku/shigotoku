@@ -1,18 +1,18 @@
 ---
 const stats = [
-  { value: '10秒', label: '気づきの投稿（中央値）' },
+  { value: '10秒', label: '気づきの投稿' },
   { value: 'AI整理', label: '分類・重複・優先度' },
   { value: '全員投稿', label: '席課金で増やさない' },
-  { value: 'Closed Loop', label: '直ったら投稿者へ確認' },
+  { value: 'Closed Loop', label: '直ったら確認' },
 ];
 ---
 
-<section class="border-y border-ink/10 bg-white py-8 sm:py-10">
-  <div class="mx-auto grid max-w-6xl grid-cols-2 gap-6 px-4 sm:grid-cols-4 sm:gap-8 sm:px-6">
+<section class="border-y border-ink/10 bg-white py-6 sm:py-10">
+  <div class="shapeit-grid-safe mx-auto grid max-w-6xl grid-cols-2 gap-4 px-4 sm:grid-cols-4 sm:gap-8 sm:px-6">
     {stats.map((s) => (
-      <div class="min-w-0 text-center">
-        <p class="font-display text-xl font-bold text-mint sm:text-2xl lg:text-3xl" data-jp-wrap>{s.value}</p>
-        <p class="mt-1 text-xs text-ink/50 sm:text-sm" data-jp-wrap>{s.label}</p>
+      <div class="min-w-0 px-1 text-center">
+        <p class="font-display text-[clamp(1.25rem,0.9rem+1.6vw,2.25rem)] font-bold text-mint" data-jp-wrap>{s.value}</p>
+        <p class="mt-1 text-[clamp(0.6875rem,0.6rem+0.3vw,0.9375rem)] leading-snug text-ink/50" data-jp-wrap>{s.label}</p>
       </div>
     ))}
   </div>

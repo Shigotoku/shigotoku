@@ -23,7 +23,7 @@ const features = [
 ];
 ---
 
-<section id="features" class="shapeit-features relative overflow-hidden bg-ink py-14 sm:py-20">
+<section id="features" class="shapeit-features shapeit-section--lg relative overflow-hidden bg-ink">
   <div
     class="pointer-events-none absolute inset-0"
     aria-hidden="true"
@@ -32,22 +32,22 @@ const features = [
 
   <div class="relative z-10 mx-auto max-w-6xl px-4 sm:px-6">
     <div class="text-center">
-      <p class="text-sm font-bold uppercase tracking-widest text-mint-bright">Features</p>
-      <h2 class="font-display mt-3 text-2xl font-bold tracking-tight text-paper sm:text-3xl lg:text-4xl" data-jp-heading>
+      <p class="text-xs font-bold uppercase tracking-widest text-mint-bright sm:text-sm">Features</p>
+      <h2 class="shapeit-h2 font-display mt-3 font-bold tracking-tight text-paper" data-jp-heading>
         ShapeIt の<span class="text-mint-bright">4つ</span>の特徴
       </h2>
-      <p class="mx-auto mt-4 max-w-2xl text-base text-paper/60 sm:text-lg" data-jp-wrap>
+      <p class="shapeit-lead mx-auto mt-3 max-w-2xl text-paper/60 sm:mt-4" data-jp-wrap>
         記録する。まとめる。優先する。確認する。サービス改善に必要なことだけ。
       </p>
     </div>
-    <div class="mt-10 grid gap-5 sm:grid-cols-2 sm:gap-6">
+    <div class="shapeit-grid-safe mt-8 grid gap-3 sm:mt-10 sm:grid-cols-2 sm:gap-6">
       {features.map((f) => (
-        <div class="group min-w-0 rounded-2xl border border-paper/10 bg-ink-soft/80 p-5 transition-all hover:border-mint/50 hover:bg-ink-soft sm:p-6">
-          <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-mint text-sm font-bold text-white shadow-md shadow-mint/30 transition-transform group-hover:scale-105">
+        <div class="group min-w-0 rounded-2xl border border-paper/10 bg-ink-soft/80 p-4 transition-all hover:border-mint/50 hover:bg-ink-soft sm:p-6">
+          <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-mint text-sm font-bold text-white shadow-md shadow-mint/30 transition-transform group-hover:scale-105 sm:h-10 sm:w-10">
             {f.icon}
           </span>
-          <h3 class="font-display mt-4 text-lg font-bold text-paper sm:text-xl" data-jp-heading>{f.title}</h3>
-          <p class="mt-2.5 text-sm leading-relaxed text-paper/55 sm:text-base" data-jp-wrap>{f.body}</p>
+          <h3 class="shapeit-h3 font-display mt-3 font-bold text-paper sm:mt-4" data-jp-heading>{f.title}</h3>
+          <p class="shapeit-body mt-2 text-paper/55 sm:mt-2.5" data-jp-wrap>{f.body}</p>
         </div>
       ))}
     </div>

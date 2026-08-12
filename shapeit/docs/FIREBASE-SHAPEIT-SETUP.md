@@ -16,7 +16,7 @@ ClipIt / RunWith と同型の **専用 Firebase プロジェクト** で運用�
 |------|-----|
 | Firebase プロジェクト ID | `shigotoku-shapeit-prod` |
 | Hosting サイト ID | `shigotoku-shapeit-app` |
-| Firestore コレクション | `shapeit_*` |
+| Firestore コレクション | `shapeit_*`（feedback / issues / changelog / fix_pack_meta / notifications 等） |
 | デプロイ設定 | `deploy/firebase.shapeit.json` |
 
 ## 伴走チェックリスト（詳細）

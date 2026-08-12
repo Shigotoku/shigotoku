@@ -7,6 +7,14 @@
         { "fieldPath": "organizationId", "order": "ASCENDING" },
         { "fieldPath": "uid", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "shapeit_changelog",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "organizationId", "order": "ASCENDING" },
+        { "fieldPath": "visibility", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

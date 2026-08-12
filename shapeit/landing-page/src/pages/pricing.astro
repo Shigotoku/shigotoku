@@ -12,15 +12,15 @@ const plans = [
 ---
 
 <Layout title="料金 - ShapeIt" description="投稿者席課金を抑え、管理・AI・連携側で課金する料金仮説。">
-  <section class="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+  <section class="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-16">
     <p class="text-xs font-semibold uppercase tracking-[0.2em] text-mint">Pricing</p>
-    <h1 class="font-display mt-3 text-4xl font-bold text-ink">投稿者を増やしても、導入しやすく</h1>
-    <p class="mt-4 max-w-2xl text-ink/65">Contributor/Memberは実質無制限寄り。管理者・AI・Integration・Enterprise機能で課金（仮説・変更あり）。</p>
-    <div class="mt-12 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+    <h1 class="shapeit-h1 font-display mt-3 font-bold text-ink">投稿者を増やしても、導入しやすく</h1>
+    <p class="shapeit-lead mt-4 max-w-2xl text-ink/65">Contributor/Memberは実質無制限寄り。管理者・AI・Integration・Enterprise機能で課金（仮説・変更あり）。</p>
+    <div class="shapeit-grid-safe mt-8 grid gap-4 sm:mt-12 sm:gap-5 md:grid-cols-2 xl:grid-cols-4">
       {plans.map((p) => (
-        <div class={`flex flex-col rounded-2xl border bg-white p-6 ${p.highlight ? 'border-mint shadow-lg shadow-mint/10' : 'border-ink/10'}`}>
+        <div class={`flex flex-col rounded-2xl border bg-white p-5 sm:p-6 ${p.highlight ? 'order-first border-mint shadow-lg shadow-mint/10 md:order-none' : 'border-ink/10'}`}>
           {p.highlight && <span class="mb-3 w-fit rounded-full bg-mint px-3 py-1 text-xs font-bold text-white">おすすめ</span>}
-          <h2 class="font-display text-xl font-semibold">{p.name}</h2>
+          <h2 class="font-display text-lg font-semibold sm:text-xl">{p.name}</h2>
           <p class="mt-1 text-sm text-ink/50">{p.note}</p>
           <p class="mt-4 text-2xl font-bold tabular-nums">{p.price}<span class="text-sm font-normal text-ink/50">/月</span></p>
           <ul class="mt-4 space-y-2 text-sm text-ink/70">
@@ -29,6 +29,6 @@ const plans = [
         </div>
       ))}
     </div>
-    <a href={loginUrl} class="mt-10 inline-flex rounded-lg bg-ink px-5 py-3 text-sm font-semibold text-paper">無料で始める</a>
+    <a href={loginUrl} class="shapeit-tap mt-8 inline-flex w-full items-center justify-center rounded-lg bg-ink px-5 py-3 text-sm font-semibold text-paper sm:mt-10 sm:w-auto">無料で始める</a>
   </section>
 </Layout>
