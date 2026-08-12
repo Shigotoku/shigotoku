@@ -1,9 +1,19 @@
 import type { PublishMode, ScheduleContentItem } from '../types/schedule';
-import type { UserSettings } from './firestore';
+import {
+  getXApiPostsThisMonth,
+  incrementXApiPostCount,
+  type UserSettings,
+} from './firestore';
 import { scheduleWithAyrshare } from './ayrshare';
 import { publishToMeta, type MetaConnection } from './meta';
 import { formatScheduleNotification, sendLineBroadcast } from './lineMessaging';
 import { postToSlackWebhook } from './slack';
+import {
+  credentialsFromSettings,
+  pickXPostText,
+  postTweetWithXApi,
+  X_FREE_MONTHLY_SOFT_LIMIT,
+} from './xApi';
 
 export interface PublishOutcome {
   status: 'published' | 'notified' | 'failed';
@@ -79,6 +89,63 @@ export async function executePublish(
       }
     }
 
+    case 'x_free': {
+      const creds = credentialsFromSettings(settings);
+      if (!creds) {
+        const fallback = await notifyUser(settings, contents, scheduledAt);
+        return {
+          ...fallback,
+          message: `X API未設定のため通知に切替: ${fallback.message}`,
+        };
+      }
+      const used = getXApiPostsThisMonth(settings);
+      if (used >= X_FREE_MONTHLY_SOFT_LIMIT) {
+        return {
+          status: 'failed',
+          message: `今月のX投稿上限（${X_FREE_MONTHLY_SOFT_LIMIT}件）に達しています。開発者コンソールの枠・課金を確認してください`,
+        };
+      }
+      const text = pickXPostText(contents);
+      const result = await postTweetWithXApi(creds, text, mediaUrls);
+      if (result.success) {
+        const count = await incrementXApiPostCount(uid);
+        return {
+          status: 'published',
+          message: `${result.message}（今月 ${count}/${X_FREE_MONTHLY_SOFT_LIMIT}）`,
+          results: [
+            {
+              platform: 'x_thread',
+              success: true,
+              message: result.message,
+              externalId: result.tweetId,
+            },
+          ],
+        };
+      }
+      return {
+        status: 'failed',
+        message: result.message,
+        results: [{ platform: 'x_thread', success: false, message: result.message }],
+      };
+    }
+
+    case 'gbp': {
+      if (!settings.gbpConnected) {
+        return {
+          status: 'failed',
+          message: 'GBP未連携です。設定でロケーション名を保存するか、通知モードで手動投稿してください',
+        };
+      }
+      // APIキー未設定環境では通知にフォールバック（本番OAuth後に差替え）
+      const gbpText = contents.map((c) => `【GBP】${c.label}\n${c.content.slice(0, 600)}`).join('\n\n');
+      const notified = await notifyUser(settings, contents, scheduledAt);
+      return {
+        status: notified.status === 'notified' ? 'notified' : 'failed',
+        message: `GBP投稿ドラフトを通知しました（${settings.gbpLocationName ?? '店舗'}）。${notified.message}`,
+        results: [{ platform: 'gbp', success: true, message: gbpText.slice(0, 120) }],
+      };
+    }
+
     default:
       return notifyUser(settings, contents, scheduledAt);
   }
@@ -86,6 +153,7 @@ export async function executePublish(
 
 function resolveAutoMode(settings: UserSettings): PublishMode {
   if (settings.metaAccessToken && settings.metaIgUserId) return 'meta';
+  if (credentialsFromSettings(settings)) return 'x_free';
   if (settings.lineChannelAccessToken) return 'line';
   if (process.env.AYRSHARE_API_KEY && settings.ayrshareProfileKey) return 'ayrshare';
   return 'notify';

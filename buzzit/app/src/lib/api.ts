@@ -93,19 +93,87 @@ export interface SettingsResponse {
   metaPageId?: string;
   metaTokenExpiresAt?: string;
   lineWebhookUrl?: string;
+  hpbStoreUrl?: string;
+  gbpConnected?: boolean;
+  gbpLocationName?: string;
+  notifyEmail?: string;
+  industry?: string;
+  brandProfile?: string;
+  extraSnsAccounts?: number;
+  insightsEnabled?: boolean;
+  xInsightsEnabled?: boolean;
+  insightsLastSyncedAt?: string;
+  xConnected?: boolean;
+  xUsername?: string;
+  xApiPostsThisMonth?: number;
+  xApiMonthlyLimit?: number;
   snsConnections: Array<{ name: string; connected: boolean }>;
   canUseSlack: boolean;
   canUseAutoMode: boolean;
+}
+
+export interface PostInsight {
+  id: string;
+  jobId: string;
+  platform: string;
+  externalId: string;
+  impressions: number;
+  reach?: number;
+  likes?: number;
+  comments?: number;
+  replies?: number;
+  reposts?: number;
+  fetchedAt: string;
+  source: 'meta' | 'x';
+  lastError?: string;
+  scheduledAt?: string;
+  preview?: string;
+}
+
+export interface InsightsSummary {
+  totalImpressions: number;
+  totalReach: number;
+  postCount: number;
+  byPlatform: Record<string, { impressions: number; reach: number; postCount: number }>;
+  lastSyncedAt?: string;
+  insightsEnabled: boolean;
+  xInsightsEnabled: boolean;
+  xInsightsBillingNote: string;
+  recent: PostInsight[];
 }
 
 export function fetchSettings() {
   return request<SettingsResponse>('/v1/settings');
 }
 
-export function updateSettings(patch: Partial<SettingsResponse>) {
+export function fetchSnsConnections() {
+  return request<{ snsConnections: Array<{ name: string; connected: boolean }> }>('/v1/sns-connections');
+}
+
+export function updateSettings(
+  patch: Partial<SettingsResponse> & {
+    xApiKey?: string;
+    xApiSecret?: string;
+    xAccessToken?: string;
+    xAccessSecret?: string;
+    xDisconnect?: boolean;
+  },
+) {
   return request<SettingsResponse>('/v1/settings', {
     method: 'PUT',
     body: JSON.stringify(patch),
+  });
+}
+
+export function testXApiConnection(body?: {
+  xApiKey?: string;
+  xApiSecret?: string;
+  xAccessToken?: string;
+  xAccessSecret?: string;
+}) {
+  return request<{ ok: boolean; message: string; username?: string }>('/v1/x/selftest', {
+    method: 'POST',
+    body: JSON.stringify(body ?? {}),
   });
 }
 
@@ -133,11 +201,25 @@ export function repurposeViaApi(body: RepurposeApiRequest) {
   });
 }
 
-export type PublishMode = 'notify' | 'approval' | 'meta' | 'line' | 'gbp' | 'ayrshare' | 'auto';
+export type PublishMode =
+  | 'notify'
+  | 'approval'
+  | 'meta'
+  | 'line'
+  | 'gbp'
+  | 'ayrshare'
+  | 'x_free'
+  | 'auto';
 
 export interface VoiceDraftResponse {
   transcript: string;
-  drafts: Array<{ kind: 'instagram' | 'line' | 'caption' | 'slack'; label: string; content: string }>;
+  drafts: Array<{
+    kind: string;
+    platform?: string;
+    label: string;
+    content: string;
+    carouselSlides?: string[];
+  }>;
   usedGemini: boolean;
 }
 
@@ -333,6 +415,8 @@ export interface ScheduleApiRequest {
   destinationUrl?: string;
   publishMode?: PublishMode;
   mediaUrls?: string[];
+  /** true なら予約せず下書きとして保存（あとからカレンダーで編集・予約） */
+  asDraft?: boolean;
 }
 
 export interface ScheduledJob {
@@ -340,7 +424,8 @@ export interface ScheduledJob {
   contents: ScheduleApiRequest['contents'];
   scheduledAt: string;
   publishMode: PublishMode;
-  status: 'pending_approval' | 'pending' | 'processing' | 'published' | 'notified' | 'failed';
+  status: 'pending_approval' | 'pending' | 'processing' | 'published' | 'notified' | 'failed' | 'draft';
+  mediaUrls?: string[];
   completedMessage?: string;
   errorMessage?: string;
   createdAt: string;
@@ -370,6 +455,78 @@ export function approveScheduledJob(id: string) {
   });
 }
 
+export function retryScheduledJob(id: string) {
+  return request<{ success: boolean; job: ScheduledJob }>(`/v1/scheduled/${id}/retry`, {
+    method: 'POST',
+  });
+}
+
+export function revertScheduledJobToDraft(id: string) {
+  return request<{ success: boolean; job: ScheduledJob }>(`/v1/scheduled/${id}/draft`, {
+    method: 'POST',
+  });
+}
+
+export function updateScheduledJob(
+  id: string,
+  body: {
+    scheduledAt?: string;
+    contents?: ScheduleApiRequest['contents'];
+    publishMode?: PublishMode;
+  },
+) {
+  return request<{ success: boolean; job: ScheduledJob }>(`/v1/scheduled/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
+export interface WeeklyReport {
+  periodLabel: string;
+  healthScore: number;
+  funnel: {
+    posts: number;
+    reach: number;
+    clicks: number;
+    lineSignups: number;
+    revenue: number;
+  };
+  scheduled: {
+    published: number;
+    notified: number;
+    failed: number;
+    pendingApproval: number;
+  };
+  topPosts: Array<{ title: string; reach: number; revenue: number }>;
+  topTrend: { topic: string; hook: string; score: number } | null;
+  recommendations: string[];
+  nextWeekActions?: string[];
+}
+
+export function fetchWeeklyReport() {
+  return request<{ report: WeeklyReport }>('/v1/reports/weekly');
+}
+
+export function fetchInsightsSummary(platform?: string) {
+  const q = platform ? `?platform=${encodeURIComponent(platform)}` : '';
+  return request<{ summary: InsightsSummary }>(`/v1/insights/summary${q}`);
+}
+
+export function fetchInsightsPosts(opts?: { platform?: string; limit?: number }) {
+  const params = new URLSearchParams();
+  if (opts?.platform) params.set('platform', opts.platform);
+  if (opts?.limit) params.set('limit', String(opts.limit));
+  const q = params.toString() ? `?${params}` : '';
+  return request<{ posts: PostInsight[] }>(`/v1/insights/posts${q}`);
+}
+
+export function syncInsights(force = false) {
+  return request<{ success: boolean; result: Record<string, unknown>; summary: InsightsSummary }>(
+    '/v1/insights/sync',
+    { method: 'POST', body: JSON.stringify({ force }) },
+  );
+}
+
 export function startMetaOAuth() {
   return request<{ url: string }>('/v1/oauth/meta/start');
 }
@@ -395,7 +552,56 @@ export function fetchSlackIdeas() {
 }
 
 export function approveSlackIdea(id: string) {
-  return request<{ success: boolean }>(`/v1/slack/ideas/${id}/approve`, { method: 'POST' });
+  return request<{
+    success: boolean;
+    idea: { id: string; text: string; author: string; scriptPreview: string; status: string };
+    magicCreatorPath: string;
+  }>(`/v1/slack/ideas/${id}/approve`, { method: 'POST' });
+}
+
+export interface LineFriend {
+  lineUserId: string;
+  displayName: string;
+  pictureUrl?: string;
+  status: string;
+  tags: string[];
+  sourceId?: string | null;
+  score: number;
+  followedAt: string;
+  lastSeenAt: string;
+}
+
+export function fetchLineFriends(params?: { tag?: string; q?: string }) {
+  const qs = new URLSearchParams();
+  if (params?.tag) qs.set('tag', params.tag);
+  if (params?.q) qs.set('q', params.q);
+  const q = qs.toString() ? `?${qs}` : '';
+  return request<{ friends: LineFriend[] }>(`/v1/line/friends${q}`);
+}
+
+export function updateLineFriendTags(lineUserId: string, tags: string[]) {
+  return request<{ friend: LineFriend }>(`/v1/line/friends/${encodeURIComponent(lineUserId)}/tags`, {
+    method: 'PATCH',
+    body: JSON.stringify({ tags }),
+  });
+}
+
+export function sendLineSegmentMessage(body: { segmentId: string; text: string }) {
+  return request<{
+    success: boolean;
+    message: string;
+    recipients: number;
+    mode?: string;
+  }>('/v1/line/narrowcast', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function estimateLineSegment(segmentId: string) {
+  return request<{ estimatedReach: number }>(`/v1/line/segments/${segmentId}/estimate`, {
+    method: 'POST',
+  });
 }
 
 export function runAutoMode() {
@@ -491,6 +697,8 @@ export interface BillingResponse {
   storeCount: number;
   memberCount: number;
   pendingInviteCount: number;
+  extraSnsAccounts: number;
+  extraSnsAccountPrice: number;
   monthlyTotal: number;
   baseMonthly: number;
   additionalStoreDiscount: number;
@@ -523,7 +731,7 @@ export interface StoreInvitation {
 }
 
 export function fetchStores() {
-  return request<{ stores: StoreRecord[]; activeStoreId: string | null }>('/v1/stores');
+  return request<{ stores: StoreRecord[]; activeStoreId: string | null; role?: string | null }>('/v1/stores');
 }
 
 export function createStore(name: string, industry?: string) {
@@ -595,5 +803,358 @@ export function acceptInvitation(token: string) {
   return request<{ storeId: string; role: string }>(
     `/v1/invitations/${encodeURIComponent(token)}/accept`,
     { method: 'POST' },
+  );
+}
+
+export interface IdeaInboxItem {
+  id: string;
+  text: string;
+  author: string;
+  authorRole?: string;
+  photoDataUrl?: string | null;
+  status: string;
+  createdAt: string;
+}
+
+export function fetchIdeaInbox() {
+  return request<{ ideas: IdeaInboxItem[] }>('/v1/inbox');
+}
+
+export function submitIdeaInbox(body: {
+  text: string;
+  author?: string;
+  authorRole?: string;
+  photoDataUrl?: string;
+}) {
+  return request<{ idea: IdeaInboxItem }>('/v1/inbox', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function useIdeaInbox(id: string) {
+  return request<{ idea: IdeaInboxItem; magicCreatorPath: string }>(`/v1/inbox/${id}/use`, {
+    method: 'POST',
+  });
+}
+
+export function fetchWinningPatterns() {
+  return request<{
+    patterns: Array<{ id: string; title: string; hook: string; platform: string; notes?: string; createdAt: string }>;
+  }>('/v1/winning-patterns');
+}
+
+export function createWinningPattern(body: {
+  title: string;
+  hook: string;
+  platform?: string;
+  notes?: string;
+}) {
+  return request<{ pattern: { id: string } }>('/v1/winning-patterns', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function fetchCoupons() {
+  return request<{
+    coupons: Array<{
+      id: string;
+      name: string;
+      code: string;
+      benefit: string;
+      uses: number;
+      maxUses?: number | null;
+      active: boolean;
+    }>;
+  }>('/v1/coupons');
+}
+
+export function createCoupon(body: { name: string; benefit: string; code?: string; maxUses?: number }) {
+  return request<{ coupon: { id: string; code: string } }>('/v1/coupons', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function redeemCoupon(id: string, note?: string) {
+  return request<{ success: boolean; message: string; uses?: number }>(`/v1/coupons/${id}/redeem`, {
+    method: 'POST',
+    body: JSON.stringify({ note }),
+  });
+}
+
+export function fetchChatQueue() {
+  return request<{
+    items: Array<{
+      id: string;
+      lineUserId: string;
+      displayName: string;
+      preview: string;
+      status: string;
+      createdAt: string;
+    }>;
+  }>('/v1/line/chat-queue');
+}
+
+export function resolveChatQueueItem(id: string) {
+  return request<{ success: boolean }>(`/v1/line/chat-queue/${id}/resolve`, { method: 'POST' });
+}
+
+export function fetchLineFriendDetail(lineUserId: string) {
+  return request<{
+    friend: LineFriend;
+    recentDeliveries: unknown[];
+  }>(`/v1/line/friends/${encodeURIComponent(lineUserId)}`);
+}
+
+export function fetchConnectionHealth() {
+  return request<{
+    score: number;
+    checks: Array<{
+      id: string;
+      label: string;
+      ok: boolean;
+      warn: boolean;
+      detail: string;
+      ctaPath: string;
+    }>;
+    alerts: Array<{ id: string; label: string; detail: string; ctaPath: string; ok: boolean; warn: boolean }>;
+  }>('/v1/health');
+}
+
+export function fetchAuditLogs() {
+  return request<{
+    logs: Array<{ id: string; action: string; detail: string; createdAt: string }>;
+  }>('/v1/audit-logs');
+}
+
+export async function downloadExport(format: 'json' | 'csv' = 'json') {
+  if (format === 'json') return request<unknown>('/v1/export?format=json');
+  const res = await authFetch('/v1/export?format=csv');
+  if (!res.ok) throw new Error('CSVエクスポートに失敗しました');
+  return res.text();
+}
+
+export function fetchRegionalWatch() {
+  return request<{ ideas: Array<{ topic: string; hook: string; score: number }> }>('/v1/regional-watch');
+}
+
+export function fetchStoresProgress() {
+  return request<{
+    stores: Array<{
+      id: string;
+      name: string;
+      progress?: {
+        metaConnected: boolean;
+        lineConnected: boolean;
+        hasDestination: boolean;
+        lineFriends: number;
+        healthScore: number;
+      };
+    }>;
+  }>('/v1/stores/progress');
+}
+
+export function draftGbpReviewReply(reviewText: string) {
+  return request<{ reply: string; usedGemini: boolean }>('/v1/gbp/review-reply', {
+    method: 'POST',
+    body: JSON.stringify({ reviewText }),
+  });
+}
+
+export function previewLineFlex(body: {
+  title?: string;
+  body?: string;
+  ctaLabel?: string;
+  ctaUri?: string;
+}) {
+  return request<{ flex: unknown; quickReply: unknown }>('/v1/line/flex-preview', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function fetchExportJson() {
+  return downloadExport('json');
+}
+
+export interface XSeries {
+  id: string;
+  name: string;
+  description?: string;
+  enabled: boolean;
+  createdAt: string;
+  pendingCount?: number;
+  approvedCount?: number;
+}
+
+export interface XSeriesItem {
+  id: string;
+  seriesId: string;
+  text: string;
+  tags?: string;
+  title?: string;
+  linkUrl?: string;
+  imageUrl?: string;
+  imageAlt?: string;
+  approved: boolean;
+  status: string;
+  publishedAt?: string;
+  tweetId?: string;
+  errorMessage?: string;
+  createdAt: string;
+  sortOrder: number;
+}
+
+export interface XScheduleRule {
+  id: string;
+  seriesId: string;
+  seriesName?: string;
+  days: string;
+  timeHHMM: string;
+  take: number;
+  enabled: boolean;
+  jitterMaxMin: number;
+  publishMode: 'x_free' | 'notify';
+  createdAt: string;
+}
+
+export function fetchXSeries() {
+  return request<{ series: XSeries[] }>('/v1/x/series');
+}
+
+export function createXSeries(body: { name: string; description?: string }) {
+  return request<{ series: XSeries }>('/v1/x/series', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function seedDefaultXSeries() {
+  return request<{ series: XSeries[]; rules: XScheduleRule[] }>('/v1/x/series/seed-defaults', {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}
+
+export function updateXSeries(id: string, body: Partial<{ name: string; description: string; enabled: boolean }>) {
+  return request<{ series: XSeries }>(`/v1/x/series/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
+export function deleteXSeries(id: string) {
+  return request<{ success: boolean }>(`/v1/x/series/${id}`, { method: 'DELETE' });
+}
+
+export function fetchXSeriesItems(seriesId: string, status?: string) {
+  const q = status ? `?status=${encodeURIComponent(status)}` : '';
+  return request<{ items: XSeriesItem[] }>(`/v1/x/series/${seriesId}/items${q}`);
+}
+
+export function addXSeriesItems(
+  seriesId: string,
+  body:
+    | { text: string; tags?: string; title?: string; linkUrl?: string; imageUrl?: string; imageAlt?: string; approved?: boolean }
+    | {
+        items: Array<{
+          text: string;
+          tags?: string;
+          title?: string;
+          linkUrl?: string;
+          imageUrl?: string;
+          imageAlt?: string;
+          approved?: boolean;
+        }>;
+      },
+) {
+  return request<{ items: XSeriesItem[] }>(`/v1/x/series/${seriesId}/items`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function importXSeriesCsv(seriesId: string, csv: string) {
+  return request<{ imported: number; items: XSeriesItem[] }>(`/v1/x/series/${seriesId}/import-csv`, {
+    method: 'POST',
+    body: JSON.stringify({ csv }),
+  });
+}
+
+export function updateXSeriesItem(
+  seriesId: string,
+  itemId: string,
+  body: Partial<{
+    text: string;
+    tags: string;
+    title: string;
+    linkUrl: string;
+    imageUrl: string;
+    imageAlt: string;
+    approved: boolean;
+    status: string;
+  }>,
+) {
+  return request<{ item: XSeriesItem }>(`/v1/x/series/${seriesId}/items/${itemId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
+export function deleteXSeriesItem(seriesId: string, itemId: string) {
+  return request<{ success: boolean }>(`/v1/x/series/${seriesId}/items/${itemId}`, { method: 'DELETE' });
+}
+
+export function fetchXScheduleRules() {
+  return request<{ rules: XScheduleRule[] }>('/v1/x/schedule-rules');
+}
+
+export function createXScheduleRule(body: {
+  seriesId: string;
+  days: string;
+  timeHHMM: string;
+  take?: number;
+  jitterMaxMin?: number;
+  publishMode?: 'x_free' | 'notify';
+}) {
+  return request<{ rule: XScheduleRule }>('/v1/x/schedule-rules', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateXScheduleRule(
+  id: string,
+  body: Partial<{
+    days: string;
+    timeHHMM: string;
+    take: number;
+    enabled: boolean;
+    jitterMaxMin: number;
+    publishMode: 'x_free' | 'notify';
+    seriesId: string;
+  }>,
+) {
+  return request<{ rule: XScheduleRule }>(`/v1/x/schedule-rules/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
+export function deleteXScheduleRule(id: string) {
+  return request<{ success: boolean }>(`/v1/x/schedule-rules/${id}`, { method: 'DELETE' });
+}
+
+export function runXSeriesNow(body: {
+  seriesId?: string;
+  take?: number;
+  mode?: 'x_free' | 'notify';
+  forceAllRules?: boolean;
+}) {
+  return request<{ success: boolean; posted?: number; errors?: number; messages?: string[] }>(
+    '/v1/x/series/run-now',
+    { method: 'POST', body: JSON.stringify(body) },
   );
 }

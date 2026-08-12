@@ -102,7 +102,7 @@
   }
 
   .buzz-nav-link {
-    @apply flex items-center gap-3 px-3 py-3 text-sm transition-colors;
+    @apply flex items-center gap-2 rounded-sm px-2.5 py-1.5 text-[13px] leading-snug transition-colors;
   }
 
   .buzz-nav-link-active {
@@ -110,7 +110,15 @@
   }
 
   .buzz-nav-link-inactive {
-    @apply text-neutral-600 hover:bg-white/70 hover:text-neutral-900;
+    @apply border border-transparent text-neutral-600 hover:bg-white/70 hover:text-neutral-900;
+  }
+
+  .buzz-nav-group-btn {
+    @apply flex w-full items-center gap-2 rounded-sm px-2.5 py-1.5 text-[13px] font-medium leading-snug text-neutral-700 transition-colors hover:bg-white/70 hover:text-neutral-900;
+  }
+
+  .buzz-nav-divider {
+    @apply px-2.5 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-neutral-400;
   }
 
   .buzz-alert {
@@ -134,7 +142,7 @@
   }
 
   .buzz-logo-mark {
-    @apply flex h-8 w-8 items-center justify-center bg-neutral-900 text-xs font-bold text-white;
+    @apply inline-block h-8 w-8 shrink-0 object-contain;
   }
 }
 

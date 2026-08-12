@@ -1,0 +1,49 @@
+---
+const steps = [
+  {
+    num: '1',
+    title: 'マニュアルの作り方を選ぶ',
+    body: '記録・Meet・スクショ・テンプレートからスタート',
+    href: '#step-create',
+  },
+  {
+    num: '2',
+    title: '手順を整えて完成させる',
+    body: 'AI文案・赤枠番号・編集で仕上げ',
+    href: '#step-edit',
+  },
+  {
+    num: '3',
+    title: '共有して、ずっと新しく',
+    body: 'PDF・QR・まとめて修正で常に最新',
+    href: '#step-share',
+  },
+];
+---
+
+<section id="how-it-works" class="clipit-section bg-white py-10 sm:py-14">
+  <div class="mx-auto max-w-7xl px-4 sm:px-6">
+    <div class="text-center">
+      <p class="text-sm font-semibold uppercase tracking-widest text-primary-600">How it works</p>
+      <h2 class="clipit-h2 mt-3 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl" data-jp-heading>使い方は、3ステップ</h2>
+      <p class="clipit-lead mt-3 text-base text-slate-600 sm:mt-4" data-jp-wrap>作り方を選ぶ → 整える → 届ける。どの方法でも同じ流れで進められます。</p>
+    </div>
+    <ol class="clipit-grid-safe mt-8 grid gap-4 sm:mt-10 sm:grid-cols-3 sm:gap-5">
+      {steps.map((s) => (
+        <li>
+          <a
+            href={s.href}
+            class="group flex h-full flex-col rounded-2xl bg-white p-5 transition-all hover:shadow-md sm:p-6"
+          >
+            <span class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary-500 text-lg font-bold text-white transition-transform group-hover:scale-105">
+              {s.num}
+            </span>
+            <h3 class="clipit-h3 mt-4 text-base font-bold text-slate-900 sm:text-lg" data-jp-heading>{s.title}</h3>
+            <p class="clipit-body mt-2 flex-1 text-sm leading-relaxed text-slate-600" data-jp-wrap>{s.body}</p>
+            <span class="mt-4 text-xs font-semibold text-primary-600 group-hover:underline">詳しく見る →</span>
+          </a>
+        </li>
+      ))}
+    </ol>
+  </div>
+</section>

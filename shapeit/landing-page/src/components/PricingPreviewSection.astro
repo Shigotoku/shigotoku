@@ -1,0 +1,88 @@
+---
+import { appPath, sitePath } from '../lib/urls';
+
+const loginUrl = appPath('/login');
+const pricingUrl = sitePath('pricing');
+
+const plans = [
+  {
+    name: 'Starter',
+    price: '4,980',
+    note: '小規模チーム',
+    features: ['管理者3', '投稿者は増やしやすい', '基本AI'],
+    highlight: false,
+  },
+  {
+    name: 'Team',
+    price: '14,800',
+    note: 'SaaSチームの主力',
+    features: ['管理者10', 'AI Triage / 重複統合', 'GitHub / Slack'],
+    highlight: true,
+  },
+  {
+    name: 'Business',
+    price: '39,800',
+    note: '成長・複数Product',
+    features: ['複数Product', 'Analytics', 'SSO強化'],
+    highlight: false,
+  },
+];
+---
+
+<section id="pricing" class="shapeit-section--lg bg-paper">
+  <div class="mx-auto max-w-6xl px-4 sm:px-6">
+    <div class="text-center">
+      <p class="text-xs font-semibold uppercase tracking-widest text-mint sm:text-sm">Pricing</p>
+      <h2 class="shapeit-h2 font-display mt-3 font-bold tracking-tight text-ink" data-jp-heading>
+        投稿者を増やしても、導入しやすい。
+      </h2>
+      <p class="shapeit-lead mt-3 text-ink/65 sm:mt-4" data-jp-wrap>
+        席課金で声を止めない。管理・AI・連携側で課金する設計です（仮説・変更あり）。
+      </p>
+    </div>
+    <div class="shapeit-grid-safe mt-8 grid gap-4 sm:mt-12 sm:gap-6 md:grid-cols-3">
+      {plans.map((p) => (
+        <div
+          class={`flex flex-col rounded-2xl border bg-white p-5 shadow-sm sm:p-6 ${
+            p.highlight ? 'order-first border-mint ring-2 ring-mint/20 md:order-none' : 'border-ink/10'
+          }`}
+        >
+          {p.highlight && (
+            <span class="mb-3 w-fit rounded-full bg-mint px-3 py-1 text-xs font-bold text-white">おすすめ</span>
+          )}
+          <h3 class="font-display text-lg font-bold text-ink">{p.name}</h3>
+          <p class="mt-1 text-sm text-ink/50">{p.note}</p>
+          <p class="mt-4">
+            <span class="text-[clamp(1.75rem,1.2rem+1.8vw,2.5rem)] font-extrabold text-ink">{p.price}</span>
+            <span class="text-sm text-ink/40">円/月</span>
+          </p>
+          <ul class="mt-5 flex-1 space-y-2 sm:mt-6">
+            {p.features.map((f) => (
+              <li class="flex items-start gap-2 text-sm text-ink/65">
+                <svg class="mt-0.5 h-4 w-4 shrink-0 text-mint" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path fill-rule="evenodd" d="M16.7 5.3a1 1 0 0 1 0 1.4l-7.5 7.5a1 1 0 0 1-1.4 0L3.3 9.7a1 1 0 1 1 1.4-1.4l3.1 3.1 6.8-6.8a1 1 0 0 1 1.4 0z" clip-rule="evenodd" />
+                </svg>
+                {f}
+              </li>
+            ))}
+          </ul>
+          <a
+            href={loginUrl}
+            class={`shapeit-tap mt-5 flex items-center justify-center rounded-xl py-3 text-center text-sm font-semibold transition-all sm:mt-6 ${
+              p.highlight
+                ? 'bg-mint text-white hover:bg-mint-bright'
+                : 'border border-ink/15 text-ink hover:border-ink/30'
+            }`}
+          >
+            無料で始める
+          </a>
+        </div>
+      ))}
+    </div>
+    <p class="mt-8 text-center">
+      <a href={pricingUrl} class="inline-flex min-h-[44px] items-center text-sm font-semibold text-mint hover:underline">
+        全プランの詳細を見る →
+      </a>
+    </p>
+  </div>
+</section>

@@ -167,6 +167,109 @@ export async function createLineRichMenu(
   return { success: true, richMenuId: json.richMenuId, message: 'Rich Menu を作成しました' };
 }
 
+/** Multicast — 最大150名まで（100名未満のセグメント配信向け） */
+export async function sendLineMulticast(
+  channelAccessToken: string,
+  userIds: string[],
+  text: string,
+): Promise<{ success: boolean; message: string; requestId?: string }> {
+  if (!channelAccessToken) {
+    return { success: false, message: 'LINE Channel Access Token 未設定' };
+  }
+  if (!userIds.length) {
+    return { success: false, message: '配信対象が0件です' };
+  }
+  const res = await fetch('https://api.line.me/v2/bot/message/multicast', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${channelAccessToken}`,
+    },
+    body: JSON.stringify({
+      to: userIds.slice(0, 150),
+      messages: [{ type: 'text', text: text.slice(0, 5000) }],
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    return { success: false, message: `multicast failed: ${err.slice(0, 200)}` };
+  }
+  return {
+    success: true,
+    message: 'Multicast を送信しました',
+    requestId: res.headers.get('x-line-request-id') ?? undefined,
+  };
+}
+
+export async function getLineProfile(
+  channelAccessToken: string,
+  userId: string,
+): Promise<{
+  success: boolean;
+  displayName?: string;
+  pictureUrl?: string;
+  language?: string;
+  message?: string;
+}> {
+  if (!channelAccessToken) return { success: false, message: 'LINE Channel Access Token 未設定' };
+  const res = await fetch(`https://api.line.me/v2/bot/profile/${encodeURIComponent(userId)}`, {
+    headers: { Authorization: `Bearer ${channelAccessToken}` },
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    return { success: false, message: `profile failed: ${err.slice(0, 200)}` };
+  }
+  const json = (await res.json()) as {
+    displayName?: string;
+    pictureUrl?: string;
+    language?: string;
+  };
+  return {
+    success: true,
+    displayName: json.displayName,
+    pictureUrl: json.pictureUrl,
+    language: json.language,
+  };
+}
+
+export async function uploadRichMenuImage(
+  channelAccessToken: string,
+  richMenuId: string,
+  imageBytes: Uint8Array,
+  contentType = 'image/png',
+): Promise<{ success: boolean; message: string }> {
+  if (!channelAccessToken) return { success: false, message: 'LINE Channel Access Token 未設定' };
+  const res = await fetch(`https://api-data.line.me/v2/bot/richmenu/${richMenuId}/content`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': contentType,
+      Authorization: `Bearer ${channelAccessToken}`,
+    },
+    body: new Uint8Array(imageBytes),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    return { success: false, message: `richmenu image upload failed: ${err.slice(0, 200)}` };
+  }
+  return { success: true, message: 'リッチメニュー画像をアップロードしました' };
+}
+
+export async function setDefaultRichMenu(
+  channelAccessToken: string,
+  richMenuId: string,
+): Promise<{ success: boolean; message: string }> {
+  if (!channelAccessToken) return { success: false, message: 'LINE Channel Access Token 未設定' };
+  const res = await fetch(`https://api.line.me/v2/bot/user/all/richmenu/${richMenuId}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${channelAccessToken}` },
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    return { success: false, message: `set default richmenu failed: ${err.slice(0, 200)}` };
+  }
+  return { success: true, message: 'デフォルトリッチメニューを設定しました' };
+}
+
 export function formatScheduleNotification(
   contents: Array<{ platform: string; label: string; content: string }>,
   scheduledAt: string,

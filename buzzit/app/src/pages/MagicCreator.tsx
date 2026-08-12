@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import {
   Wand2,
   MessageSquare,
@@ -10,21 +10,57 @@ import {
   AlertTriangle,
   CheckCircle2,
   Calendar,
-  X,
   CloudUpload,
   Mic,
   StopCircle,
+  Copy,
+  Inbox,
 } from 'lucide-react';
 import MediaDropzone from '../components/MediaDropzone';
+import BulkScheduleModal from '../components/BulkScheduleModal';
 import { WATERMARK } from '../constants/brand';
-import { repurposeViaApi, scheduleViaApi, voiceDraft, type PublishMode } from '../lib/api';
+import {
+  repurposeViaApi,
+  voiceDraft,
+  fetchSlackIdeas,
+  approveSlackIdea,
+  fetchWinningPatterns,
+  createWinningPattern,
+  fetchSettings,
+  fetchXSeries,
+  addXSeriesItems,
+  type PublishMode,
+  type XSeries,
+} from '../lib/api';
+import { INBOX_HANDOFF_KEY, type InboxHandoffPayload } from '../lib/inboxHandoff';
+import { getPostTemplates } from '../data/postTemplates';
 import { checkBrandSafety } from '../services/brandSafety';
 import { generateScript } from '../services/scriptGenerator';
-import { repurposeContent, scheduleToAyrshare } from '../services/repurposeEngine';
+import { repurposeContent } from '../services/repurposeEngine';
 import { uploadAllMedia } from '../services/mediaUpload';
 import { useApp } from '../store/appContext';
-import type { RepurposeContent } from '../types';
+import { critiqueMedia } from '../lib/mediaCritique';
+import type { Platform, RepurposeContent } from '../types';
 import type { LocalMediaFile, UploadedMedia } from '../types/media';
+
+async function dataUrlToLocalMedia(dataUrl: string, name = 'inbox-photo.jpg'): Promise<LocalMediaFile | null> {
+  try {
+    const res = await fetch(dataUrl);
+    const blob = await res.blob();
+    const mime = blob.type || 'image/jpeg';
+    const file = new File([blob], name, { type: mime });
+    return {
+      id: crypto.randomUUID(),
+      file,
+      kind: 'image',
+      previewUrl: URL.createObjectURL(file),
+      name: file.name,
+      size: file.size,
+    };
+  } catch {
+    return null;
+  }
+}
 
 const platformIcons = {
   reels: Smartphone,
@@ -40,6 +76,13 @@ const platformColors = {
   line: 'text-neutral-700',
 } as const;
 
+function asPlatform(value: string): Platform | null {
+  if (value === 'reels' || value === 'carousel' || value === 'x_thread' || value === 'line') {
+    return value;
+  }
+  return null;
+}
+
 export default function MagicCreator() {
   const { plan } = useApp();
   const [searchParams] = useSearchParams();
@@ -52,24 +95,94 @@ export default function MagicCreator() {
   const [safetyWarning, setSafetyWarning] = useState<string[] | null>(null);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
   const [scheduleModal, setScheduleModal] = useState(false);
-  const [isScheduling, setIsScheduling] = useState(false);
   const [scheduleMessage, setScheduleMessage] = useState<string | null>(null);
-  const [scheduleDate, setScheduleDate] = useState(() => {
-    const d = new Date();
-    d.setHours(d.getHours() + 2);
-    return d.toISOString().slice(0, 16);
-  });
   const [publishMode, setPublishMode] = useState<PublishMode>('notify');
+  const [connected, setConnected] = useState<{ x?: boolean; meta?: boolean; line?: boolean }>({});
   const [recording, setRecording] = useState(false);
   const [voiceMessage, setVoiceMessage] = useState<string | null>(null);
   const [voiceProcessing, setVoiceProcessing] = useState(false);
+  const [copiedPlatform, setCopiedPlatform] = useState<string | null>(null);
+  const [slackIdeas, setSlackIdeas] = useState<
+    Array<{ id: string; text: string; author: string; scriptPreview: string; status: string }>
+  >([]);
+  const [patterns, setPatterns] = useState<Array<{ id: string; title: string; hook: string }>>([]);
+  const [critique, setCritique] = useState<ReturnType<typeof critiqueMedia> | null>(null);
+  const [xSeriesList, setXSeriesList] = useState<XSeries[]>([]);
+  const [seriesTargetId, setSeriesTargetId] = useState('');
+  const [brandProfile, setBrandProfile] = useState('');
+  const [focusSns, setFocusSns] = useState<string | null>(null);
+  const templates = useMemo(() => getPostTemplates(), []);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
 
   useEffect(() => {
     const fromTrend = searchParams.get('idea');
     if (fromTrend) setIdea(fromTrend);
+    const sns = searchParams.get('sns');
+    if (sns) setFocusSns(sns);
+
+    if (searchParams.get('from') !== 'inbox') return;
+    try {
+      const raw = sessionStorage.getItem(INBOX_HANDOFF_KEY);
+      if (!raw) return;
+      const payload = JSON.parse(raw) as InboxHandoffPayload;
+      sessionStorage.removeItem(INBOX_HANDOFF_KEY);
+      if (payload.text && !fromTrend) setIdea(payload.text);
+      if (payload.photoDataUrl) {
+        void dataUrlToLocalMedia(payload.photoDataUrl).then((media) => {
+          if (media) setLocalMedia((prev) => (prev.length === 0 ? [media] : prev));
+        });
+      }
+    } catch {
+      sessionStorage.removeItem(INBOX_HANDOFF_KEY);
+    }
   }, [searchParams]);
+
+  useEffect(() => {
+    fetchSlackIdeas()
+      .then((r) => setSlackIdeas(r.ideas.filter((i) => i.status === 'pending').slice(0, 5)))
+      .catch(() => {});
+    fetchWinningPatterns()
+      .then((r) => setPatterns(r.patterns.slice(0, 5)))
+      .catch(() => {});
+    fetchSettings()
+      .then((s) => {
+        if (s.defaultPublishMode) setPublishMode(s.defaultPublishMode);
+        else if (s.xConnected) setPublishMode('x_free');
+        setBrandProfile(s.brandProfile?.trim() ?? '');
+        setConnected({
+          x: !!s.xConnected,
+          meta: !!s.metaConnected,
+          line: !!s.lineChannelAccessToken?.trim(),
+        });
+        if (searchParams.get('sns') === 'x' && s.xConnected) setPublishMode('x_free');
+        if (searchParams.get('sns') === 'instagram' && s.metaConnected) setPublishMode('meta');
+        if (searchParams.get('sns') === 'line' && s.lineChannelAccessToken) setPublishMode('line');
+      })
+      .catch(() => {});
+    fetchXSeries()
+      .then((r) => {
+        setXSeriesList(r.series);
+        if (r.series[0]) setSeriesTargetId(r.series[0].id);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!localMedia[0]) {
+      setCritique(null);
+      return;
+    }
+    const f = localMedia[0];
+    setCritique(
+      critiqueMedia({
+        kind: f.kind,
+        fileName: f.name,
+        hasCaptionHint: idea.trim().length > 0,
+        durationSec: f.kind === 'video' ? 25 : undefined,
+      }),
+    );
+  }, [localMedia, idea]);
 
   useEffect(() => {
     return () => {
@@ -114,22 +227,70 @@ export default function MagicCreator() {
 
   const handleProcessVoice = async (blob: Blob) => {
     setVoiceProcessing(true);
+    setResults(null);
     try {
       const buf = await blob.arrayBuffer();
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+      const bytes = new Uint8Array(buf);
+      let binary = '';
+      const chunk = 0x8000;
+      for (let i = 0; i < bytes.length; i += chunk) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+      }
+      const base64 = btoa(binary);
       try {
-        const res = await voiceDraft({ audioBase64: base64, mimeType: blob.type || 'audio/webm', hint: idea });
-        if (res.transcript) setIdea((prev) => (prev ? `${prev}\n\n${res.transcript}` : res.transcript));
+        const res = await voiceDraft({
+          audioBase64: base64,
+          mimeType: blob.type || 'audio/webm',
+          hint: idea,
+        });
+        if (res.transcript) setIdea(res.transcript);
+        const mapped: RepurposeContent[] = [];
+        for (const d of res.drafts) {
+          const platform = asPlatform(d.platform ?? d.kind);
+          if (!platform) continue;
+          mapped.push({
+            platform,
+            label: d.label,
+            content: d.content,
+            ...(d.carouselSlides ? { carouselSlides: d.carouselSlides } : {}),
+          });
+        }
+        if (mapped.length) {
+          setResults(mapped);
+          setPublishMode('notify');
+        }
         setVoiceMessage(
           res.usedGemini
-            ? `音声から ${res.drafts.length} 種類の下書きを生成しました`
-            : '音声の文字起こしが完了しました（Gemini 未接続のためテキストのみ）',
+            ? `文字起こし完了。${mapped.length || res.drafts.length} 種類の下書きを生成しました`
+            : '文字起こし相当の下書きを生成しました（Gemini 未接続のためヒント文ベース）',
         );
       } catch {
-        setVoiceMessage('ボイスドラフトは Phase 4 で API 提供予定です（録音は完了しました）');
+        setVoiceMessage('ボイスドラフトの処理に失敗しました。もう一度お試しください');
       }
     } finally {
       setVoiceProcessing(false);
+    }
+  };
+
+  const handleUseSlackIdea = async (ideaId: string, text: string, approve: boolean) => {
+    setIdea(text);
+    if (approve) {
+      try {
+        await approveSlackIdea(ideaId);
+        setSlackIdeas((prev) => prev.filter((i) => i.id !== ideaId));
+      } catch {
+        /* ignore */
+      }
+    }
+  };
+
+  const handleCopy = async (platform: string, content: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedPlatform(platform);
+      setTimeout(() => setCopiedPlatform(null), 2000);
+    } catch {
+      setUploadMessage('コピーに失敗しました');
     }
   };
 
@@ -142,9 +303,12 @@ export default function MagicCreator() {
     setScheduleMessage(null);
     setUploadMessage(null);
 
-    const effectiveIdea =
+    const baseIdea =
       idea.trim() ||
       `アップロードした${localMedia[0]?.kind === 'video' ? '動画' : '画像'}「${localMedia[0]?.name ?? '素材'}」を使った投稿`;
+    const effectiveIdea = brandProfile
+      ? `${baseIdea}\n\n【お店の特徴・トーン】\n${brandProfile}`
+      : baseIdea;
 
     try {
       let mediaUrls: string[] = [];
@@ -198,46 +362,32 @@ export default function MagicCreator() {
     }
   };
 
-  const handleScheduleAll = async () => {
-    if (!results) return;
-    setIsScheduling(true);
+  const updateResultContent = (platform: Platform, content: string) => {
+    setResults((prev) =>
+      prev ? prev.map((r) => (r.platform === platform ? { ...r, content } : r)) : prev,
+    );
+  };
 
-    try {
-      const result = await scheduleViaApi({
-        contents: results.map((r) => ({
-          platform: r.platform,
-          label: r.label,
-          content: r.content,
-          carouselSlides: r.carouselSlides,
-        })),
-        scheduledAt: new Date(scheduleDate).toISOString(),
-        publishMode,
-        mediaUrls: uploadedMedia.length > 0 ? uploadedMedia.map((m) => m.publicUrl) : undefined,
-      });
-      const trackingNote = result.trackingLinks?.length
-        ? ` 計測リンク ${result.trackingLinks.length} 件を生成しました。`
-        : '';
-      setScheduleMessage(`${result.message}${trackingNote}`);
-    } catch {
-      const result = await scheduleToAyrshare(results, new Date(scheduleDate));
-      setScheduleMessage(result.message);
-    }
-
-    setIsScheduling(false);
-    setScheduleModal(false);
+  const updateCarouselSlide = (platform: Platform, index: number, value: string) => {
+    setResults((prev) =>
+      prev
+        ? prev.map((r) => {
+            if (r.platform !== platform || !r.carouselSlides) return r;
+            const slides = [...r.carouselSlides];
+            slides[index] = value;
+            return { ...r, carouselSlides: slides, content: slides.join('\n') };
+          })
+        : prev,
+    );
   };
 
   return (
     <div className="buzz-page">
-      <div>
-        <h2 className="text-2xl font-bold mb-2">マジック・クリエイター</h2>
-        <p className="text-neutral-600">
-          1つのアイデアや素材から、全SNSプラットフォーム向けコンテンツを自動生成（Repurpose）。
-          {plan === 'starter' && (
-            <span className="text-neutral-700 ml-1">Starterプランでは透かし「{WATERMARK}」が付与されます。</span>
-          )}
+      {plan === 'starter' && (
+        <p className="text-sm text-neutral-600">
+          Starterプランでは透かし「{WATERMARK}」が付与されます。
         </p>
-      </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-1 space-y-6">
@@ -253,6 +403,67 @@ export default function MagicCreator() {
                 onChange={setLocalMedia}
                 disabled={isGenerating}
               />
+
+              {critique && (
+                <div className="border border-neutral-200 bg-neutral-50 p-3 text-xs">
+                  <p className="font-medium">動画・画像チェック {critique.score}点</p>
+                  <ul className="mt-2 space-y-1 text-neutral-600">
+                    {critique.checks.map((c) => (
+                      <li key={c.id}>
+                        {c.ok ? '✓' : '!'} {c.label}
+                        {!c.ok && <span className="block text-neutral-500">→ {c.tip}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {patterns.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-neutral-600">勝ちパターンから始める</p>
+                  {patterns.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className="w-full border border-neutral-200 bg-white p-2 text-left text-xs hover:border-neutral-900"
+                      onClick={() => setIdea(`${p.title}\n${p.hook}`)}
+                    >
+                      {p.title}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {templates.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-neutral-600">業種別テンプレ（タップで入力）</p>
+                  <div className="flex flex-wrap gap-2">
+                    {templates.slice(0, 8).map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        className="border border-neutral-200 bg-white px-2.5 py-1.5 text-left text-xs hover:border-neutral-900"
+                        onClick={() => setIdea(t.idea)}
+                        title={t.pillar}
+                      >
+                        {t.title}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {brandProfile && (
+                <p className="text-xs text-neutral-500">
+                  設定の事業所特徴を生成に反映します。
+                  <Link to="/settings?tab=business" className="ml-1 underline-offset-2 hover:underline">
+                    編集
+                  </Link>
+                </p>
+              )}
+              {focusSns && (
+                <p className="text-xs text-neutral-500">フォーカス媒体: {focusSns}（予約モードを合わせています）</p>
+              )}
 
               <div>
                 <label className="text-xs text-neutral-600 mb-1 block">伝えたい内容・アイデア</label>
@@ -274,7 +485,7 @@ export default function MagicCreator() {
                     } disabled:opacity-60`}
                   >
                     {recording ? <StopCircle className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
-                    {recording ? '録音停止' : voiceProcessing ? '処理中...' : 'ボイスドラフト'}
+                    {recording ? '録音停止' : voiceProcessing ? '文字起こし中...' : 'ボイスドラフト'}
                   </button>
                   {recording && <span className="text-xs text-red-600">● 録音中</span>}
                 </div>
@@ -301,6 +512,41 @@ export default function MagicCreator() {
               </button>
             </div>
           </div>
+
+          {slackIdeas.length > 0 && (
+            <div className="buzz-card-pad space-y-3">
+              <h3 className="flex items-center gap-2 text-sm font-medium">
+                <Inbox className="h-4 w-4" />
+                Slack ネタ Inbox
+              </h3>
+              <p className="text-xs text-neutral-500">スタッフが寄せたネタをワンタップで台本に使えます。</p>
+              {slackIdeas.map((item) => (
+                <div key={item.id} className="border border-neutral-200 bg-neutral-50 p-3 text-sm">
+                  <p className="line-clamp-3 text-neutral-800">{item.text}</p>
+                  <p className="mt-1 text-[10px] text-neutral-500">from {item.author}</p>
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleUseSlackIdea(item.id, item.text, false)}
+                      className="border border-neutral-300 px-2 py-1 text-xs hover:border-neutral-900"
+                    >
+                      使う
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleUseSlackIdea(item.id, item.text, true)}
+                      className="border border-neutral-900 bg-neutral-900 px-2 py-1 text-xs text-white"
+                    >
+                      採用して使う
+                    </button>
+                  </div>
+                </div>
+              ))}
+              <Link to="/settings" className="text-xs text-neutral-600 underline-offset-2 hover:underline">
+                Slack 連携の設定 →
+              </Link>
+            </div>
+          )}
         </div>
 
         <div className="lg:col-span-2 relative min-h-[280px] lg:min-h-[500px]">
@@ -309,7 +555,7 @@ export default function MagicCreator() {
               <div className="mb-4 flex h-16 w-16 items-center justify-center border border-neutral-200 bg-neutral-50">
                 <LayoutList className="w-8 h-8 opacity-50" />
               </div>
-              <p>素材またはアイデアを入力して生成を開始してください</p>
+              <p>素材・アイデア・ボイス・Slackネタから生成を開始してください</p>
             </div>
           )}
 
@@ -369,7 +615,20 @@ export default function MagicCreator() {
               {scheduleMessage && (
                 <div className="flex items-start gap-3 p-4 rounded-xl buzz-alert buzz-alert-success text-sm">
                   <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
-                  <p>{scheduleMessage}</p>
+                  <div>
+                    <p>{scheduleMessage}</p>
+                    <div className="mt-2 flex flex-wrap gap-3 text-xs">
+                      <Link to="/calendar" className="underline-offset-2 hover:underline">
+                        投稿カレンダーで確認 →
+                      </Link>
+                      <Link to="/sns/instagram" className="underline-offset-2 hover:underline">
+                        Instagram で整える →
+                      </Link>
+                      <Link to="/sns/x" className="underline-offset-2 hover:underline">
+                        X で整える →
+                      </Link>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -378,20 +637,81 @@ export default function MagicCreator() {
                   <span className="w-6 h-6 border border-neutral-300 bg-neutral-100 text-neutral-700 flex items-center justify-center text-xs font-bold">2</span>
                   生成結果 (Repurpose)
                 </h3>
-                <button
-                  type="button"
-                  onClick={() => setScheduleModal(true)}
-                  className="buzz-btn-primary text-sm px-4 py-2"
-                >
-                  <Calendar className="w-4 h-4" />
-                  すべて一括予約
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const reels = results.find((r) => r.platform === 'reels');
+                      if (!reels) return;
+                      try {
+                        await createWinningPattern({
+                          title: reels.content.slice(0, 40),
+                          hook: idea.slice(0, 120) || reels.content.slice(0, 80),
+                          platform: 'reels',
+                        });
+                        setUploadMessage('勝ちパターンに保存しました');
+                      } catch {
+                        setUploadMessage('勝ちパターン保存に失敗しました');
+                      }
+                    }}
+                    className="border border-neutral-300 px-3 py-2 text-xs"
+                  >
+                    勝ち型に保存
+                  </button>
+                  {xSeriesList.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <select
+                        value={seriesTargetId}
+                        onChange={(e) => setSeriesTargetId(e.target.value)}
+                        className="border border-neutral-300 bg-white px-2 py-2 text-xs"
+                      >
+                        {xSeriesList.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const x = results.find((r) => r.platform === 'x_thread');
+                          if (!x || !seriesTargetId) return;
+                          try {
+                            await addXSeriesItems(seriesTargetId, {
+                              text: x.content,
+                              approved: false,
+                              imageUrl: uploadedMedia.find((m) => m.kind === 'image')?.publicUrl,
+                            });
+                            setUploadMessage('Xシリーズのキューに追加しました（投稿OKはシリーズ画面で）');
+                          } catch {
+                            setUploadMessage('Xシリーズへの追加に失敗しました');
+                          }
+                        }}
+                        className="border border-neutral-300 px-3 py-2 text-xs"
+                      >
+                        Xシリーズへ
+                      </button>
+                      <Link to="/x-series" className="px-2 py-2 text-xs underline-offset-2 hover:underline">
+                        シリーズ管理
+                      </Link>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setScheduleModal(true)}
+                    className="buzz-btn-primary text-sm px-4 py-2"
+                  >
+                    <Calendar className="w-4 h-4" />
+                    かんたん一括予約
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {results.map((item) => {
                   const Icon = platformIcons[item.platform];
                   const color = platformColors[item.platform];
+                  const isX = item.platform === 'x_thread';
                   return (
                     <div
                       key={item.platform}
@@ -400,35 +720,68 @@ export default function MagicCreator() {
                       <div className="flex items-center gap-2 mb-3">
                         <Icon className={`w-5 h-5 ${color}`} />
                         <span className="font-medium text-sm">{item.label}</span>
+                        {isX && (
+                          <span className="ml-auto text-[10px] text-neutral-500">コピー投稿推奨</span>
+                        )}
                       </div>
                       {item.carouselSlides ? (
-                        <div className="mb-4 grid grid-cols-2 gap-2 sm:flex sm:gap-2">
+                        <div className="mb-4 space-y-2">
+                          <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-2">
+                            {item.carouselSlides.map((slide, i) => (
+                              <div
+                                key={`${item.platform}-slide-${i}`}
+                                className="aspect-[4/5] rounded-lg border border-neutral-200 bg-neutral-50 flex items-center justify-center text-[10px] text-neutral-500 p-1 text-center overflow-hidden sm:w-1/4"
+                              >
+                                {i === 0 && localMedia[0]?.kind === 'image' ? (
+                                  <img src={localMedia[0].previewUrl} alt="" className="w-full h-full object-cover" />
+                                ) : (
+                                  i === 0 ? '表紙' : slide.slice(0, 12)
+                                )}
+                              </div>
+                            ))}
+                          </div>
                           {item.carouselSlides.map((slide, i) => (
-                            <div
-                              key={slide}
-                              className="aspect-[4/5] rounded-lg border border-neutral-200 bg-neutral-50 flex items-center justify-center text-[10px] text-neutral-500 p-1 text-center overflow-hidden sm:w-1/4"
-                            >
-                              {i === 0 && localMedia[0]?.kind === 'image' ? (
-                                <img src={localMedia[0].previewUrl} alt="" className="w-full h-full object-cover" />
-                              ) : (
-                                i === 0 ? '表紙' : slide.slice(0, 12)
-                              )}
-                            </div>
+                            <label key={`${item.platform}-edit-${i}`} className="block">
+                              <span className="mb-1 block text-[10px] text-neutral-500">スライド {i + 1}</span>
+                              <textarea
+                                value={slide}
+                                onChange={(e) => updateCarouselSlide(item.platform, i, e.target.value)}
+                                rows={2}
+                                className="w-full resize-y border border-neutral-200 bg-white px-2 py-1.5 text-xs text-neutral-800 focus:border-neutral-900 focus:outline-none"
+                              />
+                            </label>
                           ))}
                         </div>
                       ) : (
-                        <div className="mb-4 h-32 overflow-hidden whitespace-pre-wrap border border-neutral-200 bg-neutral-50 p-3 text-sm text-neutral-700 relative">
-                          {item.content}
-                          <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-neutral-50 to-transparent"></div>
-                        </div>
+                        <textarea
+                          value={item.content}
+                          onChange={(e) => updateResultContent(item.platform, e.target.value)}
+                          rows={8}
+                          className="mb-4 w-full resize-y whitespace-pre-wrap border border-neutral-200 bg-neutral-50 p-3 text-sm text-neutral-700 focus:border-neutral-900 focus:outline-none"
+                        />
                       )}
-                      <button
-                        type="button"
-                        onClick={() => setScheduleModal(true)}
-                        className="w-full border border-neutral-200 py-2 text-xs font-medium transition-colors hover:border-neutral-900"
-                      >
-                        編集・予約
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(item.platform, item.content)}
+                          className="flex-1 inline-flex items-center justify-center gap-1 border border-neutral-200 py-2 text-xs font-medium transition-colors hover:border-neutral-900"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                          {copiedPlatform === item.platform ? 'コピー済み' : isX ? 'X用にコピー' : 'コピー'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setScheduleModal(true)}
+                          className="flex-1 border border-neutral-200 py-2 text-xs font-medium transition-colors hover:border-neutral-900"
+                        >
+                          予約
+                        </button>
+                      </div>
+                      {isX && (
+                        <p className="mt-2 text-[10px] leading-relaxed text-neutral-500">
+                          設定で X API キーを登録すると「X API 自動投稿」で予約できます。未設定の場合は「通知＋コピー」が標準です。
+                        </p>
+                      )}
                     </div>
                   );
                 })}
@@ -438,67 +791,20 @@ export default function MagicCreator() {
         </div>
       </div>
 
-      <AnimatePresence>
-        {scheduleModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/40 p-4"
-            onClick={() => !isScheduling && setScheduleModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-2xl border border-neutral-200 bg-white p-6 shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-bold">投稿を予約</h3>
-                <button
-                  type="button"
-                  onClick={() => setScheduleModal(false)}
-                  className="p-1 rounded-lg hover:bg-white/5 text-neutral-600"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <p className="text-sm text-neutral-600 mb-4">
-                投稿モードと日時を選んで予約登録します。時刻到来時に Worker が処理します。
-              </p>
-              <label className="text-xs text-neutral-600 mb-1 block">投稿モード</label>
-              <select
-                value={publishMode}
-                onChange={(e) => setPublishMode(e.target.value as PublishMode)}
-                className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-base sm:text-sm mb-4 focus:outline-none focus:border-neutral-900"
-              >
-                <option value="notify">通知リマインダー（Slack/LINE に文案）</option>
-                <option value="approval">承認後投稿（ダッシュボードで承認）</option>
-                <option value="meta">Meta 自動投稿</option>
-                <option value="line">LINE ブロードキャスト</option>
-                <option value="gbp">Google Business Profile（Phase 4）</option>
-                <option value="auto">自動（接続に応じて）</option>
-              </select>
-              <label className="text-xs text-neutral-600 mb-1 block">投稿日時</label>
-              <input
-                type="datetime-local"
-                value={scheduleDate}
-                onChange={(e) => setScheduleDate(e.target.value)}
-                className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-base sm:text-sm mb-6 focus:outline-none focus:border-neutral-900"
-              />
-              <button
-                type="button"
-                onClick={handleScheduleAll}
-                disabled={isScheduling}
-                className="buzz-btn-primary w-full disabled:opacity-70"
-              >
-                {isScheduling ? '予約中...' : `${results?.length ?? 0}件を予約する`}
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <BulkScheduleModal
+        open={scheduleModal && !!results?.length}
+        onClose={() => setScheduleModal(false)}
+        contents={(results ?? []).map((r) => ({
+          platform: r.platform,
+          label: r.label,
+          content: r.content,
+          carouselSlides: r.carouselSlides,
+        }))}
+        mediaUrls={uploadedMedia.length > 0 ? uploadedMedia.map((m) => m.publicUrl) : undefined}
+        defaultPublishMode={publishMode}
+        connected={connected}
+        onDone={(msg) => setScheduleMessage(msg)}
+      />
     </div>
   );
 }

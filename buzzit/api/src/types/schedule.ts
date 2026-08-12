@@ -1,4 +1,12 @@
-export type PublishMode = 'notify' | 'approval' | 'meta' | 'line' | 'gbp' | 'ayrshare' | 'auto';
+export type PublishMode =
+  | 'notify'
+  | 'approval'
+  | 'meta'
+  | 'line'
+  | 'gbp'
+  | 'ayrshare'
+  | 'x_free'
+  | 'auto';
 
 export type ScheduledJobStatus =
   | 'pending_approval'
@@ -6,7 +14,8 @@ export type ScheduledJobStatus =
   | 'processing'
   | 'published'
   | 'notified'
-  | 'failed';
+  | 'failed'
+  | 'draft';
 
 export interface ScheduleContentItem {
   platform: string;

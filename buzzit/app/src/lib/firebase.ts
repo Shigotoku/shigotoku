@@ -13,21 +13,51 @@ import {
   type UserCredential,
 } from 'firebase/auth';
 
+/** shigotoku-prod Web アプリ（公開設定。deploy/build.config.mjs と同一） */
+const PROD_FIREBASE = {
+  apiKey: 'AIzaSyAMxl7Co5d5Kj52qt_Gh716Tob80f3qUTE',
+  authDomain: 'shigotoku-prod.firebaseapp.com',
+  projectId: 'shigotoku-prod',
+  storageBucket: 'shigotoku-prod.firebasestorage.app',
+  messagingSenderId: '750163975008',
+  appId: '1:750163975008:web:d494d629951bfb05311c05',
+} as const;
+
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY ?? '',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ?? 'shigotoku-prod.firebaseapp.com',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID ?? 'shigotoku-prod',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET ?? 'shigotoku-prod.firebasestorage.app',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID ?? '750163975008',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID ?? '',
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || PROD_FIREBASE.apiKey,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || PROD_FIREBASE.authDomain,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || PROD_FIREBASE.projectId,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || PROD_FIREBASE.storageBucket,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || PROD_FIREBASE.messagingSenderId,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || PROD_FIREBASE.appId,
 };
 
 export const isFirebaseConfigured = Boolean(firebaseConfig.apiKey && firebaseConfig.appId);
 
-const app = getApps().length ? getApps()[0]! : initializeApp(firebaseConfig);
+let appInstance: ReturnType<typeof initializeApp> | undefined;
+let authInstance: ReturnType<typeof getAuth> | undefined;
+
+function getFirebaseApp() {
+  if (!isFirebaseConfigured) return undefined;
+  if (!appInstance) {
+    appInstance = getApps().length ? getApps()[0]! : initializeApp(firebaseConfig);
+  }
+  return appInstance;
+}
 
 /** getAuth は popup/redirect 用 resolver を含む。initializeAuth 単体だと auth/argument-error になる */
-export const auth = getAuth(app);
+export function getFirebaseAuth() {
+  const app = getFirebaseApp();
+  if (!app) {
+    throw new Error('Firebase Web アプリが未設定です');
+  }
+  if (!authInstance) {
+    authInstance = getAuth(app);
+  }
+  return authInstance;
+}
+
+export const auth = getFirebaseAuth();
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 

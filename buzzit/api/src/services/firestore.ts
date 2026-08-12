@@ -12,6 +12,8 @@ export interface UserSettings {
   ayrshareProfileKey?: string;
   autoModeEnabled?: boolean;
   industry?: string;
+  /** 事業所の特徴・トーン（投稿文生成に反映） */
+  brandProfile?: string;
   slackTeamId?: string;
   /** LINE Messaging API Channel Secret（Webhook 署名検証） */
   lineChannelSecret?: string;
@@ -27,14 +29,66 @@ export interface UserSettings {
   metaIgUserId?: string;
   metaPageId?: string;
   metaTokenExpiresAt?: string;
-  /** 通知モード（notify / meta / line / approval / auto） */
-  defaultPublishMode?: 'notify' | 'meta' | 'line' | 'approval' | 'auto';
+  /** 通知モード（notify / meta / line / approval / x_free / auto） */
+  defaultPublishMode?: PublishMode;
+  /** X API BYOK（OAuth 1.0a）— ユーザー自身の開発者アプリ鍵 */
+  xApiKey?: string;
+  xApiSecret?: string;
+  xAccessToken?: string;
+  xAccessSecret?: string;
+  xUsername?: string;
+  /** 当月の X API 投稿成功数（ソフト上限管理用） */
+  xApiPostsMonthKey?: string;
+  xApiPostsThisMonth?: number;
   /** クリック計測のリダイレクト先（店舗サイト・予約ページ等） */
   defaultDestinationUrl?: string;
   /** 所属店舗ID一覧 */
   storeIds?: string[];
   /** 現在操作中の店舗ID */
   activeStoreId?: string;
+  /** HPB / 予約サイトURL */
+  hpbStoreUrl?: string;
+  /** Googleビジネスプロフィール */
+  gbpConnected?: boolean;
+  gbpLocationName?: string;
+  gbpAccessToken?: string;
+  /** 店長通知用メール（将来拡張・現状はSlack/LINE優先） */
+  notifyEmail?: string;
+  /**
+   * SNS追加アカウント枠数（各媒体の1アカウント目はプランに含む。
+   * 例: Instagram公式＋採用用の2アカウント目 → 1枠）
+   */
+  extraSnsAccounts?: number;
+  /** インサイト自動取得（Meta 等）。未設定は有効扱い */
+  insightsEnabled?: boolean;
+  /**
+   * X インサイト取得（impression 読み取り）。従量課金の可能性あり。
+   * 未設定・false はオフ（追加費用プラン検討用の費用ガード）
+   */
+  xInsightsEnabled?: boolean;
+  insightsLastSyncedAt?: string;
+}
+
+export interface PostInsightDoc {
+  id: string;
+  uid?: string;
+  jobId: string;
+  platform: string;
+  externalId: string;
+  impressions: number;
+  reach?: number;
+  likes?: number;
+  comments?: number;
+  replies?: number;
+  reposts?: number;
+  quotes?: number;
+  bookmarks?: number;
+  saved?: number;
+  fetchedAt: string;
+  source: 'meta' | 'x';
+  lastError?: string;
+  scheduledAt?: string;
+  preview?: string;
 }
 
 export interface MetricsSummary {
@@ -176,6 +230,35 @@ export async function updateUserSettings(uid: string, patch: Partial<UserSetting
     { merge: true },
   );
   return getUserSettings(uid);
+}
+
+/** X API 投稿成功時に当月カウントをインクリメント */
+export async function incrementXApiPostCount(uid: string): Promise<number> {
+  const monthKey = new Date().toISOString().slice(0, 7); // YYYY-MM
+  const ref = db().collection('users').doc(uid);
+  await db().runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const data = snap.data() ?? {};
+    const currentKey = (data.xApiPostsMonthKey as string | undefined) ?? '';
+    const currentCount = currentKey === monthKey ? Number(data.xApiPostsThisMonth ?? 0) : 0;
+    tx.set(
+      ref,
+      {
+        xApiPostsMonthKey: monthKey,
+        xApiPostsThisMonth: currentCount + 1,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+  });
+  const after = await getUserSettings(uid);
+  return after.xApiPostsThisMonth ?? 0;
+}
+
+export function getXApiPostsThisMonth(settings: UserSettings): number {
+  const monthKey = new Date().toISOString().slice(0, 7);
+  if (settings.xApiPostsMonthKey !== monthKey) return 0;
+  return Number(settings.xApiPostsThisMonth ?? 0);
 }
 
 export async function getMetrics(uid: string): Promise<MetricsSummary> {
@@ -433,7 +516,7 @@ export async function getScheduledJobs(
     .doc(uid)
     .collection('scheduled')
     .orderBy('scheduledAt', 'desc')
-    .limit(30);
+    .limit(100);
 
   if (status) {
     const statuses = Array.isArray(status) ? status : [status];
@@ -556,11 +639,111 @@ export async function getSlackIdeas(uid: string): Promise<SlackIdea[]> {
   });
 }
 
-export async function approveSlackIdea(uid: string, ideaId: string): Promise<void> {
+export async function getSlackIdea(uid: string, ideaId: string): Promise<SlackIdea | null> {
+  const snap = await db().collection('users').doc(uid).collection('slackIdeas').doc(ideaId).get();
+  if (!snap.exists) return null;
+  const data = snap.data()!;
+  const created =
+    data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : new Date().toISOString();
+  return {
+    id: snap.id,
+    text: data.text as string,
+    author: data.author as string,
+    scriptPreview: data.scriptPreview as string,
+    status: data.status as SlackIdea['status'],
+    createdAt: created,
+  };
+}
+
+export async function approveSlackIdea(uid: string, ideaId: string): Promise<SlackIdea | null> {
+  const idea = await getSlackIdea(uid, ideaId);
+  if (!idea) return null;
   await db().collection('users').doc(uid).collection('slackIdeas').doc(ideaId).update({
     status: 'approved',
     approvedAt: FieldValue.serverTimestamp(),
   });
+  return { ...idea, status: 'approved' };
+}
+
+export async function retryScheduledJob(uid: string, jobId: string): Promise<ScheduledJobDoc | null> {
+  const ref = db().collection('users').doc(uid).collection('scheduled').doc(jobId);
+  const snap = await ref.get();
+  if (!snap.exists) return null;
+  const data = snap.data()!;
+  if (data.status !== 'failed') return null;
+
+  await ref.update({
+    status: 'pending',
+    errorMessage: FieldValue.delete(),
+    retryCount: FieldValue.increment(1),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+
+  const updated = await ref.get();
+  return mapScheduledDoc(uid, jobId, updated.data()!);
+}
+
+export async function revertScheduledJobToDraft(uid: string, jobId: string): Promise<ScheduledJobDoc | null> {
+  const ref = db().collection('users').doc(uid).collection('scheduled').doc(jobId);
+  const snap = await ref.get();
+  if (!snap.exists) return null;
+  const data = snap.data()!;
+  const editable: ScheduledJobStatus[] = ['failed', 'pending_approval', 'pending'];
+  if (!editable.includes(data.status as ScheduledJobStatus)) return null;
+
+  await ref.update({
+    status: 'draft',
+    errorMessage: FieldValue.delete(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+
+  const updated = await ref.get();
+  return mapScheduledDoc(uid, jobId, updated.data()!);
+}
+
+const EDITABLE_SCHEDULE_STATUSES: ScheduledJobStatus[] = [
+  'pending',
+  'pending_approval',
+  'draft',
+  'failed',
+];
+
+export async function updateScheduledJob(
+  uid: string,
+  jobId: string,
+  patch: {
+    scheduledAt?: string;
+    contents?: ScheduleContentItem[];
+    publishMode?: PublishMode;
+  },
+): Promise<ScheduledJobDoc | null> {
+  const ref = db().collection('users').doc(uid).collection('scheduled').doc(jobId);
+  const snap = await ref.get();
+  if (!snap.exists) return null;
+  const data = snap.data()!;
+  const status = data.status as ScheduledJobStatus;
+  if (!EDITABLE_SCHEDULE_STATUSES.includes(status)) return null;
+
+  const updates: Record<string, unknown> = {
+    updatedAt: FieldValue.serverTimestamp(),
+  };
+  if (patch.scheduledAt !== undefined) updates.scheduledAt = patch.scheduledAt;
+  if (patch.contents !== undefined) updates.contents = patch.contents;
+  if (patch.publishMode !== undefined) {
+    updates.publishMode = patch.publishMode;
+    if (status === 'draft' || status === 'failed') {
+      updates.status = patch.publishMode === 'approval' ? 'pending_approval' : 'pending';
+      updates.errorMessage = FieldValue.delete();
+    } else if (status === 'pending_approval' && patch.publishMode !== 'approval') {
+      updates.status = 'pending';
+    } else if (status === 'pending' && patch.publishMode === 'approval') {
+      updates.status = 'pending_approval';
+    }
+  }
+
+  await ref.update(updates);
+  const updated = await ref.get();
+  return mapScheduledDoc(uid, jobId, updated.data()!);
 }
 
 export async function trackMetricEvent(
@@ -603,12 +786,52 @@ export async function trackMetricEvent(
 
 export async function getAutoModeUsers(): Promise<UserSettings[]> {
   const snap = await db().collection('users').where('autoModeEnabled', '==', true).get();
-  return snap.docs.map((d) => d.data() as UserSettings);
+  return snap.docs.map((d) => ({ ...(d.data() as UserSettings), uid: d.id }));
 }
 
 export async function getAllUsersWithSlack(): Promise<UserSettings[]> {
   const snap = await db().collection('users').get();
   return snap.docs
-    .map((d) => d.data() as UserSettings)
+    .map((d) => ({ ...(d.data() as UserSettings), uid: d.id }))
     .filter((u) => !!u.slackWebhookUrl);
+}
+
+export async function getPostInsight(uid: string, id: string): Promise<PostInsightDoc | null> {
+  const snap = await db().collection('users').doc(uid).collection('postInsights').doc(id).get();
+  if (!snap.exists) return null;
+  return { id: snap.id, ...(snap.data() as Omit<PostInsightDoc, 'id'>) };
+}
+
+export async function upsertPostInsight(
+  uid: string,
+  doc: Omit<PostInsightDoc, 'uid'>,
+): Promise<void> {
+  await db()
+    .collection('users')
+    .doc(uid)
+    .collection('postInsights')
+    .doc(doc.id)
+    .set(
+      {
+        ...doc,
+        uid,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+}
+
+export async function listPostInsights(
+  uid: string,
+  options: { limit?: number } = {},
+): Promise<PostInsightDoc[]> {
+  const limit = options.limit ?? 100;
+  const snap = await db()
+    .collection('users')
+    .doc(uid)
+    .collection('postInsights')
+    .orderBy('fetchedAt', 'desc')
+    .limit(limit)
+    .get();
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<PostInsightDoc, 'id'>) }));
 }

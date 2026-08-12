@@ -33,7 +33,12 @@ const ROLE_INFO: Record<Exclude<StoreRole, 'owner'>, { label: string; desc: stri
   staff: { label: 'スタッフ', desc: '日常業務の利用（招待不可）', icon: Users, color: 'text-neutral-700 bg-neutral-100' },
 };
 
-export default function TeamPage() {
+type TeamPageProps = {
+  /** 設定タブ内に埋め込むとき true（外側のページ枠を外す） */
+  embedded?: boolean;
+};
+
+export default function TeamPage({ embedded }: TeamPageProps = {}) {
   const { user } = useAuth();
   const { activeStoreId, userRole, setUserRole, refreshStores } = useStore();
   const [email, setEmail] = useState('');
@@ -175,16 +180,13 @@ export default function TeamPage() {
   }
 
   return (
-    <div className="buzz-page-narrow space-y-6">
-      <div>
-        <h2 className="mb-2 text-2xl font-bold">スタッフ管理</h2>
-        <p className="text-neutral-600">
+    <div className={embedded ? 'space-y-6' : 'buzz-page-narrow space-y-6'}>
+      <p className="text-sm text-neutral-600">
           店舗にスタッフを招待します。プランごとにスタッフ上限があります（現在: {staffLimitLabel(plan)}）。
           <Link to="/settings" className="ml-1 font-medium text-neutral-900 underline underline-offset-2">
             設定
           </Link>
         </p>
-      </div>
 
       {error && (
         <div className="flex items-start gap-2 border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">

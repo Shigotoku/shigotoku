@@ -1,0 +1,131 @@
+---
+import { appPath, assetPath, shapeitIconPath } from '../lib/urls';
+
+const loginUrl = appPath('/login');
+const howUrl = `${import.meta.env.BASE_URL}#how-it-works`;
+const heroBgUrl = assetPath('hero-bg.png');
+---
+
+<section class="shapeit-hero relative overflow-hidden">
+  <div class="shapeit-hero-bg" aria-hidden="true">
+    <img
+      src={heroBgUrl}
+      alt=""
+      class="shapeit-hero-bg-img"
+      width={1920}
+      height={1080}
+      loading="eager"
+      decoding="sync"
+      fetchpriority="high"
+    />
+  </div>
+  <div class="shapeit-hero-veil" aria-hidden="true"></div>
+
+  <div class="relative z-10 mx-auto flex min-h-[min(100svh,52rem)] max-w-6xl flex-col justify-end px-4 pb-12 pt-24 sm:min-h-[88vh] sm:px-6 sm:pb-24 sm:pt-32 lg:justify-center lg:pb-28">
+    <div class="max-w-2xl lg:max-w-3xl">
+      <div class="inline-flex max-w-full items-center gap-2.5 sm:gap-3.5">
+        <span class="shapeit-icon-frame shapeit-icon-frame--hero-badge">
+          <img src={shapeitIconPath} alt="" class="shapeit-brand-icon" width="40" height="40" />
+        </span>
+        <p class="shapeit-brand font-display font-bold tracking-tight text-paper">
+          ShapeIt
+          <span class="shapeit-brand-kana mt-0.5 block font-medium tracking-[0.14em] text-mint-bright">シェイプイット</span>
+        </p>
+      </div>
+
+      <h1 class="shapeit-h1 font-display mt-5 font-bold tracking-tight text-paper sm:mt-8 lg:mt-10" data-jp-heading>
+        みんなで気づき、<br />みんなで良くする。
+      </h1>
+      <p class="shapeit-lead mt-4 max-w-xl text-paper/85 sm:mt-5 lg:mt-6 lg:max-w-2xl" data-jp-wrap>
+        バグも使いにくさも、スクショ一枚と一言で記録。AIが整理し、チームの改善サイクルにつなげます。
+      </p>
+
+      <div class="mt-7 flex flex-col gap-3 sm:mt-9 sm:flex-row sm:items-center">
+        <a
+          href={loginUrl}
+          class="shapeit-tap group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-mint px-6 py-3.5 text-base font-bold text-white shadow-lg shadow-mint/30 transition-all hover:bg-mint-bright sm:w-auto sm:px-8 sm:py-4"
+        >
+          無料で始める
+          <svg class="h-4 w-4 transition-transform group-hover:translate-x-0.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" d="M3 10a.75.75 0 0 1 .75-.75h10.638L10.23 5.29a.75.75 0 1 1 1.04-1.08l5.5 5.25a.75.75 0 0 1 0 1.08l-5.5 5.25a.75.75 0 1 1-1.04-1.08l4.158-3.96H3.75A.75.75 0 0 1 3 10z" clip-rule="evenodd" />
+          </svg>
+        </a>
+        <a
+          href={howUrl}
+          class="shapeit-tap inline-flex w-full items-center justify-center rounded-xl border border-paper/35 bg-paper/15 px-6 py-3.5 text-base font-semibold text-paper backdrop-blur-sm transition-all hover:border-paper/50 hover:bg-paper/20 sm:w-auto sm:px-8 sm:py-4"
+        >
+          使い方を見る
+        </a>
+      </div>
+
+      <p class="mt-5 text-[11px] leading-relaxed text-paper/60 sm:mt-6 sm:text-sm" data-jp-wrap>
+        投稿は中央値10秒 · 分類はAI任せ · Googleログインで開始
+      </p>
+    </div>
+  </div>
+</section>
+
+<style>
+  .shapeit-hero {
+    isolation: isolate;
+    background: #0b1320;
+  }
+
+  .shapeit-hero-bg {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .shapeit-hero-bg-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: 62% 28%;
+    animation: shapeit-hero-drift 28s ease-in-out infinite alternate;
+  }
+
+  .shapeit-hero-veil {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    /* モバイル：文字優先で濃く。PC：右に写真が見える */
+    background:
+      linear-gradient(180deg, rgba(11, 19, 32, 0.55) 0%, rgba(11, 19, 32, 0.35) 32%, rgba(11, 19, 32, 0.88) 72%, rgba(11, 19, 32, 0.96) 100%);
+  }
+
+  @media (min-width: 640px) {
+    .shapeit-hero-bg-img {
+      object-position: center 35%;
+    }
+
+    .shapeit-hero-veil {
+      background:
+        linear-gradient(105deg, rgba(11, 19, 32, 0.92) 0%, rgba(11, 19, 32, 0.72) 42%, rgba(11, 19, 32, 0.35) 68%, rgba(11, 19, 32, 0.55) 100%),
+        linear-gradient(180deg, rgba(11, 19, 32, 0.25) 0%, transparent 35%, rgba(11, 19, 32, 0.75) 100%);
+    }
+  }
+
+  @keyframes shapeit-hero-drift {
+    0% {
+      transform: scale(1.05) translate(0, 0);
+    }
+    100% {
+      transform: scale(1.12) translate(-2%, -1%);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .shapeit-hero-bg-img {
+      animation: none;
+    }
+  }
+
+  @media (max-width: 639px) {
+    .shapeit-hero-bg-img {
+      animation: none;
+      transform: scale(1.08);
+    }
+  }
+</style>

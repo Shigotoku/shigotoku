@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Check, Link2, MessageSquare, Zap, Save, BarChart3, Share2, MapPin, Sparkles, Users } from 'lucide-react';
 import { WATERMARK } from '../constants/brand';
 import {
   fetchSettings,
+  fetchSnsConnections,
   updateSettings,
   submitSlackIdea,
   fetchSlackIdeas,
@@ -13,6 +14,14 @@ import {
   startGbpOAuth,
   fetchLineCostEstimate,
   fetchCustomerTags,
+  draftGbpReviewReply,
+  fetchConnectionHealth,
+  fetchAuditLogs,
+  fetchExportJson,
+  downloadExport,
+  fetchStoresProgress,
+  testXApiConnection,
+  syncInsights,
   type PublishMode,
   type LineCostEstimate,
   type CustomerTag,
@@ -21,6 +30,7 @@ import LineCostComparison from '../components/LineCostComparison';
 import StoreBillingSection from '../components/StoreBillingSection';
 import { useApp } from '../store/appContext';
 import type { PlanTier } from '../types';
+import TeamPage from './TeamPage';
 
 const lineCrmPlans: { id: PlanTier; name: string; price: string; tagline: string; features: string[]; promo?: string }[] = [
   {
@@ -80,6 +90,7 @@ const fullStackPlans: { id: PlanTier; name: string; price: string; tagline: stri
 
 export default function SettingsPage() {
   const { plan, setPlan } = useApp();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [slackWebhookUrl, setSlackWebhookUrl] = useState('');
   const [ayrshareProfileKey, setAyrshareProfileKey] = useState('');
@@ -98,10 +109,48 @@ export default function SettingsPage() {
   const [newIdea, setNewIdea] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [gbpConnected] = useState(false);
+  const [gbpConnected, setGbpConnected] = useState(false);
+  const [gbpLocationName, setGbpLocationName] = useState('');
   const [hpbStoreUrl, setHpbStoreUrl] = useState('');
+  const [notifyEmail, setNotifyEmail] = useState('');
   const [lineCost, setLineCost] = useState<LineCostEstimate | null>(null);
   const [customerTags, setCustomerTags] = useState<CustomerTag[]>([]);
+  const [gbpReview, setGbpReview] = useState('');
+  const [gbpReply, setGbpReply] = useState('');
+  const [xConnected, setXConnected] = useState(false);
+  const [xUsername, setXUsername] = useState('');
+  const [xApiPostsThisMonth, setXApiPostsThisMonth] = useState(0);
+  const [xApiMonthlyLimit, setXApiMonthlyLimit] = useState(500);
+  const [xApiKey, setXApiKey] = useState('');
+  const [xApiSecret, setXApiSecret] = useState('');
+  const [xAccessToken, setXAccessToken] = useState('');
+  const [xAccessSecret, setXAccessSecret] = useState('');
+  const [xTesting, setXTesting] = useState(false);
+  const [brandProfile, setBrandProfile] = useState('');
+  const [industry, setIndustry] = useState('');
+  const [insightsEnabled, setInsightsEnabled] = useState(true);
+  const [xInsightsEnabled, setXInsightsEnabled] = useState(false);
+  const [insightsLastSyncedAt, setInsightsLastSyncedAt] = useState('');
+  const [insightsSyncing, setInsightsSyncing] = useState(false);
+
+  type SettingsTab = 'business' | 'sns' | 'staff' | 'plan' | 'advanced';
+  const SETTINGS_TABS: { id: SettingsTab; label: string }[] = [
+    { id: 'business', label: '事業所' },
+    { id: 'sns', label: 'SNS連携' },
+    { id: 'staff', label: 'スタッフ' },
+    { id: 'plan', label: 'プラン' },
+    { id: 'advanced', label: '高度な設定' },
+  ];
+  const tabParam = searchParams.get('tab');
+  const activeTab: SettingsTab = SETTINGS_TABS.some((t) => t.id === tabParam)
+    ? (tabParam as SettingsTab)
+    : 'business';
+  const setTab = (id: SettingsTab) => {
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', id);
+    next.delete('meta');
+    setSearchParams(next, { replace: true });
+  };
 
   useEffect(() => {
     fetchSettings()
@@ -120,17 +169,41 @@ export default function SettingsPage() {
         setMetaTokenExpiresAt(s.metaTokenExpiresAt ?? '');
         setLineWebhookUrl(s.lineWebhookUrl ?? '');
         setSnsConnections(s.snsConnections);
+        setHpbStoreUrl(s.hpbStoreUrl ?? '');
+        setGbpConnected(!!s.gbpConnected);
+        setGbpLocationName(s.gbpLocationName ?? '');
+        setNotifyEmail(s.notifyEmail ?? '');
+        setXConnected(!!s.xConnected);
+        setXUsername(s.xUsername ?? '');
+        setXApiPostsThisMonth(s.xApiPostsThisMonth ?? 0);
+        setXApiMonthlyLimit(s.xApiMonthlyLimit ?? 500);
+        setBrandProfile(s.brandProfile ?? '');
+        setIndustry(s.industry ?? '');
+        setInsightsEnabled(s.insightsEnabled !== false);
+        setXInsightsEnabled(s.xInsightsEnabled === true);
+        setInsightsLastSyncedAt(s.insightsLastSyncedAt ?? '');
       })
       .catch(() => {});
-    fetchSlackIdeas()
-      .then((r) => setSlackIdeas(r.ideas))
-      .catch(() => {});
-    fetchLineCostEstimate()
-      .then(setLineCost)
-      .catch(() => {});
-    fetchCustomerTags()
-      .then((r) => setCustomerTags(r.tags))
-      .catch(() => {});
+
+    // Ayrshare / LINE 系は初期表示後に遅延取得（店舗・請求カードをブロックしない）
+    const idle =
+      typeof requestIdleCallback === 'function'
+        ? requestIdleCallback
+        : (cb: () => void) => window.setTimeout(cb, 200);
+    idle(() => {
+      fetchSnsConnections()
+        .then((r) => setSnsConnections(r.snsConnections))
+        .catch(() => {});
+      fetchSlackIdeas()
+        .then((r) => setSlackIdeas(r.ideas))
+        .catch(() => {});
+      fetchLineCostEstimate()
+        .then(setLineCost)
+        .catch(() => {});
+      fetchCustomerTags()
+        .then((r) => setCustomerTags(r.tags))
+        .catch(() => {});
+    });
 
     const planParam = searchParams.get('plan') as PlanTier | null;
     const campaign = searchParams.get('campaign');
@@ -144,13 +217,13 @@ export default function SettingsPage() {
     const metaStatus = searchParams.get('meta');
     if (metaStatus === 'connected') {
       setMessage('Meta（Instagram / Facebook）を連携しました');
-      setSearchParams({}, { replace: true });
+      setSearchParams({ tab: 'sns' }, { replace: true });
     } else if (metaStatus === 'error') {
       setMessage('Meta 連携に失敗しました。アプリ設定を確認してください');
-      setSearchParams({}, { replace: true });
+      setSearchParams({ tab: 'sns' }, { replace: true });
     } else if (metaStatus === 'expired') {
       setMessage('Meta 連携の有効期限が切れました。再度お試しください');
-      setSearchParams({}, { replace: true });
+      setSearchParams({ tab: 'sns' }, { replace: true });
     }
   }, [setPlan, searchParams, setSearchParams]);
 
@@ -168,6 +241,14 @@ export default function SettingsPage() {
         lineDestinationId,
         defaultDestinationUrl,
         defaultPublishMode,
+        hpbStoreUrl,
+        gbpConnected: gbpConnected || !!gbpLocationName.trim(),
+        gbpLocationName,
+        notifyEmail,
+        brandProfile,
+        industry,
+        insightsEnabled,
+        xInsightsEnabled,
       });
       setMessage('設定を保存しました');
     } catch {
@@ -207,6 +288,45 @@ export default function SettingsPage() {
     }
   };
 
+  const handleXTestAndSave = async () => {
+    setXTesting(true);
+    setMessage(null);
+    try {
+      const result = await testXApiConnection({
+        xApiKey: xApiKey.trim() || undefined,
+        xApiSecret: xApiSecret.trim() || undefined,
+        xAccessToken: xAccessToken.trim() || undefined,
+        xAccessSecret: xAccessSecret.trim() || undefined,
+      });
+      setXConnected(true);
+      setXUsername(result.username ?? '');
+      setXApiKey('');
+      setXApiSecret('');
+      setXAccessToken('');
+      setXAccessSecret('');
+      setMessage(result.message);
+      const s = await fetchSettings();
+      setXApiPostsThisMonth(s.xApiPostsThisMonth ?? 0);
+      setXApiMonthlyLimit(s.xApiMonthlyLimit ?? 500);
+        setBrandProfile(s.brandProfile ?? '');
+        setIndustry(s.industry ?? '');
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'X API の接続確認に失敗しました');
+    }
+    setXTesting(false);
+  };
+
+  const handleXDisconnect = async () => {
+    try {
+      await updateSettings({ xDisconnect: true });
+      setXConnected(false);
+      setXUsername('');
+      setMessage('X API 連携を解除しました');
+    } catch {
+      setMessage('X API 連携の解除に失敗しました');
+    }
+  };
+
   const handleGbpConnect = async () => {
     try {
       const { url } = await startGbpOAuth();
@@ -218,20 +338,78 @@ export default function SettingsPage() {
 
   return (
     <div className="buzz-page-narrow">
-      <div>
-        <h2 className="mb-2 text-2xl font-bold">設定</h2>
-        <p className="text-neutral-600">プラン・Meta / LINE / Slack 連携の管理</p>
-      </div>
-
       {message && <p className="buzz-alert buzz-alert-info">{message}</p>}
 
-      <StoreBillingSection />
+      <div className="flex flex-wrap gap-1 border-b border-neutral-200 pb-1">
+        {SETTINGS_TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setTab(t.id)}
+            className={`min-h-[40px] px-3 text-sm transition-colors ${
+              activeTab === t.id
+                ? 'border-b-2 border-neutral-900 font-semibold text-neutral-900'
+                : 'text-neutral-500 hover:text-neutral-900'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
 
+      {activeTab === 'staff' && <TeamPage embedded />}
+
+      {activeTab === 'business' && (
+        <>
+          <StoreBillingSection />
+          <section className="buzz-card-pad space-y-4">
+            <h3 className="text-lg font-bold">事業所の特徴</h3>
+            <p className="text-sm text-neutral-600">
+              ここに書いた強み・トーン・禁則は、ネタクリエイターの投稿文生成に反映されます。
+            </p>
+            <label className="buzz-label">業種メモ（任意）</label>
+            <input
+              value={industry}
+              onChange={(e) => setIndustry(e.target.value)}
+              placeholder="例: 美容室・髪質改善特化"
+              className="buzz-input"
+            />
+            <label className="buzz-label">お店の特徴・話し方</label>
+            <textarea
+              value={brandProfile}
+              onChange={(e) => setBrandProfile(e.target.value)}
+              placeholder="例: 初めての方に丁寧。専門用語は避ける。地域は渋谷。押し売りしない。"
+              className="buzz-input h-28 resize-none"
+            />
+            <label className="buzz-label">予約・来店URL</label>
+            <input
+              value={defaultDestinationUrl}
+              onChange={(e) => setDefaultDestinationUrl(e.target.value)}
+              placeholder="https://example.com/reserve"
+              className="buzz-input"
+            />
+            <label className="buzz-label">店長通知メール（任意）</label>
+            <input
+              value={notifyEmail}
+              onChange={(e) => setNotifyEmail(e.target.value)}
+              placeholder="owner@example.com"
+              className="buzz-input"
+            />
+          </section>
+        </>
+      )}
+
+      {activeTab === 'plan' && (
       <section className="buzz-card-pad">
         <h3 className="mb-2 text-lg font-bold">LINE CRM プラン（Lステップ代替）</h3>
         <p className="mb-4 text-sm text-neutral-600">
           SNS 不要の店舗向け。LINE 公式の請求は各店舗への直接請求のまま。BuzzIt は CRM ツール代のみ。
-          <a href="https://shigotoku.com/buzzit/#line-simulator" className="ml-1 font-medium text-neutral-900 underline">
+          <a
+            href="https://shigotoku.com/buzzit/#line-simulator"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-1 font-medium text-neutral-900 underline"
+          >
             試算ツール
           </a>
         </p>
@@ -303,6 +481,10 @@ export default function SettingsPage() {
         </div>
       </section>
 
+      )}
+
+      {activeTab === 'sns' && (
+        <>
       <section className="buzz-card-pad space-y-4">
         <h3 className="flex items-center gap-2 text-lg font-bold">
           <Share2 className="h-5 w-5 text-neutral-700" />
@@ -333,6 +515,166 @@ export default function SettingsPage() {
 
       <section className="buzz-card-pad space-y-4">
         <h3 className="flex items-center gap-2 text-lg font-bold">
+          <Share2 className="h-5 w-5 text-neutral-700" />
+          X（旧Twitter）API 連携
+        </h3>
+        <p className="text-sm text-neutral-600">
+          ご自身の X Developer アプリのキー（Read and Write）を登録すると、予約時刻に公式 API で自動投稿できます。
+          鍵はサーバーのみに保存し、画面には再表示しません。自アカウントへの投稿用途向けです。
+        </p>
+        <div className="flex flex-wrap items-center justify-between gap-2 border border-neutral-200 bg-neutral-50 p-4">
+          <div>
+            <p className="text-sm font-medium">
+              {xConnected ? `接続済み${xUsername ? ` (@${xUsername})` : ''}` : '未接続'}
+            </p>
+            <p className="text-xs text-neutral-500">
+              今月の投稿: {xApiPostsThisMonth} / {xApiMonthlyLimit}（ソフト上限・開発者枠に準拠）
+            </p>
+          </div>
+          <span
+            className={`rounded-full px-3 py-1 text-xs ${
+              xConnected
+                ? 'border border-neutral-300 bg-white text-neutral-800'
+                : 'bg-neutral-200 text-neutral-600'
+            }`}
+          >
+            {xConnected ? '接続済み' : '未接続'}
+          </span>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label className="buzz-label">API Key</label>
+            <input
+              value={xApiKey}
+              onChange={(e) => setXApiKey(e.target.value)}
+              placeholder={xConnected ? '変更する場合のみ入力' : 'API Key'}
+              className="buzz-input"
+              autoComplete="off"
+            />
+          </div>
+          <div>
+            <label className="buzz-label">API Secret</label>
+            <input
+              type="password"
+              value={xApiSecret}
+              onChange={(e) => setXApiSecret(e.target.value)}
+              placeholder={xConnected ? '変更する場合のみ入力' : 'API Secret'}
+              className="buzz-input"
+              autoComplete="off"
+            />
+          </div>
+          <div>
+            <label className="buzz-label">Access Token</label>
+            <input
+              value={xAccessToken}
+              onChange={(e) => setXAccessToken(e.target.value)}
+              placeholder={xConnected ? '変更する場合のみ入力' : 'Access Token'}
+              className="buzz-input"
+              autoComplete="off"
+            />
+          </div>
+          <div>
+            <label className="buzz-label">Access Token Secret</label>
+            <input
+              type="password"
+              value={xAccessSecret}
+              onChange={(e) => setXAccessSecret(e.target.value)}
+              placeholder={xConnected ? '変更する場合のみ入力' : 'Access Token Secret'}
+              className="buzz-input"
+              autoComplete="off"
+            />
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={xTesting}
+            onClick={handleXTestAndSave}
+            className="buzz-btn-primary disabled:opacity-60"
+          >
+            {xTesting ? '確認中...' : xConnected ? '再接続テスト' : '接続テストして保存'}
+          </button>
+          {xConnected && (
+            <button type="button" onClick={handleXDisconnect} className="buzz-btn-secondary">
+              連携解除
+            </button>
+          )}
+        </div>
+        <p className="text-xs text-neutral-500">
+          Developer Portal で App permissions を Read and Write にし、ユーザートークンを発行してください。
+          いいね・フォロー自動化などは行いません（投稿のみ）。料金・枠は X の開発者プランに従います。
+        </p>
+        <Link to="/x-series" className="inline-block text-sm underline-offset-2 hover:underline">
+          Xシリーズ（曜日キュー）の管理へ →
+        </Link>
+      </section>
+
+      <section className="buzz-card-pad space-y-4">
+        <h3 className="flex items-center gap-2 text-lg font-bold">
+          <BarChart3 className="h-5 w-5 text-neutral-700" />
+          インプレッション自動取得
+        </h3>
+        <p className="text-sm text-neutral-600">
+          投稿済みの外部IDから Meta / X の表示回数を定期取得します。Meta は再連携で
+          insights 権限が必要です。X の読み取りは従量課金になる可能性があるため、既定オフです（追加費用プランは別途検討）。
+        </p>
+        <label className="flex items-start gap-3 border border-neutral-200 bg-neutral-50 p-4">
+          <input
+            type="checkbox"
+            className="mt-1"
+            checked={insightsEnabled}
+            onChange={(e) => setInsightsEnabled(e.target.checked)}
+          />
+          <span>
+            <span className="block text-sm font-medium">インサイト同期を有効にする</span>
+            <span className="text-xs text-neutral-500">Instagram 等（Meta）の views / reach を朝・昼・夜に同期</span>
+          </span>
+        </label>
+        <label className="flex items-start gap-3 border border-amber-200 bg-amber-50/60 p-4">
+          <input
+            type="checkbox"
+            className="mt-1"
+            checked={xInsightsEnabled}
+            onChange={(e) => setXInsightsEnabled(e.target.checked)}
+            disabled={!insightsEnabled}
+          />
+          <span>
+            <span className="block text-sm font-medium">X インサイト取得（費用ガード）</span>
+            <span className="text-xs text-neutral-600">
+              impression_count の読み取り。API クレジット消費の可能性があるため、明示オン時のみ取得します。
+            </span>
+          </span>
+        </label>
+        {insightsLastSyncedAt && (
+          <p className="text-xs text-neutral-500">
+            最終同期: {new Date(insightsLastSyncedAt).toLocaleString('ja-JP')}
+          </p>
+        )}
+        <button
+          type="button"
+          disabled={insightsSyncing || !insightsEnabled}
+          className="buzz-btn-secondary disabled:opacity-60"
+          onClick={async () => {
+            setInsightsSyncing(true);
+            try {
+              await updateSettings({ insightsEnabled, xInsightsEnabled });
+              const r = await syncInsights(true);
+              setInsightsLastSyncedAt(r.summary.lastSyncedAt ?? new Date().toISOString());
+              setMessage(
+                `同期完了: 取得 ${String(r.result.fetched ?? 0)} / スキップ ${String(r.result.skipped ?? 0)} / エラー ${String(r.result.errors ?? 0)}`,
+              );
+            } catch {
+              setMessage('インサイト同期に失敗しました');
+            }
+            setInsightsSyncing(false);
+          }}
+        >
+          {insightsSyncing ? '同期中…' : '今すぐ同期'}
+        </button>
+      </section>
+
+      <section className="buzz-card-pad space-y-4">
+        <h3 className="flex items-center gap-2 text-lg font-bold">
           <Link2 className="h-5 w-5 text-neutral-700" />
           投稿モード（デフォルト）
         </h3>
@@ -343,6 +685,7 @@ export default function SettingsPage() {
         >
           <option value="notify">通知リマインダー（Slack/LINE に文案送信・半自動）</option>
           <option value="approval">承認後投稿（ダッシュボードで承認）</option>
+          <option value="x_free">X API 自動投稿（BYOK）</option>
           <option value="meta">Meta 自動投稿（IG/FB/Threads）</option>
           <option value="line">LINE ブロードキャスト</option>
           <option value="gbp">Google Business Profile（Phase 4）</option>
@@ -356,6 +699,10 @@ export default function SettingsPage() {
           <Link2 className="h-5 w-5 text-neutral-700" />
           Ayrshare（オプション）
         </h3>
+        <p className="text-sm text-neutral-600">
+          Ayrshare は外部の投稿予約サービスです。X は上記「X API 連携」または通知＋コピーが標準です。
+          プロファイルキーを入れると Instagram / X / TikTok などの接続状態を確認でき、投稿モード「Ayrshare」でも予約できます。
+        </p>
         <div className="space-y-3">
           {snsConnections.map((sns) => (
             <div
@@ -424,10 +771,20 @@ export default function SettingsPage() {
                   {idea.status === 'pending' && (
                     <button
                       type="button"
-                      onClick={() => approveSlackIdea(idea.id)}
+                      onClick={async () => {
+                        try {
+                          const r = await approveSlackIdea(idea.id);
+                          setSlackIdeas((prev) =>
+                            prev.map((i) => (i.id === idea.id ? { ...i, status: 'approved' } : i)),
+                          );
+                          navigate(r.magicCreatorPath || `/magic-creator?idea=${encodeURIComponent(idea.text)}`);
+                        } catch {
+                          /* ignore */
+                        }
+                      }}
                       className="text-xs text-neutral-700 underline-offset-2 hover:underline"
                     >
-                      採用
+                      採用してクリエイターへ
                     </button>
                   )}
                 </div>
@@ -491,23 +848,47 @@ export default function SettingsPage() {
           Google Business Profile（GBP / Googleマップ）
         </h3>
         <p className="text-sm text-neutral-600">
-          Instagram と同時に Googleマップへ自動投稿。MEO ダッシュボード（Growth OS）でクチコミ・順位も一元管理できます。
+          ロケーション名を保存すると GBP 投稿モードと口コミ返信ドラフトが使えます。
         </p>
+        <label className="buzz-label">店舗ロケーション名</label>
+        <input
+          value={gbpLocationName}
+          onChange={(e) => {
+            setGbpLocationName(e.target.value);
+            if (e.target.value.trim()) setGbpConnected(true);
+          }}
+          placeholder="例: BuzzIt渋谷店"
+          className="buzz-input"
+        />
         <div className="flex items-center justify-between border border-neutral-200 bg-neutral-50 p-4">
-          <span>Googleビジネスプロフィール</span>
-          <span
-            className={`rounded-full px-3 py-1 text-xs ${
-              gbpConnected
-                ? 'border border-neutral-300 bg-white text-neutral-800'
-                : 'bg-neutral-200 text-neutral-600'
-            }`}
-          >
-            {gbpConnected ? '接続済み' : '未接続（Phase 4 で提供）'}
-          </span>
+          <span>接続状態</span>
+          <span className="text-xs">{gbpConnected || gbpLocationName ? '連携済み（手動）' : '未接続'}</span>
         </div>
         <button type="button" onClick={handleGbpConnect} className="buzz-btn-secondary">
-          {gbpConnected ? 'GBP を再連携' : 'GBP で連携する'}
+          連携手順を確認
         </button>
+        <label className="buzz-label">口コミ返信ドラフト</label>
+        <textarea
+          className="buzz-input h-20 resize-none"
+          placeholder="届いた口コミを貼り付け"
+          value={gbpReview}
+          onChange={(e) => setGbpReview(e.target.value)}
+        />
+        <button
+          type="button"
+          className="buzz-btn-secondary"
+          onClick={async () => {
+            try {
+              const r = await draftGbpReviewReply(gbpReview);
+              setGbpReply(r.reply);
+            } catch {
+              setMessage('口コミ返信の生成に失敗しました');
+            }
+          }}
+        >
+          返信文を生成
+        </button>
+        {gbpReply && <pre className="whitespace-pre-wrap border border-neutral-200 bg-neutral-50 p-3 text-sm">{gbpReply}</pre>}
       </section>
 
       <section className="buzz-card-pad space-y-4">
@@ -516,7 +897,7 @@ export default function SettingsPage() {
           ホットペッパービューティー（HPB）トラッキング
         </h3>
         <p className="text-sm text-neutral-600">
-          投稿の計測リンクを HPB 予約導線に自動付与し、「どの投稿が予約に繋がったか」を可視化します（Growth OS）。
+          店舗URLを保存すると、投稿クリック・LINE追加から予約寄与を推計表示します。
         </p>
         <label className="buzz-label">HPB 店舗 URL</label>
         <input
@@ -525,9 +906,90 @@ export default function SettingsPage() {
           placeholder="https://beauty.hotpepper.jp/slnH000000000/"
           className="buzz-input"
         />
-        <p className="text-xs text-neutral-500">
-          ※ Phase 5 で API 連携が有効化されます。現在は UTM パラメータ自動付与のみ。
-        </p>
+        <label className="buzz-label">店長通知メール（将来拡張・現状はSlack/LINE優先）</label>
+        <input
+          value={notifyEmail}
+          onChange={(e) => setNotifyEmail(e.target.value)}
+          placeholder="owner@example.com"
+          className="buzz-input"
+        />
+      </section>
+
+        </>
+      )}
+
+      {activeTab === 'advanced' && (
+        <>
+      <section className="buzz-card-pad space-y-4">
+        <h3 className="text-lg font-bold">接続ヘルス / バックアップ / 操作ログ</h3>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="buzz-btn-secondary"
+            onClick={async () => {
+              const h = await fetchConnectionHealth();
+              setMessage(`接続ヘルス ${h.score}% — 注意 ${h.alerts.length} 件`);
+            }}
+          >
+            ヘルスチェック
+          </button>
+          <button
+            type="button"
+            className="buzz-btn-secondary"
+            onClick={async () => {
+              const data = await fetchExportJson();
+              const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'buzzit-export.json';
+              a.click();
+              URL.revokeObjectURL(url);
+              setMessage('バックアップJSONをダウンロードしました');
+            }}
+          >
+            JSONエクスポート
+          </button>
+          <button
+            type="button"
+            className="buzz-btn-secondary"
+            onClick={async () => {
+              const csv = await downloadExport('csv');
+              const blob = new Blob([String(csv)], { type: 'text/csv;charset=utf-8' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'buzzit-friends.csv';
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+          >
+            友だちCSV
+          </button>
+          <button
+            type="button"
+            className="buzz-btn-secondary"
+            onClick={async () => {
+              const r = await fetchAuditLogs();
+              setMessage(`操作ログ最新: ${r.logs[0]?.action ?? 'なし'} ${r.logs[0]?.detail ?? ''}`);
+            }}
+          >
+            最新操作ログ
+          </button>
+          <button
+            type="button"
+            className="buzz-btn-secondary"
+            onClick={async () => {
+              const r = await fetchStoresProgress();
+              const summary = r.stores
+                .map((s) => `${s.name}:${s.progress?.lineConnected ? 'LINE済' : 'LINE未'}`)
+                .join(' / ');
+              setMessage(summary || '店舗がありません');
+            }}
+          >
+            多店舗進捗
+          </button>
+        </div>
       </section>
 
       <section className="buzz-card-pad space-y-4">
@@ -581,10 +1043,15 @@ export default function SettingsPage() {
         </button>
       </section>
 
+        </>
+      )}
+
+      {activeTab !== 'staff' && (
       <button type="button" onClick={handleSave} disabled={saving} className="buzz-btn-primary disabled:opacity-70">
         <Save className="h-4 w-4" />
         {saving ? '保存中...' : '設定を保存'}
       </button>
+      )}
     </div>
   );
 }

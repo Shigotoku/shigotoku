@@ -1,0 +1,41 @@
+{
+  "hosting": [
+    {
+      "target": "shapeit-app",
+      "public": "dist/shapeit-app",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [
+        {
+          "source": "/api/**",
+          "function": {
+            "functionId": "shapeitApi",
+            "codebase": "shapeit-api",
+            "region": "asia-northeast1"
+          }
+        },
+        { "source": "**", "destination": "/index.html" }
+      ],
+      "headers": [
+        {
+          "source": "**",
+          "headers": [
+            { "key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains; preload" },
+            { "key": "Content-Security-Policy", "value": "upgrade-insecure-requests" },
+            { "key": "X-Content-Type-Options", "value": "nosniff" },
+            { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+            { "key": "X-Robots-Tag", "value": "noindex, nofollow" }
+          ]
+        }
+      ]
+    }
+  ],
+  "functions": [
+    {
+      "source": "functions/shapeit-api",
+      "codebase": "shapeit-api",
+      "runtime": "nodejs22"
+    }
+  ],
+  "storage": { "rules": "storage.shapeit.rules" },
+  "firestore": { "rules": "firestore.shapeit.rules", "indexes": "firestore.shapeit.indexes.json" }
+}

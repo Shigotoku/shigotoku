@@ -1,0 +1,42 @@
+---
+const faqs = [
+  {
+    q: '投稿に何を書けばいいですか？',
+    a: '気づいた内容だけで大丈夫です。カテゴリや優先度、担当者は原則入力不要で、AIが整理します。',
+  },
+  {
+    q: 'スクショや個人情報が写り込んだ場合は？',
+    a: '機微情報が含まれる前提で設計しています。マスキング・権限（RBAC）・監査ログを用意し、Private Storageで扱います。',
+  },
+  {
+    q: '社員以外（顧客）からも集められますか？',
+    a: '同じ基盤で顧客フィードバックも収集できる設計です。社内Dogfoodingから始め、顧客ポータルへ拡張できます。',
+  },
+  {
+    q: '報告したあと、どうなったか分かりますか？',
+    a: 'はい。Done時に投稿者へ確認が戻る Closed Loop です。「解決していない」場合は再オープン候補になります。',
+  },
+  {
+    q: '無料で試せますか？',
+    a: 'Googleログインで始められます。チーム導入前に、Capture → AI Triage → Board の流れをそのまま体験できます。',
+  },
+];
+---
+
+<section id="faq" class="shapeit-section--lg bg-white">
+  <div class="mx-auto max-w-3xl px-4 sm:px-6">
+    <div class="text-center">
+      <h2 class="shapeit-h2 font-display font-bold tracking-tight text-ink" data-jp-heading>
+        よくある質問
+      </h2>
+    </div>
+    <dl class="mt-8 space-y-3 sm:mt-12 sm:space-y-4">
+      {faqs.map((item) => (
+        <div class="rounded-2xl border border-ink/10 bg-paper px-4 py-4 sm:px-6 sm:py-5">
+          <dt class="text-sm font-bold text-ink sm:text-base" data-jp-wrap>{item.q}</dt>
+          <dd class="shapeit-body mt-2 text-ink/60" data-jp-wrap>{item.a}</dd>
+        </div>
+      ))}
+    </dl>
+  </div>
+</section>

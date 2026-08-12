@@ -1,11 +1,13 @@
 ---
+import { brandLogo } from '../lib/assets';
+
 interface Props {
   title: string;
   description: string;
   ogImage?: string;
 }
 
-const { title, description, ogImage = '/images/shigotoku-logo.png' } = Astro.props;
+const { title, description, ogImage = brandLogo } = Astro.props;
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 const imageURL = new URL(ogImage, Astro.site);
 ---
@@ -28,7 +30,7 @@ const imageURL = new URL(ogImage, Astro.site);
     "@type": "Organization",
     "name": "株式会社シゴトク",
     "url": "https://shigotoku.com/",
-    "logo": "https://shigotoku.com/images/shigotoku-logo.png",
+    "logo": "https://shigotoku.com/images/brand/shigotoku-logo.png",
     "description": "スタートアップの創業からEXITまでを支援するテクノロジー企業"
   }
 </script>

@@ -53,6 +53,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setAuthTokenGetter(getIdToken);
+    if (!isFirebaseConfigured) {
+      setInitializing(false);
+      return;
+    }
+
     let mounted = true;
 
     // 保存済みセッションを最優先で復元（待ち時間を最小化）

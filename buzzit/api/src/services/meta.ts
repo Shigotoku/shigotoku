@@ -139,7 +139,8 @@ async function publishFacebookPage(
   };
 }
 
-async function publishThreads(
+/** Threads 投稿（将来の明示的 threads プラットフォーム用） */
+export async function publishThreads(
   igUserId: string,
   token: string,
   text: string,
@@ -205,6 +206,17 @@ export async function publishToMeta(
         break;
 
       case 'x_thread':
+        // X 公式 API は従量課金のため Meta 経路では投稿しない。
+        // Threads へ誤投稿しないようスキップし、notify / ayrshare を案内する。
+        results.push({
+          platform: 'x_thread',
+          success: false,
+          message:
+            'X は Meta 自動投稿の対象外です。予約モード「通知」でコピー投稿するか、Ayrshare 連携を使ってください',
+        });
+        break;
+
+      case 'threads':
         if (connection.igUserId) {
           results.push(await publishThreads(connection.igUserId, igToken, item.content, media));
         } else {
@@ -239,6 +251,7 @@ export function getMetaOAuthUrl(state: string, redirectUri: string): string | nu
   const scopes = [
     'instagram_basic',
     'instagram_content_publish',
+    'instagram_manage_insights',
     'pages_show_list',
     'pages_read_engagement',
     'pages_manage_posts',
