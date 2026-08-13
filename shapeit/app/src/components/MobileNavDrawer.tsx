@@ -1,6 +1,7 @@
 import { NavLink } from "react-router-dom";
-import { X, type LucideIcon } from "lucide-react";
-import { getLocale, t } from "../lib/i18n";
+import { BookOpen, X, type LucideIcon } from "lucide-react";
+import { t } from "../lib/i18n";
+import { useLocale } from "../lib/useLocale";
 import type { NavGroup } from "./SidebarNav";
 
 type Props = {
@@ -9,21 +10,22 @@ type Props = {
   groups: NavGroup[];
   companyLabel: string;
   displayName: string;
+  guideUrl: string;
   onSettings: () => void;
   onSignOut: () => void;
 };
 
-/** モバイル「その他」ドロワー */
 export default function MobileNavDrawer({
   open,
   onClose,
   groups,
   companyLabel,
   displayName,
+  guideUrl,
   onSettings,
   onSignOut,
 }: Props) {
-  const locale = getLocale();
+  const locale = useLocale();
   if (!open) return null;
 
   return (
@@ -39,10 +41,16 @@ export default function MobileNavDrawer({
         style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         <div className="flex items-center justify-between border-b border-ink/10 px-4 py-3">
-          <div className="min-w-0">
-            <p className="truncate text-xs font-semibold text-ink">{companyLabel}</p>
-            <p className="truncate text-sm text-ink/70">{displayName}</p>
-          </div>
+          <a
+            href={guideUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="flex min-h-[40px] items-center gap-2 text-sm font-semibold text-mint"
+            onClick={onClose}
+          >
+            <BookOpen className="h-4 w-4 shrink-0" aria-hidden />
+            {t("nav_guide", locale)}
+          </a>
           <button
             type="button"
             className="inline-flex h-10 w-10 items-center justify-center rounded-lg hover:bg-paper"
@@ -52,17 +60,23 @@ export default function MobileNavDrawer({
             <X className="h-5 w-5" />
           </button>
         </div>
+        <div className="border-b border-ink/10 px-4 py-3">
+          <p className="break-words text-sm font-bold text-ink">{companyLabel}</p>
+          <p className="mt-0.5 break-words text-sm text-ink/70">{displayName}</p>
+        </div>
 
         <div className="flex-1 overflow-y-auto px-2 py-3">
           {groups.map((group) => {
             if (group.items.length === 0) return null;
             return (
               <div key={group.id} className="mb-4">
-                <p className="px-2 text-[10px] font-semibold uppercase tracking-wide text-ink/40">
-                  {t(group.labelKey, locale)}
-                </p>
+                {group.labelKey && (
+                  <p className="px-2 text-[10px] font-semibold text-ink/40">
+                    {t(group.labelKey, locale)}
+                  </p>
+                )}
                 <div className="mt-1 space-y-0.5">
-                  {group.items.map(({ to, label, icon: Icon }: { to: string; label: string; icon: LucideIcon }) => (
+                  {group.items.map(({ to, label, icon: Icon, badge }) => (
                     <NavLink
                       key={to}
                       to={to}
@@ -75,6 +89,11 @@ export default function MobileNavDrawer({
                     >
                       <Icon className="h-4 w-4 shrink-0" aria-hidden />
                       <span className="truncate">{label}</span>
+                      {badge != null && badge > 0 && (
+                        <span className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-mint px-1 text-[10px] font-bold text-white">
+                          {badge > 9 ? "9+" : badge}
+                        </span>
+                      )}
                     </NavLink>
                   ))}
                 </div>

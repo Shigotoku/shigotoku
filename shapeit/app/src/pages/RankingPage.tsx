@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { computeIceRanking, setEffort } from "../lib/demoStore";
 import type { Effort } from "../lib/types";
+import { t } from "../lib/i18n";
 
 /** PRI-004: Impact × Confidence / Effort ランキング */
 export default function RankingPage() {
@@ -11,8 +12,8 @@ export default function RankingPage() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">Priority</p>
-        <h1 className="font-display mt-1 text-3xl font-bold">ICE Ranking</h1>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">{t("nav_ranking")}</p>
+        <h1 className="font-display mt-1 text-3xl font-bold">{t("page_ranking")}</h1>
         <p className="mt-2 text-sm text-ink/60">
           Impact × Confidence / Effort。Effort を変えると順位が更新されます。
         </p>

@@ -17,8 +17,13 @@ export default function NotificationBell({ compact = false }: { compact?: boolea
 
   useEffect(() => {
     void reload();
+    const onNotif = () => void reload();
+    window.addEventListener("shapeit-notifications", onNotif);
     const t = window.setInterval(() => void reload(), 60_000);
-    return () => window.clearInterval(t);
+    return () => {
+      window.removeEventListener("shapeit-notifications", onNotif);
+      window.clearInterval(t);
+    };
   }, []);
 
   useEffect(() => {

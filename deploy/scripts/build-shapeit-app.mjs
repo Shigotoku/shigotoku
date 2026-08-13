@@ -22,6 +22,13 @@ execSync("npm run build", {
   env: { ...process.env, ...env },
 });
 
+console.log("\nPackaging Chrome extension...\n");
+execSync("node scripts/package-shapeit-extension.mjs", {
+  cwd: deployDir,
+  stdio: "inherit",
+  shell: true,
+});
+
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
 cpSync(join(appCwd, "dist"), out, { recursive: true });

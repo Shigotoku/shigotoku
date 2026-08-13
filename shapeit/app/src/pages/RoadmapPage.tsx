@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { listIssuesRemote, updateIssueRemote } from "../lib/cloudStore";
 import type { Issue, RoadmapBucket } from "../lib/types";
+import { t } from "../lib/i18n";
 
 const COLS: { id: RoadmapBucket; label: string }[] = [
   { id: "now", label: "Now" },
@@ -62,8 +63,8 @@ export default function RoadmapPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">Roadmap</p>
-          <h1 className="font-display mt-1 text-3xl font-bold">Now / Next / Later</h1>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">{t("nav_roadmap")}</p>
+          <h1 className="font-display mt-1 text-3xl font-bold">{t("page_roadmap")}</h1>
           <p className="mt-2 text-sm text-ink/60">
             DnD またはカード選択＋←→ で移動。Unassigned 列あり。
           </p>

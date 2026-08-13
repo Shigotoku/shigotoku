@@ -1,6 +1,7 @@
 node_modules/
 dist/
-lib/
+# API の tsc 出力（src/lib はソースなので無視しない）
+api/lib/
 .astro/
 .env
 .env.*

@@ -6,6 +6,7 @@ import {
   listPendingFeedbackRemote,
   mergeIntoIssueRemote,
   rejectFeedbackRemote,
+  reanalyzeFeedbackRemote,
   snoozeFeedbackRemote,
 } from "../lib/cloudStore";
 import { findDuplicateCandidates } from "../lib/duplicates";
@@ -251,6 +252,16 @@ function InboxInner({ locale }: { locale: ReturnType<typeof getLocale> }) {
                       類似Issueへ統合
                     </button>
                   )}
+                  <button
+                    type="button"
+                    className="rounded-lg border border-mint/30 bg-mint/5 px-3 py-2 text-xs font-semibold text-mint"
+                    onClick={async () => {
+                      await reanalyzeFeedbackRemote(fb.id);
+                      await refresh();
+                    }}
+                  >
+                    AI 再分析
+                  </button>
                   <button
                     type="button"
                     className="rounded-lg bg-ink px-3 py-2 text-xs font-semibold text-paper"

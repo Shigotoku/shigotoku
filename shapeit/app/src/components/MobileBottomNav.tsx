@@ -1,6 +1,7 @@
 import { NavLink } from "react-router-dom";
 import { Inbox, Kanban, Menu, MessageSquarePlus, UserRound } from "lucide-react";
-import { getLocale, t } from "../lib/i18n";
+import { t } from "../lib/i18n";
+import { useLocale } from "../lib/useLocale";
 import { canCapture, canTriage, type AppRole } from "../lib/roles";
 
 type Props = {
@@ -10,7 +11,7 @@ type Props = {
 
 /** モバイル用ボトムタブ（CAP-012 / MOB-001） */
 export default function MobileBottomNav({ role, onOpenMore }: Props) {
-  const locale = getLocale();
+  const locale = useLocale();
   const tabs = [
     canCapture(role) && {
       to: "/capture",

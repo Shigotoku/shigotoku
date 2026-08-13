@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ImagePlus, Upload } from "lucide-react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import {
   createFeedbackRemote,
@@ -11,6 +12,7 @@ import {
   pingExtension,
   pullPendingReports,
   publishAppBaseToExtension,
+  publishAuthToExtension,
 } from "../lib/extensionBridge";
 import { findDuplicateCandidates } from "../lib/duplicates";
 import { clearQueueItem, enqueueOffline, loadQueue } from "../lib/offlineQueue";
@@ -25,6 +27,7 @@ import { checkCaptureRateLimit } from "../lib/rateLimit";
 import { canCapture } from "../lib/roles";
 import type { Feedback, FeedbackSource, Issue } from "../lib/types";
 import { t } from "../lib/i18n";
+import { useLocale } from "../lib/useLocale";
 import {
   chromeExtensionSupported,
   isMobileUi,
@@ -38,6 +41,7 @@ import {
 } from "../lib/shareIntake";
 
 export default function CapturePage() {
+  const locale = useLocale();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [rawText, setRawText] = useState("");
@@ -55,6 +59,7 @@ export default function CapturePage() {
   const [recording, setRecording] = useState(false);
   const [attachConsole, setAttachConsole] = useState(false);
   const [captureSource, setCaptureSource] = useState<FeedbackSource>("APP_WIDGET");
+  const [screenshotDragOver, setScreenshotDragOver] = useState(false);
   const mediaRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const desktopFileRef = useRef<HTMLInputElement>(null);
@@ -73,6 +78,7 @@ export default function CapturePage() {
 
   useEffect(() => {
     publishAppBaseToExtension();
+    void publishAuthToExtension();
     if (chromeExtensionSupported()) {
       void pingExtension().then(setExtOk);
     } else {
@@ -190,7 +196,12 @@ export default function CapturePage() {
 
   const onDesktopFile = async (file: File | null) => {
     if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setInfo("画像ファイルを選択してください");
+      return;
+    }
     setScreenshotDataUrl(await fileToDataUrl(file));
+    setInfo("スクリーンショットを添付しました");
   };
 
   const resolveSource = (): FeedbackSource => {
@@ -271,12 +282,14 @@ export default function CapturePage() {
     <div className="mx-auto w-full max-w-2xl space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">Capture</p>
-          <h1 className="font-display mt-1 text-2xl font-bold sm:text-3xl">{t("capture_title")}</h1>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">{t("nav_capture", locale)}</p>
+          <h1 className="font-display mt-1 text-2xl font-bold sm:text-3xl">{t("capture_title", locale)}</h1>
           <p className="mt-2 text-sm text-ink/60">
             {mobile
-              ? "最速は スクショ → 話す → 送信。端末の音声認識（またはキーボードのマイク）で入力します。"
-              : t("capture_hint")}
+              ? locale === "ja"
+                ? "最速は スクショ → 話す → 送信。端末の音声認識（またはキーボードのマイク）で入力します。"
+                : "Fastest path: screenshot → speak → send."
+              : t("capture_hint", locale)}
           </p>
         </div>
         {chromeExtensionSupported() ? (
@@ -522,42 +535,99 @@ export default function CapturePage() {
       </details>
 
       {!mobile && (
-        <label className="block">
+        <div className="space-y-3">
           <span className="text-sm font-medium">スクリーンショット（任意）</span>
-          <input
-            ref={desktopFileRef}
-            type="file"
-            accept="image/*"
-            className="mt-1 block w-full text-sm"
-            onChange={(e) => void onDesktopFile(e.target.files?.[0] ?? null)}
-          />
-          <p className="mt-1 text-[11px] text-ink/45">Ctrl/⌘+V でクリップボード画像も添付できます</p>
-          {screenshotDataUrl && (
-            <div className="mt-3 space-y-2">
+
+          {screenshotDataUrl ? (
+            <div className="space-y-2">
               <img
                 src={screenshotDataUrl}
                 alt="添付プレビュー"
-                className="max-h-48 rounded-lg border border-ink/10"
+                className="max-h-48 rounded-xl border border-ink/10 object-contain bg-white"
               />
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
-                  className="rounded-lg border border-ink/15 px-3 py-1.5 text-xs font-semibold"
+                  className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border border-ink/15 px-3 py-2 text-xs font-semibold"
+                  onClick={() => {
+                    if (desktopFileRef.current) {
+                      desktopFileRef.current.value = "";
+                      desktopFileRef.current.click();
+                    }
+                  }}
+                >
+                  <ImagePlus className="h-3.5 w-3.5 text-mint" aria-hidden />
+                  ファイルを差し替え
+                </button>
+                <button
+                  type="button"
+                  className="rounded-xl border border-ink/15 px-3 py-2 text-xs font-semibold"
                   onClick={() => setAnnotateOpen(true)}
                 >
                   注釈を付ける
                 </button>
                 <button
                   type="button"
-                  className="rounded-lg border border-ink/15 px-3 py-1.5 text-xs text-ink/50"
+                  className="rounded-xl border border-ink/15 px-3 py-2 text-xs text-ink/50"
                   onClick={() => setScreenshotDataUrl(undefined)}
                 >
                   削除
                 </button>
               </div>
             </div>
+          ) : (
+            <div
+              className={`rounded-2xl border-2 border-dashed px-4 py-8 text-center transition-colors ${
+                screenshotDragOver
+                  ? "border-mint bg-sand/80"
+                  : "border-ink/15 bg-white hover:border-mint/40 hover:bg-sand/30"
+              }`}
+              onDragEnter={(e) => {
+                e.preventDefault();
+                setScreenshotDragOver(true);
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setScreenshotDragOver(true);
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                if (e.currentTarget === e.target) setScreenshotDragOver(false);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                setScreenshotDragOver(false);
+                void onDesktopFile(e.dataTransfer.files?.[0] ?? null);
+              }}
+            >
+              <Upload className="mx-auto h-8 w-8 text-mint/70" aria-hidden />
+              <p className="mt-3 text-sm font-medium text-ink/80">画像をドラッグ＆ドロップ</p>
+              <p className="mt-1 text-xs text-ink/50">または下のボタンからファイルを選択</p>
+              <button
+                type="button"
+                className="mt-4 inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-mint px-4 py-2.5 text-sm font-semibold text-white hover:bg-mint-bright"
+                onClick={() => {
+                  if (desktopFileRef.current) {
+                    desktopFileRef.current.value = "";
+                    desktopFileRef.current.click();
+                  }
+                }}
+              >
+                <ImagePlus className="h-4 w-4" aria-hidden />
+                ファイルを選択
+              </button>
+              <p className="mt-3 text-[11px] text-ink/45">Ctrl/⌘+V でクリップボードの画像も添付できます</p>
+            </div>
           )}
-        </label>
+
+          <input
+            ref={desktopFileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => void onDesktopFile(e.target.files?.[0] ?? null)}
+          />
+        </div>
       )}
 
       {annotateOpen && screenshotDataUrl && (
@@ -579,10 +649,12 @@ export default function CapturePage() {
           className="sticky bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-10 w-full rounded-2xl bg-mint px-5 py-3.5 text-base font-semibold text-white shadow-lg shadow-mint/25 disabled:opacity-50 hover:bg-mint-bright lg:static lg:w-auto lg:shadow-none"
         >
           {busy
-            ? t("capture_sending")
+            ? t("capture_sending", locale)
             : mobile && screenshotDataUrl && rawText.trim()
-              ? "スクショ付きで送信"
-              : t("capture_submit")}
+              ? locale === "ja"
+                ? "スクショ付きで送信"
+                : "Send with screenshot"
+              : t("capture_submit", locale)}
         </button>
       )}
     </div>

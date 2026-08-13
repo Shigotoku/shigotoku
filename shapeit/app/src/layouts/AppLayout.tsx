@@ -6,22 +6,17 @@ import {
   Settings,
   UserRound,
   LogOut,
-  Puzzle,
   ScrollText,
   ChartColumn,
   Lightbulb,
   Map,
   CalendarRange,
-  Rocket,
   Trophy,
-  Shield,
-  Plug,
   Bot,
   Flame,
   Layers,
-  FlaskConical,
-  Scale,
   Menu,
+  BookOpen,
 } from "lucide-react";
 import { useAuth } from "../components/AuthProvider";
 import CaptureFab from "../components/CaptureFab";
@@ -35,12 +30,17 @@ import { LANDING_URL } from "../lib/urls";
 import { loadSettings, listPendingFeedback, runReminderSweep } from "../lib/demoStore";
 import { loadFlags } from "../lib/featureFlags";
 import { canCapture, canTriage, loadRole, type AppRole } from "../lib/roles";
-import { getLocale, t } from "../lib/i18n";
+import { t } from "../lib/i18n";
+import { useLocale } from "../lib/useLocale";
 import {
   fetchMyMemberProfile,
   fetchOrgProfile,
   mapOrgRoleToAppRole,
 } from "../lib/org";
+import {
+  countUnreadWeeklyDigestRemote,
+} from "../lib/cloudStore";
+import { maybeEnsureWeeklyDigestOnLogin } from "../lib/weeklyDigestRunner";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 export default function AppLayout() {
@@ -49,10 +49,20 @@ export default function AppLayout() {
   const [localRole] = useState(() => loadRole());
   const [cloudRole, setCloudRole] = useState<AppRole | null>(null);
   const [flags, setFlags] = useState(() => loadFlags());
-  const [locale, setLocale] = useState(getLocale());
+  const locale = useLocale();
   const [orgName, setOrgName] = useState("");
   const [memberName, setMemberName] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [digestBadge, setDigestBadge] = useState(0);
+
+  const refreshDigestBadge = useCallback(async () => {
+    try {
+      const n = await countUnreadWeeklyDigestRemote();
+      setDigestBadge(n);
+    } catch {
+      setDigestBadge(0);
+    }
+  }, []);
 
   const role = mode === "google" && cloudRole ? cloudRole : localRole;
 
@@ -80,14 +90,9 @@ export default function AppLayout() {
   }, [refreshProfile]);
 
   useEffect(() => {
-    const onLocale = () => setLocale(getLocale());
     const onOrg = () => void refreshProfile();
-    window.addEventListener("shapeit-locale", onLocale);
     window.addEventListener("shapeit-org", onOrg);
-    return () => {
-      window.removeEventListener("shapeit-locale", onLocale);
-      window.removeEventListener("shapeit-org", onOrg);
-    };
+    return () => window.removeEventListener("shapeit-org", onOrg);
   }, [refreshProfile]);
 
   useEffect(() => {
@@ -100,6 +105,23 @@ export default function AppLayout() {
       window.clearInterval(tick);
     };
   }, [mode]);
+
+  useEffect(() => {
+    if (mode === "demo" || mode === "google") {
+      void maybeEnsureWeeklyDigestOnLogin().then(() => refreshDigestBadge());
+    }
+  }, [mode, refreshDigestBadge]);
+
+  useEffect(() => {
+    void refreshDigestBadge();
+    const onNotif = () => void refreshDigestBadge();
+    window.addEventListener("shapeit-notifications", onNotif);
+    const tick = window.setInterval(() => void refreshDigestBadge(), 60_000);
+    return () => {
+      window.removeEventListener("shapeit-notifications", onNotif);
+      window.clearInterval(tick);
+    };
+  }, [refreshDigestBadge]);
 
   const slaBadge = useMemo(() => {
     if (mode !== "demo") return 0;
@@ -117,7 +139,7 @@ export default function AppLayout() {
   const companyLabel = orgName || t("company_name_unset", locale);
 
   const navGroups: NavGroup[] = useMemo(() => {
-    const workspace = [
+    const main = [
       canCapture(role) && { to: "/capture", label: t("nav_capture", locale), icon: MessageSquarePlus },
       canTriage(role) && { to: "/inbox", label: t("nav_inbox", locale), icon: Inbox },
       { to: "/board", label: t("nav_board", locale), icon: Kanban },
@@ -134,7 +156,12 @@ export default function AppLayout() {
       { to: "/ask", label: t("nav_ask", locale), icon: Bot },
       { to: "/heatmap", label: t("nav_heatmap", locale), icon: Flame },
       flags.insights && { to: "/insights", label: t("nav_insights", locale), icon: ChartColumn },
-      flags.digest && { to: "/digest", label: t("nav_digest", locale), icon: CalendarRange },
+      flags.digest && {
+        to: "/digest",
+        label: t("nav_digest", locale),
+        icon: CalendarRange,
+        badge: digestBadge > 0 ? digestBadge : undefined,
+      },
     ].filter(Boolean) as NavGroup["items"][number][];
 
     const account = [
@@ -142,23 +169,13 @@ export default function AppLayout() {
       { to: "/changelog", label: t("nav_changelog", locale), icon: ScrollText },
     ];
 
-    const admin = [
-      { to: "/golden", label: t("nav_golden", locale), icon: FlaskConical },
-      { to: "/legal", label: t("nav_legal", locale), icon: Scale },
-      { to: "/audit", label: t("nav_audit", locale), icon: Shield },
-      flags.webhooks && { to: "/integrations", label: t("nav_integrations", locale), icon: Plug },
-      { to: "/onboarding", label: t("nav_setup", locale), icon: Rocket },
-      { to: "/extension/install", label: t("nav_extension", locale), icon: Puzzle },
-    ].filter(Boolean) as NavGroup["items"][number][];
-
     return [
-      { id: "workspace", labelKey: "nav_group_workspace", items: workspace },
+      { id: "main", collapsible: false, items: main },
       { id: "planning", labelKey: "nav_group_planning", items: planning },
       { id: "analytics", labelKey: "nav_group_analytics", items: analytics },
       { id: "account", labelKey: "nav_group_account", items: account },
-      { id: "admin", labelKey: "nav_group_admin", items: admin },
     ];
-  }, [role, flags, locale]);
+  }, [role, flags, locale, digestBadge]);
 
   const doSignOut = async () => {
     await signOut();
@@ -223,11 +240,24 @@ export default function AppLayout() {
         </nav>
 
         <div className="shrink-0 border-t border-ink/10 px-2 py-2">
-          <div className="flex items-center gap-1">
-            <div className="min-w-0 flex-1 leading-tight">
-              <p className="truncate text-[10px] font-semibold text-ink">{companyLabel}</p>
-              <p className="truncate text-[11px] text-ink/70">{displayName}</p>
-            </div>
+          <a
+            href={`${LANDING_URL}/guide/`}
+            target="_blank"
+            rel="noreferrer"
+            className="mb-2 flex items-center gap-1.5 rounded-md px-1.5 py-1.5 text-[12px] font-semibold text-mint hover:bg-mint/10"
+          >
+            <BookOpen className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            {t("nav_guide", locale)}
+          </a>
+          <div className="min-w-0 px-1.5 pb-1.5 leading-snug">
+            <p className="break-words text-[13px] font-bold text-ink" title={companyLabel}>
+              {companyLabel}
+            </p>
+            <p className="mt-0.5 break-words text-[12px] font-medium text-ink/75" title={displayName}>
+              {displayName}
+            </p>
+          </div>
+          <div className="flex items-center justify-end gap-0.5">
             <NotificationBell compact />
             <button
               type="button"
@@ -263,6 +293,7 @@ export default function AppLayout() {
         groups={navGroups}
         companyLabel={companyLabel}
         displayName={displayName}
+        guideUrl={`${LANDING_URL}/guide/`}
         onSettings={() => navigate("/settings")}
         onSignOut={() => void doSignOut()}
       />

@@ -1,7 +1,7 @@
 ---
 import { appPath, assetPath, shapeitIconPath } from '../lib/urls';
 
-const loginUrl = appPath('/login');
+const signupUrl = appPath('/signup');
 const howUrl = `${import.meta.env.BASE_URL}#how-it-works`;
 const heroBgUrl = assetPath('hero-bg.png');
 ---
@@ -42,7 +42,7 @@ const heroBgUrl = assetPath('hero-bg.png');
 
       <div class="mt-7 flex flex-col gap-3 sm:mt-9 sm:flex-row sm:items-center">
         <a
-          href={loginUrl}
+          href={signupUrl}
           class="shapeit-tap group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-mint px-6 py-3.5 text-base font-bold text-white shadow-lg shadow-mint/30 transition-all hover:bg-mint-bright sm:w-auto sm:px-8 sm:py-4"
         >
           無料で始める
@@ -59,7 +59,7 @@ const heroBgUrl = assetPath('hero-bg.png');
       </div>
 
       <p class="mt-5 text-[11px] leading-relaxed text-paper/60 sm:mt-6 sm:text-sm" data-jp-wrap>
-        投稿は中央値10秒 · 分類はAI任せ · Googleログインで開始
+        投稿は中央値10秒 · 分類はAI任せ · 管理者登録のあと、メンバーは招待制
       </p>
     </div>
   </div>

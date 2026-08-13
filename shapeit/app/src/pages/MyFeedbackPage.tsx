@@ -7,6 +7,9 @@ import {
 } from "../lib/cloudStore";
 import { formatInTz } from "../lib/demoStore";
 import type { Feedback, Issue } from "../lib/types";
+import FeedbackTimeline from "../components/FeedbackTimeline";
+import { buildFeedbackTimeline } from "../lib/feedbackTimeline";
+import { t } from "../lib/i18n";
 
 const STATUS_LABEL: Record<string, string> = {
   pending: "受付待ち",
@@ -50,8 +53,8 @@ export default function MyFeedbackPage() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">Closed Loop</p>
-        <h1 className="font-display mt-1 text-3xl font-bold">My Feedback</h1>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">{t("nav_my")}</p>
+        <h1 className="font-display mt-1 text-3xl font-bold">{t("page_my")}</h1>
         <p className="mt-2 text-sm text-ink/60">
           自分の報告と対応状況。Issue が Done になったら解決確認できます。
         </p>
@@ -123,8 +126,8 @@ export default function MyFeedbackPage() {
                 <p className="mt-2 text-xs text-ink/45">
                   {formatInTz(fb.createdAt)}
                   {fb.analysis?.title ? ` · ${fb.analysis.title}` : ""}
-                  {issue ? ` · Issue: ${issue.status}` : ""}
                 </p>
+                <FeedbackTimeline steps={buildFeedbackTimeline(fb, issue)} />
                 {fb.triageStatus === "rejected" && (
                   <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
                     却下理由: {fb.rejectReason || "（理由なし）"}

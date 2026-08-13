@@ -1,12 +1,13 @@
 {
   "manifest_version": 3,
   "name": "ShapeIt - 気づきを投稿",
-  "version": "0.1.0",
-  "description": "開いている画面のスクショと一言で、ShapeIt に改善報告を送ります。",
-  "permissions": ["activeTab", "storage", "tabs"],
+  "version": "0.3.0",
+  "description": "開いている画面のスクショ（全画面・範囲選択）に書き込み、URL 付きで ShapeIt に改善報告を送ります。",
+  "permissions": ["activeTab", "storage", "tabs", "scripting"],
   "host_permissions": [
     "https://app.shapeit.shigotoku.com/*",
     "https://shigotoku-shapeit-app.web.app/*",
+    "https://asia-northeast1-shigotoku-shapeit-prod.cloudfunctions.net/*",
     "http://localhost/*",
     "<all_urls>"
   ],
@@ -25,7 +26,8 @@
     }
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "commands": {
     "quick-report": {
@@ -33,7 +35,7 @@
         "default": "Alt+Shift+F",
         "mac": "Alt+Shift+F"
       },
-      "description": "今の画面を ShapeIt に報告"
+      "description": "画面をキャプチャして ShapeIt 報告画面を開く"
     }
   },
   "content_scripts": [

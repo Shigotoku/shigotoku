@@ -12,7 +12,7 @@ import PricingPreviewSection from '../components/PricingPreviewSection.astro';
 import FaqSection from '../components/FaqSection.astro';
 import { appPath, sitePath } from '../lib/urls';
 
-const loginUrl = appPath('/login');
+const signupUrl = appPath('/signup');
 const pricingUrl = sitePath('pricing');
 ---
 
@@ -38,10 +38,10 @@ const pricingUrl = sitePath('pricing');
         まずは、1件だけ投稿してみてください。
       </h2>
       <p class="shapeit-lead mt-3 text-paper/55" data-jp-wrap>
-        Googleログインで登録。気づきを残すだけで、改善の循環が始まります。
+        会社の管理者が登録し、メンバーは招待制。気づきを残すだけで、改善の循環が始まります。
       </p>
       <div class="mt-7 flex flex-col items-stretch justify-center gap-3 sm:mt-8 sm:flex-row sm:items-center">
-        <a href={loginUrl} class="shapeit-tap inline-flex items-center justify-center rounded-xl bg-mint px-6 py-3.5 text-base font-bold text-white transition-all hover:bg-mint-bright sm:px-8">
+        <a href={signupUrl} class="shapeit-tap inline-flex items-center justify-center rounded-xl bg-mint px-6 py-3.5 text-base font-bold text-white transition-all hover:bg-mint-bright sm:px-8">
           無料で始める
         </a>
         <a href={pricingUrl} class="shapeit-tap inline-flex items-center justify-center rounded-xl border border-paper/20 px-6 py-3.5 text-base font-semibold text-paper/80 hover:border-paper/40 hover:text-paper sm:px-8">

@@ -2,7 +2,7 @@
 import Layout from '../layouts/Layout.astro';
 import { appPath } from '../lib/urls';
 
-const loginUrl = appPath('/login');
+const signupUrl = appPath('/signup');
 const plans = [
   { name: 'Starter', price: '¥4,980', note: '小規模チーム', features: ['管理者3', '投稿者多数', '基本AI'] },
   { name: 'Team', price: '¥14,800', note: 'SaaSチーム', features: ['管理者10', 'AI Triage/重複', 'GitHub/Slack'], highlight: true },
@@ -29,6 +29,6 @@ const plans = [
         </div>
       ))}
     </div>
-    <a href={loginUrl} class="shapeit-tap mt-8 inline-flex w-full items-center justify-center rounded-lg bg-ink px-5 py-3 text-sm font-semibold text-paper sm:mt-10 sm:w-auto">無料で始める</a>
+    <a href={signupUrl} class="shapeit-tap mt-8 inline-flex w-full items-center justify-center rounded-lg bg-ink px-5 py-3 text-sm font-semibold text-paper sm:mt-10 sm:w-auto">無料で始める</a>
   </section>
 </Layout>

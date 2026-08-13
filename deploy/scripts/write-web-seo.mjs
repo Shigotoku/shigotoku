@@ -31,6 +31,7 @@ Sitemap: https://shigotoku.com/sitemap.xml
     { loc: 'https://shigotoku.com/clipit/', changefreq: 'weekly', priority: '0.9' },
     { loc: 'https://shigotoku.com/clipit/pricing/', changefreq: 'monthly', priority: '0.8' },
     { loc: 'https://shigotoku.com/shapeit/', changefreq: 'weekly', priority: '0.9' },
+    { loc: 'https://shigotoku.com/shapeit/guide/', changefreq: 'monthly', priority: '0.8' },
     { loc: 'https://shigotoku.com/shapeit/pricing/', changefreq: 'monthly', priority: '0.8' },
   ];
 

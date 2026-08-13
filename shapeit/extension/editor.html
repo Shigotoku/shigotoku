@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>ShapeIt — キャプチャして報告</title>
+    <link rel="stylesheet" href="editor.css" />
+  </head>
+  <body>
+    <header class="top">
+      <div class="brand">
+        <img src="icon.png" alt="" width="28" height="28" />
+        <div>
+          <h1>ShapeIt に報告</h1>
+          <p id="authState">接続を確認中…</p>
+        </div>
+      </div>
+      <div class="capture-actions">
+        <button type="button" class="chip" id="capFull" title="表示中の画面全体">全画面</button>
+        <button type="button" class="chip" id="capRegion" title="ドラッグで範囲選択">範囲選択</button>
+      </div>
+    </header>
+
+    <section class="meta">
+      <label class="field">
+        <span>ページタイトル</span>
+        <input type="text" id="pageTitle" readonly />
+      </label>
+      <label class="field">
+        <span>ページ URL（自動取得）</span>
+        <input type="url" id="pageUrl" readonly />
+      </label>
+      <p class="hint" id="captureHint">キャプチャ方法を選ぶか、下のプレビューを確認してください。</p>
+    </section>
+
+    <section class="tools" id="toolBar">
+      <button type="button" class="tool active" data-tool="pen">ペン</button>
+      <button type="button" class="tool" data-tool="rect">矩形</button>
+      <button type="button" class="tool" data-tool="arrow">矢印</button>
+      <button type="button" class="tool" data-tool="text">文字</button>
+      <input type="color" id="strokeColor" value="#E11D48" title="色" />
+      <button type="button" class="ghost" id="undoStroke">1つ戻す</button>
+    </section>
+
+    <div class="canvas-wrap">
+      <canvas id="canvas"></canvas>
+      <p id="emptyShot" class="empty">スクショがありません。「全画面」または「範囲選択」を押してください。</p>
+    </div>
+
+    <label class="field note-field">
+      <span>気づき（必須）</span>
+      <textarea id="note" rows="3" placeholder="例: このボタンの文言が分かりにくい / 保存しても反映されない"></textarea>
+    </label>
+
+    <footer class="actions">
+      <button type="button" class="secondary" id="openLogin" style="display: none">ShapeIt にログイン</button>
+      <button type="button" class="secondary" id="openApp">ShapeIt を開く</button>
+      <button type="button" class="primary" id="submit">この内容で報告する</button>
+    </footer>
+    <p id="status" class="status"></p>
+    <script src="editor.js"></script>
+  </body>
+</html>

@@ -1,6 +1,9 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import AppLayout from "./layouts/AppLayout";
 import LoginPage from "./pages/LoginPage";
+import SignupPage from "./pages/SignupPage";
+import OrgSetupPage from "./pages/OrgSetupPage";
+import AcceptInvitePage from "./pages/AcceptInvitePage";
 import CapturePage from "./pages/CapturePage";
 import InboxPage from "./pages/InboxPage";
 import BoardPage from "./pages/BoardPage";
@@ -29,16 +32,25 @@ import { useAuth } from "./components/AuthProvider";
 import { t } from "./lib/i18n";
 import { loadFlags } from "./lib/featureFlags";
 
+function Loading() {
+  return (
+    <div className="flex min-h-screen items-center justify-center text-sm text-ink/60">
+      {t("loading")}
+    </div>
+  );
+}
+
 function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { ready, isAuthenticated } = useAuth();
-  if (!ready) {
-    return (
-      <div className="flex min-h-screen items-center justify-center text-sm text-ink/60">
-        {t("loading")}
-      </div>
-    );
-  }
+  const { ready, isAuthenticated, mode, membership, membershipReady } = useAuth();
+  const location = useLocation();
+  if (!ready) return <Loading />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (mode === "demo") return children;
+  if (!membershipReady) return <Loading />;
+  if (!membership) return <Navigate to="/signup" replace />;
+  if (!membership.onboardingCompleted && location.pathname !== "/setup") {
+    return <Navigate to="/setup" replace />;
+  }
   return children;
 }
 
@@ -58,6 +70,9 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/signup" element={<SignupPage />} />
+      <Route path="/invite/:token" element={<AcceptInvitePage />} />
+      <Route path="/setup" element={<OrgSetupPage />} />
       <Route path="/public/changelog" element={<PublicChangelogPage />} />
       <Route
         path="/portal/:token"

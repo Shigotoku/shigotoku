@@ -1,7 +1,7 @@
 ---
 import { appPath, sitePath } from '../lib/urls';
 
-const loginUrl = appPath('/login');
+const signupUrl = appPath('/signup');
 const pricingUrl = sitePath('pricing');
 
 const plans = [
@@ -67,7 +67,7 @@ const plans = [
             ))}
           </ul>
           <a
-            href={loginUrl}
+            href={signupUrl}
             class={`shapeit-tap mt-5 flex items-center justify-center rounded-xl py-3 text-center text-sm font-semibold transition-all sm:mt-6 ${
               p.highlight
                 ? 'bg-mint text-white hover:bg-mint-bright'

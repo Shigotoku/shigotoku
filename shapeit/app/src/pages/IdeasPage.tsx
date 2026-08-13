@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { listIssuesRemote, updateIssueRemote } from "../lib/cloudStore";
 import type { Effort, Issue, RoadmapBucket } from "../lib/types";
+import { t } from "../lib/i18n";
 
 type SortKey = "votes" | "fit" | "arr" | "priority";
 
@@ -34,8 +35,8 @@ export default function IdeasPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">Ideas</p>
-          <h1 className="font-display mt-1 text-3xl font-bold">Idea Board</h1>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">{t("nav_ideas")}</p>
+          <h1 className="font-display mt-1 text-3xl font-bold">{t("page_ideas")}</h1>
           <p className="mt-2 text-sm text-ink/60">Vote / Customers / ARR / Fit / Effort</p>
         </div>
         <select

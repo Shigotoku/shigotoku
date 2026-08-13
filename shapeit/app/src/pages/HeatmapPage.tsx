@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { listIssuesRemote, listOrgFeedbackRemote } from "../lib/cloudStore";
 import { canonicalizePageKey, encodePackId, pageKeyLabel } from "../lib/pageKey";
 import type { Feedback, Issue } from "../lib/types";
+import { t } from "../lib/i18n";
 
 type Mode = "url" | "area";
 
@@ -48,8 +49,8 @@ export default function HeatmapPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">Analytics</p>
-          <h1 className="font-display mt-1 text-3xl font-bold">Heatmap</h1>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">{t("nav_heatmap")}</p>
+          <h1 className="font-display mt-1 text-3xl font-bold">{t("page_heatmap")}</h1>
           <p className="mt-2 text-sm text-ink/60">
             報告密度 — 痛い画面は{" "}
             <Link to="/fix-packs" className="text-mint hover:underline">

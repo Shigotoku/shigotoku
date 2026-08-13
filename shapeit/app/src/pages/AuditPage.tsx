@@ -1,6 +1,7 @@
 import { listAudit, clearAudit } from "../lib/audit";
 import { formatInTz } from "../lib/demoStore";
 import { canManageSettings } from "../lib/roles";
+import { t } from "../lib/i18n";
 
 /** SEC-005: Audit Trail */
 export default function AuditPage() {
@@ -11,8 +12,8 @@ export default function AuditPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">Security</p>
-          <h1 className="font-display mt-1 text-3xl font-bold">Audit Log</h1>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">{t("nav_audit")}</p>
+          <h1 className="font-display mt-1 text-3xl font-bold">{t("page_audit")}</h1>
           <p className="mt-2 text-sm text-ink/60">重要操作の actor / action / entity 履歴</p>
         </div>
         {canClear && (

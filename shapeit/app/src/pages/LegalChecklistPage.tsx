@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { loadSettings } from "../lib/demoStore";
+import { t } from "../lib/i18n";
 
 /** BRAND-003: 商標・ドメイン・SNS チェックリスト（インタラクティブ） */
 const DEFAULT = [
@@ -40,8 +41,8 @@ export default function LegalChecklistPage() {
   return (
     <div className="w-full space-y-6">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">Legal</p>
-        <h1 className="font-display mt-1 text-3xl font-bold">Brand / Security Checklist</h1>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">{t("nav_legal")}</p>
+        <h1 className="font-display mt-1 text-3xl font-bold">{t("page_legal")}</h1>
         <p className="mt-2 text-sm text-ink/60">
           外販前の確認リスト（BRAND-003） · {done}/{items.length} · residency={residency} · MFA=
           {mfa ? "ON" : "OFF"}

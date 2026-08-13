@@ -8,7 +8,8 @@
   },
   "scripts": {
     "build": "tsc",
-    "serve": "node lib/index.js"
+    "serve": "node lib/index.js",
+    "reset:data": "node scripts/delete-shapeit-auth-users.mjs"
   },
   "dependencies": {
     "cors": "^2.8.5",

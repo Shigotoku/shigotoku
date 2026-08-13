@@ -1,0 +1,755 @@
+---
+import Layout from '../layouts/Layout.astro';
+import GuideToc from '../components/GuideToc.astro';
+import GuideCallout from '../components/GuideCallout.astro';
+import { appPath, sitePath } from '../lib/urls';
+
+const signupUrl = appPath('/signup');
+const loginUrl = appPath('/login');
+const captureUrl = appPath('/capture');
+const settingsUrl = appPath('/settings');
+const homeUrl = import.meta.env.BASE_URL;
+const faqUrl = `${homeUrl}#faq`;
+---
+
+<Layout
+  title="使い方ガイド - ShapeIt"
+  description="ShapeIt の詳細マニュアル。会社登録、メンバー招待、投稿、Chrome 拡張、受信箱・ボード・Closed Loop まで、画面の操作手順を順を追って解説します。"
+>
+  <div class="guide-portal-bar">
+    <div class="guide-portal-bar__inner">
+      <a href={homeUrl}>← ShapeIt トップ</a>
+      <span aria-hidden="true">·</span>
+      <a href="#manual" class="is-active">使い方ガイド</a>
+      <span aria-hidden="true">·</span>
+      <a href={signupUrl}>無料で始める</a>
+      <span aria-hidden="true">·</span>
+      <a href={loginUrl}>ログイン</a>
+      <span aria-hidden="true">·</span>
+      <a href="#troubleshoot">困ったときは</a>
+    </div>
+  </div>
+
+  <section class="guide-hero shapeit-section">
+    <div class="mx-auto max-w-6xl px-4 sm:px-6">
+      <p class="text-xs font-semibold uppercase tracking-[0.2em] text-mint">Manual</p>
+      <h1 class="shapeit-h1 font-display mt-3 font-bold text-ink" id="manual" data-jp-heading>
+        ShapeIt 使い方ガイド
+      </h1>
+      <p class="shapeit-lead mt-4 max-w-3xl text-ink/70" data-jp-wrap>
+        このページでは、初めての方でも迷わないように、登録から日常の投稿・整理・完了確認までを<strong>画面の操作順</strong>でご案内します。
+        管理者の方は「会社登録 → メンバー招待」、メンバーの方は「投稿の仕方」から読み進めてください。わからないところがあれば、いつでもこのページに戻って大丈夫です。
+      </p>
+
+      <div class="guide-intro-card mt-8">
+        <article class="guide-intro-card__item">
+          <h3>⚙️ 初めての管理者の方</h3>
+          <p>会社の登録、メンバー招待、受信箱の整理まで。最初の1週間で改善の循環を回すための手順です。</p>
+          <p class="text-xs text-ink/50">作業時間の目安：約20分</p>
+          <a href="#prepare-signup">会社登録の手順へ →</a>
+        </article>
+        <article class="guide-intro-card__item">
+          <h3>📖 すでに参加済みの方</h3>
+          <p>気づきの投稿、Chrome 拡張、自分の投稿の確認など、日常運用の手順をまとめています。</p>
+          <p class="text-xs text-ink/50">よく見られている項目：拡張からの投稿 / 受信箱 / 自分の投稿</p>
+          <a href="#capture-app">投稿の手順へ →</a>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <div class="guide-shell">
+    <GuideToc variant="sidebar" />
+
+    <article class="guide-main">
+      <GuideToc variant="inline" />
+
+      <!-- 1. ShapeItとは -->
+      <section class="guide-chapter" id="about">
+        <h2>ShapeIt とは</h2>
+        <p class="guide-lead" data-jp-wrap>
+          ShapeIt（シェイプイット）は、バグや使いにくさの「気づき」を、スクショと一言で残し、AI が整理して、チームで直し、直ったら投稿者に確認が戻る——その<strong>改善の循環</strong>を、みんなで回すための Product Feedback OS です。
+        </p>
+        <ul class="guide-feature-list">
+          <li>
+            <strong>🔍 手間なく記録</strong>
+            必須入力は「内容」だけ。URL・環境・スクショは自動で揃います。
+          </li>
+          <li>
+            <strong>🤖 AI が整理</strong>
+            カテゴリ・優先度・重複候補を自動生成。管理者は判断するだけです。
+          </li>
+          <li>
+            <strong>📋 受信箱 → ボード</strong>
+            散らばった報告を Issue にまとめ、進捗を可視化します。
+          </li>
+          <li>
+            <strong>✅ Closed Loop</strong>
+            直したあと投稿者へ確認。「解決していない」なら再オープンできます。
+          </li>
+        </ul>
+        <GuideCallout variant="tip">
+          <p>
+            用語はシンプルに覚えてください。<strong>投稿（Feedback）</strong>＝生の気づき、<strong>Issue</strong>＝開発が直す単位、<strong>受信箱</strong>＝未整理の投稿が並ぶ場所です。
+          </p>
+        </GuideCallout>
+      </section>
+
+      <!-- 2. 作業前の準備 -->
+      <section class="guide-chapter" id="prepare">
+        <h2>作業前の準備</h2>
+        <p class="guide-lead" data-jp-wrap>
+          会社の<strong>最初の管理者</strong>だけが、ここから登録を行います。メンバーは招待リンクから参加します（誰でも自由に登録できるわけではありません）。
+        </p>
+
+        <div class="guide-section" id="prepare-checklist">
+          <h3>1. 必要なもの</h3>
+          <p class="guide-lead">登録前に、次が揃っているか確認しましょう。</p>
+          <ul class="guide-steps">
+            <li>
+              <strong>Google アカウント（推奨）</strong>
+              <p>普段 SaaS にログインしている Google アカウントと同じものを使うと、Chrome 拡張からログインし直さず投稿できます。</p>
+            </li>
+            <li>
+              <strong>メールアドレスとパスワード（任意）</strong>
+              <p>Google 以外でも登録できますが、拡張との相性は Google 登録がおすすめです。</p>
+            </li>
+            <li>
+              <strong>会社名</strong>
+              <p>招待画面やメンバー一覧に表示されます。あとから設定で変更できます。</p>
+            </li>
+            <li>
+              <strong>PC なら Google Chrome（推奨）</strong>
+              <p>拡張機能は Chrome 向けです。投稿だけなら Edge / Firefox / スマホの PWA でも可能です。</p>
+            </li>
+          </ul>
+        </div>
+
+        <div class="guide-section" id="prepare-signup">
+          <h3>2. 会社を登録する（管理者）</h3>
+          <ol class="guide-steps">
+            <li>
+              <strong>新規登録ページを開く</strong>
+              <p>
+                <a href={signupUrl}>https://app.shapeit.shigotoku.com/signup</a> を開きます（ブックマーク登録をおすすめします）。
+              </p>
+            </li>
+            <li>
+              <strong>お名前・会社名を入力する</strong>
+              <p>表示名はサイドバーに、会社名は招待リンクに表示されます。</p>
+            </li>
+            <li>
+              <strong>ログイン方法を選ぶ</strong>
+              <p>「Google で会社を登録」またはメール＋パスワードで進めます。</p>
+            </li>
+            <li>
+              <strong>登録完了後、投稿画面が開く</strong>
+              <p>ここまで来たら会社専用のスペースが作成されています。まずは1件、試しに投稿してみましょう。</p>
+            </li>
+          </ol>
+          <GuideCallout variant="important">
+            <p>1社につき、最初の管理者登録は1回だけです。2人目以降は管理者が発行した<strong>招待リンク</strong>から参加してください。</p>
+          </GuideCallout>
+        </div>
+
+        <div class="guide-section" id="prepare-google">
+          <h3>3. Google アカウントで登録する理由</h3>
+          <p class="guide-lead" data-jp-wrap>
+            Chrome 拡張は、<strong>Chrome にログインしている Google とは別に「つなぐ」操作はありません</strong>。
+            拡張が使うのは、<strong>ShapeIt にログインしているアカウント</strong>の情報だけです。
+            普段 SaaS で使う Google と同じメールで ShapeIt に登録・ログインしておくと、あとから楽になります。
+          </p>
+          <ol class="guide-steps">
+            <li>
+              <strong>ShapeIt にログインすると拡張へ自動で渡る</strong>
+              <p>アプリを一度開くと、拡張に接続情報が保存されます。拡張側で Google を選ぶ画面は出ません。</p>
+            </li>
+            <li>
+              <strong>ログインの手間が減る</strong>
+              <p>Google で登録しておけば、報告のたびにパスワードを入力する必要がありません。</p>
+            </li>
+            <li>
+              <strong>接続が切れたときも再ログインが簡単</strong>
+              <p>有効期限が切れた場合は、ShapeIt を一度開けば再接続されます。</p>
+            </li>
+          </ol>
+          <GuideCallout variant="important">
+            <p>
+              メールで登録したあと「よく使う Google を拡張につなげたい」と感じた場合は、
+              <a href="#account-pattern-email">メール登録の場合の手順</a>を参照してください。
+              設定 → Chrome 拡張から Google を<strong>同じ ShapeIt アカウントに連携</strong>することもできます。
+            </p>
+          </GuideCallout>
+        </div>
+      </section>
+
+      <!-- 3. メンバー招待 -->
+      <section class="guide-chapter" id="invite">
+        <h2>メンバーを招待する</h2>
+        <p class="guide-lead" data-jp-wrap>
+          メンバー追加は<strong>招待リンク</strong>で行います。自動メールは送られないので、Slack・Teams・メールなどでリンクをコピーして共有してください。
+        </p>
+
+        <div class="guide-section" id="invite-create">
+          <h3>4. 招待リンクを作成する</h3>
+          <ol class="guide-steps">
+            <li>
+              <strong>設定を開く</strong>
+              <p>左サイドバー下部の歯車アイコン、または <a href={settingsUrl}>設定</a> を開きます。</p>
+            </li>
+            <li>
+              <strong>「メンバー」タブを選ぶ</strong>
+              <p>画面上部のタブから「メンバー」をクリックします。</p>
+            </li>
+            <li>
+              <strong>メールアドレスを入力して「招待リンクを作成」</strong>
+              <p>参加してほしい人のメールを登録すると、その人専用のリンクが表示されます。</p>
+            </li>
+            <li>
+              <strong>リンクをコピーして共有する</strong>
+              <p>「コピー」ボタンでクリップボードに入れ、Slack 等に貼り付けて送ります。リンクの有効期限は7日です。</p>
+            </li>
+          </ol>
+          <GuideCallout variant="note">
+            <p>招待メールの自動送信は行いません。運用コストを抑えるため、リンクの手動共有をお願いしています。</p>
+          </GuideCallout>
+        </div>
+
+        <div class="guide-section" id="invite-join">
+          <h3>5. メンバーが参加する</h3>
+          <ol class="guide-steps">
+            <li>
+              <strong>招待リンクを開く</strong>
+              <p>受け取った URL（例: <code>…/invite/xxxxxxxx</code>）をブラウザで開きます。</p>
+            </li>
+            <li>
+              <strong>パスワードを設定する</strong>
+              <p>画面の指示に従い、ログイン用のパスワードを設定します（Google で参加する場合はそのまま続行）。</p>
+            </li>
+            <li>
+              <strong>ログインして投稿画面へ</strong>
+              <p>参加が完了すると、チームの投稿画面が使えるようになります。</p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- アカウントと Chrome 拡張 -->
+      <section class="guide-chapter" id="account">
+        <h2>アカウントと Chrome 拡張</h2>
+        <p class="guide-lead" data-jp-wrap>
+          「個人メールで登録したのに、仕事用 Google で拡張をつなげたい」——こう感じる方が多いですが、
+          <strong>拡張は Chrome の Google プロファイルとは別物</strong>です。ShapeIt にログインしているアカウントが、そのまま拡張の投稿先になります。
+        </p>
+
+        <div class="guide-section" id="account-basics">
+          <h3>拡張は何と連携する？</h3>
+          <div class="guide-table-wrap">
+            <table class="guide-table">
+              <thead>
+                <tr><th>よくある誤解</th><th>実際の動き</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>拡張で Google アカウントを選んでつなぐ</td>
+                  <td>選ぶ画面はありません。ShapeIt アプリでログインした情報が自動で渡ります</td>
+                </tr>
+                <tr>
+                  <td>Chrome の「仕事用」プロフィールと連動する</td>
+                  <td>プロフィールごとに拡張の保存先が分かれます。ShapeIt も<strong>同じプロフィール</strong>で開いてください</td>
+                </tr>
+                <tr>
+                  <td>メール登録だと拡張が使えない</td>
+                  <td>メールでログインしていれば使えます。Google 連携は「ログイン方法を増やす」ための任意操作です</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <GuideCallout variant="tip">
+            <p>設定 → <a href={settingsUrl}>Chrome 拡張</a> タブに、いま拡張が使うログインアカウント（メールアドレス）が表示されます。</p>
+          </GuideCallout>
+        </div>
+
+        <div class="guide-section" id="account-pattern-google">
+          <h3>Google で登録する（推奨）</h3>
+          <p class="guide-lead">普段 SaaS を見るのと同じ Google で、最初から ShapeIt に登録する方法です。いちばん迷いが少ないです。</p>
+          <ol class="guide-steps">
+            <li>
+              <strong>会社登録または招待参加で「Google で続ける」を選ぶ</strong>
+              <p>ログイン画面で、よく使う Google アカウントを選びます。</p>
+            </li>
+            <li>
+              <strong>ShapeIt アプリを一度開く</strong>
+              <p>拡張へ接続情報が自動保存されます。</p>
+            </li>
+            <li>
+              <strong>同じ Chrome プロフィールで SaaS を開き、拡張から投稿</strong>
+              <p>拡張に「○○@company.com で投稿します」と表示されれば OK です。</p>
+            </li>
+          </ol>
+        </div>
+
+        <div class="guide-section" id="account-pattern-email">
+          <h3>メールで登録した場合</h3>
+          <p class="guide-lead" data-jp-wrap>
+            メール＋パスワードで登録した場合も、<strong>そのメールで ShapeIt にログインすれば拡張は動きます</strong>。
+            別途「Google を拡張につなぐ」必要はありません。
+          </p>
+          <ol class="guide-steps">
+            <li>
+              <strong>ShapeIt にメールアドレスとパスワードでログインする</strong>
+              <p>登録時と同じメールを使います。アプリを開いた状態で拡張を起動してください。</p>
+            </li>
+            <li>
+              <strong>拡張の表示を確認する</strong>
+              <p>「登録メール@example.com で投稿します」と出れば接続済みです。</p>
+            </li>
+            <li>
+              <strong>（任意）同じ ShapeIt アカウントに Google を連携する</strong>
+              <p>
+                あとから Google ログインも使いたい場合は、設定 → Chrome 拡張 →
+                <strong>「Google をこのアカウントに連携」</strong>を押します。
+                これは拡張専用の操作ではなく、次回から Google でも同じ ShapeIt に入れるようにする機能です。
+              </p>
+            </li>
+          </ol>
+          <GuideCallout variant="important">
+            <p>
+              すでに別の Google で ShapeIt を新規登録してしまった場合、同じ Google をメール登録アカウントに連携できません。
+              その Google で使いたいなら、その Google でログインしたアカウントを使うか、管理者に招待してもらってください。
+            </p>
+          </GuideCallout>
+        </div>
+
+        <div class="guide-section" id="account-chrome-profile">
+          <h3>Chrome のプロファイルが複数ある（仕事用 / 個人など）</h3>
+          <p class="guide-lead">
+            Chrome 右上のプロフィール名（例:「仕事用」「個人」）ごとに、拡張のインストール先と保存データが分かれます。
+          </p>
+          <ol class="guide-steps">
+            <li>
+              <strong>普段 SaaS を見るプロフィールを決める</strong>
+              <p>仕事の報告なら「仕事用」プロフィールに ShapeIt 拡張を入れます。</p>
+            </li>
+            <li>
+              <strong>同じプロフィールで ShapeIt にログインする</strong>
+              <p>個人プロフィールで登録し、仕事用プロフィールで拡張を開くと「未接続」になります。</p>
+            </li>
+            <li>
+              <strong>必要なら両方のプロフィールに拡張を入れる</strong>
+              <p>それぞれのプロフィールで ShapeIt にログインすれば、それぞれ独立して使えます。</p>
+            </li>
+          </ol>
+        </div>
+
+        <div class="guide-section" id="account-reconnect">
+          <h3>つながらないとき</h3>
+          <ol class="guide-steps">
+            <li>
+              <strong>ShapeIt を開き、意図したアカウントでログインし直す</strong>
+              <p>ログアウト → 正しいメールまたは Google で再ログイン。</p>
+            </li>
+            <li>
+              <strong>設定 → Chrome 拡張 →「拡張へ再接続」</strong>
+              <p>接続情報を拡張に再送します。</p>
+            </li>
+            <li>
+              <strong>拡張を再読み込みする</strong>
+              <p><code>chrome://extensions</code> で ShapeIt の更新ボタン（↻）を押します。</p>
+            </li>
+            <li>
+              <strong>Chrome プロフィールが合っているか確認</strong>
+              <p>登録したときと同じプロフィール（仕事用 / 個人）かを見直します。</p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- 4. 画面の見方 -->
+      <section class="guide-chapter" id="ui">
+        <h2>画面の見方</h2>
+        <p class="guide-lead">ログイン後の画面構成を押さえておくと、迷いにくくなります。</p>
+
+        <div class="guide-section" id="ui-sidebar">
+          <h3>6. サイドバーとメインメニュー</h3>
+          <ol class="guide-steps">
+            <li>
+              <strong>メイン4つ（いつも使う場所）</strong>
+              <ul>
+                <li><strong>投稿</strong> … 気づきを残す</li>
+                <li><strong>受信箱</strong> … 未整理の投稿（管理者・整理担当向け）</li>
+                <li><strong>ボード</strong> … Issue の進捗管理</li>
+                <li><strong>修正パック</strong> … 同じ画面の課題をまとめて直す</li>
+              </ul>
+            </li>
+            <li>
+              <strong>計画・分析・アカウント</strong>
+              <p>ロードマップ、インサイト、自分の投稿など。折りたたみになっているので、必要なときだけ開きます。</p>
+            </li>
+            <li>
+              <strong>サイドバー下部</strong>
+              <p>上から「使い方ガイド」→ 会社名・お名前 → 通知・設定・ログアウトの順です。</p>
+            </li>
+          </ol>
+        </div>
+
+        <div class="guide-section" id="ui-settings">
+          <h3>7. 設定画面を開く</h3>
+          <ol class="guide-steps">
+            <li>
+              <strong>歯車アイコンをクリック</strong>
+              <p>設定画面が開きます。</p>
+            </li>
+            <li>
+              <strong>タイトル下のタブで項目を選ぶ</strong>
+              <p>組織 / メンバー / 表示・言語 / 通知 / プライバシー / Chrome 拡張 / データ / 管理 から選びます。</p>
+            </li>
+            <li>
+              <strong>「表示・言語」で日本語・English を切り替え</strong>
+              <p>メニューやページタイトルの表示言語が変わります。</p>
+            </li>
+            <li>
+              <strong>「管理」タブからセットアップ・連携などへ</strong>
+              <p>以前サイドバーにあった管理系の画面は、ここから開きます。</p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- 5. 投稿 -->
+      <section class="guide-chapter" id="capture">
+        <h2>気づきを投稿する（日常運用）</h2>
+        <p class="guide-lead" data-jp-wrap>
+          投稿で入力が必須なのは<strong>「内容」だけ</strong>です。カテゴリ・優先度・担当は後から AI が付けます。完璧な報告書を書く必要はありません。
+        </p>
+
+        <div class="guide-section" id="capture-app">
+          <h3>8. アプリから投稿する</h3>
+          <ol class="guide-steps">
+            <li>
+              <strong>左メニューの「投稿」を開く</strong>
+              <p><a href={captureUrl}>投稿画面</a> が表示されます。</p>
+            </li>
+            <li>
+              <strong>気づいたことを一言で書く</strong>
+              <p>例:「このボタンの意味が分からない」「保存しても反映されない」</p>
+            </li>
+            <li>
+              <strong>必要ならスクショを添付</strong>
+              <p>PC ではファイル選択または Ctrl/⌘+V で貼り付け。モバイルではアルバムから選択。</p>
+            </li>
+            <li>
+              <strong>「送信する」をクリック</strong>
+              <p>送信後、「自分の投稿」から状態を確認できます。</p>
+            </li>
+          </ol>
+        </div>
+
+        <div class="guide-section" id="capture-extension">
+          <h3>9. Chrome 拡張から投稿する（いちばん速い）</h3>
+          <p class="guide-lead">SaaS を操作中に気づいたとき、ShapeIt の画面を開かずにその場で報告できます。</p>
+          <ol class="guide-steps">
+            <li>
+              <strong>拡張をインストールする</strong>
+              <p>社内本番では Google Workspace の強制配布、または Chrome ウェブストア限定公開のリンクからインストールします。開発中は zip + 開発者モードも可（<a href="#account-basics">アカウントと拡張</a>参照）。</p>
+            </li>
+            <li>
+              <strong>ShapeIt にログインする（初回のみ）</strong>
+              <p>登録時と同じ方法でログインすると、拡張へ接続情報が保存されます。</p>
+            </li>
+            <li>
+              <strong>報告したい SaaS を Chrome で開き、拡張アイコンをクリック</strong>
+              <p>ショートカット <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> でも起動できます。</p>
+            </li>
+            <li>
+              <strong>キャプチャ方法を選ぶ</strong>
+              <p><strong>全画面</strong> … 表示中のタブ全体。<strong>範囲選択</strong> … ページ上でドラッグして一部だけ。</p>
+            </li>
+            <li>
+              <strong>必要ならスクショに書き込む</strong>
+              <p>編集画面でペン・矩形・矢印・文字を使えます。ページ URL は自動で入ります。</p>
+            </li>
+            <li>
+              <strong>気づきを書いて「この内容で報告する」</strong>
+              <p>ShapeIt のタブは開きません。受信箱に投稿が入ります。</p>
+            </li>
+          </ol>
+          <div class="guide-table-wrap">
+            <table class="guide-table">
+              <thead>
+                <tr><th>機能</th><th>説明</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>全画面キャプチャ</td>
+                  <td>今見ているブラウザタブ全体をスクショ</td>
+                </tr>
+                <tr>
+                  <td>範囲選択</td>
+                  <td>ドラッグで必要な部分だけ切り取り</td>
+                </tr>
+                <tr>
+                  <td>書き込み（注釈）</td>
+                  <td>ペン・矩形・矢印・文字で補足</td>
+                </tr>
+                <tr>
+                  <td>URL 自動取得</td>
+                  <td>報告対象ページの URL・タイトルを自動入力</td>
+                </tr>
+                <tr>
+                  <td>🟢 ○○@example.com で投稿します</td>
+                  <td>ShapeIt 接続済み。そのまま送信できます</td>
+                </tr>
+                <tr>
+                  <td>先に ShapeIt へログインしてください</td>
+                  <td>未接続。アプリを開き、登録時と同じ方法でログイン</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <GuideCallout variant="tip">
+            <p>
+              拡張は Chrome の Google とは別です。
+              <a href="#account-basics">アカウントと Chrome 拡張</a>の章で、メール登録・複数プロフィールの場合も説明しています。
+            </p>
+          </GuideCallout>
+        </div>
+
+        <div class="guide-section" id="capture-mobile">
+          <h3>10. スマートフォンから投稿する</h3>
+          <ol class="guide-steps">
+            <li>
+              <strong>ブラウザで ShapeIt を開き「ホーム画面に追加」（PWA）</strong>
+              <p>iPhone は Safari の共有メニュー、Android は Chrome のメニューから追加します。</p>
+            </li>
+            <li>
+              <strong>スクショを撮る → アルバムから選択</strong>
+              <p>投稿画面で画像を添付します。</p>
+            </li>
+            <li>
+              <strong>音声入力で話す → 送信</strong>
+              <p>キーボードのマイク、またはアプリ内の音声ボタンが使えます。手が離せないときに便利です。</p>
+            </li>
+          </ol>
+          <GuideCallout variant="warn">
+            <p>スマートフォンの Chrome では、PC 用の拡張機能は使えません。PWA ＋ スクショ ＋ 音声が正解ルートです。</p>
+          </GuideCallout>
+        </div>
+      </section>
+
+      <!-- 6. 受信箱 -->
+      <section class="guide-chapter" id="inbox">
+        <h2>受信箱で整理する</h2>
+        <p class="guide-lead" data-jp-wrap>
+          管理者・整理担当の方が、投稿を Issue にしていく場所です。AI が下書きを用意しているので、<strong>採用・統合・保留</strong>を判断するだけで進められます。
+        </p>
+
+        <div class="guide-section" id="inbox-review">
+          <h3>11. AI の整理結果を確認する</h3>
+          <ol class="guide-steps">
+            <li>
+              <strong>左メニューの「受信箱」を開く</strong>
+              <p>未処理の投稿が新しい順に並びます。</p>
+            </li>
+            <li>
+              <strong>タイトル・要約・カテゴリ・優先度を確認</strong>
+              <p>AI が自動付与しています。原文（投稿者の言葉）はそのまま残ります。</p>
+            </li>
+            <li>
+              <strong>重複候補があれば確認</strong>
+              <p>似た Issue への統合を提案します。同じ問題の報告が増えるほど優先度の根拠になります。</p>
+            </li>
+          </ol>
+        </div>
+
+        <div class="guide-section" id="inbox-triage">
+          <h3>12. Issue にする・統合する</h3>
+          <ol class="guide-steps">
+            <li>
+              <strong>新規 Issue として採用</strong>
+              <p>ボードで追える単位にします。</p>
+            </li>
+            <li>
+              <strong>既存 Issue に統合</strong>
+              <p>同じ問題への「＋1」としてまとめます。報告数が優先度のシグナルになります。</p>
+            </li>
+            <li>
+              <strong>保留・却下</strong>
+              <p>情報不足や重複のとき。必要なら投稿者に追加質問できます。</p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- 7. ボード -->
+      <section class="guide-chapter" id="board">
+        <h2>ボードで直す</h2>
+        <p class="guide-lead">Issue の状態を「未着手 → 進行中 → レビュー → 確認 → 完了」と進めます。</p>
+
+        <div class="guide-section" id="board-flow">
+          <h3>13. 状態を進める</h3>
+          <ol class="guide-steps">
+            <li>
+              <strong>「ボード」を開く</strong>
+              <p>カラムごとに Issue が並びます。</p>
+            </li>
+            <li>
+              <strong>ドラッグで状態を変更</strong>
+              <p>着手したら「進行中」、修正が終わったら「完了」へ。</p>
+            </li>
+            <li>
+              <strong>Issue をクリックして詳細を確認</strong>
+              <p>元の投稿・スクショ・URL・環境情報を参照しながら直せます。</p>
+            </li>
+          </ol>
+        </div>
+
+        <div class="guide-section" id="board-packs">
+          <h3>14. 修正パックでまとめて直す</h3>
+          <ol class="guide-steps">
+            <li>
+              <strong>「修正パック」を開く</strong>
+              <p>同じ URL・画面に溜まった Issue がまとまって表示されます。</p>
+            </li>
+            <li>
+              <strong>画面単位で優先度を見ながら着手</strong>
+              <p>「この画面、3件溜まっているから一気に直そう」と判断しやすくなります。</p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- 8. Closed Loop -->
+      <section class="guide-chapter" id="closed-loop">
+        <h2>直したら確認する</h2>
+        <p class="guide-lead" data-jp-wrap>
+          ShapeIt の大切な設計のひとつが、<strong>直したあと投稿者に戻す</strong>ことです。「あの件どうなった？」が消え、改善の実感がチームに残ります。
+        </p>
+
+        <div class="guide-section" id="closed-loop-verify">
+          <h3>15. 投稿者へ確認が届く</h3>
+          <ol class="guide-steps">
+            <li>
+              <strong>Issue が「完了」になる</strong>
+              <p>ボードで Done に移動したタイミングです。</p>
+            </li>
+            <li>
+              <strong>投稿者に確認が届く</strong>
+              <p>「自分の投稿」から、解決したかどうか答えられます。</p>
+            </li>
+            <li>
+              <strong>「解決していない」を選ぶと再オープン候補に</strong>
+              <p>直し忘れや別原因を拾い直せます。改善文化が途切れません。</p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- FAQ -->
+      <section class="guide-chapter guide-faq" id="faq">
+        <h2>よくある質問</h2>
+
+        <details>
+          <summary>投稿に何を書けばいいですか？</summary>
+          <p>気づいた内容だけで大丈夫です。「ボタンが分かりにくい」「エラーが出た」程度で OK です。再現手順や優先度は AI が後から整理します。</p>
+        </details>
+        <details>
+          <summary>個人メールで登録したのに、よく使う Google で拡張をつなげたい</summary>
+          <p>
+            拡張に Google を選ぶ画面はありません。ShapeIt にログインしているアカウントがそのまま使われます。
+            メール登録のまま拡張を使うには、そのメールで ShapeIt にログインしてください。
+            Google でもログインしたい場合は、設定 → Chrome 拡張から同じ ShapeIt アカウントに Google を連携できます。
+            詳しくは <a href="#account-pattern-email">メールで登録した場合</a> を参照してください。
+          </p>
+        </details>
+        <details>
+          <summary>拡張が「未検出」と表示されます</summary>
+          <p>Chrome に拡張が入っているか、ShapeIt アプリを一度開いてログインしたかを確認してください。設定 → Chrome 拡張 に接続状態が表示されます。</p>
+        </details>
+        <details>
+          <summary>招待メールが届きません</summary>
+          <p>自動メール送信は行っていません。管理者が作成したリンクを Slack 等で直接共有してください。</p>
+        </details>
+        <details>
+          <summary>英語表示に切り替えたい</summary>
+          <p>設定 → 表示・言語 → Language で English を選びます。サイドバーやページタイトルが英語になります。</p>
+        </details>
+        <details>
+          <summary>スクショに個人情報が写っていても大丈夫？</summary>
+          <p>機微情報が写る前提で設計しています。設定のプライバシーでマスクや保持期間を調整できます。詳しくは<a href={sitePath('security')}>セキュリティ</a>もご覧ください。</p>
+        </details>
+        <p class="mt-4 text-sm">
+          <a href={faqUrl} class="font-semibold text-mint hover:underline">LP の FAQ をすべて見る →</a>
+        </p>
+      </section>
+
+      <!-- 困ったときは -->
+      <section class="guide-chapter guide-faq" id="troubleshoot">
+        <h2>困ったときは</h2>
+        <p class="guide-lead">よくあるトラブルと、試す順番をまとめました。</p>
+
+        <details open>
+          <summary>拡張から送信できない</summary>
+          <p>
+            1. ShapeIt を開き、登録時と同じ方法（メールまたは Google）で再ログインする<br />
+            2. 設定 → Chrome 拡張 で接続アカウントと「接続済み」を確認する<br />
+            3. 「拡張へ再接続」を押してから拡張を開き直す<br />
+            4. Chrome プロフィール（仕事用 / 個人）が登録時と同じか確認する<br />
+            5. 拡張を chrome://extensions で再読み込みする<br />
+            6. それでもダメなら、アプリの投稿画面から送れるか試す
+          </p>
+        </details>
+        <details>
+          <summary>受信箱に投稿が表示されない</summary>
+          <p>
+            送信完了メッセージが出たか確認してください。権限によっては「自分の投稿」には見えても受信箱には出ない場合があります（整理権限が必要です）。
+          </p>
+        </details>
+        <details>
+          <summary>ログインできない</summary>
+          <p>
+            招待済みのメールアドレスか、会社登録時の Google アカウントかを確認してください。パスワード再設定はログイン画面から行えます。
+          </p>
+        </details>
+        <details>
+          <summary>会社登録でエラーになる</summary>
+          <p>
+            ブラウザを再読み込みして再度お試しください。同じメールで途中まで登録している場合は、ログインまたはパスワード再設定をお試しください。
+          </p>
+        </details>
+      </section>
+
+      <!-- サポート -->
+      <section class="guide-chapter" id="support">
+        <h2>サポート</h2>
+        <p class="guide-lead" data-jp-wrap>
+          このガイドで解決しない場合は、お問い合わせの際に次をお伝えいただけるとスムーズです。
+        </p>
+        <ul class="guide-steps">
+          <li>
+            <strong>お問い合わせ時にお伝えいただきたい情報</strong>
+            <ul>
+              <li>会社名・お名前</li>
+              <li>発生している画面（投稿 / 受信箱 / 拡張 など）</li>
+              <li>エラーメッセージ（表示されている場合）</li>
+              <li>ブラウザの種類とバージョン</li>
+              <li>画面のスクリーンショット</li>
+            </ul>
+          </li>
+        </ul>
+        <p class="mt-4 text-sm text-ink/65">
+          ShapeIt は <a href="https://shigotoku.com/" class="text-mint hover:underline">シゴトク</a> が提供しています。
+        </p>
+      </section>
+
+      <div class="guide-cta">
+        <h2>まずは、1件だけ投稿してみましょう</h2>
+        <p>完璧な報告は不要です。一言とスクショがあれば、改善の循環は回り始めます。</p>
+        <div class="guide-cta__actions">
+          <a href={signupUrl} class="guide-btn guide-btn--primary">無料で始める</a>
+          <a href={loginUrl} class="guide-btn guide-btn--secondary">ログイン</a>
+        </div>
+      </div>
+    </article>
+  </div>
+</Layout>

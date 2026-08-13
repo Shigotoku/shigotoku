@@ -7,6 +7,7 @@ import {
   listPendingFeedback,
   loadSettings,
 } from "../lib/demoStore";
+import { t } from "../lib/i18n";
 
 type Mode = "default" | "critical" | "idea" | "sla";
 
@@ -122,8 +123,8 @@ export default function AskAiPage() {
   return (
     <div className="w-full space-y-6">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">AI PM</p>
-        <h1 className="font-display mt-1 text-3xl font-bold">Ask ShapeIt</h1>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">{t("nav_ask")}</p>
+        <h1 className="font-display mt-1 text-3xl font-bold">{t("page_ask")}</h1>
         <p className="mt-2 text-sm text-ink/60">根拠付きで「次に何を直すべきか」を提案します（ローカル）。</p>
       </div>
       <div className="flex flex-wrap gap-2">

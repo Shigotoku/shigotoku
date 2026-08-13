@@ -8,28 +8,29 @@
         --ink: #0b1320;
         --mint: #1f9d8a;
         --paper: #f3f6f4;
+        --muted: #5b6b7c;
       }
       body {
         font-family: "Segoe UI", "Noto Sans JP", system-ui, sans-serif;
-        width: 340px;
+        width: 360px;
         margin: 0;
         padding: 14px;
         background: var(--paper);
         color: var(--ink);
       }
       h1 { font-size: 15px; margin: 0; }
-      .meta { font-size: 11px; color: #5b6b7c; margin-top: 8px; word-break: break-all; }
-      textarea {
-        width: 100%;
-        box-sizing: border-box;
+      .row { display: flex; align-items: center; gap: 10px; }
+      .meta {
+        font-size: 11px;
+        color: var(--muted);
         margin-top: 10px;
-        min-height: 88px;
-        border: 1px solid #c9d5ce;
+        word-break: break-all;
+        background: #fff;
+        border: 1px solid #d5e0d9;
         border-radius: 10px;
-        padding: 10px;
-        font: inherit;
-        resize: vertical;
+        padding: 8px 10px;
       }
+      .meta strong { display: block; color: var(--ink); margin-bottom: 4px; }
       button {
         width: 100%;
         padding: 11px;
@@ -38,13 +39,15 @@
         border: none;
         font-weight: 700;
         cursor: pointer;
+        font: inherit;
       }
       .primary { background: var(--mint); color: #fff; }
-      .primary:disabled { opacity: 0.5; cursor: default; }
       .secondary { background: #fff; color: var(--ink); border: 1px solid #c9d5ce; }
-      #preview { margin-top: 10px; max-width: 100%; border-radius: 8px; border: 1px solid #d5e0d9; display: none; }
-      #status { font-size: 12px; color: #5b6b7c; margin-top: 8px; min-height: 1.2em; }
-      .row { display: flex; align-items: center; gap: 10px; }
+      .ghost { background: transparent; color: var(--mint); border: none; padding: 6px; margin-top: 4px; font-size: 12px; }
+      #authState { font-size: 11px; color: var(--muted); margin-top: 8px; }
+      #status { font-size: 12px; color: var(--muted); margin-top: 8px; min-height: 1.2em; }
+      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+      .grid button { margin-top: 0; font-size: 12px; padding: 10px 8px; }
     </style>
   </head>
   <body>
@@ -52,14 +55,17 @@
       <img src="icon.png" alt="" width="32" height="32" style="border-radius: 8px" />
       <div>
         <h1>ShapeIt に報告</h1>
-        <div style="font-size: 11px; color: #5b6b7c">気づいたことを一言で</div>
+        <div style="font-size: 11px; color: var(--muted)">スクショ・注釈・URL 自動取得</div>
       </div>
     </div>
-    <p class="meta" id="pageMeta">読み込み中…</p>
-    <img id="preview" alt="スクリーンショット" />
-    <textarea id="note" placeholder="例: このボタンの文言が分かりにくい / 保存しても反映されない" autofocus></textarea>
-    <button type="button" class="primary" id="submit">報告して ShapeIt を開く</button>
-    <button type="button" class="secondary" id="submitOnly">報告だけ送る（アプリは開かない）</button>
+    <p id="authState"></p>
+    <div class="meta" id="pageMeta">ページ情報を読み込み中…</div>
+    <button type="button" class="primary" id="openEditor">キャプチャして報告（推奨）</button>
+    <div class="grid">
+      <button type="button" class="secondary" id="capFull">全画面</button>
+      <button type="button" class="secondary" id="capRegion">範囲選択</button>
+    </div>
+    <button type="button" class="ghost" id="login" style="display:none">ShapeIt にログイン（初回のみ）</button>
     <p id="status"></p>
     <script src="popup.js"></script>
   </body>

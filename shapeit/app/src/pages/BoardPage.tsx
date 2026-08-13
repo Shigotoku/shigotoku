@@ -11,17 +11,19 @@ import { encodePackId } from "../lib/pageKey";
 import { pageKeyOfIssue } from "../lib/fixPacks";
 import type { Feedback, Issue, IssueStatus } from "../lib/types";
 import { t } from "../lib/i18n";
+import { useLocale } from "../lib/useLocale";
 
-const COLUMNS: { id: IssueStatus; label: string }[] = [
-  { id: "todo", label: "Todo" },
-  { id: "in_progress", label: "In Progress" },
-  { id: "review", label: "Review" },
-  { id: "verify", label: "Verify" },
-  { id: "done", label: "Done" },
-  { id: "archived", label: "Archived" },
+const COLUMNS: { id: IssueStatus; labelKey: string }[] = [
+  { id: "todo", labelKey: "board_col_todo" },
+  { id: "in_progress", labelKey: "board_col_in_progress" },
+  { id: "review", labelKey: "board_col_review" },
+  { id: "verify", labelKey: "board_col_verify" },
+  { id: "done", labelKey: "board_col_done" },
+  { id: "archived", labelKey: "board_col_archived" },
 ];
 
 export default function BoardPage() {
+  const locale = useLocale();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [issues, setIssues] = useState<Issue[]>([]);
@@ -141,9 +143,9 @@ export default function BoardPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">Board</p>
-          <h1 className="font-display mt-1 text-3xl font-bold">{t("board_title")}</h1>
-          <p className="mt-1 text-xs text-ink/50">{t("board_subtitle")}</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">{t("nav_board", locale)}</p>
+          <h1 className="font-display mt-1 text-3xl font-bold">{t("board_title", locale)}</h1>
+          <p className="mt-1 text-xs text-ink/50">{t("board_subtitle", locale)}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Link
@@ -255,6 +257,7 @@ export default function BoardPage() {
       <div className="flex gap-3 overflow-x-auto pb-2">
         {cols.map((col) => {
           const items = filtered.filter((i) => i.status === col.id);
+          const label = t(col.labelKey, locale);
           return (
             <div
               key={col.id}
@@ -262,10 +265,10 @@ export default function BoardPage() {
               onDragOver={(e) => e.preventDefault()}
               onDrop={() => void onDrop(col.id)}
               role="list"
-              aria-label={col.label}
+              aria-label={label}
             >
               <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-ink/50">
-                {col.label} · {items.length}
+                {label} · {items.length}
               </p>
               <ul className="mt-1.5 space-y-1.5">
                 {items.map((issue) => (

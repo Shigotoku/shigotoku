@@ -95,6 +95,9 @@ function buildClipitLanding(job) {
 }
 
 function buildStandardLanding(job) {
+  if (!existsSync(join(job.cwd, 'node_modules'))) {
+    run('npm ci', job.cwd, job.env);
+  }
   run('npm run build', job.cwd, job.env);
   mkdirSync(dirname(job.out), { recursive: true });
   rmSync(job.out, { recursive: true, force: true });

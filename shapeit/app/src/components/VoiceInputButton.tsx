@@ -34,9 +34,18 @@ export default function VoiceInputButton({
   const sessionRef = useRef<{ stop: () => void } | null>(null);
   const baseRef = useRef("");
 
+  const composeWithInterim = (base: string, interimText: string) => {
+    if (!interimText) return base;
+    return base ? `${base}\n${interimText}` : interimText;
+  };
+
   useEffect(() => {
     setSupport(detectSpeechSupport());
   }, []);
+
+  useEffect(() => {
+    if (!listening) baseRef.current = value;
+  }, [value, listening]);
 
   useEffect(() => {
     return () => sessionRef.current?.stop();
@@ -57,7 +66,10 @@ export default function VoiceInputButton({
     }
     baseRef.current = value.trim();
     const session = startLiveSpeech({
-      onInterim: (t) => setInterim(t),
+      onInterim: (t) => {
+        setInterim(t);
+        onChange(composeWithInterim(baseRef.current, t));
+      },
       onFinal: (t) => {
         const next = baseRef.current ? `${baseRef.current}\n${t}` : t;
         onChange(next);
@@ -137,9 +149,9 @@ export default function VoiceInputButton({
           </button>
         )}
 
-        {(listening || interim) && (
-          <p className="rounded-xl bg-white/80 px-3 py-2 text-center text-sm text-ink/80" aria-live="polite">
-            {interim || "聞いています…"}
+        {listening && !interim && (
+          <p className="rounded-xl bg-white/80 px-3 py-2 text-center text-sm text-ink/60" aria-live="polite">
+            聞いています…（内容欄に表示されます）
           </p>
         )}
 
@@ -189,12 +201,12 @@ export default function VoiceInputButton({
         className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold ${
           listening ? "border-mint bg-sand text-ink" : "border-ink/15 text-ink/70"
         }`}
-        title="音声で入力"
+        title="音声で入力（内容欄に随時表示）"
+        aria-pressed={listening}
       >
         {listening ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
         {listening ? "聞き取り中…" : "音声入力"}
       </button>
-      {interim && <span className="max-w-[12rem] truncate text-[10px] text-ink/50">{interim}</span>}
       {error && <span className="max-w-[16rem] text-[10px] text-amber-800">{error}</span>}
     </div>
   );

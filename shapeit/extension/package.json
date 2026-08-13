@@ -1,11 +1,12 @@
 {
   "name": "shapeit-extension",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.3.0",
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "dev": "vite build --watch"
+    "dev": "vite build --watch",
+    "package": "npm run build"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.287",

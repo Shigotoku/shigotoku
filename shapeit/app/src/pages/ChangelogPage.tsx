@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { listChangelogRemote, updateChangelogRemote } from "../lib/cloudStore";
 import type { ChangelogEntry } from "../lib/types";
+import { t } from "../lib/i18n";
 
 export default function ChangelogPage() {
   const [items, setItems] = useState<ChangelogEntry[]>([]);
@@ -23,8 +24,8 @@ export default function ChangelogPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">Closed Loop</p>
-          <h1 className="font-display mt-1 text-3xl font-bold">Changelog</h1>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">{t("nav_changelog")}</p>
+          <h1 className="font-display mt-1 text-3xl font-bold">{t("page_changelog")}</h1>
           <p className="mt-2 text-sm text-ink/60">
             Done で自動追記（冪等）。公開 / 社内の可視性を切り替えられます。
           </p>

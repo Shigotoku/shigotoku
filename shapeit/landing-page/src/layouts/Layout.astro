@@ -13,6 +13,7 @@ const {
 } = Astro.props;
 
 const loginUrl = appPath('/login');
+const signupUrl = appPath('/signup');
 const homeUrl = import.meta.env.BASE_URL;
 const howUrl = `${homeUrl}#how-it-works`;
 const featuresUrl = `${homeUrl}#features`;
@@ -22,6 +23,7 @@ const pricingUrl = sitePath('pricing');
 const securityUrl = sitePath('security');
 const privacyUrl = sitePath('privacy');
 const featuresPageUrl = sitePath('features');
+const guideUrl = sitePath('guide');
 ---
 
 <!doctype html>
@@ -52,15 +54,16 @@ const featuresPageUrl = sitePath('features');
         </a>
         <nav class="hidden items-center gap-5 lg:flex xl:gap-6">
           <a href={howUrl} class="text-sm font-medium text-ink/55 hover:text-ink">使い方</a>
+          <a href={guideUrl} class="text-sm font-medium text-ink/55 hover:text-ink">使い方ガイド</a>
           <a href={featuresUrl} class="text-sm font-medium text-ink/55 hover:text-ink">機能</a>
           <a href={pricingAnchorUrl} class="text-sm font-medium text-ink/55 hover:text-ink">料金</a>
           <a href={faqUrl} class="text-sm font-medium text-ink/55 hover:text-ink">FAQ</a>
           <a href={loginUrl} class="text-sm font-medium text-ink/55 hover:text-ink">ログイン</a>
-          <a href={loginUrl} class="rounded-lg bg-mint px-4 py-2 text-sm font-semibold text-white hover:bg-mint-bright">無料で始める</a>
+          <a href={signupUrl} class="rounded-lg bg-mint px-4 py-2 text-sm font-semibold text-white hover:bg-mint-bright">無料で始める</a>
         </nav>
         <div class="flex items-center gap-2 lg:hidden">
           <a
-            href={loginUrl}
+            href={signupUrl}
             class="shapeit-tap inline-flex items-center justify-center rounded-lg bg-mint px-3.5 py-2 text-sm font-semibold text-white hover:bg-mint-bright"
           >
             始める
@@ -80,11 +83,12 @@ const featuresPageUrl = sitePath('features');
       </div>
       <div id="mobile-menu" class="hidden border-t border-ink/10 bg-paper px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 lg:hidden">
         <a href={howUrl} class="mobile-nav-link block min-h-[48px] rounded-lg px-3 py-3.5 text-base font-medium text-ink/80 hover:bg-ink/5">使い方</a>
+        <a href={guideUrl} class="mobile-nav-link block min-h-[48px] rounded-lg px-3 py-3.5 text-base font-medium text-ink/80 hover:bg-ink/5">使い方ガイド</a>
         <a href={featuresUrl} class="mobile-nav-link block min-h-[48px] rounded-lg px-3 py-3.5 text-base font-medium text-ink/80 hover:bg-ink/5">機能</a>
         <a href={pricingAnchorUrl} class="mobile-nav-link block min-h-[48px] rounded-lg px-3 py-3.5 text-base font-medium text-ink/80 hover:bg-ink/5">料金</a>
         <a href={faqUrl} class="mobile-nav-link block min-h-[48px] rounded-lg px-3 py-3.5 text-base font-medium text-ink/80 hover:bg-ink/5">FAQ</a>
         <a href={loginUrl} class="mobile-nav-link block min-h-[48px] rounded-lg px-3 py-3.5 text-base font-medium text-ink/80 hover:bg-ink/5">ログイン</a>
-        <a href={loginUrl} class="mobile-nav-link mt-2 block min-h-[48px] rounded-xl bg-mint px-4 py-3.5 text-center text-base font-semibold text-white">無料で始める</a>
+        <a href={signupUrl} class="mobile-nav-link mt-2 block min-h-[48px] rounded-xl bg-mint px-4 py-3.5 text-center text-base font-semibold text-white">無料で始める</a>
       </div>
     </header>
     <main>
@@ -102,6 +106,7 @@ const featuresPageUrl = sitePath('features');
           </div>
         </div>
         <div class="flex flex-wrap gap-x-1 gap-y-1 text-sm text-paper/65">
+          <a href={guideUrl} class="inline-flex min-h-[44px] items-center px-2 hover:text-paper">使い方ガイド</a>
           <a href={featuresPageUrl} class="inline-flex min-h-[44px] items-center px-2 hover:text-paper">機能詳細</a>
           <a href={pricingUrl} class="inline-flex min-h-[44px] items-center px-2 hover:text-paper">料金</a>
           <a href={securityUrl} class="inline-flex min-h-[44px] items-center px-2 hover:text-paper">セキュリティ</a>

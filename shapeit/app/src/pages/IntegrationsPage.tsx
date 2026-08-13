@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   listWebhookLogs,
   loadWebhookConfig,
@@ -8,14 +8,19 @@ import {
 import { loadFlags, saveFlags, type FeatureFlags } from "../lib/featureFlags";
 import { loadSettings, saveSettings, ensurePortalToken } from "../lib/demoStore";
 import { canManageSettings } from "../lib/roles";
+import { t } from "../lib/i18n";
 import { createProjectKey, listProjectKeys, revokeProjectKey } from "../lib/projectKeys";
 import { addMaskRule, deleteMaskRule, listMaskRules } from "../lib/maskRules";
 import { entitlements, loadBilling, saveBilling, type PlanId } from "../lib/billing";
 import { loadAiBudget, saveAiBudget } from "../lib/aiBudget";
 import { planAllows } from "../lib/billing";
 import { listEmailJobs } from "../lib/emailQueue";
+import { loadOrgIntegrations, saveOrgIntegrations, type OrgIntegrations } from "../lib/orgSettings";
+import { useAuth } from "../components/AuthProvider";
+import { publishWeeklyDigestRemote } from "../lib/weeklyDigestRunner";
 
 export default function IntegrationsPage() {
+  const { mode } = useAuth();
   const [cfg, setCfg] = useState(() => loadWebhookConfig());
   const [flags, setFlags] = useState(() => loadFlags());
   const [repo, setRepo] = useState(() => loadSettings().githubRepo);
@@ -24,27 +29,57 @@ export default function IntegrationsPage() {
   const [rules, setRules] = useState(() => listMaskRules());
   const [billing, setBilling] = useState(() => loadBilling());
   const [budget, setBudget] = useState(() => loadAiBudget());
-  const [slack, setSlack] = useState(() => loadSettings().slackWebhookUrl);
-  const [teams, setTeams] = useState(() => loadSettings().teamsWebhookUrl);
+  const [integrations, setIntegrations] = useState<OrgIntegrations | null>(null);
+  const [digestMsg, setDigestMsg] = useState("");
   const [ruleForm, setRuleForm] = useState({ pagePattern: "", selector: "", note: "" });
   const logs = listWebhookLogs();
   const emails = listEmailJobs();
   const allowed = canManageSettings();
   const ent = entitlements(billing.plan);
 
-  if (!allowed) {
-    return <p className="text-sm text-ink/60">Integrations は Admin / Owner のみ設定できます。</p>;
+  useEffect(() => {
+    void loadOrgIntegrations().then((i) => {
+      setIntegrations(i);
+      setCfg(
+        saveWebhookConfig({
+          enabled: i.outboundWebhookEnabled,
+          url: i.outboundWebhookUrl,
+          secret: i.outboundWebhookSecret,
+          events: i.outboundWebhookEvents,
+        }),
+      );
+    });
+  }, [mode]);
+
+  if (!integrations) {
+    return <p className="text-sm text-ink/50">読み込み中…</p>;
   }
 
-  const patchCfg = (p: Partial<WebhookConfig>) => setCfg(saveWebhookConfig(p));
+  const slack = integrations.slackWebhookUrl;
+  const teams = integrations.teamsWebhookUrl;
+
+  if (!allowed) {
+    return <p className="text-sm text-ink/60">連携の設定は管理者のみできます。</p>;
+  }
+
+  const patchCfg = (p: Partial<WebhookConfig>) => {
+    const next = saveWebhookConfig(p);
+    setCfg(next);
+    void saveOrgIntegrations({
+      outboundWebhookEnabled: next.enabled,
+      outboundWebhookUrl: next.url,
+      outboundWebhookSecret: next.secret,
+      outboundWebhookEvents: next.events,
+    }).then(setIntegrations);
+  };
   const patchFlags = (p: Partial<FeatureFlags>) => setFlags(saveFlags(p));
   const portalUrl = `${window.location.origin}/portal/${portal}`;
 
   return (
     <div className="w-full space-y-6">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">Integrations</p>
-        <h1 className="font-display mt-1 text-3xl font-bold">連携</h1>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">{t("nav_integrations")}</p>
+        <h1 className="font-display mt-1 text-3xl font-bold">{t("page_integrations")}</h1>
       </div>
 
       <section className="rounded-2xl border border-ink/10 bg-white p-5 text-sm">
@@ -152,6 +187,9 @@ export default function IntegrationsPage() {
             </label>
           ))}
         </div>
+        <p className="mt-2 text-[11px] text-ink/45">
+          クラウドでは org 設定に同期。週次サマリーは <code>weekly_digest</code> イベント。
+        </p>
         <h3 className="mt-4 text-xs font-semibold text-ink/50">直近ログ</h3>
         <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto text-[11px] text-ink/60">
           {logs.length === 0 && <li>なし</li>}
@@ -164,26 +202,62 @@ export default function IntegrationsPage() {
       </section>
 
       <section className="rounded-2xl border border-ink/10 bg-white p-5 text-sm">
-        <h2 className="font-semibold">Slack Incoming Webhook（NOT-003 stub）</h2>
+        <h2 className="font-semibold">週次改善サマリー（Digest + Slack）</h2>
+        <label className="mt-3 flex items-center gap-2 text-xs">
+          <input
+            type="checkbox"
+            checked={integrations.weeklyDigestEnabled}
+            onChange={(e) =>
+              void saveOrgIntegrations({ weeklyDigestEnabled: e.target.checked }).then(setIntegrations)
+            }
+          />
+          週次サマリーを有効（毎週月曜 9:00 JST に自動配信）
+        </label>
+        {integrations.lastWeeklyDigestAtIso && (
+          <p className="mt-2 text-xs text-ink/50">
+            最終配信: {integrations.lastWeeklyDigestAtIso.slice(0, 16).replace("T", " ")}（
+            {integrations.lastWeeklyDigestWeekKey ?? "—"}）
+          </p>
+        )}
+        <button
+          type="button"
+          className="mt-3 rounded-lg border border-mint/30 bg-mint/5 px-3 py-2 text-xs font-semibold text-mint"
+          onClick={() =>
+            void publishWeeklyDigestRemote(true).then((r) =>
+              setDigestMsg(
+                r.published
+                  ? `配信しました（Slack ${r.slackSent ? "OK" : "未送信"}）`
+                  : "今週は配信済みです",
+              ),
+            )
+          }
+        >
+          今すぐテスト配信
+        </button>
+        {digestMsg && <p className="mt-2 text-xs text-ink/55">{digestMsg}</p>}
+      </section>
+
+      <section className="rounded-2xl border border-ink/10 bg-white p-5 text-sm">
+        <h2 className="font-semibold">Slack Incoming Webhook</h2>
         <input
           className="mt-3 w-full rounded-lg border border-ink/10 px-2 py-2 text-sm"
           placeholder="https://hooks.slack.com/services/..."
           value={slack}
-          onChange={(e) => {
-            setSlack(e.target.value);
-            saveSettings({ slackWebhookUrl: e.target.value });
-          }}
+          onChange={(e) =>
+            void saveOrgIntegrations({ slackWebhookUrl: e.target.value }).then(setIntegrations)
+          }
         />
-        <p className="mt-2 text-xs text-ink/50">Issue Done 時に簡易通知を送ります（CORS 制約あり）。</p>
+        <p className="mt-2 text-xs text-ink/50">
+          週次サマリーを Slack に投稿します。Issue Done の個別通知は今後の拡張用。
+        </p>
         <h3 className="mt-4 font-semibold">Teams Incoming Webhook</h3>
         <input
           className="mt-2 w-full rounded-lg border border-ink/10 px-2 py-2 text-sm"
           placeholder="https://outlook.office.com/webhook/..."
           value={teams}
-          onChange={(e) => {
-            setTeams(e.target.value);
-            saveSettings({ teamsWebhookUrl: e.target.value });
-          }}
+          onChange={(e) =>
+            void saveOrgIntegrations({ teamsWebhookUrl: e.target.value }).then(setIntegrations)
+          }
         />
         <h3 className="mt-4 text-xs font-semibold text-ink/50">Email キュー（NOT-002 stub）</h3>
         <ul className="mt-2 max-h-28 space-y-1 overflow-y-auto text-[11px] text-ink/60">

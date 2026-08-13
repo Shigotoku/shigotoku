@@ -18,6 +18,7 @@
     "deploy:buzzit-api": "npm run build:buzzit-api && firebase deploy --project buzzit --config firebase.buzzit.json --only functions:buzzit-api,storage,firestore",
     "build:buzzit-api": "npm ci --prefix ../buzzit/api && npm run build --prefix ../buzzit/api && node scripts/prepare-buzzit-api.mjs",
     "build:shapeit-app": "node scripts/build-shapeit-app.mjs",
+    "build:shapeit-extension": "node scripts/package-shapeit-extension.mjs",
     "deploy:shapeit-app": "npm run build:shapeit-app && firebase deploy --project shapeit --config firebase.shapeit.json --only hosting:shapeit-app",
     "build:shapeit-api": "npm ci --prefix ../shapeit/api && npm run build --prefix ../shapeit/api && node scripts/prepare-shapeit-api.mjs",
     "deploy:shapeit-api": "npm run build:shapeit-api && firebase deploy --project shapeit --config firebase.shapeit.json --only functions:shapeit-api",

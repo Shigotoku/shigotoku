@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { chromeExtensionSupported, isAndroid, isIos, isStandalonePwa } from "../lib/device";
+import { t } from "../lib/i18n";
 
 export default function ExtensionInstallPage() {
   const desktopExt = chromeExtensionSupported();
@@ -8,7 +9,7 @@ export default function ExtensionInstallPage() {
   return (
     <div className="mx-auto w-full max-w-2xl space-y-6">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">Capture channels</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">{t("nav_extension")}</p>
         <h1 className="font-display mt-1 text-2xl font-bold sm:text-3xl">
           {desktopExt ? "拡張で最速報告" : "携帯での投稿方法"}
         </h1>
@@ -20,6 +21,22 @@ export default function ExtensionInstallPage() {
       </div>
 
       {/* モバイル戦略の説明 */}
+      <section className="space-y-3 rounded-2xl border border-mint/30 bg-sand/40 p-4 text-sm">
+        <h2 className="font-display text-lg font-semibold">アカウントと拡張の関係</h2>
+        <p className="text-ink/75">
+          拡張は<strong> Chrome の Google プロファイルとは別</strong>です。ShapeIt にログインしているアカウントの情報が、そのまま拡張に渡ります。
+          メールで登録した場合も、そのメールで ShapeIt にログインすれば拡張は使えます。
+        </p>
+        <ul className="space-y-2 text-xs text-ink/65">
+          <li>メール登録 → ShapeIt にメールでログイン → 拡張から投稿</li>
+          <li>Google 登録（推奨）→ 同じ Google で ShapeIt にログイン → 拡張から投稿</li>
+          <li>あとから Google も使いたい → 設定 → Chrome 拡張 →「Google をこのアカウントに連携」</li>
+        </ul>
+        <p className="text-xs text-ink/55">
+          Chrome のプロフィール（仕事用 / 個人）が違うと接続情報も別になります。登録時と同じプロフィールで ShapeIt を開いてください。
+        </p>
+      </section>
+
       <section className="space-y-3 rounded-2xl border border-mint/30 bg-sand/40 p-4 text-sm">
         <h2 className="font-display text-lg font-semibold">PC と携帯の役割分担</h2>
         <ul className="space-y-2 text-ink/75">
@@ -101,6 +118,16 @@ export default function ExtensionInstallPage() {
       </div>
 
       {desktopExt && (
+        <>
+        <section className="space-y-3 rounded-2xl border border-ink/10 bg-white p-5 text-sm">
+          <h2 className="font-semibold">拡張でできること（v0.3）</h2>
+          <ul className="list-disc space-y-1 pl-5 text-ink/75">
+            <li>全画面キャプチャ / 範囲選択（ドラッグ）</li>
+            <li>スクショへの書き込み（ペン・矩形・矢印・文字）</li>
+            <li>ページ URL・タイトルの自動取得</li>
+            <li>ShapeIt ログイン済みならそのまま API 送信</li>
+          </ul>
+        </section>
         <ol className="space-y-4 rounded-2xl border border-ink/10 bg-white p-5 text-sm">
           <li>
             <p className="font-semibold">1. 拡張をビルド</p>
@@ -115,26 +142,42 @@ export default function ExtensionInstallPage() {
               「パッケージ化されていない拡張機能を読み込む」→{" "}
               <code className="rounded bg-sand px-1">shapeit/extension/dist</code>
             </p>
-          </li>
-          <li>
-            <p className="font-semibold">3. ShapeIt アプリを開く</p>
-            <p className="mt-1 text-ink/65">
-              デモ開始またはログインした状態でこのアプリを開くと、拡張がアプリ URL を記憶します。
+            <p className="mt-2 text-ink/65">
+              または{" "}
+              <a
+                className="font-semibold text-mint hover:underline"
+                href="/downloads/shapeit-chrome-extension.zip"
+                download
+              >
+                拡張 zip をダウンロード
+              </a>
+              して解凍したフォルダを読み込みます（本番デプロイ後）。
             </p>
           </li>
           <li>
-            <p className="font-semibold">4. 対象サイトで報告</p>
-            <p className="mt-1 text-ink/65">ツールバーの ShapeIt → 気づきを書いて送信。Inbox に入ります。</p>
+            <p className="font-semibold">3. ShapeIt にログインする（初回のみ）</p>
+            <p className="mt-1 text-ink/65">
+              登録時と同じ方法（Google またはメール）で ShapeIt を開くと、拡張へ接続情報が保存されます。
+              拡張側で Google を選ぶ操作は不要です。設定 → Chrome 拡張で接続アカウントを確認できます。
+            </p>
+          </li>
+          <li>
+            <p className="font-semibold">4. キャプチャして報告</p>
+            <p className="mt-1 text-ink/65">
+              拡張アイコン →「キャプチャして報告」→ 全画面または範囲選択 → 必要なら書き込み → 一言 → 送信。
+              ショートカット Alt+Shift+F でも編集画面が開きます。
+            </p>
           </li>
         </ol>
+        </>
       )}
 
       <div className="flex flex-wrap gap-3">
         <Link to="/capture" className="min-h-[44px] rounded-xl bg-mint px-4 py-2 text-sm font-semibold text-white">
-          Capture へ
+          投稿へ
         </Link>
         <Link to="/inbox" className="min-h-[44px] rounded-xl border border-ink/15 px-4 py-2 text-sm font-semibold">
-          Inbox へ
+          受信箱へ
         </Link>
       </div>
     </div>

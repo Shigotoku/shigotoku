@@ -3,6 +3,7 @@ import { localTriage } from "../lib/triage";
 import { findDuplicateCandidates } from "../lib/duplicates";
 import { downloadText } from "../lib/export";
 import type { Issue } from "../lib/types";
+import { t } from "../lib/i18n";
 
 type Golden = {
   id: string;
@@ -76,8 +77,8 @@ export default function GoldenEvalPage() {
   return (
     <div className="w-full space-y-6">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">AI Quality</p>
-        <h1 className="font-display mt-1 text-3xl font-bold">Golden Eval</h1>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">{t("nav_golden")}</p>
+        <h1 className="font-display mt-1 text-3xl font-bold">{t("page_golden")}</h1>
         <p className="mt-2 text-sm text-ink/60">Category / Severity の回帰評価セット</p>
       </div>
       <div className="flex flex-wrap gap-2">

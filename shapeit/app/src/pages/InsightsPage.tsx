@@ -4,6 +4,7 @@ import { listIssuesRemote, listMyFeedbackRemote, listChangelogRemote } from "../
 import { computeInsights, listCorrections, loadSettings } from "../lib/demoStore";
 import type { Feedback, Issue } from "../lib/types";
 import { useAuth } from "../components/AuthProvider";
+import { t } from "../lib/i18n";
 
 type Insights = ReturnType<typeof computeInsights>;
 
@@ -92,8 +93,8 @@ export default function InsightsPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">Analytics</p>
-          <h1 className="font-display mt-1 text-3xl font-bold">Insights</h1>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">{t("nav_insights")}</p>
+          <h1 className="font-display mt-1 text-3xl font-bold">{t("page_insights")}</h1>
           <p className="mt-2 text-sm text-ink/60">KPI / Area / URL 密度 / auto-triage 率</p>
         </div>
         <button type="button" className="rounded-lg border border-ink/15 px-3 py-2 text-xs font-semibold" onClick={() => void reload()}>

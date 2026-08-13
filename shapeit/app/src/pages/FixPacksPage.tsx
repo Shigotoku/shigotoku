@@ -4,6 +4,7 @@ import { listIssuesRemote, listOrgFeedbackRemote, listPackMetaRemote } from "../
 import { buildFixPacks, splitPackIntoClusters, type FixPack } from "../lib/fixPacks";
 import type { FixPackMeta } from "../lib/packMeta";
 import type { Feedback, Issue } from "../lib/types";
+import { t } from "../lib/i18n";
 
 /** 同一 URL のオープン Issue を束ねた「修正パック」一覧 */
 export default function FixPacksPage() {
@@ -38,8 +39,8 @@ export default function FixPacksPage() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">Fix Packs</p>
-        <h1 className="font-display mt-1 text-3xl font-bold">修正パック</h1>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">{t("nav_fix_packs")}</p>
+        <h1 className="font-display mt-1 text-3xl font-bold">{t("nav_fix_packs")}</h1>
         <p className="mt-2 max-w-2xl text-sm text-ink/60">
           同じ画面（URL）に溜まった問題を1まとまりにします。カテゴリが混ざる場合は自動でサブパックに分けます。
         </p>
@@ -67,13 +68,13 @@ export default function FixPacksPage() {
         <p className="text-sm text-ink/50">集約中…</p>
       ) : packs.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-ink/15 bg-white px-6 py-10 text-sm text-ink/55">
-          URL 付きのオープン Issue がまだありません。投稿 → Inbox で Issue 化すると、ここに画面単位で並びます。
+          URL 付きのオープン Issue がまだありません。投稿 → 受信箱で Issue 化すると、ここに画面単位で並びます。
           <div className="mt-3 flex gap-3">
             <Link to="/capture" className="text-mint hover:underline">
               投稿する
             </Link>
             <Link to="/inbox" className="text-mint hover:underline">
-              Inbox
+              受信箱
             </Link>
           </div>
         </div>

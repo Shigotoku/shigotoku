@@ -1,27 +1,74 @@
 import { useEffect, useState } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../components/AuthProvider";
 import { LANDING_URL } from "../lib/urls";
 import { seedIfEmpty, isOnboardingDone } from "../lib/demoStore";
+import { beginOrgMembership } from "../lib/org";
+import { auth, sendPasswordReset, formatAuthError } from "../lib/firebase";
+import { t } from "../lib/i18n";
 
 export default function LoginPage() {
-  const { ready, isAuthenticated, signInGoogle, signInEmail, enterDemo, error, mode } = useAuth();
+  const {
+    ready,
+    isAuthenticated,
+    signInGoogle,
+    signInEmail,
+    enterDemo,
+    error,
+    mode,
+    membership,
+    membershipReady,
+    applyMembership,
+  } = useAuth();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const [busy, setBusy] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [resetInfo, setResetInfo] = useState("");
+  const [localError, setLocalError] = useState("");
+  const redirect = params.get("redirect");
+  const afterLogin = redirect && redirect.startsWith("/") && !redirect.startsWith("//") ? redirect : "/capture";
 
   useEffect(() => {
-    if (ready && isAuthenticated) navigate("/capture", { replace: true });
-  }, [ready, isAuthenticated, navigate]);
+    if (!ready || !isAuthenticated) return;
+    if (mode === "demo") {
+      navigate(isOnboardingDone() ? "/capture" : "/onboarding", { replace: true });
+      return;
+    }
+    if (!membershipReady) return;
+    if (afterLogin.startsWith("/invite/")) {
+      navigate(afterLogin, { replace: true });
+      return;
+    }
+    if (membership) {
+      navigate(membership.onboardingCompleted ? afterLogin : "/setup", { replace: true });
+      return;
+    }
+    navigate("/signup", { replace: true });
+  }, [ready, isAuthenticated, mode, membership, membershipReady, navigate, afterLogin]);
 
-  if (ready && isAuthenticated) return <Navigate to="/capture" replace />;
+  if (ready && isAuthenticated && mode === "demo") {
+    return <Navigate to={isOnboardingDone() ? "/capture" : "/onboarding"} replace />;
+  }
 
   const startDemo = (forceOnboarding = false) => {
     enterDemo();
     seedIfEmpty();
     if (forceOnboarding || !isOnboardingDone()) navigate("/onboarding");
     else navigate("/capture");
+  };
+
+  const afterMemberLogin = async () => {
+    const u = auth.currentUser;
+    if (!u) return;
+    const m = await beginOrgMembership(u);
+    applyMembership(m);
+    if (!m) {
+      navigate("/signup", { replace: true });
+      return;
+    }
+    navigate(m.onboardingCompleted ? afterLogin : "/setup", { replace: true });
   };
 
   return (
@@ -36,7 +83,11 @@ export default function LoginPage() {
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-mint">ShapeIt</p>
         <h1 className="font-display mt-3 text-3xl font-bold">ログイン</h1>
         <p className="mt-3 text-sm leading-relaxed text-ink/65">
-          招待メールのリンクからパスワードを設定したあと、メールアドレスとパスワードでログインできます。
+          招待リンクを受け取ったメンバーは、メールアドレスとパスワードでログインできます。
+          会社の最初の管理者の方は新規登録から始めてください。
+        </p>
+        <p className="mt-3 rounded-lg bg-mint/10 px-3 py-2 text-xs leading-relaxed text-ink/75">
+          {t("google_recommend")}
         </p>
 
         <form
@@ -45,8 +96,15 @@ export default function LoginPage() {
             e.preventDefault();
             if (!email.trim() || !password) return;
             setBusy(true);
-            await signInEmail(email, password);
-            setBusy(false);
+            setLocalError("");
+            try {
+              await signInEmail(email, password);
+              await afterMemberLogin();
+            } catch (err) {
+              setLocalError(formatAuthError(err));
+            } finally {
+              setBusy(false);
+            }
           }}
         >
           <label className="block text-xs text-ink/55">
@@ -82,27 +140,62 @@ export default function LoginPage() {
 
         <button
           type="button"
-          disabled={busy || !ready}
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-ink/15 py-2.5 text-sm font-medium text-ink/70 hover:bg-paper disabled:opacity-60"
+          className="mt-2 text-xs text-mint hover:underline"
           onClick={async () => {
-            setBusy(true);
-            await signInGoogle();
-            setBusy(false);
+            if (!email.trim()) {
+              setLocalError("パスワード再設定にはメールアドレスを入力してください。");
+              return;
+            }
+            try {
+              await sendPasswordReset(email);
+              setResetInfo("再設定メールを送信しました。届かない場合は迷惑メールもご確認ください。");
+              setLocalError("");
+            } catch (err) {
+              setLocalError(formatAuthError(err));
+            }
           }}
         >
-          <GoogleMark />
-          Google で続ける
+          パスワードを忘れた方
         </button>
 
         <button
           type="button"
-          className="mt-4 w-full rounded-lg bg-mint py-2.5 text-sm font-semibold text-white hover:bg-mint-bright"
+          disabled={busy || !ready}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-ink/15 py-2.5 text-sm font-medium text-ink/70 hover:bg-paper disabled:opacity-60"
+          onClick={async () => {
+            setBusy(true);
+            setLocalError("");
+            try {
+              await signInGoogle();
+              await afterMemberLogin();
+            } catch (err) {
+              setLocalError(formatAuthError(err));
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          <GoogleMark />
+          Google で続ける（招待済みのみ）
+        </button>
+
+        <Link
+          to="/signup"
+          className="mt-4 flex w-full items-center justify-center rounded-lg border border-mint/30 bg-mint/5 py-2.5 text-sm font-semibold text-mint hover:bg-mint/10"
+        >
+          会社の管理者として新規登録
+        </Link>
+
+        <button
+          type="button"
+          className="mt-3 w-full rounded-lg bg-mint py-2.5 text-sm font-semibold text-white hover:bg-mint-bright"
           onClick={() => startDemo(false)}
         >
           ログインなしでデモ開始
         </button>
 
-        {error && <p className="mt-3 text-sm text-red-700">{error}</p>}
+        {(error || localError) && <p className="mt-3 text-sm text-red-700">{localError || error}</p>}
+        {resetInfo && <p className="mt-3 text-sm text-mint">{resetInfo}</p>}
 
         <a href={LANDING_URL} className="mt-4 block text-center text-sm text-mint hover:underline">
           LPへ戻る

@@ -14,6 +14,7 @@ export default defineConfig({
       input: {
         background: resolve(root, "src/background.ts"),
         content: resolve(root, "src/content.ts"),
+        captureOverlay: resolve(root, "src/captureOverlay.ts"),
       },
       output: {
         entryFileNames: "[name].js",
@@ -28,6 +29,9 @@ export default defineConfig({
         cpSync(resolve(root, "manifest.json"), resolve(root, "dist/manifest.json"));
         cpSync(resolve(root, "popup.html"), resolve(root, "dist/popup.html"));
         cpSync(resolve(root, "popup.js"), resolve(root, "dist/popup.js"));
+        cpSync(resolve(root, "editor.html"), resolve(root, "dist/editor.html"));
+        cpSync(resolve(root, "editor.css"), resolve(root, "dist/editor.css"));
+        cpSync(resolve(root, "editor.js"), resolve(root, "dist/editor.js"));
         cpSync(resolve(root, "public/icon.png"), resolve(root, "dist/icon.png"));
       },
     },

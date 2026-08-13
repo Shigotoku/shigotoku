@@ -1,9 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../components/AuthProvider";
 import { LANDING_URL, API_URL } from "../lib/urls";
-import { pingExtension } from "../lib/extensionBridge";
+import { pingExtension, publishAuthToExtension } from "../lib/extensionBridge";
 import { APP_VERSION, detectEnvironment } from "../lib/meta";
+import {
+  authProviderLabels,
+  formatAuthError,
+  hasGoogleLinked,
+  linkGoogleToCurrentUser,
+} from "../lib/firebase";
 import {
   anonymizeMyData,
   deleteAllMyData,
@@ -31,11 +37,13 @@ import {
   upsertProject,
   getActiveProjectId,
 } from "../lib/members";
-import { getLocale, setLocale, t } from "../lib/i18n";
+import { setLocale, t } from "../lib/i18n";
+import { useLocale } from "../lib/useLocale";
 import {
   fetchMyMemberProfile,
   fetchOrgProfile,
   inviteOrgMemberByEmail,
+  inviteUrl,
   listOrgInvites,
   listOrgMembers,
   mapOrgRoleToAppRole,
@@ -46,6 +54,8 @@ import {
   type OrgInvite,
   type OrgMember,
 } from "../lib/org";
+import { InviteLinkShare } from "../components/InviteLinkShare";
+import SettingsSubnav from "../components/SettingsSubnav";
 
 function Section({
   title,
@@ -84,8 +94,12 @@ function Field({
 
 export default function SettingsPage() {
   const { user, mode } = useAuth();
-  const locale = getLocale();
+  const locale = useLocale();
+  const [params] = useSearchParams();
+  const tab = params.get("tab") || "org";
   const [extOk, setExtOk] = useState<boolean | null>(null);
+  const [extMsg, setExtMsg] = useState("");
+  const [linkGoogleBusy, setLinkGoogleBusy] = useState(false);
   const [settings, setSettings] = useState<DemoSettings>(() => loadSettings());
   const [role, setRole] = useState<AppRole>(() => loadRole());
   const [members, setMembers] = useState(() => listMembers());
@@ -101,6 +115,7 @@ export default function SettingsPage() {
   const [profileBusy, setProfileBusy] = useState(false);
   const [profileMsg, setProfileMsg] = useState("");
   const [inviteMsg, setInviteMsg] = useState("");
+  const [lastInviteLink, setLastInviteLink] = useState<{ url: string; email: string } | null>(null);
 
   const effectiveRole = mode === "google" ? cloudRole : role;
   const isOrgAdmin = canManageSettings(effectiveRole);
@@ -177,7 +192,6 @@ export default function SettingsPage() {
     <div className="w-full space-y-3">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-mint">Settings</p>
           <h1 className="font-display text-2xl font-bold">{t("settings", locale)}</h1>
         </div>
         <p className="text-[10px] text-ink/45">
@@ -185,7 +199,11 @@ export default function SettingsPage() {
         </p>
       </div>
 
+      <SettingsSubnav />
+
       <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
+        {tab === "org" && (
+          <>
         <Section title={locale === "ja" ? "組織・プロフィール" : "Organization & profile"} className="xl:col-span-2">
           <p className="text-[10px] text-ink/50">{t("org_company_hint", locale)}</p>
           <div className="grid gap-2 sm:grid-cols-2">
@@ -221,16 +239,10 @@ export default function SettingsPage() {
               {profileBusy ? (locale === "ja" ? "保存中…" : "Saving…") : locale === "ja" ? "保存" : "Save"}
             </button>
             {profileMsg && <span className="text-[10px] text-ink/55">{profileMsg}</span>}
-            <Link to="/onboarding" className="text-[10px] text-mint hover:underline">
-              セットアップ →
-            </Link>
-            <Link to="/integrations" className="text-[10px] text-mint hover:underline">
-              連携 →
-            </Link>
           </div>
         </Section>
 
-        <Section title={locale === "ja" ? "アカウント（デモ）" : "Account (demo)"}>
+        <Section title={locale === "ja" ? "アカウント" : "Account"}>
           {mode === "demo" && (
             <Field label="ロール（AUTH-001 デモ）">
               <select
@@ -256,15 +268,20 @@ export default function SettingsPage() {
             </p>
           )}
         </Section>
+          </>
+        )}
 
+        {tab === "members" && (
         <Section title={t("org_members", locale)} className="xl:col-span-2">
           {mode === "google" ? (
             <>
               {isOrgAdmin && (
-                <div className="flex gap-2">
+                <>
+                  <p className="text-[10px] leading-relaxed text-ink/55">{t("org_invite_hint", locale)}</p>
+                  <div className="flex gap-2">
                   <input
                     className="min-w-0 flex-1 rounded border border-ink/10 px-2 py-1.5 text-sm"
-                    placeholder="invite@example.com"
+                    placeholder="member@example.com"
                     value={inviteEmail}
                     onChange={(e) => setInviteEmail(e.target.value)}
                   />
@@ -273,19 +290,15 @@ export default function SettingsPage() {
                     className="rounded bg-mint px-3 py-1.5 text-[11px] font-semibold text-white"
                     onClick={() => {
                       if (!inviteEmail.trim()) return;
+                      const targetEmail = inviteEmail.trim();
                       setInviteMsg("");
-                      void inviteOrgMemberByEmail(inviteEmail.trim(), "member", companyName)
+                      void inviteOrgMemberByEmail(targetEmail, "member", companyName)
                         .then((result) => {
                           setInviteEmail("");
-                          setInviteMsg(
-                            result.emailSent
-                              ? locale === "ja"
-                                ? "招待メールを送信しました"
-                                : "Invitation email sent"
-                              : locale === "ja"
-                                ? "招待を登録しました（メールは未送信）"
-                                : "Invite saved (email not sent)",
-                          );
+                          if (result.inviteUrl) {
+                            setLastInviteLink({ url: result.inviteUrl, email: targetEmail });
+                          }
+                          setInviteMsg(t("org_invite_created", locale));
                           return refreshCloudMembers();
                         })
                         .catch((err) =>
@@ -296,6 +309,14 @@ export default function SettingsPage() {
                     {t("org_invite", locale)}
                   </button>
                 </div>
+                {lastInviteLink && (
+                  <InviteLinkShare
+                    url={lastInviteLink.url}
+                    email={lastInviteLink.email}
+                    locale={locale}
+                  />
+                )}
+                </>
               )}
               <ul className="max-h-32 space-y-1 overflow-y-auto">
                 {cloudMembers.map((m) => (
@@ -319,19 +340,34 @@ export default function SettingsPage() {
                     <span className="truncate">
                       {inv.email} · {t("org_invited", locale)} · {inv.role}
                     </span>
-                    {isOrgAdmin && (
-                      <button
-                        type="button"
-                        className="shrink-0"
-                        onClick={() => void removeOrgInvite(inv.id).then(() => refreshCloudMembers())}
-                      >
-                        ×
-                      </button>
-                    )}
+                    <span className="flex shrink-0 gap-1">
+                      {inv.token && (
+                        <button
+                          type="button"
+                          className="text-[10px] font-medium text-mint hover:underline"
+                          onClick={() => {
+                            setLastInviteLink({ url: inviteUrl(inv.token!), email: inv.email });
+                            setInviteMsg(t("org_link_copied", locale));
+                            void navigator.clipboard.writeText(inviteUrl(inv.token!));
+                          }}
+                        >
+                          {t("org_copy_link", locale)}
+                        </button>
+                      )}
+                      {isOrgAdmin && (
+                        <button
+                          type="button"
+                          className="shrink-0"
+                          onClick={() => void removeOrgInvite(inv.id).then(() => refreshCloudMembers())}
+                        >
+                          ×
+                        </button>
+                      )}
+                    </span>
                   </li>
                 ))}
               </ul>
-              {inviteMsg && <p className="text-[10px] text-ink/55">{inviteMsg}</p>}
+              {inviteMsg && <p className="text-[10px] text-mint">{inviteMsg}</p>}
             </>
           ) : (
             <>
@@ -396,8 +432,10 @@ export default function SettingsPage() {
             </>
           )}
         </Section>
+        )}
 
-        <Section title="自動トリアージ">
+        {tab === "notify" && (
+        <Section title={locale === "ja" ? "自動トリアージ" : "Auto triage"}>
           <p className="text-[10px] text-ink/45">S0 / SECURITY は常に対象外</p>
           <label className="flex items-center gap-2">
             <input
@@ -430,10 +468,12 @@ export default function SettingsPage() {
             </Field>
           </div>
         </Section>
+        )}
 
-        <Section title="表示・言語">
+        {tab === "language" && (
+        <Section title={t("settings_tab_language", locale)}>
           <div className="grid grid-cols-2 gap-2">
-            <Field label="Timezone">
+            <Field label={locale === "ja" ? "タイムゾーン" : "Timezone"}>
               <select
                 className="w-full rounded border border-ink/10 px-2 py-1 text-sm"
                 value={settings.timezone}
@@ -444,10 +484,10 @@ export default function SettingsPage() {
                 ))}
               </select>
             </Field>
-            <Field label="Locale">
+            <Field label={locale === "ja" ? "言語" : "Language"}>
               <select
                 className="w-full rounded border border-ink/10 px-2 py-1 text-sm"
-                value={settings.locale}
+                value={locale}
                 onChange={(e) => {
                   const l = e.target.value as "ja" | "en";
                   patch({ locale: l });
@@ -458,14 +498,14 @@ export default function SettingsPage() {
                 <option value="en">English</option>
               </select>
             </Field>
-            <Field label="Env 上書き">
+            <Field label={locale === "ja" ? "環境の上書き" : "Env override"}>
               <input
                 className="w-full rounded border border-ink/10 px-2 py-1 text-sm"
                 value={settings.environmentOverride}
                 onChange={(e) => patch({ environmentOverride: e.target.value })}
               />
             </Field>
-            <Field label="データレジデンシー">
+            <Field label={locale === "ja" ? "データの保管地域" : "Data residency"}>
               <select
                 className="w-full rounded border border-ink/10 px-2 py-1 text-sm"
                 value={settings.dataResidency}
@@ -476,7 +516,7 @@ export default function SettingsPage() {
                 <option value="us">US</option>
               </select>
             </Field>
-            <Field label="セッション（分）">
+            <Field label={locale === "ja" ? "セッション（分）" : "Session (min)"}>
               <input
                 type="number"
                 min={15}
@@ -499,8 +539,10 @@ export default function SettingsPage() {
             Done Changelog デフォルト公開
           </label>
         </Section>
+        )}
 
-        <Section title="通知">
+        {tab === "notify" && (
+        <Section title={t("settings_tab_notify", locale)}>
           <div className="grid grid-cols-2 gap-1 sm:grid-cols-3">
             {(
               [
@@ -525,8 +567,10 @@ export default function SettingsPage() {
             ))}
           </div>
         </Section>
+        )}
 
-        <Section title="プライバシー">
+        {tab === "privacy" && (
+        <Section title={t("settings_tab_privacy", locale)}>
           <label className="flex items-center gap-2">
             <input type="checkbox" checked={settings.maskPrivateHints} onChange={(e) => patch({ maskPrivateHints: e.target.checked })} />
             data-private ヒント
@@ -553,8 +597,11 @@ export default function SettingsPage() {
             />
           </Field>
         </Section>
+        )}
 
-        <Section title="エクスポート / インポート">
+        {tab === "data" && (
+          <>
+        <Section title={locale === "ja" ? "エクスポート / インポート" : "Export / import"}>
           <div className="flex flex-wrap gap-1.5">
             <button type="button" className="rounded border border-ink/15 px-2 py-1 text-[11px] font-semibold" onClick={() => downloadText("shapeit-export.json", exportJson(), "application/json")}>
               JSON
@@ -651,26 +698,127 @@ export default function SettingsPage() {
             </div>
           </Section>
         )}
+          </>
+        )}
 
-        <Section title="Chrome 拡張">
-          <p className="text-ink/65">
-            {extOk === null ? "確認中…" : extOk ? "接続済み" : "未検出"}
+        {tab === "extension" && (
+          <>
+        <Section title={t("ext_account_title", locale)}>
+          <p className="text-[10px] leading-relaxed text-ink/55">{t("ext_account_hint", locale)}</p>
+          {user?.email ? (
+            <p className="text-ink/80">
+              {t("ext_account_current", locale)}: <strong>{user.email}</strong>
+            </p>
+          ) : (
+            <p className="text-ink/55">{locale === "ja" ? "ログイン情報を読み込み中…" : "Loading sign-in…"}</p>
+          )}
+          <p className="text-[10px] text-ink/55">
+            {t("ext_account_providers", locale)}: {authProviderLabels(user).join(" / ")}
           </p>
-          <Link to="/extension/install" className="text-mint hover:underline">手順 →</Link>
+          {mode === "google" && user && !hasGoogleLinked(user) && (
+            <>
+              <p className="text-[10px] leading-relaxed text-ink/55">{t("ext_link_google_hint", locale)}</p>
+              <button
+                type="button"
+                disabled={linkGoogleBusy}
+                className="rounded border border-ink/15 px-2 py-1 text-[11px] font-semibold text-ink/80 disabled:opacity-50"
+                onClick={() => {
+                  void (async () => {
+                    setLinkGoogleBusy(true);
+                    setExtMsg("");
+                    try {
+                      await linkGoogleToCurrentUser();
+                      await publishAuthToExtension();
+                      setExtMsg(locale === "ja" ? "Google を連携しました" : "Google linked");
+                    } catch (err) {
+                      setExtMsg(formatAuthError(err));
+                    } finally {
+                      setLinkGoogleBusy(false);
+                    }
+                  })();
+                }}
+              >
+                {linkGoogleBusy ? (locale === "ja" ? "連携中…" : "Linking…") : t("ext_link_google", locale)}
+              </button>
+            </>
+          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="rounded border border-mint/40 px-2 py-1 text-[11px] font-semibold text-mint"
+              onClick={() => {
+                void (async () => {
+                  await publishAuthToExtension();
+                  const ok = await pingExtension();
+                  setExtOk(ok);
+                  setExtMsg(t("ext_resync_done", locale));
+                })();
+              }}
+            >
+              {t("ext_resync", locale)}
+            </button>
+            <a
+              href={`${LANDING_URL}guide/#account-basics`}
+              target="_blank"
+              rel="noreferrer"
+              className="text-[11px] text-mint hover:underline"
+            >
+              {locale === "ja" ? "アカウントと拡張のガイド →" : "Account & extension guide →"}
+            </a>
+          </div>
+          {extMsg ? <p className="text-[10px] text-ink/70">{extMsg}</p> : null}
+        </Section>
+
+        <Section title={t("nav_extension", locale)}>
+          <p className="text-ink/65">
+            {extOk === null ? (locale === "ja" ? "確認中…" : "Checking…") : extOk ? (locale === "ja" ? "接続済み。SaaS画面から拡張で投稿できます。" : "Connected. You can report from SaaS pages.") : (locale === "ja" ? "未検出。下の手順からインストールしてください。" : "Not detected. Install from the steps below.")}
+          </p>
+          <p className="text-[10px] leading-relaxed text-ink/55">{t("google_recommend", locale)}</p>
+          <Link to="/extension/install" className="text-mint hover:underline">
+            {locale === "ja" ? "インストール手順 →" : "Install steps →"}
+          </Link>
         </Section>
 
         <Section title="Widget">
           <pre className="overflow-x-auto rounded bg-paper p-2 text-[10px] text-ink/70">{`<script src="${window.location.origin}/widget.js" data-app="${window.location.origin}" async></script>`}</pre>
-          <a className="text-mint hover:underline" href="/public/changelog">公開 Changelog</a>
+          <a className="text-mint hover:underline" href="/public/changelog">{locale === "ja" ? "公開変更履歴" : "Public changelog"}</a>
         </Section>
 
-        <Section title="接続">
+        <Section title={locale === "ja" ? "接続" : "Connections"}>
           <ul className="space-y-0.5 text-ink/65">
             <li>LP: {LANDING_URL}</li>
             <li>API: {API_URL || "（未設定）"}</li>
             <li>App: {window.location.origin}</li>
           </ul>
         </Section>
+          </>
+        )}
+
+        {tab === "admin" && (
+          <Section title={t("settings_tab_admin", locale)} className="xl:col-span-3">
+            <p className="text-[10px] text-ink/55">
+              {locale === "ja" ? "管理用の画面です。項目を選ぶとそれぞれのページが開きます。" : "Admin screens. Choose an item to open its page."}
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {[
+                { to: "/onboarding", key: "nav_setup" },
+                { to: "/extension/install", key: "nav_extension" },
+                { to: "/integrations", key: "nav_integrations" },
+                { to: "/audit", key: "nav_audit" },
+                { to: "/golden", key: "nav_golden" },
+                { to: "/legal", key: "nav_legal" },
+              ].map((item) => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className="rounded-lg border border-ink/10 bg-paper px-3 py-3 text-sm font-semibold text-ink hover:border-mint/40 hover:bg-mint/5"
+                >
+                  {t(item.key, locale)}
+                </Link>
+              ))}
+            </div>
+          </Section>
+        )}
       </div>
     </div>
   );

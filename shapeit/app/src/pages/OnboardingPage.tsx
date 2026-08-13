@@ -2,8 +2,9 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createFeedbackRemote } from "../lib/cloudStore";
 import { saveSettings, markOnboardingDone } from "../lib/demoStore";
+import { t } from "../lib/i18n";
 
-const steps = ["プロジェクト", "Capture", "テスト投稿", "Inbox"] as const;
+const steps = ["プロジェクト", "投稿", "テスト投稿", "受信箱"] as const;
 
 /** ONB-001: セットアップウィザード */
 export default function OnboardingPage() {
@@ -15,8 +16,8 @@ export default function OnboardingPage() {
   return (
     <div className="w-full space-y-6">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">Onboarding</p>
-        <h1 className="font-display mt-1 text-3xl font-bold">セットアップ</h1>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">{t("nav_setup")}</p>
+        <h1 className="font-display mt-1 text-3xl font-bold">{t("page_setup")}</h1>
         <p className="mt-2 text-sm text-ink/60">
           ステップ {step + 1} / {steps.length}: {steps[step]}
         </p>
@@ -50,7 +51,7 @@ export default function OnboardingPage() {
 
       {step === 1 && (
         <section className="rounded-2xl border border-ink/10 bg-white p-5 text-sm">
-          <h2 className="font-semibold">Capture の置き方</h2>
+          <h2 className="font-semibold">投稿の置き方</h2>
           <div className="mt-3 space-y-3 text-ink/70">
             <div>
               <p className="font-medium text-ink">PC</p>
@@ -90,7 +91,7 @@ export default function OnboardingPage() {
       {step === 2 && (
         <section className="rounded-2xl border border-ink/10 bg-white p-5 text-sm">
           <h2 className="font-semibold">テスト投稿</h2>
-          <p className="mt-2 text-ink/60">ワンクリックでサンプルを Inbox へ送ります。</p>
+          <p className="mt-2 text-ink/60">ワンクリックでサンプルを受信箱へ送ります。</p>
           <button
             type="button"
             disabled={busy}
@@ -115,7 +116,7 @@ export default function OnboardingPage() {
         <section className="rounded-2xl border border-ink/10 bg-white p-5 text-sm">
           <h2 className="font-semibold">完了</h2>
           <p className="mt-2 text-ink/60">
-            流れ: 投稿 → Inbox トリアージ → Board 実行 → Done → My Feedback で解決確認。
+            流れ: 投稿 → 受信箱で整理 → ボードで実行 → 完了 → 自分の投稿で解決確認。
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <button
@@ -126,7 +127,7 @@ export default function OnboardingPage() {
                 navigate("/inbox");
               }}
             >
-              Inbox を開く
+              受信箱を開く
             </button>
             <button
               type="button"
@@ -136,7 +137,7 @@ export default function OnboardingPage() {
                 navigate("/capture");
               }}
             >
-              Capture へ
+              投稿へ
             </button>
             <button
               type="button"
