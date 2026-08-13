@@ -36,6 +36,9 @@ export const guideToc: GuideTocChapter[] = [
       { id: 'account-reconnect', label: 'つながらないとき' },
     ],
   },
+  {
+    id: 'ui',
+    title: '画面の見方',
     items: [
       { id: 'ui-sidebar', label: '6. サイドバーとメインメニュー' },
       { id: 'ui-settings', label: '7. 設定画面を開く' },
