@@ -20,7 +20,11 @@ export default defineConfig({
       },
       output: {
         entryFileNames: "[name].js",
+        chunkFileNames: "[name].js",
         format: "es",
+        manualChunks(id) {
+          if (id.includes("extensionContext")) return "extensionContext";
+        },
       },
     },
   },

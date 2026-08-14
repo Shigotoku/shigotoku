@@ -342,6 +342,14 @@ async function flushOfflineQueue() {
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === "install") {
     void chrome.tabs.create({ url: ONBOARDING_URL });
+    return;
+  }
+  if (details.reason === "update") {
+    void chrome.tabs.query({ url: SHAPEIT_TAB_URLS }).then((tabs) => {
+      for (const tab of tabs) {
+        if (tab.id) void chrome.tabs.reload(tab.id).catch(() => {});
+      }
+    });
   }
 });
 

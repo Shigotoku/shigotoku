@@ -88,7 +88,13 @@ function collectClientContext() {
     devicePixelRatio: window.devicePixelRatio,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     locale: navigator.language,
-    extensionVersion: chrome.runtime.getManifest().version,
+    extensionVersion: (() => {
+      try {
+        return chrome.runtime?.getManifest?.()?.version ?? "";
+      } catch {
+        return "";
+      }
+    })(),
     captureMode: draft?.captureMode ?? "none",
     referrer: document.referrer || undefined,
   };

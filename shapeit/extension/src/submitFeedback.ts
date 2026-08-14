@@ -1,3 +1,5 @@
+import { getExtensionVersion } from "./extensionContext";
+
 export type ExtensionFeedbackPayload = {
   rawText: string;
   pageUrl?: string;
@@ -139,7 +141,7 @@ export async function submitExtensionFeedback(
     consoleSnippet: payload.consoleSnippet,
     elementSelector: payload.elementSelector,
     elementTag: payload.elementTag,
-    extensionVersion: chrome.runtime.getManifest().version,
+    extensionVersion: getExtensionVersion(),
     browser: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
     os: typeof navigator !== "undefined" ? navigator.platform : undefined,
     locale: typeof navigator !== "undefined" ? navigator.language : undefined,

@@ -1,23 +1,45 @@
 /** ShapeIt アプリページ上で拡張 ↔ Web を橋渡し */
+import {
+  extensionAlive,
+  getExtensionVersion,
+  safeStorageLocalSet,
+  safeStorageSyncSet,
+  sendRuntimeMessage,
+} from "./extensionContext";
 import { redactSensitiveDomHints } from "./privacyHints";
 
 function requestAuthFromApp() {
+  if (!extensionAlive()) return;
   window.postMessage({ type: "SHAPEIT_REQUEST_AUTH" }, window.location.origin);
 }
 
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  if (msg?.type === "SHAPEIT_REFRESH_AUTH") {
-    requestAuthFromApp();
-    globalThis.setTimeout(requestAuthFromApp, 400);
-    globalThis.setTimeout(requestAuthFromApp, 1200);
-    sendResponse({ ok: true });
-    return true;
-  }
-  return false;
-});
+function announceReady() {
+  const version = getExtensionVersion();
+  if (!version) return;
+  window.postMessage({ type: "SHAPEIT_EXT_READY", version }, window.location.origin);
+}
 
-requestAuthFromApp();
-globalThis.setTimeout(requestAuthFromApp, 800);
+if (extensionAlive()) {
+  chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+    if (!extensionAlive()) return false;
+    if (msg?.type === "SHAPEIT_REFRESH_AUTH") {
+      requestAuthFromApp();
+      globalThis.setTimeout(requestAuthFromApp, 400);
+      globalThis.setTimeout(requestAuthFromApp, 1200);
+      try {
+        sendResponse({ ok: true });
+      } catch {
+        /* ignore */
+      }
+      return true;
+    }
+    return false;
+  });
+
+  requestAuthFromApp();
+  globalThis.setTimeout(requestAuthFromApp, 800);
+  announceReady();
+}
 
 window.addEventListener("message", (event) => {
   if (event.source !== window || event.origin !== window.location.origin) return;
@@ -25,7 +47,8 @@ window.addEventListener("message", (event) => {
   if (!data || typeof data !== "object") return;
 
   if (data.type === "SHAPEIT_PING" || data.type === "SHAPEIT_EXT_PING") {
-    const version = chrome.runtime.getManifest().version;
+    const version = getExtensionVersion();
+    if (!version) return;
     window.postMessage({ type: "SHAPEIT_PONG", version }, window.location.origin);
     window.postMessage({ type: "SHAPEIT_EXT_PONG", version }, window.location.origin);
     return;
@@ -40,21 +63,16 @@ window.addEventListener("message", (event) => {
   }
 
   if (data.type === "SHAPEIT_PULL_PENDING" || data.type === "SHAPEIT_PULL_REPORTS") {
-    chrome.runtime.sendMessage({ type: "SHAPEIT_GET_PENDING" }, (res) => {
-      window.postMessage(
-        { type: "SHAPEIT_PENDING_RESULT", reports: res?.reports ?? [] },
-        window.location.origin,
-      );
-      window.postMessage(
-        { type: "SHAPEIT_PENDING_REPORTS", reports: res?.reports ?? [] },
-        window.location.origin,
-      );
+    void sendRuntimeMessage<{ reports?: unknown[] }>({ type: "SHAPEIT_GET_PENDING" }).then((res) => {
+      const reports = res?.reports ?? [];
+      window.postMessage({ type: "SHAPEIT_PENDING_RESULT", reports }, window.location.origin);
+      window.postMessage({ type: "SHAPEIT_PENDING_REPORTS", reports }, window.location.origin);
     });
     return;
   }
 
   if (data.type === "SHAPEIT_ACK_PENDING" || data.type === "SHAPEIT_ACK_REPORTS") {
-    chrome.runtime.sendMessage({ type: "SHAPEIT_CLEAR_PENDING", ids: data.ids ?? [] }, () => {
+    void sendRuntimeMessage({ type: "SHAPEIT_CLEAR_PENDING", ids: data.ids ?? [] }).then(() => {
       window.postMessage({ type: "SHAPEIT_ACK_DONE" }, window.location.origin);
     });
     return;
@@ -66,7 +84,7 @@ window.addEventListener("message", (event) => {
     const patch: Record<string, string> = {};
     if (base) patch.shapeitAppBase = base;
     if (apiUrl) patch.shapeitApiUrl = apiUrl;
-    if (Object.keys(patch).length) void chrome.storage.sync.set(patch);
+    if (Object.keys(patch).length) safeStorageSyncSet(patch);
     return;
   }
 
@@ -76,7 +94,7 @@ window.addEventListener("message", (event) => {
     const displayName = typeof data.displayName === "string" ? data.displayName : "";
     const origin = String(data.origin ?? "").replace(/\/$/, "");
     const apiUrl = String(data.apiUrl ?? "").replace(/\/$/, "");
-    void chrome.storage.local.set({
+    safeStorageLocalSet({
       shapeitIdToken: token,
       shapeitEmail: email,
       shapeitDisplayName: displayName,
@@ -85,6 +103,6 @@ window.addEventListener("message", (event) => {
     const patch: Record<string, string> = {};
     if (origin) patch.shapeitAppBase = origin;
     if (apiUrl) patch.shapeitApiUrl = apiUrl;
-    if (Object.keys(patch).length) void chrome.storage.sync.set(patch);
+    if (Object.keys(patch).length) safeStorageSyncSet(patch);
   }
 });

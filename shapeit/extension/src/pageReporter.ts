@@ -1,6 +1,8 @@
 /**
  * 全ページ: フローティングボタン + 即時報告オーバーレイ（音声→確認→送信）
  */
+import { extensionAlive, sendRuntimeMessage } from "./extensionContext";
+
 const consoleBuffer: string[] = [];
 
 function hookConsole() {
@@ -63,6 +65,18 @@ function isCapturablePage(): boolean {
   return u.startsWith("http://") || u.startsWith("https://");
 }
 
+function isShapeitAppPage(): boolean {
+  try {
+    const host = location.hostname;
+    if (host === "app.shapeit.shigotoku.com") return true;
+    if (host === "shigotoku-shapeit-app.web.app") return true;
+    if ((host === "localhost" || host === "127.0.0.1") && location.port === "5178") return true;
+  } catch {
+    /* ignore */
+  }
+  return false;
+}
+
 function injectStyles(shadow: ShadowRoot) {
   const style = document.createElement("style");
   style.textContent = `
@@ -120,7 +134,7 @@ function injectStyles(shadow: ShadowRoot) {
 }
 
 function createFab() {
-  if (!isCapturablePage() || fabRoot) return;
+  if (!isCapturablePage() || isShapeitAppPage() || fabRoot) return;
 
   fabRoot = document.createElement("div");
   fabRoot.id = "shapeit-fab-host";
@@ -154,11 +168,11 @@ function createFab() {
     if (!btn) return;
     menu.classList.remove("open");
     const action = btn.getAttribute("data-action");
-    if (action === "full") void chrome.runtime.sendMessage({ type: "SHAPEIT_START_FULL" });
-    if (action === "instant") void chrome.runtime.sendMessage({ type: "SHAPEIT_START_INSTANT" });
-    if (action === "element") void chrome.runtime.sendMessage({ type: "SHAPEIT_START_ELEMENT" });
-    if (action === "annotate") void chrome.runtime.sendMessage({ type: "SHAPEIT_START_ANNOTATE" });
-    if (action === "comment") void chrome.runtime.sendMessage({ type: "SHAPEIT_START_COMMENT" });
+    if (action === "full") void sendRuntimeMessage({ type: "SHAPEIT_START_FULL" });
+    if (action === "instant") void sendRuntimeMessage({ type: "SHAPEIT_START_INSTANT" });
+    if (action === "element") void sendRuntimeMessage({ type: "SHAPEIT_START_ELEMENT" });
+    if (action === "annotate") void sendRuntimeMessage({ type: "SHAPEIT_START_ANNOTATE" });
+    if (action === "comment") void sendRuntimeMessage({ type: "SHAPEIT_START_COMMENT" });
   });
 
   document.addEventListener("click", () => menu.classList.remove("open"));
@@ -166,9 +180,11 @@ function createFab() {
   shadow.append(menu, fab);
   document.documentElement.append(fabRoot);
 
-  chrome.storage.sync.get("shapeitFabHidden").then((s) => {
-    if (s.shapeitFabHidden) fabRoot!.style.display = "none";
-  });
+  if (extensionAlive()) {
+    void chrome.storage.sync.get("shapeitFabHidden").then((s) => {
+      if (s.shapeitFabHidden) fabRoot!.style.display = "none";
+    }).catch(() => {});
+  }
 }
 
 function stopSpeech() {
@@ -284,7 +300,10 @@ function showInstantOverlay(payload: InstantPayload) {
     }
     stopSpeech();
     step = "confirm";
-    const dupRes = await chrome.runtime.sendMessage({ type: "SHAPEIT_CHECK_DUPLICATES", rawText: text });
+    const dupRes = await sendRuntimeMessage<{ duplicates?: DupCandidate[] }>({
+      type: "SHAPEIT_CHECK_DUPLICATES",
+      rawText: text,
+    });
     if (dupRes?.duplicates?.length) {
       dupWarning = dupRes.duplicates
         .slice(0, 2)
@@ -309,7 +328,11 @@ function showInstantOverlay(payload: InstantPayload) {
     card.querySelector("h2")!.textContent = "送信中…";
     inputActions.innerHTML = "";
 
-    const res = await chrome.runtime.sendMessage({
+    const res = await sendRuntimeMessage<{
+      ok?: boolean;
+      queued?: boolean;
+      error?: string;
+    }>({
       type: "SHAPEIT_SUBMIT_FEEDBACK",
       rawText: text,
       pageUrl: payload.pageUrl || location.href,
@@ -342,7 +365,7 @@ function showInstantOverlay(payload: InstantPayload) {
       </div>
     `;
     card.querySelector("#inboxBtn")!.addEventListener("click", () => {
-      void chrome.runtime.sendMessage({ type: "SHAPEIT_OPEN_INBOX" });
+      void sendRuntimeMessage({ type: "SHAPEIT_OPEN_INBOX" });
       closeOverlay();
     });
     card.querySelector("#closeOk")!.addEventListener("click", closeOverlay);
@@ -377,22 +400,33 @@ function closeOverlay() {
   overlayRoot = null;
 }
 
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  if (msg?.type === "SHAPEIT_SHOW_INSTANT_OVERLAY") {
-    showInstantOverlay(msg.payload as InstantPayload);
-    sendResponse({ ok: true });
-    return true;
-  }
-  if (msg?.type === "SHAPEIT_HIDE_OVERLAY") {
-    closeOverlay();
-    sendResponse({ ok: true });
-    return true;
-  }
-  return false;
-});
+if (extensionAlive()) {
+  chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+    if (!extensionAlive()) return false;
+    if (msg?.type === "SHAPEIT_SHOW_INSTANT_OVERLAY") {
+      showInstantOverlay(msg.payload as InstantPayload);
+      try {
+        sendResponse({ ok: true });
+      } catch {
+        /* ignore */
+      }
+      return true;
+    }
+    if (msg?.type === "SHAPEIT_HIDE_OVERLAY") {
+      closeOverlay();
+      try {
+        sendResponse({ ok: true });
+      } catch {
+        /* ignore */
+      }
+      return true;
+    }
+    return false;
+  });
 
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", createFab);
-} else {
-  createFab();
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", createFab);
+  } else {
+    createFab();
+  }
 }
