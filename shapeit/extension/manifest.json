@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ShapeIt - 気づきを投稿",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "全画面・範囲選択スクショ、音声入力、ワンキー報告。気づきを最短で ShapeIt に届けます。",
   "permissions": ["activeTab", "storage", "tabs", "scripting", "notifications", "alarms"],
   "host_permissions": [
@@ -68,7 +68,6 @@
         "http://127.0.0.1:5178/*"
       ],
       "js": ["contentBridge.js"],
-      "type": "module",
       "run_at": "document_idle"
     },
     {
@@ -80,7 +79,6 @@
         "http://127.0.0.1:5178/*"
       ],
       "js": ["pageReporter.js"],
-      "type": "module",
       "run_at": "document_idle"
     }
   ],
