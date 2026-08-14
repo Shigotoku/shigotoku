@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { ExtensionGuidePanel } from "../components/ExtensionGuidePanel";
 import { chromeExtensionSupported, isAndroid, isIos, isStandalonePwa } from "../lib/device";
 import { t } from "../lib/i18n";
 
@@ -15,12 +16,13 @@ export default function ExtensionInstallPage() {
         </h1>
         <p className="mt-2 text-sm text-ink/65">
           {desktopExt
-            ? "対象サービスを Chrome で開いたまま、アイコンクリック（または Alt+Shift+F）→ 一言 → 送信。スクショと URL は自動です。"
+            ? "全画面・範囲選択・スクショなしの3モード。ショートカットまたは右下 FAB から、話してすぐ送信できます（v0.4.1）。"
             : "スマートフォンでは Chrome 拡張は使えません。ホーム画面追加（PWA）＋ スクショ → 話す → 送信 が本命です。"}
         </p>
       </div>
 
-      {/* モバイル戦略の説明 */}
+      {desktopExt && <ExtensionGuidePanel showInstall={false} />}
+
       <section className="space-y-3 rounded-2xl border border-mint/30 bg-sand/40 p-4 text-sm">
         <h2 className="font-display text-lg font-semibold">アカウントと拡張の関係</h2>
         <p className="text-ink/75">
@@ -42,7 +44,7 @@ export default function ExtensionInstallPage() {
         <ul className="space-y-2 text-ink/75">
           <li>
             <span className="font-semibold text-ink">PC（Chrome）</span>
-            … 拡張機能が最速。閲覧中ページのスクショ・URL を自動取得。
+            … 拡張機能が最速。全画面・範囲選択スクショ、URL 自動取得、音声入力、FAB メニュー。
           </li>
           <li>
             <span className="font-semibold text-ink">スマートフォン</span>
@@ -118,26 +120,13 @@ export default function ExtensionInstallPage() {
       </div>
 
       {desktopExt && (
-        <>
-        <section className="space-y-3 rounded-2xl border border-ink/10 bg-white p-5 text-sm">
-          <h2 className="font-semibold">拡張でできること（v0.3）</h2>
-          <ul className="list-disc space-y-1 pl-5 text-ink/75">
-            <li>全画面キャプチャ / 範囲選択（ドラッグ）</li>
-            <li>スクショへの書き込み（ペン・矩形・矢印・文字）</li>
-            <li>ページ URL・タイトルの自動取得</li>
-            <li>ShapeIt ログイン済みならそのまま API 送信</li>
-          </ul>
-        </section>
         <ol className="space-y-4 rounded-2xl border border-ink/10 bg-white p-5 text-sm">
           <li>
-            <p className="font-semibold">1. 拡張をビルド</p>
+            <p className="font-semibold">1. 拡張をインストール</p>
             <pre className="mt-2 overflow-x-auto rounded-lg bg-ink p-3 text-xs text-paper">
               cd shapeit/extension{"\n"}npm install{"\n"}npm run build
             </pre>
-          </li>
-          <li>
-            <p className="font-semibold">2. Chrome に読み込む</p>
-            <p className="mt-1 text-ink/65">
+            <p className="mt-2 text-ink/65">
               <code className="rounded bg-sand px-1">chrome://extensions</code> → デベロッパーモード ON →
               「パッケージ化されていない拡張機能を読み込む」→{" "}
               <code className="rounded bg-sand px-1">shapeit/extension/dist</code>
@@ -151,25 +140,31 @@ export default function ExtensionInstallPage() {
               >
                 拡張 zip をダウンロード
               </a>
-              して解凍したフォルダを読み込みます（本番デプロイ後）。
+              して解凍したフォルダを読み込みます。
             </p>
           </li>
           <li>
-            <p className="font-semibold">3. ShapeIt にログインする（初回のみ）</p>
+            <p className="font-semibold">2. ShapeIt にログイン（初回のみ）</p>
             <p className="mt-1 text-ink/65">
               登録時と同じ方法（Google またはメール）で ShapeIt を開くと、拡張へ接続情報が保存されます。
-              拡張側で Google を選ぶ操作は不要です。設定 → Chrome 拡張で接続アカウントを確認できます。
+              拡張ポップアップの「ShapeIt にログイン」、または設定 → Chrome 拡張 →「拡張へ再接続」でも確認できます。
             </p>
           </li>
           <li>
-            <p className="font-semibold">4. キャプチャして報告</p>
+            <p className="font-semibold">3. 報告する</p>
             <p className="mt-1 text-ink/65">
-              拡張アイコン →「キャプチャして報告」→ 全画面または範囲選択 → 必要なら書き込み → 一言 → 送信。
-              ショートカット Alt+Shift+F でも編集画面が開きます。
+              ショートカット（G / S / C / F）、拡張アイコンのポップアップ、またはページ右下の緑 FAB から操作します。
+              音声で話したあと確認画面で送信。詳しく編集したいときは Alt+Shift+F で注釈エディタが開きます。
+            </p>
+          </li>
+          <li>
+            <p className="font-semibold">4. 初回セットアップ（任意）</p>
+            <p className="mt-1 text-ink/65">
+              拡張のオプション画面（onboarding）で Slack Webhook や FAB の表示設定ができます。
+              マイク許可は初回の音声入力時にブラウザが求めます。
             </p>
           </li>
         </ol>
-        </>
       )}
 
       <div className="flex flex-wrap gap-3">
@@ -178,6 +173,9 @@ export default function ExtensionInstallPage() {
         </Link>
         <Link to="/inbox" className="min-h-[44px] rounded-xl border border-ink/15 px-4 py-2 text-sm font-semibold">
           受信箱へ
+        </Link>
+        <Link to="/settings?tab=extension" className="min-h-[44px] rounded-xl border border-ink/15 px-4 py-2 text-sm font-semibold">
+          ログイン・拡張の設定
         </Link>
       </div>
     </div>

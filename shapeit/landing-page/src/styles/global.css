@@ -170,6 +170,119 @@ main .shapeit-section--lg {
   }
 }
 
+/* ── 社内セットアップガイド ── */
+.setup-hero {
+  position: relative;
+}
+
+.setup-internal-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-mint) 14%, white);
+  border: 1px solid color-mix(in srgb, var(--color-mint) 35%, transparent);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--color-mint);
+}
+
+.setup-intro-card--primary {
+  border-color: color-mix(in srgb, var(--color-mint) 28%, transparent);
+  background: linear-gradient(145deg, white 0%, color-mix(in srgb, var(--color-mint) 6%, white) 100%);
+}
+
+.setup-checklist {
+  margin-top: 0.5rem;
+  padding-left: 0;
+  list-style: none;
+  font-size: 0.875rem;
+  line-height: 1.65;
+  color: color-mix(in srgb, var(--color-ink) 68%, transparent);
+}
+
+.setup-checklist li {
+  position: relative;
+  padding-left: 1.25rem;
+}
+
+.setup-checklist li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: var(--color-mint);
+  font-weight: 700;
+}
+
+.setup-checklist li + li {
+  margin-top: 0.35rem;
+}
+
+.setup-action-card {
+  margin-top: 1rem;
+  padding: 1.25rem;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, var(--color-ink) 10%, transparent);
+  background: white;
+  text-align: center;
+}
+
+.setup-action-card__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.625rem;
+  background: var(--color-ink);
+  color: var(--color-paper);
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background 0.15s ease;
+}
+
+.setup-action-card__btn:hover {
+  background: color-mix(in srgb, var(--color-ink) 88%, black);
+}
+
+.setup-action-card__hint {
+  margin-top: 0.75rem;
+  font-size: 0.75rem;
+  color: color-mix(in srgb, var(--color-ink) 55%, transparent);
+}
+
+.setup-action-card__hint a {
+  color: var(--color-mint);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.setup-action-card__hint a:hover {
+  text-decoration: underline;
+}
+
+.setup-kbd {
+  display: inline-block;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  border: 1px solid color-mix(in srgb, var(--color-ink) 15%, transparent);
+  background: var(--color-sand);
+  font-family: ui-monospace, monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.guide-steps code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.8125rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.25rem;
+  background: var(--color-sand);
+}
+
 /* ── 使い方ガイド（マニュアル） ── */
 .guide-portal-bar {
   border-bottom: 1px solid color-mix(in srgb, var(--color-ink) 10%, transparent);

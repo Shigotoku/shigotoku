@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "ShapeIt - 気づきを投稿",
-  "version": "0.3.0",
-  "description": "開いている画面のスクショ（全画面・範囲選択）に書き込み、URL 付きで ShapeIt に改善報告を送ります。",
-  "permissions": ["activeTab", "storage", "tabs", "scripting"],
+  "version": "0.4.1",
+  "description": "全画面・範囲選択スクショ、音声入力、ワンキー報告。気づきを最短で ShapeIt に届けます。",
+  "permissions": ["activeTab", "storage", "tabs", "scripting", "notifications", "alarms"],
   "host_permissions": [
     "https://app.shapeit.shigotoku.com/*",
     "https://shigotoku-shapeit-app.web.app/*",
@@ -30,12 +30,33 @@
     "type": "module"
   },
   "commands": {
-    "quick-report": {
+    "full-report": {
+      "suggested_key": {
+        "default": "Alt+Shift+G",
+        "mac": "Alt+Shift+G"
+      },
+      "description": "全画面スクショ → 話す → 送信"
+    },
+    "region-report": {
+      "suggested_key": {
+        "default": "Alt+Shift+S",
+        "mac": "Alt+Shift+S"
+      },
+      "description": "範囲選択 → 話す → 送信"
+    },
+    "comment-report": {
+      "suggested_key": {
+        "default": "Alt+Shift+C",
+        "mac": "Alt+Shift+C"
+      },
+      "description": "スクショなし → 話す → 送信"
+    },
+    "annotate-report": {
       "suggested_key": {
         "default": "Alt+Shift+F",
         "mac": "Alt+Shift+F"
       },
-      "description": "画面をキャプチャして ShapeIt 報告画面を開く"
+      "description": "範囲選択 → 詳しく編集"
     }
   },
   "content_scripts": [
@@ -46,8 +67,14 @@
         "http://localhost:5178/*",
         "http://127.0.0.1:5178/*"
       ],
-      "js": ["content.js"],
+      "js": ["contentBridge.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["pageReporter.js"],
       "run_at": "document_idle"
     }
-  ]
+  ],
+  "options_page": "onboarding.html"
 }

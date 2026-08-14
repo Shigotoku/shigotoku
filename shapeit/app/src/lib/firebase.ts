@@ -126,10 +126,10 @@ export async function updateUserDisplayName(name: string) {
   await updateProfile(user, { displayName: name.trim() });
 }
 
-export async function getIdToken(): Promise<string | null> {
+export async function getIdToken(forceRefresh = false): Promise<string | null> {
   const user = auth.currentUser;
   if (!user) return null;
-  return user.getIdToken();
+  return user.getIdToken(forceRefresh);
 }
 
 export function formatAuthError(err: unknown): string {

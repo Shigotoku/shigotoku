@@ -149,6 +149,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const cred = await signInWithGoogle();
           touchSession();
+          publishAppBaseToExtension();
+          void publishAuthToExtension(true);
           return cred?.user ?? auth.currentUser;
         } catch (e) {
           setError(formatAuthError(e));

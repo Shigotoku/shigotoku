@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>ShapeIt 拡張のセットアップ</title>
+    <style>
+      :root { --ink: #0b1320; --mint: #1f9d8a; --paper: #f3f6f4; --muted: #5b6b7c; }
+      body { font-family: "Segoe UI","Noto Sans JP",system-ui,sans-serif; max-width: 520px; margin: 0 auto; padding: 24px 20px 40px; background: var(--paper); color: var(--ink); }
+      h1 { font-size: 22px; margin: 0 0 8px; }
+      p { line-height: 1.6; color: var(--muted); font-size: 14px; }
+      .step { background: #fff; border-radius: 14px; padding: 16px; margin-top: 12px; border: 1px solid #d5e0d9; }
+      .step h2 { margin: 0 0 8px; font-size: 15px; }
+      kbd { background: #eef2f0; padding: 2px 6px; border-radius: 6px; font-size: 12px; }
+      button { margin-top: 16px; width: 100%; padding: 12px; border: none; border-radius: 10px; background: var(--mint); color: #fff; font-weight: 700; cursor: pointer; font: inherit; }
+      .secondary { background: #fff; color: var(--ink); border: 1px solid #c9d5ce; margin-top: 8px; }
+      label { display: block; margin-top: 10px; font-size: 12px; font-weight: 600; }
+      input { width: 100%; box-sizing: border-box; margin-top: 4px; padding: 8px 10px; border-radius: 8px; border: 1px solid #c9d5ce; font: inherit; }
+    </style>
+  </head>
+  <body>
+    <img src="icon.png" alt="" width="48" height="48" style="border-radius: 10px" />
+    <h1>ShapeIt へようこそ</h1>
+    <p>3ステップで、どのページからでも気づきを届けられます。</p>
+
+    <div class="step">
+      <h2>1. ShapeIt にログイン</h2>
+      <p>普段使っている Google アカウントでログインしてください。</p>
+      <button type="button" id="openLogin">ShapeIt を開く</button>
+    </div>
+
+    <div class="step">
+      <h2>2. ショートカットを覚える</h2>
+      <p>
+        <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd> … 全画面 → 話す → 送信<br />
+        <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> … 範囲を選ぶ → 話す → 送信<br />
+        <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd> … スクショなし → 話す → 送信<br />
+        <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> … 範囲を選ぶ → 詳しく編集
+      </p>
+      <p>右下の <strong>緑ボタン</strong> からも同じ操作ができます。</p>
+    </div>
+
+    <div class="step">
+      <h2>3. マイクを許可</h2>
+      <p>初回の音声入力時にマイク許可を求められたら「許可」を選んでください。</p>
+    </div>
+
+    <div class="step">
+      <h2>任意: Slack 通知</h2>
+      <label>Incoming Webhook URL</label>
+      <input type="url" id="slackWebhook" placeholder="https://hooks.slack.com/..." />
+    </div>
+
+    <button type="button" id="done">セットアップ完了</button>
+    <button type="button" class="secondary" id="hideFab">フローティングボタンを非表示にする</button>
+
+    <script src="onboarding.js"></script>
+  </body>
+</html>

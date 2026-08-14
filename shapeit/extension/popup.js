@@ -2,14 +2,26 @@ const metaEl = document.getElementById("pageMeta");
 const statusEl = document.getElementById("status");
 const authEl = document.getElementById("authState");
 const loginEl = document.getElementById("login");
-const openEditorEl = document.getElementById("openEditor");
-const capFullEl = document.getElementById("capFull");
-const capRegionEl = document.getElementById("capRegion");
+const quickNoteEl = document.getElementById("quickNote");
+const quickSubmitEl = document.getElementById("quickSubmit");
+const fullBtnEl = document.getElementById("fullBtn");
+const instantBtnEl = document.getElementById("instantBtn");
+const commentBtnEl = document.getElementById("commentBtn");
+const annotateBtnEl = document.getElementById("annotateBtn");
+const openNoteEditorEl = document.getElementById("openNoteEditor");
+
+let activeTabId;
+let activeWindowId;
+let activePageUrl = "";
+let activePageTitle = "";
 
 function setBusy(busy) {
-  openEditorEl.disabled = busy;
-  capFullEl.disabled = busy;
-  capRegionEl.disabled = busy;
+  quickSubmitEl.disabled = busy;
+  fullBtnEl.disabled = busy;
+  instantBtnEl.disabled = busy;
+  commentBtnEl.disabled = busy;
+  annotateBtnEl.disabled = busy;
+  openNoteEditorEl.disabled = busy;
 }
 
 async function getAppBase() {
@@ -18,64 +30,73 @@ async function getAppBase() {
   return "https://app.shapeit.shigotoku.com";
 }
 
-async function getSession() {
-  const stored = await chrome.storage.local.get(["shapeitIdToken", "shapeitEmail", "shapeitTokenAt"]);
-  const token = typeof stored.shapeitIdToken === "string" ? stored.shapeitIdToken : "";
-  const email = typeof stored.shapeitEmail === "string" ? stored.shapeitEmail : "";
-  const at = Number(stored.shapeitTokenAt || 0);
-  const fresh = token && Date.now() - at < 50 * 60 * 1000;
-  return { token: fresh ? token : "", email };
-}
-
-async function refreshAuthFromApp() {
+async function ensureAuth() {
   try {
-    const res = await chrome.runtime.sendMessage({ type: "SHAPEIT_REFRESH_AUTH" });
-    if (!res?.ok) return false;
-    await new Promise((r) => setTimeout(r, 600));
-    return Boolean((await getSession()).token);
+    await chrome.runtime.sendMessage({ type: "SHAPEIT_ENSURE_AUTH" });
   } catch {
-    return false;
+    /* ignore */
   }
+  const stored = await chrome.storage.local.get("shapeitIdToken");
+  return Boolean(stored.shapeitIdToken);
 }
 
-async function startCapture(mode) {
+async function submitQuickNote() {
+  const rawText = (quickNoteEl.value || "").trim();
+  if (!rawText) {
+    statusEl.textContent = "コメントを入力してください";
+    quickNoteEl.focus();
+    return;
+  }
   setBusy(true);
-  statusEl.textContent = mode === "region" ? "範囲を選択…" : "キャプチャ中…";
+  statusEl.textContent = "送信中…";
   try {
-    const res = await chrome.runtime.sendMessage({ type: "SHAPEIT_START_CAPTURE", mode, openEditor: true });
-    if (!res?.ok) {
-      statusEl.textContent = "キャプチャできません（chrome:// などは不可）";
+    if (!(await ensureAuth())) {
+      statusEl.textContent = "先に ShapeIt にログインしてください";
+      loginEl.style.display = "block";
       return;
     }
-    window.close();
+    const res = await chrome.runtime.sendMessage({
+      type: "SHAPEIT_SUBMIT_FEEDBACK",
+      rawText,
+      pageUrl: activePageUrl,
+      pageTitle: activePageTitle,
+      captureMode: "none",
+    });
+    if (!res?.ok) {
+      statusEl.textContent = res?.queued ? "オフライン保存しました（後で自動送信）" : res?.error || "送信に失敗";
+      return;
+    }
+    quickNoteEl.value = "";
+    statusEl.textContent = res?.queued ? "オフライン保存しました" : "送信しました！";
   } finally {
     setBusy(false);
   }
 }
 
 async function init() {
-  let session = await getSession();
-  if (!session.token) {
-    statusEl.textContent = "接続情報を更新中…";
-    await refreshAuthFromApp();
-    session = await getSession();
-  }
-  if (session.token) {
-    authEl.textContent = session.email ? `${session.email} で投稿します` : "ShapeIt に接続済み";
+  statusEl.textContent = "接続情報を更新中…";
+  const stored = await chrome.storage.local.get(["shapeitIdToken", "shapeitEmail"]);
+  if (stored.shapeitIdToken) {
+    authEl.textContent = stored.shapeitEmail ? `${stored.shapeitEmail} で投稿します` : "ShapeIt に接続済み";
     loginEl.style.display = "none";
   } else {
-    authEl.textContent = "先に ShapeIt にログインしてください（登録時と同じ方法で）";
+    authEl.textContent = "初回のみ ShapeIt にログインしてください";
     loginEl.style.display = "block";
+    await ensureAuth();
   }
 
   const metaRes = await chrome.runtime.sendMessage({ type: "SHAPEIT_GET_TAB_META" });
   const meta = metaRes?.meta;
+  activeTabId = meta?.tabId;
+  activeWindowId = meta?.windowId;
+  activePageUrl = meta?.pageUrl || "";
+  activePageTitle = meta?.pageTitle || "";
   if (meta?.pageUrl) {
     metaEl.innerHTML = `<strong>${escapeHtml(meta.pageTitle || "(無題)")}</strong>${escapeHtml(meta.pageUrl)}`;
   } else {
     metaEl.textContent = "このページは URL を取得できません";
   }
-  statusEl.textContent = "キャプチャ方法を選ぶか、編集画面を開いてください";
+  statusEl.textContent = "";
 }
 
 function escapeHtml(text) {
@@ -86,12 +107,36 @@ function escapeHtml(text) {
     .replace(/"/g, "&quot;");
 }
 
-openEditorEl.addEventListener("click", () => void startCapture("full"));
-capFullEl.addEventListener("click", () => void startCapture("full"));
-capRegionEl.addEventListener("click", () => void startCapture("region"));
+async function runAction(type) {
+  setBusy(true);
+  window.close();
+  await chrome.runtime.sendMessage({ type });
+}
+
+quickSubmitEl.addEventListener("click", () => void submitQuickNote());
+fullBtnEl.addEventListener("click", () => void runAction("SHAPEIT_START_FULL"));
+instantBtnEl.addEventListener("click", () => void runAction("SHAPEIT_START_INSTANT"));
+commentBtnEl.addEventListener("click", () => void runAction("SHAPEIT_START_COMMENT"));
+annotateBtnEl.addEventListener("click", () => void runAction("SHAPEIT_START_ANNOTATE"));
+openNoteEditorEl.addEventListener("click", async () => {
+  setBusy(true);
+  window.close();
+  await chrome.runtime.sendMessage({
+    type: "SHAPEIT_OPEN_NOTE_EDITOR",
+    tabId: activeTabId,
+    windowId: activeWindowId,
+  });
+});
 loginEl.addEventListener("click", async () => {
   const base = await getAppBase();
-  await chrome.tabs.create({ url: `${base}/login` });
+  await chrome.tabs.create({ url: `${base}/login?ext=1` });
+});
+
+quickNoteEl.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+    e.preventDefault();
+    void submitQuickNote();
+  }
 });
 
 void init();

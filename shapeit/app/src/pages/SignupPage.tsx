@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../components/AuthProvider";
 import { LANDING_URL } from "../lib/urls";
 import { createOrganization } from "../lib/org";
 import { auth, updateUserDisplayName, formatAuthError } from "../lib/firebase";
-import { t } from "../lib/i18n";
+import { publishAuthToExtension } from "../lib/extensionBridge";
 
 function afterSignupPath(onboardingCompleted: boolean) {
   return onboardingCompleted ? "/capture" : "/setup";
@@ -17,16 +17,14 @@ export default function SignupPage() {
     mode,
     membership,
     membershipReady,
-    signUpEmail,
-    signInEmail,
     signInGoogle,
     applyMembership,
     error,
   } = useAuth();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const fromExtension = params.get("ext") === "1";
   const [ownerName, setOwnerName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [billingEmail, setBillingEmail] = useState("");
   const [busy, setBusy] = useState(false);
@@ -45,14 +43,15 @@ export default function SignupPage() {
     if (ownerName.trim()) await updateUserDisplayName(ownerName.trim());
     const m = await createOrganization(u, {
       name: companyName.trim(),
-      billingEmail: (billingEmail || email || u.email || "").trim(),
+      billingEmail: (billingEmail || u.email || "").trim(),
       ownerName: ownerName.trim() || u.displayName || undefined,
     });
     applyMembership(m);
+    void publishAuthToExtension(true);
     navigate(afterSignupPath(m.onboardingCompleted), { replace: true });
   };
 
-  const submit = async () => {
+  const signUpWithGoogle = async () => {
     if (!companyName.trim()) {
       setLocalError("会社名を入力してください。");
       return;
@@ -64,26 +63,9 @@ export default function SignupPage() {
     setBusy(true);
     setLocalError("");
     try {
-      if (auth.currentUser) {
-        await finish();
-        return;
-      }
-      if (password.length < 8) {
-        setLocalError("パスワードは8文字以上で設定してください。");
-        return;
-      }
-      try {
-        await signUpEmail(email, password);
-        await finish();
-      } catch (err) {
-        const code = (err as { code?: string }).code;
-        if (code === "auth/email-already-in-use") {
-          await signInEmail(email, password);
-          await finish();
-          return;
-        }
-        throw err;
-      }
+      const u = await signInGoogle();
+      if (!u && !auth.currentUser) return;
+      await finish();
     } catch (err) {
       setLocalError(formatAuthError(err));
     } finally {
@@ -100,16 +82,12 @@ export default function SignupPage() {
           最初の管理者だけがここから登録します。会社専用のスペースが作られ、メンバーは招待制になります。
         </p>
         <p className="mt-3 rounded-lg bg-mint/10 px-3 py-2 text-xs leading-relaxed text-ink/75">
-          {t("google_recommend")}
+          {fromExtension
+            ? "Chrome でよく使う Google アカウントで登録してください。拡張と Web アプリは同じアカウントで連携します。"
+            : "登録は Google アカウントが必須です。普段 Web アプリで使う Google アカウントを選んでください。"}
         </p>
 
-        <form
-          className="mt-5 space-y-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void submit();
-          }}
-        >
+        <div className="mt-5 space-y-3">
           <Field label="お名前">
             <input
               required
@@ -128,77 +106,35 @@ export default function SignupPage() {
               placeholder="株式会社〇〇"
             />
           </Field>
-          <Field label="ログイン用メールアドレス">
-            <input
-              type="email"
-              required={!auth.currentUser}
-              className="mt-1 w-full rounded-lg border border-ink/10 px-3 py-2 text-sm"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
-            />
-          </Field>
           <Field label="契約・連絡用メール（任意）">
             <input
               type="email"
               className="mt-1 w-full rounded-lg border border-ink/10 px-3 py-2 text-sm"
               value={billingEmail}
               onChange={(e) => setBillingEmail(e.target.value)}
-              placeholder="未入力ならログイン用メールを使います"
+              placeholder="未入力なら Google アカウントのメールを使います"
             />
           </Field>
-          {!auth.currentUser && (
-            <Field label="パスワード（8文字以上）">
-              <input
-                type="password"
-                required
-                minLength={8}
-                className="mt-1 w-full rounded-lg border border-ink/10 px-3 py-2 text-sm"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="new-password"
-              />
-            </Field>
-          )}
-          <button
-            type="submit"
-            disabled={busy || !ready}
-            className="w-full rounded-lg bg-ink py-2.5 text-sm font-semibold text-paper disabled:opacity-60"
-          >
-            {busy ? "会社を作成しています…" : "会社を作成して始める"}
-          </button>
-        </form>
+        </div>
 
         <button
           type="button"
-          disabled={busy || !companyName.trim() || !ready}
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-ink/15 py-2.5 text-sm font-medium text-ink/70 hover:bg-paper disabled:opacity-60"
-          onClick={async () => {
-            if (!companyName.trim()) {
-              setLocalError("Google で登録する場合も会社名は必須です。");
-              return;
-            }
-            setBusy(true);
-            setLocalError("");
-            try {
-              const u = await signInGoogle();
-              if (!u && !auth.currentUser) return;
-              await finish();
-            } catch (err) {
-              setLocalError(formatAuthError(err));
-            } finally {
-              setBusy(false);
-            }
-          }}
+          disabled={busy || !companyName.trim() || !ownerName.trim() || !ready}
+          className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-ink py-2.5 text-sm font-semibold text-paper hover:bg-ink-soft disabled:opacity-60"
+          onClick={() => void signUpWithGoogle()}
         >
-          Google で会社を登録
+          <GoogleMark />
+          {busy ? "登録中…" : "Google で会社を登録して始める"}
         </button>
 
         {(error || localError) && <p className="mt-3 text-sm text-red-700">{localError || error}</p>}
 
         <p className="mt-4 text-center text-sm text-ink/60">
           すでにアカウントがある方は{" "}
-          <Link to="/login" className="font-semibold text-mint hover:underline">
+          <Link
+            to={fromExtension ? "/login?ext=1" : "/login"}
+            className="font-semibold text-mint hover:underline"
+          >
             ログイン
           </Link>
         </p>
@@ -216,5 +152,16 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       {label}
       {children}
     </label>
+  );
+}
+
+function GoogleMark() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden>
+      <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.2 6.1 29.4 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.5-.4-3.5z" />
+      <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16.1 19 13 24 13c3 0 5.8 1.1 7.9 3l5.7-5.7C34.2 6.1 29.4 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
+      <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.2 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z" />
+      <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-1.1 3.2-3.5 5.7-6.5 7.1l.1.1 6.2 5.2C36.8 39 44 34 44 24c0-1.3-.1-2.5-.4-3.5z" />
+    </svg>
   );
 }

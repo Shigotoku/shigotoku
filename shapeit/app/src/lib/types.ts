@@ -62,6 +62,11 @@ export interface Feedback {
   environment?: string;
   source?: FeedbackSource;
   authorName: string;
+  authorEmail?: string;
+  captureMode?: string;
+  extensionVersion?: string;
+  referrer?: string;
+  timezone?: string;
   analysis?: Analysis;
   triageStatus: TriageStatus;
   issueId?: string | null;

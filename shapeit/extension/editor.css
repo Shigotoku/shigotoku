@@ -75,6 +75,18 @@ body {
   color: var(--mint);
 }
 
+.chip-primary {
+  background: var(--mint);
+  border-color: var(--mint);
+  color: #fff;
+}
+
+.chip-primary:hover {
+  background: #188f7d;
+  border-color: #188f7d;
+  color: #fff;
+}
+
 .meta {
   margin-top: 12px;
   display: grid;
@@ -178,6 +190,112 @@ body {
   margin-top: 10px;
 }
 
+.note-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mic-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #c9d5ce;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mic-btn:hover {
+  border-color: var(--mint);
+  color: var(--mint);
+}
+
+.mic-btn--active {
+  border-color: var(--mint);
+  background: #e8f6f2;
+  color: var(--mint);
+  animation: mic-pulse 1.2s ease-in-out infinite;
+}
+
+.mic-btn--icon {
+  padding: 8px;
+  border-radius: 10px;
+}
+
+.mic-icon {
+  width: 16px;
+  height: 16px;
+}
+
+@keyframes mic-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(31, 157, 138, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(31, 157, 138, 0);
+  }
+}
+
+.text-annot-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(11, 19, 32, 0.45);
+}
+
+.text-annot-modal[hidden] {
+  display: none !important;
+}
+
+.text-annot-card {
+  width: min(420px, calc(100vw - 32px));
+  padding: 16px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 16px 40px rgba(11, 19, 32, 0.2);
+}
+
+.text-annot-title {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.text-annot-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.text-annot-input-row input {
+  flex: 1;
+  border: 1px solid #c9d5ce;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: inherit;
+}
+
+.text-annot-input-row input:focus {
+  outline: none;
+  border-color: var(--mint);
+}
+
+.text-annot-actions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .actions {
   margin-top: 12px;
   display: flex;
@@ -210,4 +328,75 @@ body {
   margin: 8px 0 0;
   font-size: 12px;
   color: var(--muted);
+}
+
+.success-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(11, 19, 32, 0.55);
+  backdrop-filter: blur(4px);
+  animation: success-fade-in 0.2s ease-out;
+}
+
+.success-overlay[hidden] {
+  display: none !important;
+}
+
+.success-card {
+  text-align: center;
+  padding: 36px 48px;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 24px 60px rgba(11, 19, 32, 0.25);
+  animation: success-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.success-icon {
+  margin: 0;
+  width: 72px;
+  height: 72px;
+  line-height: 72px;
+  border-radius: 999px;
+  background: var(--mint);
+  color: #fff;
+  font-size: 36px;
+  font-weight: 700;
+  margin-inline: auto;
+}
+
+.success-title {
+  margin: 16px 0 0;
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.success-sub {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+@keyframes success-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes success-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }

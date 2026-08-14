@@ -38,6 +38,7 @@ import {
   getActiveProjectId,
 } from "../lib/members";
 import { setLocale, t } from "../lib/i18n";
+import { ExtensionGuidePanel } from "../components/ExtensionGuidePanel";
 import { useLocale } from "../lib/useLocale";
 import {
   fetchMyMemberProfile,
@@ -777,6 +778,10 @@ export default function SettingsPage() {
           <Link to="/extension/install" className="text-mint hover:underline">
             {locale === "ja" ? "インストール手順 →" : "Install steps →"}
           </Link>
+        </Section>
+
+        <Section title={locale === "ja" ? "拡張の使い方（v0.4.1）" : "Extension guide (v0.4.1)"} className="xl:col-span-2">
+          <ExtensionGuidePanel showInstall={false} />
         </Section>
 
         <Section title="Widget">

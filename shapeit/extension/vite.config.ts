@@ -13,8 +13,10 @@ export default defineConfig({
     rollupOptions: {
       input: {
         background: resolve(root, "src/background.ts"),
-        content: resolve(root, "src/content.ts"),
+        contentBridge: resolve(root, "src/contentBridge.ts"),
+        pageReporter: resolve(root, "src/pageReporter.ts"),
         captureOverlay: resolve(root, "src/captureOverlay.ts"),
+        elementPicker: resolve(root, "src/elementPicker.ts"),
       },
       output: {
         entryFileNames: "[name].js",
@@ -32,6 +34,8 @@ export default defineConfig({
         cpSync(resolve(root, "editor.html"), resolve(root, "dist/editor.html"));
         cpSync(resolve(root, "editor.css"), resolve(root, "dist/editor.css"));
         cpSync(resolve(root, "editor.js"), resolve(root, "dist/editor.js"));
+        cpSync(resolve(root, "onboarding.html"), resolve(root, "dist/onboarding.html"));
+        cpSync(resolve(root, "onboarding.js"), resolve(root, "dist/onboarding.js"));
         cpSync(resolve(root, "public/icon.png"), resolve(root, "dist/icon.png"));
       },
     },

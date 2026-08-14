@@ -1,5 +1,7 @@
 import { cropDataUrl, type CropRect } from "./captureImage";
 
+export type { CropRect };
+
 export type PendingReport = {
   id: string;
   rawText: string;
@@ -10,7 +12,7 @@ export type PendingReport = {
   source: "chrome_extension";
 };
 
-export type CaptureMode = "full" | "region";
+export type CaptureMode = "full" | "region" | "element" | "none";
 
 const APP_CANDIDATES = [
   "https://app.shapeit.shigotoku.com",
@@ -56,10 +58,16 @@ export async function enqueueReport(report: PendingReport): Promise<void> {
   await chrome.storage.local.set({ [key]: list.slice(0, 50) });
 }
 
-export async function getActiveTabMeta(): Promise<{ tabId?: number; pageUrl: string; pageTitle: string }> {
+export async function getActiveTabMeta(): Promise<{
+  tabId?: number;
+  windowId?: number;
+  pageUrl: string;
+  pageTitle: string;
+}> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   return {
     tabId: tab?.id,
+    windowId: tab?.windowId,
     pageUrl: tab?.url ?? "",
     pageTitle: tab?.title ?? "",
   };
@@ -91,6 +99,22 @@ export async function captureActiveTab(): Promise<{
   return { pageUrl, pageTitle, screenshotDataUrl, captureMode: "full" };
 }
 
+export async function captureFullOnTab(tabId: number, windowId: number): Promise<{
+  pageUrl: string;
+  pageTitle: string;
+  screenshotDataUrl?: string;
+  captureMode: CaptureMode;
+} | null> {
+  const tab = await chrome.tabs.get(tabId);
+  const pageUrl = tab.url ?? "";
+  const pageTitle = tab.title ?? "";
+  if (!isCapturableUrl(pageUrl)) {
+    return { pageUrl, pageTitle, captureMode: "full" };
+  }
+  const screenshotDataUrl = await captureVisibleTab(windowId);
+  return { pageUrl, pageTitle, screenshotDataUrl, captureMode: "full" };
+}
+
 export async function captureRegionOnTab(tabId: number, windowId: number): Promise<{
   pageUrl: string;
   pageTitle: string;
@@ -111,16 +135,94 @@ export async function captureRegionOnTab(tabId: number, windowId: number): Promi
   if (!fullShot) return { pageUrl, pageTitle, captureMode: "region" };
 
   try {
-    const cropped = await cropDataUrl(fullShot, rect as CropRect);
+    const cropped = await cropDataUrl(fullShot, rect);
     return { pageUrl, pageTitle, screenshotDataUrl: cropped, captureMode: "region" };
   } catch {
     return { pageUrl, pageTitle, screenshotDataUrl: fullShot, captureMode: "region" };
   }
 }
 
+export async function captureElementOnTab(tabId: number, windowId: number): Promise<{
+  pageUrl: string;
+  pageTitle: string;
+  screenshotDataUrl?: string;
+  captureMode: CaptureMode;
+  elementSelector?: string;
+  elementTag?: string;
+} | null> {
+  const tab = await chrome.tabs.get(tabId);
+  const pageUrl = tab.url ?? "";
+  const pageTitle = tab.title ?? "";
+  if (!isCapturableUrl(pageUrl)) {
+    return { pageUrl, pageTitle, captureMode: "element" };
+  }
+
+  const rect = await requestElementSelection(tabId);
+  if (!rect) return { pageUrl, pageTitle, captureMode: "element" };
+
+  const fullShot = await captureVisibleTab(windowId);
+  if (!fullShot) return { pageUrl, pageTitle, captureMode: "element" };
+
+  try {
+    const cropped = await cropDataUrl(fullShot, rect);
+    return {
+      pageUrl,
+      pageTitle,
+      screenshotDataUrl: cropped,
+      captureMode: "element",
+      elementSelector: rect.selector,
+      elementTag: rect.tagName,
+    };
+  } catch {
+    return {
+      pageUrl,
+      pageTitle,
+      screenshotDataUrl: fullShot,
+      captureMode: "element",
+      elementSelector: rect.selector,
+      elementTag: rect.tagName,
+    };
+  }
+}
+
+function requestElementSelection(tabId: number): Promise<(CropRect & { selector?: string; tagName?: string }) | null> {
+  return new Promise((resolve) => {
+    const timeout = globalThis.setTimeout(() => {
+      chrome.runtime.onMessage.removeListener(listener);
+      resolve(null);
+    }, 120_000);
+
+    const listener = (
+      msg: { type?: string; rect?: CropRect & { selector?: string; tagName?: string } },
+      sender: chrome.runtime.MessageSender,
+    ) => {
+      if (sender.tab?.id !== tabId) return;
+      if (msg?.type === "SHAPEIT_ELEMENT_DONE") {
+        globalThis.clearTimeout(timeout);
+        chrome.runtime.onMessage.removeListener(listener);
+        resolve(msg.rect ?? null);
+      }
+      if (msg?.type === "SHAPEIT_ELEMENT_CANCEL") {
+        globalThis.clearTimeout(timeout);
+        chrome.runtime.onMessage.removeListener(listener);
+        resolve(null);
+      }
+    };
+
+    chrome.runtime.onMessage.addListener(listener);
+    void chrome.scripting
+      .executeScript({ target: { tabId }, files: ["elementPicker.js"] })
+      .catch(() => {
+        globalThis.clearTimeout(timeout);
+        chrome.runtime.onMessage.removeListener(listener);
+        resolve(null);
+      });
+  });
+}
+
 function requestRegionSelection(tabId: number): Promise<CropRect | null> {
   return new Promise((resolve) => {
-    const timeout = window.setTimeout(() => {
+    const timeout = globalThis.setTimeout(() => {
       chrome.runtime.onMessage.removeListener(listener);
       resolve(null);
     }, 120_000);
@@ -131,12 +233,12 @@ function requestRegionSelection(tabId: number): Promise<CropRect | null> {
     ) => {
       if (sender.tab?.id !== tabId) return;
       if (msg?.type === "SHAPEIT_REGION_DONE") {
-        window.clearTimeout(timeout);
+        globalThis.clearTimeout(timeout);
         chrome.runtime.onMessage.removeListener(listener);
         resolve(msg.rect ?? null);
       }
       if (msg?.type === "SHAPEIT_REGION_CANCEL") {
-        window.clearTimeout(timeout);
+        globalThis.clearTimeout(timeout);
         chrome.runtime.onMessage.removeListener(listener);
         resolve(null);
       }
@@ -146,7 +248,7 @@ function requestRegionSelection(tabId: number): Promise<CropRect | null> {
     void chrome.scripting
       .executeScript({ target: { tabId }, files: ["captureOverlay.js"] })
       .catch(() => {
-        window.clearTimeout(timeout);
+        globalThis.clearTimeout(timeout);
         chrome.runtime.onMessage.removeListener(listener);
         resolve(null);
       });

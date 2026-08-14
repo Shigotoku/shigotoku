@@ -537,6 +537,13 @@ export default function CapturePage() {
       {!mobile && (
         <div className="space-y-3">
           <span className="text-sm font-medium">スクリーンショット（任意）</span>
+          {extOk && (
+            <p className="rounded-xl border border-mint/25 bg-sand/70 px-3 py-2 text-xs text-ink/65">
+              {locale === "ja"
+                ? "他のページを報告するときは、Chrome 拡張の「範囲を選んで報告」が便利です。ページ上でドラッグして好きな部分だけスクショできます。"
+                : "Use the Chrome extension “Select region” to capture only the area you drag on any page."}
+            </p>
+          )}
 
           {screenshotDataUrl ? (
             <div className="space-y-2">

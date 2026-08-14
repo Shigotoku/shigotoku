@@ -44,7 +44,7 @@ function selectRegion(): Promise<RegionRect | null> {
     );
 
     const hint = document.createElement("div");
-    hint.textContent = "ドラッグで範囲を選択 · Esc でキャンセル";
+    hint.textContent = "ドラッグで範囲を選択 → 離して確定 · Esc でキャンセル";
     hint.setAttribute(
       "style",
       [

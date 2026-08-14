@@ -10,6 +10,7 @@ const captureUrl = appPath('/capture');
 const settingsUrl = appPath('/settings');
 const homeUrl = import.meta.env.BASE_URL;
 const faqUrl = `${homeUrl}#faq`;
+const setupUrl = sitePath('setup');
 ---
 
 <Layout
@@ -19,6 +20,8 @@ const faqUrl = `${homeUrl}#faq`;
   <div class="guide-portal-bar">
     <div class="guide-portal-bar__inner">
       <a href={homeUrl}>← ShapeIt トップ</a>
+      <span aria-hidden="true">·</span>
+      <a href={setupUrl}>ログイン・拡張の設定</a>
       <span aria-hidden="true">·</span>
       <a href="#manual" class="is-active">使い方ガイド</a>
       <span aria-hidden="true">·</span>

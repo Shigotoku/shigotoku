@@ -16,15 +16,27 @@ export function publishAppBaseToExtension() {
   }
 }
 
-export async function publishAuthToExtension() {
+export async function publishAuthToExtension(forceRefresh = false) {
   try {
-    const token = (await getIdToken()) ?? "";
-    const email = auth.currentUser?.email ?? "";
+    const token = (await getIdToken(forceRefresh)) ?? "";
+    const user = auth.currentUser;
+    const email = user?.email ?? "";
+    let displayName = user?.displayName?.trim() ?? "";
+    if (!displayName) {
+      try {
+        const { fetchMyMemberProfile } = await import("./org");
+        const profile = await fetchMyMemberProfile();
+        displayName = profile.name?.trim() || "";
+      } catch {
+        /* ignore */
+      }
+    }
     window.postMessage(
       {
         type: "SHAPEIT_AUTH",
         token,
         email,
+        displayName,
         origin: window.location.origin,
         apiUrl: API_URL,
       },
@@ -36,6 +48,7 @@ export async function publishAuthToExtension() {
         type: "SHAPEIT_AUTH",
         token: "",
         email: "",
+        displayName: "",
         origin: window.location.origin,
         apiUrl: API_URL,
       },
@@ -94,7 +107,11 @@ export function bindExtensionAuthRefresh() {
   window.addEventListener("message", (event) => {
     if (event.source !== window || event.origin !== window.location.origin) return;
     if (event.data?.type === "SHAPEIT_REQUEST_AUTH") {
-      void publishAuthToExtension();
+      void publishAuthToExtension(true);
     }
+  });
+  void publishAuthToExtension();
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") void publishAuthToExtension(true);
   });
 }

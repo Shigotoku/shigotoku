@@ -8,6 +8,7 @@ import { initializeApp, getApps } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { triageFeedback, ruleBasedTriage } from "./services/triage";
 import { inviteOrgMember, getInvitePublic, acceptInvite, resolveOrgId, assertOrgAdmin } from "./services/invite";
+import { resolveAuthorName } from "./services/author";
 import {
   buildWeeklyResponseDigest,
   publishWeeklyDigestForOrg,
@@ -55,7 +56,30 @@ api.post("/v1/ai/triage", requireAuth, async (req: AuthedRequest, res) => {
 });
 
 api.post("/v1/feedback", requireAuth, async (req: AuthedRequest, res) => {
-  const { rawText, pageUrl, pageTitle, screenshotUrl, screenshotDataUrl, source, browser, os, viewport } = req.body ?? {};
+  const {
+    rawText,
+    pageUrl,
+    pageTitle,
+    screenshotUrl,
+    screenshotDataUrl,
+    source,
+    browser,
+    os,
+    viewport,
+    authorDisplayName,
+    authorEmail,
+    captureMode,
+    extensionVersion,
+    userAgent,
+    referrer,
+    timezone,
+    locale,
+    screenSize,
+    devicePixelRatio,
+    consoleSnippet,
+    elementSelector,
+    elementTag,
+  } = req.body ?? {};
   if (!rawText || typeof rawText !== "string") {
     res.status(400).json({ error: "rawText が必要です" });
     return;
@@ -70,6 +94,11 @@ api.post("/v1/feedback", requireAuth, async (req: AuthedRequest, res) => {
     res.status(status).json({ error: message });
     return;
   }
+  const authorName = await resolveAuthorName(
+    uid,
+    typeof authorEmail === "string" ? authorEmail : req.email,
+    typeof authorDisplayName === "string" ? authorDisplayName : undefined,
+  );
   const analysis = ruleBasedTriage(String(rawText), pageUrl ? String(pageUrl) : undefined);
   const now = new Date().toISOString();
   const ref = await getFirestore().collection("shapeit_feedback").add({
@@ -84,10 +113,20 @@ api.post("/v1/feedback", requireAuth, async (req: AuthedRequest, res) => {
       typeof screenshotDataUrl === "string" && screenshotDataUrl.startsWith("data:image/")
         ? screenshotDataUrl.slice(0, 900_000)
         : null,
-    browser: browser ?? null,
+    browser: browser ?? (typeof userAgent === "string" ? userAgent : null),
     os: os ?? null,
-    viewport: viewport ?? null,
-    authorName: req.email ?? uid,
+    viewport: viewport ?? (typeof screenSize === "string" ? screenSize : null),
+    authorName,
+    authorEmail: (typeof authorEmail === "string" ? authorEmail : req.email) ?? null,
+    captureMode: captureMode ?? null,
+    extensionVersion: extensionVersion ?? null,
+    referrer: referrer ?? null,
+    timezone: timezone ?? null,
+    locale: locale ?? null,
+    devicePixelRatio: devicePixelRatio != null ? Number(devicePixelRatio) : null,
+    consoleSnippet: consoleSnippet ?? null,
+    elementSelector: typeof elementSelector === "string" ? elementSelector : null,
+    elementTag: typeof elementTag === "string" ? elementTag : null,
     analysis,
     triageStatus: "pending",
     issueId: null,
@@ -98,9 +137,57 @@ api.post("/v1/feedback", requireAuth, async (req: AuthedRequest, res) => {
   });
   res.status(201).json({
     success: true,
+    id: ref.id,
     feedback: { id: ref.id, rawText, createdAt: now },
     analysis,
   });
+});
+
+function textSimilarity(a: string, b: string): number {
+  const na = a.trim().toLowerCase();
+  const nb = b.trim().toLowerCase();
+  if (!na || !nb) return 0;
+  if (na === nb) return 1;
+  if (na.includes(nb.slice(0, Math.min(12, nb.length))) || nb.includes(na.slice(0, Math.min(12, na.length)))) {
+    return 0.75;
+  }
+  const wordsA = na.match(/[一-龯ぁ-んァ-ンa-z0-9]{2,}/g) ?? [];
+  const wordsB = new Set(nb.match(/[一-龯ぁ-んァ-ンa-z0-9]{2,}/g) ?? []);
+  if (!wordsA.length) return 0;
+  let hit = 0;
+  for (const w of wordsA) if (wordsB.has(w)) hit++;
+  return hit / wordsA.length;
+}
+
+api.post("/v1/feedback/check-duplicates", requireAuth, async (req: AuthedRequest, res) => {
+  const { rawText } = req.body ?? {};
+  if (!rawText || typeof rawText !== "string") {
+    res.json({ duplicates: [] });
+    return;
+  }
+  let orgId: string;
+  try {
+    orgId = await resolveOrgId(req.uid!, req.email);
+  } catch {
+    res.json({ duplicates: [] });
+    return;
+  }
+  const snap = await getFirestore()
+    .collection("shapeit_feedback")
+    .where("organizationId", "==", orgId)
+    .limit(40)
+    .get();
+  const duplicates = snap.docs
+    .map((doc) => {
+      const data = doc.data();
+      const title = String(data.analysis?.title ?? data.rawText ?? "").slice(0, 80);
+      const score = textSimilarity(String(rawText), String(data.rawText ?? ""));
+      return { id: doc.id, title, score };
+    })
+    .filter((d) => d.score >= 0.45)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3);
+  res.json({ duplicates });
 });
 
 /** API-003: Widget / Extension 向け Project Key（暫定: Firestore shapeit_project_keys） */

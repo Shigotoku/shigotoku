@@ -39,6 +39,43 @@ const CATEGORIES = [
   "OTHER",
 ] as const;
 
+function buildRuleTitle(rawText: string): string {
+  const text = rawText.trim();
+  if (!text) return "無題のフィードバック";
+
+  const cleaned = text.replace(/https?:\/\/\S+/g, " ").replace(/\s+/g, " ").trim();
+  const line = cleaned.split(/[。．!?？\n]/)[0]?.trim() || cleaned;
+  const stop = new Set([
+    "これ",
+    "それ",
+    "よう",
+    "こと",
+    "ます",
+    "です",
+    "ない",
+    "ある",
+    "する",
+    "した",
+    "して",
+    "から",
+    "まで",
+    "には",
+  ]);
+  const tokens = line.match(/[一-龯ぁ-んァ-ンA-Za-z0-9]{2,}/g) ?? [];
+  const picked: string[] = [];
+  for (const token of tokens) {
+    if (stop.has(token)) continue;
+    if (picked.includes(token)) continue;
+    picked.push(token);
+    if (picked.length >= 3) break;
+  }
+  if (picked.length >= 2) {
+    const joined = picked.join("・");
+    return joined.length > 48 ? `${joined.slice(0, 47)}…` : joined;
+  }
+  return line.length > 48 ? `${line.slice(0, 47)}…` : line || "無題のフィードバック";
+}
+
 export function ruleBasedTriage(rawText: string, pageUrl?: string): TriageResult {
   const text = rawText.toLowerCase();
   let category = "OTHER";
@@ -59,7 +96,7 @@ export function ruleBasedTriage(rawText: string, pageUrl?: string): TriageResult
   const priorityScore = Math.min(100, (severityPts[severity] ?? 6) + 20);
 
   return {
-    title: rawText.trim().slice(0, 48).replace(/\s+/g, " ") || "無題のフィードバック",
+    title: buildRuleTitle(rawText),
     summary: rawText.trim().slice(0, 180),
     category,
     severity,

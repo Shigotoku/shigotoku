@@ -8,7 +8,14 @@ import {
 } from "../lib/cloudStore";
 import type { AppNotification } from "../lib/types";
 
-export default function NotificationBell({ compact = false }: { compact?: boolean }) {
+export default function NotificationBell({
+  compact = false,
+  sidebar = false,
+}: {
+  compact?: boolean;
+  /** サイドバー下部など、ドロップダウンを上または右に出す */
+  sidebar?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<AppNotification[]>([]);
   const ref = useRef<HTMLDivElement>(null);
@@ -46,18 +53,27 @@ export default function NotificationBell({ compact = false }: { compact?: boolea
   const unread = items.filter((n) => !n.read).length;
 
   return (
-    <div className="relative" ref={ref}>
+    <div className={`relative ${sidebar ? "w-full" : ""}`} ref={ref}>
       <button
         type="button"
         className={`relative inline-flex items-center justify-center rounded-md text-ink/60 hover:bg-sand hover:text-ink ${
-          compact ? "h-7 w-7" : "h-9 w-9 rounded-lg"
+          sidebar
+            ? "h-10 w-full rounded-lg hover:bg-paper"
+            : compact
+              ? "h-7 w-7"
+              : "h-9 w-9 rounded-lg"
         }`}
         aria-label="通知"
+        aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
-        <Bell className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} />
+        <Bell className={sidebar ? "h-5 w-5" : compact ? "h-3.5 w-3.5" : "h-4 w-4"} />
         {unread > 0 && (
-          <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-mint px-1 text-[10px] font-bold text-white">
+          <span
+            className={`absolute flex h-4 min-w-4 items-center justify-center rounded-full bg-mint px-1 text-[10px] font-bold text-white ${
+              sidebar ? "right-2 top-1.5" : "right-1 top-1"
+            }`}
+          >
             {unread > 9 ? "9+" : unread}
           </span>
         )}
@@ -66,8 +82,12 @@ export default function NotificationBell({ compact = false }: { compact?: boolea
         <div
           role="dialog"
           aria-label="通知"
-          className={`absolute z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-ink/10 bg-white shadow-lg ${
-            compact ? "left-0" : "right-0"
+          className={`absolute z-[60] w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-ink/10 bg-white shadow-lg ${
+            sidebar
+              ? "bottom-0 left-full ml-2"
+              : compact
+                ? "left-0 mt-2"
+                : "right-0 mt-2"
           }`}
         >
           <div className="flex items-center justify-between border-b border-ink/5 px-3 py-2">

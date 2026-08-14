@@ -4,50 +4,24 @@
     <meta charset="UTF-8" />
     <title>ShapeIt 報告</title>
     <style>
-      :root {
-        --ink: #0b1320;
-        --mint: #1f9d8a;
-        --paper: #f3f6f4;
-        --muted: #5b6b7c;
-      }
-      body {
-        font-family: "Segoe UI", "Noto Sans JP", system-ui, sans-serif;
-        width: 360px;
-        margin: 0;
-        padding: 14px;
-        background: var(--paper);
-        color: var(--ink);
-      }
+      :root { --ink: #0b1320; --mint: #1f9d8a; --paper: #f3f6f4; --muted: #5b6b7c; }
+      body { font-family: "Segoe UI","Noto Sans JP",system-ui,sans-serif; width: 360px; margin: 0; padding: 14px; background: var(--paper); color: var(--ink); }
       h1 { font-size: 15px; margin: 0; }
       .row { display: flex; align-items: center; gap: 10px; }
-      .meta {
-        font-size: 11px;
-        color: var(--muted);
-        margin-top: 10px;
-        word-break: break-all;
-        background: #fff;
-        border: 1px solid #d5e0d9;
-        border-radius: 10px;
-        padding: 8px 10px;
-      }
+      .meta { font-size: 11px; color: var(--muted); margin-top: 10px; word-break: break-all; background: #fff; border: 1px solid #d5e0d9; border-radius: 10px; padding: 8px 10px; }
       .meta strong { display: block; color: var(--ink); margin-bottom: 4px; }
-      button {
-        width: 100%;
-        padding: 11px;
-        margin-top: 8px;
-        border-radius: 10px;
-        border: none;
-        font-weight: 700;
-        cursor: pointer;
-        font: inherit;
-      }
+      button { width: 100%; padding: 11px; margin-top: 8px; border-radius: 10px; border: none; font-weight: 700; cursor: pointer; font: inherit; }
       .primary { background: var(--mint); color: #fff; }
       .secondary { background: #fff; color: var(--ink); border: 1px solid #c9d5ce; }
       .ghost { background: transparent; color: var(--mint); border: none; padding: 6px; margin-top: 4px; font-size: 12px; }
       #authState { font-size: 11px; color: var(--muted); margin-top: 8px; }
       #status { font-size: 12px; color: var(--muted); margin-top: 8px; min-height: 1.2em; }
-      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
-      .grid button { margin-top: 0; font-size: 12px; padding: 10px 8px; }
+      .quick-note { display: block; margin-top: 10px; }
+      .quick-note span { display: block; font-size: 11px; font-weight: 700; margin-bottom: 6px; }
+      .quick-note textarea { width: 100%; box-sizing: border-box; min-height: 64px; border: 1px solid #d5e0d9; border-radius: 10px; padding: 8px; font: inherit; }
+      .hint { font-size: 10px; color: var(--muted); margin-top: 6px; }
+      .shortcuts { margin-top: 10px; padding: 8px 10px; background: #fff; border: 1px solid #d5e0d9; border-radius: 10px; font-size: 10px; color: var(--muted); line-height: 1.5; }
+      .shortcuts kbd { background: #eef2f0; padding: 1px 4px; border-radius: 4px; font-size: 9px; }
     </style>
   </head>
   <body>
@@ -55,17 +29,29 @@
       <img src="icon.png" alt="" width="32" height="32" style="border-radius: 8px" />
       <div>
         <h1>ShapeIt に報告</h1>
-        <div style="font-size: 11px; color: var(--muted)">スクショ・注釈・URL 自動取得</div>
+        <div style="font-size: 11px; color: var(--muted)">全画面 · 範囲選択 · 音声 · ワンキー送信</div>
       </div>
     </div>
     <p id="authState"></p>
     <div class="meta" id="pageMeta">ページ情報を読み込み中…</div>
-    <button type="button" class="primary" id="openEditor">キャプチャして報告（推奨）</button>
-    <div class="grid">
-      <button type="button" class="secondary" id="capFull">全画面</button>
-      <button type="button" class="secondary" id="capRegion">範囲選択</button>
-    </div>
-    <button type="button" class="ghost" id="login" style="display:none">ShapeIt にログイン（初回のみ）</button>
+
+    <button type="button" class="primary" id="fullBtn">全画面を撮って話す</button>
+    <p class="hint">ショートカット: <kbd>Alt+Shift+G</kbd></p>
+    <button type="button" class="primary" id="instantBtn">範囲を選んで話す（推奨）</button>
+    <p class="hint">ショートカット: <kbd>Alt+Shift+S</kbd></p>
+    <button type="button" class="secondary" id="commentBtn">スクショなしで話す</button>
+    <p class="hint">ショートカット: <kbd>Alt+Shift+C</kbd></p>
+    <button type="button" class="secondary" id="annotateBtn">範囲を選んで詳しく編集</button>
+    <p class="hint">ショートカット: <kbd>Alt+Shift+F</kbd></p>
+
+    <label class="quick-note">
+      <span>コメントだけ送る（テキスト入力）</span>
+      <textarea id="quickNote" rows="2" placeholder="気づきを書くだけで送信"></textarea>
+    </label>
+    <button type="button" class="secondary" id="quickSubmit">コメントを送信</button>
+    <button type="button" class="ghost" id="openNoteEditor">編集画面で書く</button>
+
+    <button type="button" class="ghost" id="login" style="display:none">ShapeIt にログイン</button>
     <p id="status"></p>
     <script src="popup.js"></script>
   </body>

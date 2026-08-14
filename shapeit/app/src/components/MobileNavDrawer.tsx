@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { BookOpen, X, type LucideIcon } from "lucide-react";
+import { BookOpen, Plug, X, type LucideIcon } from "lucide-react";
 import { t } from "../lib/i18n";
 import { useLocale } from "../lib/useLocale";
 import type { NavGroup } from "./SidebarNav";
@@ -11,6 +11,7 @@ type Props = {
   companyLabel: string;
   displayName: string;
   guideUrl: string;
+  setupGuideUrl: string;
   onSettings: () => void;
   onSignOut: () => void;
 };
@@ -22,6 +23,7 @@ export default function MobileNavDrawer({
   companyLabel,
   displayName,
   guideUrl,
+  setupGuideUrl,
   onSettings,
   onSignOut,
 }: Props) {
@@ -41,16 +43,28 @@ export default function MobileNavDrawer({
         style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         <div className="flex items-center justify-between border-b border-ink/10 px-4 py-3">
-          <a
-            href={guideUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="flex min-h-[40px] items-center gap-2 text-sm font-semibold text-mint"
-            onClick={onClose}
-          >
-            <BookOpen className="h-4 w-4 shrink-0" aria-hidden />
-            {t("nav_guide", locale)}
-          </a>
+          <div className="flex min-w-0 flex-col gap-1">
+            <a
+              href={setupGuideUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="flex min-h-[36px] items-center gap-2 text-sm font-semibold text-ink"
+              onClick={onClose}
+            >
+              <Plug className="h-4 w-4 shrink-0 text-mint" aria-hidden />
+              {t("nav_member_setup", locale)}
+            </a>
+            <a
+              href={guideUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="flex min-h-[36px] items-center gap-2 text-sm font-semibold text-mint"
+              onClick={onClose}
+            >
+              <BookOpen className="h-4 w-4 shrink-0" aria-hidden />
+              {t("nav_guide", locale)}
+            </a>
+          </div>
           <button
             type="button"
             className="inline-flex h-10 w-10 items-center justify-center rounded-lg hover:bg-paper"

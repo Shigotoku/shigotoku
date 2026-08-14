@@ -16,7 +16,7 @@
       </div>
       <div class="capture-actions">
         <button type="button" class="chip" id="capFull" title="表示中の画面全体">全画面</button>
-        <button type="button" class="chip" id="capRegion" title="ドラッグで範囲選択">範囲選択</button>
+        <button type="button" class="chip chip-primary" id="capRegion" title="ドラッグで範囲選択">範囲選択</button>
       </div>
     </header>
 
@@ -43,11 +43,22 @@
 
     <div class="canvas-wrap">
       <canvas id="canvas"></canvas>
-      <p id="emptyShot" class="empty">スクショがありません。「全画面」または「範囲選択」を押してください。</p>
+      <p id="emptyShot" class="empty">スクショがありません。「範囲選択」で好きな部分だけ切り取るか、「全画面」を押してください。</p>
     </div>
 
     <label class="field note-field">
-      <span>気づき（必須）</span>
+      <span class="note-label-row">
+        <span>気づき（必須）</span>
+        <button type="button" class="mic-btn" id="noteMic" title="音声入力（押すとすぐ話せます）">
+          <svg class="mic-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              fill="currentColor"
+              d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V19H9v2h6v-2h-2v-1.08A7 7 0 0 0 19 11h-2Z"
+            />
+          </svg>
+          <span class="mic-label">音声入力</span>
+        </button>
+      </span>
       <textarea id="note" rows="3" placeholder="例: このボタンの文言が分かりにくい / 保存しても反映されない"></textarea>
     </label>
 
@@ -57,6 +68,34 @@
       <button type="button" class="primary" id="submit">この内容で報告する</button>
     </footer>
     <p id="status" class="status"></p>
+    <div id="successOverlay" class="success-overlay" hidden aria-live="polite">
+      <div class="success-card">
+        <p class="success-icon" aria-hidden="true">✓</p>
+        <p class="success-title">送信しました</p>
+        <p class="success-sub">ShapeIt に気づきを届けました</p>
+      </div>
+    </div>
+
+    <div id="textAnnotModal" class="text-annot-modal" hidden>
+      <div class="text-annot-card" role="dialog" aria-labelledby="textAnnotTitle">
+        <p id="textAnnotTitle" class="text-annot-title">注釈テキスト</p>
+        <div class="text-annot-input-row">
+          <input type="text" id="textAnnotInput" placeholder="文字を入力するか、マイクで話す" />
+          <button type="button" class="mic-btn mic-btn--icon" id="textAnnotMic" title="音声入力（押すとすぐ話せます）">
+            <svg class="mic-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V19H9v2h6v-2h-2v-1.08A7 7 0 0 0 19 11h-2Z"
+              />
+            </svg>
+          </button>
+        </div>
+        <div class="text-annot-actions">
+          <button type="button" class="secondary" id="textAnnotCancel">キャンセル</button>
+          <button type="button" class="primary" id="textAnnotOk">決定</button>
+        </div>
+      </div>
+    </div>
     <script src="editor.js"></script>
   </body>
 </html>

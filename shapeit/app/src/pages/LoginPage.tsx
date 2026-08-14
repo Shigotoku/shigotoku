@@ -5,6 +5,8 @@ import { LANDING_URL } from "../lib/urls";
 import { seedIfEmpty, isOnboardingDone } from "../lib/demoStore";
 import { beginOrgMembership } from "../lib/org";
 import { auth, sendPasswordReset, formatAuthError } from "../lib/firebase";
+import { publishAuthToExtension } from "../lib/extensionBridge";
+import { ExtensionGuidePanel } from "../components/ExtensionGuidePanel";
 import { t } from "../lib/i18n";
 
 export default function LoginPage() {
@@ -27,6 +29,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [resetInfo, setResetInfo] = useState("");
   const [localError, setLocalError] = useState("");
+  const fromExtension = params.get("ext") === "1";
+  const [showEmailLogin, setShowEmailLogin] = useState(!fromExtension);
   const redirect = params.get("redirect");
   const afterLogin = redirect && redirect.startsWith("/") && !redirect.startsWith("//") ? redirect : "/capture";
 
@@ -62,10 +66,11 @@ export default function LoginPage() {
   const afterMemberLogin = async () => {
     const u = auth.currentUser;
     if (!u) return;
+    void publishAuthToExtension(true);
     const m = await beginOrgMembership(u);
     applyMembership(m);
     if (!m) {
-      navigate("/signup", { replace: true });
+      navigate(fromExtension ? "/signup?ext=1" : "/signup", { replace: true });
       return;
     }
     navigate(m.onboardingCompleted ? afterLogin : "/setup", { replace: true });
@@ -81,118 +86,175 @@ export default function LoginPage() {
     >
       <div className="w-full max-w-md rounded-2xl border border-ink/10 bg-white p-6 shadow-sm sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-mint">ShapeIt</p>
-        <h1 className="font-display mt-3 text-3xl font-bold">ログイン</h1>
-        <p className="mt-3 text-sm leading-relaxed text-ink/65">
-          招待リンクを受け取ったメンバーは、メールアドレスとパスワードでログインできます。
-          会社の最初の管理者の方は新規登録から始めてください。
-        </p>
+        <h1 className="font-display mt-3 text-3xl font-bold">
+          {fromExtension ? "Chrome 拡張と接続" : "ログイン"}
+        </h1>
+        {fromExtension ? (
+          <p className="mt-3 text-sm leading-relaxed text-ink/65">
+            普段 ShapeIt で使っている Google アカウントでログインしてください。接続後は、どのページからでも拡張でそのまま投稿できます。
+          </p>
+        ) : (
+          <p className="mt-3 text-sm leading-relaxed text-ink/65">
+            招待リンクを受け取ったメンバーは、メールアドレスとパスワードでログインできます。
+            会社の最初の管理者の方は新規登録から始めてください。
+          </p>
+        )}
         <p className="mt-3 rounded-lg bg-mint/10 px-3 py-2 text-xs leading-relaxed text-ink/75">
-          {t("google_recommend")}
+          {fromExtension
+            ? "Chrome でよく使う Google アカウントを選んでください。拡張と Web アプリは同じアカウントで連携します。"
+            : t("google_recommend")}
         </p>
 
-        <form
-          className="mt-5 space-y-3"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            if (!email.trim() || !password) return;
-            setBusy(true);
-            setLocalError("");
-            try {
-              await signInEmail(email, password);
-              await afterMemberLogin();
-            } catch (err) {
-              setLocalError(formatAuthError(err));
-            } finally {
-              setBusy(false);
-            }
-          }}
-        >
-          <label className="block text-xs text-ink/55">
-            メールアドレス（ID）
-            <input
-              type="email"
-              required
-              className="mt-1 w-full rounded-lg border border-ink/10 px-3 py-2 text-sm"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
-            />
-          </label>
-          <label className="block text-xs text-ink/55">
-            パスワード
-            <input
-              type="password"
-              required
-              className="mt-1 w-full rounded-lg border border-ink/10 px-3 py-2 text-sm"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-            />
-          </label>
+        {fromExtension && (
+          <div className="mt-4">
+            <ExtensionGuidePanel compact showInstall={false} />
+          </div>
+        )}
+
+        {fromExtension && (
           <button
-            type="submit"
+            type="button"
             disabled={busy || !ready}
-            className="w-full rounded-lg bg-ink py-2.5 text-sm font-semibold text-paper hover:bg-ink-soft disabled:opacity-60"
-          >
-            {busy ? "ログイン中…" : "メールでログイン"}
-          </button>
-        </form>
-
-        <button
-          type="button"
-          className="mt-2 text-xs text-mint hover:underline"
-          onClick={async () => {
-            if (!email.trim()) {
-              setLocalError("パスワード再設定にはメールアドレスを入力してください。");
-              return;
-            }
-            try {
-              await sendPasswordReset(email);
-              setResetInfo("再設定メールを送信しました。届かない場合は迷惑メールもご確認ください。");
+            className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-ink py-2.5 text-sm font-semibold text-paper hover:bg-ink-soft disabled:opacity-60"
+            onClick={async () => {
+              setBusy(true);
               setLocalError("");
-            } catch (err) {
-              setLocalError(formatAuthError(err));
-            }
-          }}
-        >
-          パスワードを忘れた方
-        </button>
+              try {
+                await signInGoogle();
+                await afterMemberLogin();
+              } catch (err) {
+                setLocalError(formatAuthError(err));
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            <GoogleMark />
+            Google で接続する
+          </button>
+        )}
 
-        <button
-          type="button"
-          disabled={busy || !ready}
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-ink/15 py-2.5 text-sm font-medium text-ink/70 hover:bg-paper disabled:opacity-60"
-          onClick={async () => {
-            setBusy(true);
-            setLocalError("");
-            try {
-              await signInGoogle();
-              await afterMemberLogin();
-            } catch (err) {
-              setLocalError(formatAuthError(err));
-            } finally {
-              setBusy(false);
-            }
-          }}
-        >
-          <GoogleMark />
-          Google で続ける（招待済みのみ）
-        </button>
+        {fromExtension && !showEmailLogin && (
+          <button
+            type="button"
+            className="mt-3 w-full text-center text-xs text-ink/55 hover:text-ink/75"
+            onClick={() => setShowEmailLogin(true)}
+          >
+            メールでログイン（招待済みメンバー）
+          </button>
+        )}
+
+        {showEmailLogin && (
+          <form
+            className="mt-5 space-y-3"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!email.trim() || !password) return;
+              setBusy(true);
+              setLocalError("");
+              try {
+                await signInEmail(email, password);
+                await afterMemberLogin();
+              } catch (err) {
+                setLocalError(formatAuthError(err));
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            <label className="block text-xs text-ink/55">
+              メールアドレス（ID）
+              <input
+                type="email"
+                required
+                className="mt-1 w-full rounded-lg border border-ink/10 px-3 py-2 text-sm"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+              />
+            </label>
+            <label className="block text-xs text-ink/55">
+              パスワード
+              <input
+                type="password"
+                required
+                className="mt-1 w-full rounded-lg border border-ink/10 px-3 py-2 text-sm"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={busy || !ready}
+              className="w-full rounded-lg bg-ink py-2.5 text-sm font-semibold text-paper hover:bg-ink-soft disabled:opacity-60"
+            >
+              {busy ? "ログイン中…" : "メールでログイン"}
+            </button>
+          </form>
+        )}
+
+        {showEmailLogin && (
+          <button
+            type="button"
+            className="mt-2 text-xs text-mint hover:underline"
+            onClick={async () => {
+              if (!email.trim()) {
+                setLocalError("パスワード再設定にはメールアドレスを入力してください。");
+                return;
+              }
+              try {
+                await sendPasswordReset(email);
+                setResetInfo("再設定メールを送信しました。届かない場合は迷惑メールもご確認ください。");
+                setLocalError("");
+              } catch (err) {
+                setLocalError(formatAuthError(err));
+              }
+            }}
+          >
+            パスワードを忘れた方
+          </button>
+        )}
+
+        {!fromExtension && (
+          <button
+            type="button"
+            disabled={busy || !ready}
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-ink/15 py-2.5 text-sm font-medium text-ink/70 hover:bg-paper disabled:opacity-60"
+            onClick={async () => {
+              setBusy(true);
+              setLocalError("");
+              try {
+                await signInGoogle();
+                await afterMemberLogin();
+              } catch (err) {
+                setLocalError(formatAuthError(err));
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            <GoogleMark />
+            Google で続ける（招待済みのみ）
+          </button>
+        )}
 
         <Link
-          to="/signup"
+          to={fromExtension ? "/signup?ext=1" : "/signup"}
           className="mt-4 flex w-full items-center justify-center rounded-lg border border-mint/30 bg-mint/5 py-2.5 text-sm font-semibold text-mint hover:bg-mint/10"
         >
           会社の管理者として新規登録
         </Link>
 
-        <button
-          type="button"
-          className="mt-3 w-full rounded-lg bg-mint py-2.5 text-sm font-semibold text-white hover:bg-mint-bright"
-          onClick={() => startDemo(false)}
-        >
-          ログインなしでデモ開始
-        </button>
+        {!fromExtension && (
+          <button
+            type="button"
+            className="mt-3 w-full rounded-lg bg-mint py-2.5 text-sm font-semibold text-white hover:bg-mint-bright"
+            onClick={() => startDemo(false)}
+          >
+            ログインなしでデモ開始
+          </button>
+        )}
 
         {(error || localError) && <p className="mt-3 text-sm text-red-700">{localError || error}</p>}
         {resetInfo && <p className="mt-3 text-sm text-mint">{resetInfo}</p>}
