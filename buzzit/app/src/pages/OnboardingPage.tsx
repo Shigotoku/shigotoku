@@ -11,6 +11,7 @@ import {
   loadOnboarding,
   type OnboardingGoal,
 } from '../lib/onboarding';
+import { platformSettingsPath } from '../lib/settingsUrls';
 
 const steps = ['ようこそ', '業種', '目的', '媒体', '次の一手'] as const;
 
@@ -18,7 +19,7 @@ function connectHintForPlatform(platformId: string): { body: string; ctaHint: st
   switch (platformId) {
     case 'x':
       return {
-        body: '設定の「Ayrshare（オプション）」で X を接続するか、通知モードで予約リマインドを受け取ると投稿が進みます。',
+        body: '設定の「X API 連携」でキーを登録するか、通知モードで予約リマインドを受け取ると投稿が進みます。',
         ctaHint: 'X連携の設定を開く',
       };
     case 'instagram':
@@ -327,7 +328,11 @@ export default function OnboardingPage() {
                 <p className="text-xs font-semibold tracking-wider text-neutral-400 uppercase">2</p>
                 <p className="mt-1 font-semibold">BuzzItに {companion.name} を連携する</p>
                 <p className="mt-1 text-sm text-neutral-600">{connectHint.body}</p>
-                <Link to="/settings" className="buzz-btn-secondary mt-3" onClick={() => finish(false)}>
+                <Link
+                  to={platformSettingsPath(platformId)}
+                  className="buzz-btn-secondary mt-3"
+                  onClick={() => finish(false)}
+                >
                   {connectHint.ctaHint}
                 </Link>
               </li>

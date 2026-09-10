@@ -3,6 +3,7 @@ import { Link, Navigate, useParams } from 'react-router-dom';
 import { BarChart3, CalendarDays, RefreshCw, Settings2, Wand2 } from 'lucide-react';
 import { getPlatformCompanion } from '../data/platformCompanions';
 import { getSnsNavPlatform, jobMatchesSnsPlatform } from '../lib/snsPlatforms';
+import { platformSettingsPath, settingsPath } from '../lib/settingsUrls';
 import {
   fetchInsightsSummary,
   fetchScheduledJobs,
@@ -140,7 +141,7 @@ export default function SnsHubPage() {
               </Link>
             )}
             <Link
-              to="/settings?tab=sns"
+              to={platformSettingsPath(platformId)}
               className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-white/30 px-3 text-sm text-white hover:bg-white/10"
             >
               <Settings2 className="h-4 w-4" />
@@ -203,7 +204,7 @@ export default function SnsHubPage() {
             ) : platformId === 'x' && !insights.xInsightsEnabled ? (
               <p className="mt-1 text-sm text-amber-900">
                 X 取得は費用ガードでオフ。
-                <Link to="/settings?tab=sns" className="ml-1 underline">
+                <Link to={settingsPath({ section: 'insights' })} className="ml-1 underline">
                   設定で有効化
                 </Link>
               </p>

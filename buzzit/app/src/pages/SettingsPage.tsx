@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { isSettingsSection, sectionTab, type SettingsTab } from '../lib/settingsUrls';
 import { Check, Link2, MessageSquare, Zap, Save, BarChart3, Share2, MapPin, Sparkles, Users } from 'lucide-react';
 import { WATERMARK } from '../constants/brand';
 import {
@@ -133,7 +134,6 @@ export default function SettingsPage() {
   const [insightsLastSyncedAt, setInsightsLastSyncedAt] = useState('');
   const [insightsSyncing, setInsightsSyncing] = useState(false);
 
-  type SettingsTab = 'business' | 'sns' | 'staff' | 'plan' | 'advanced';
   const SETTINGS_TABS: { id: SettingsTab; label: string }[] = [
     { id: 'business', label: '事業所' },
     { id: 'sns', label: 'SNS連携' },
@@ -141,16 +141,30 @@ export default function SettingsPage() {
     { id: 'plan', label: 'プラン' },
     { id: 'advanced', label: '高度な設定' },
   ];
+  const sectionParam = searchParams.get('section');
+  const section = isSettingsSection(sectionParam) ? sectionParam : null;
   const tabParam = searchParams.get('tab');
-  const activeTab: SettingsTab = SETTINGS_TABS.some((t) => t.id === tabParam)
-    ? (tabParam as SettingsTab)
-    : 'business';
+  const activeTab: SettingsTab =
+    (section ? sectionTab(section) : null) ??
+    (SETTINGS_TABS.some((t) => t.id === tabParam) ? (tabParam as SettingsTab) : 'business');
+  const scrolledSectionRef = useRef<string | null>(null);
   const setTab = (id: SettingsTab) => {
     const next = new URLSearchParams(searchParams);
     next.set('tab', id);
     next.delete('meta');
+    next.delete('section');
     setSearchParams(next, { replace: true });
   };
+
+  useEffect(() => {
+    if (!section || activeTab !== 'sns') return;
+    if (scrolledSectionRef.current === section) return;
+    const el = document.getElementById(`settings-${section}`);
+    if (!el) return;
+    scrolledSectionRef.current = section;
+    const scroll = () => el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    requestAnimationFrame(() => requestAnimationFrame(scroll));
+  }, [section, activeTab]);
 
   useEffect(() => {
     fetchSettings()
@@ -485,7 +499,7 @@ export default function SettingsPage() {
 
       {activeTab === 'sns' && (
         <>
-      <section className="buzz-card-pad space-y-4">
+      <section id="settings-meta" className="buzz-card-pad scroll-mt-24 space-y-4">
         <h3 className="flex items-center gap-2 text-lg font-bold">
           <Share2 className="h-5 w-5 text-neutral-700" />
           Meta 連携（Instagram / Facebook / Threads）
@@ -513,7 +527,7 @@ export default function SettingsPage() {
         </button>
       </section>
 
-      <section className="buzz-card-pad space-y-4">
+      <section id="settings-x" className="buzz-card-pad scroll-mt-24 space-y-4">
         <h3 className="flex items-center gap-2 text-lg font-bold">
           <Share2 className="h-5 w-5 text-neutral-700" />
           X（旧Twitter）API 連携
@@ -609,7 +623,7 @@ export default function SettingsPage() {
         </Link>
       </section>
 
-      <section className="buzz-card-pad space-y-4">
+      <section id="settings-insights" className="buzz-card-pad scroll-mt-24 space-y-4">
         <h3 className="flex items-center gap-2 text-lg font-bold">
           <BarChart3 className="h-5 w-5 text-neutral-700" />
           インプレッション自動取得
@@ -673,7 +687,7 @@ export default function SettingsPage() {
         </button>
       </section>
 
-      <section className="buzz-card-pad space-y-4">
+      <section id="settings-publish-mode" className="buzz-card-pad scroll-mt-24 space-y-4">
         <h3 className="flex items-center gap-2 text-lg font-bold">
           <Link2 className="h-5 w-5 text-neutral-700" />
           投稿モード（デフォルト）
@@ -694,7 +708,7 @@ export default function SettingsPage() {
         </select>
       </section>
 
-      <section className="buzz-card-pad space-y-4">
+      <section id="settings-ayrshare" className="buzz-card-pad scroll-mt-24 space-y-4">
         <h3 className="flex items-center gap-2 text-lg font-bold">
           <Link2 className="h-5 w-5 text-neutral-700" />
           Ayrshare（オプション）
@@ -731,7 +745,7 @@ export default function SettingsPage() {
         />
       </section>
 
-      <section className="buzz-card-pad space-y-4">
+      <section id="settings-slack" className="buzz-card-pad scroll-mt-24 space-y-4">
         <h3 className="flex items-center gap-2 text-lg font-bold">
           <MessageSquare className="h-5 w-5 text-neutral-700" />
           Slack 連携（Team 以上）
@@ -794,7 +808,7 @@ export default function SettingsPage() {
         )}
       </section>
 
-      <section className="buzz-card-pad space-y-4">
+      <section id="settings-line" className="buzz-card-pad scroll-mt-24 space-y-4">
         <h3 className="flex items-center gap-2 text-lg font-bold">
           <BarChart3 className="h-5 w-5 text-neutral-700" />
           売上トラッキング（UTM / LINE）
@@ -842,7 +856,7 @@ export default function SettingsPage() {
         )}
       </section>
 
-      <section className="buzz-card-pad space-y-4">
+      <section id="settings-gbp" className="buzz-card-pad scroll-mt-24 space-y-4">
         <h3 className="flex items-center gap-2 text-lg font-bold">
           <MapPin className="h-5 w-5 text-neutral-700" />
           Google Business Profile（GBP / Googleマップ）
@@ -891,7 +905,7 @@ export default function SettingsPage() {
         {gbpReply && <pre className="whitespace-pre-wrap border border-neutral-200 bg-neutral-50 p-3 text-sm">{gbpReply}</pre>}
       </section>
 
-      <section className="buzz-card-pad space-y-4">
+      <section id="settings-hpb" className="buzz-card-pad scroll-mt-24 space-y-4">
         <h3 className="flex items-center gap-2 text-lg font-bold">
           <Sparkles className="h-5 w-5 text-neutral-700" />
           ホットペッパービューティー（HPB）トラッキング
