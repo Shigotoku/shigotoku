@@ -220,6 +220,7 @@ export async function postTweetWithXApi(
   creds: XCredentials,
   text: string,
   mediaUrls?: string[],
+  mediaAltTexts?: string[],
 ): Promise<XPublishResult> {
   const parts = splitThreadParts(text);
   if (!parts.length) {
@@ -227,8 +228,9 @@ export async function postTweetWithXApi(
   }
 
   const mediaIds: string[] = [];
-  for (const url of (mediaUrls ?? []).slice(0, 4)) {
-    const id = await uploadMediaSimple(creds, url);
+  for (const [i, url] of (mediaUrls ?? []).slice(0, 4).entries()) {
+    const alt = mediaAltTexts?.[i]?.trim();
+    const id = await uploadMediaSimple(creds, url, alt || undefined);
     if (id) mediaIds.push(id);
   }
 

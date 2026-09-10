@@ -1,4 +1,20 @@
 import type { PlanTier } from './firestore';
+import type { AccountRecord } from '../types/account';
+
+function isAccountBillingExempt(account: AccountRecord): boolean {
+  if (account.billingExempt) return true;
+  if (account.billingStatus === 'monitor') return true;
+  if (account.billingExemptExpiresAt) {
+    return new Date(account.billingExemptExpiresAt) > new Date();
+  }
+  return false;
+}
+
+/** 個人が作成できるアカウント数の上限 */
+export const INDIVIDUAL_MAX_ACCOUNTS = 1;
+
+/** 法人アカウントの追加ユーザー席（2人目以降）月額 */
+export const EXTRA_ACCOUNT_SEAT_MONTHLY = 1980;
 
 /** 1店舗目の月額基本料 */
 export const PLAN_BASE_MONTHLY: Record<PlanTier, number> = {
@@ -80,3 +96,29 @@ export function storeLimitLabel(plan: PlanTier): string {
   const max = MAX_STORES_BY_PLAN[plan];
   return `${max}店舗まで`;
 }
+
+/** アカウント単位の月額見積（基本料 + 追加席） */
+export function computeAccountMonthlyTotal(account: AccountRecord, storeCount = 1): number {
+  if (isAccountBillingExempt(account)) return 0;
+  if (account.billingStatus !== 'active' && account.billingStatus !== 'past_due') return 0;
+
+  const base = computeMonthlyTotal(account.plan, storeCount, 0);
+  if (account.accountType === 'business') {
+    const extraSeats = Math.max(0, account.seatCount - account.includedSeats);
+    return base + extraSeats * EXTRA_ACCOUNT_SEAT_MONTHLY;
+  }
+  return base;
+}
+
+export const BILLING_STATUS_LABELS: Record<string, string> = {
+  monitor: 'モニター',
+  trial: 'トライアル',
+  active: '課金中',
+  past_due: '支払い遅延',
+  cancelled: '解約済み',
+};
+
+export const ACCOUNT_TYPE_LABELS: Record<string, string> = {
+  individual: '個人',
+  business: '法人',
+};

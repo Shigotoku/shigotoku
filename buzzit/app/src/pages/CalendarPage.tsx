@@ -18,6 +18,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
 } from 'lucide-react';
+import FlowProgressBar from '../components/FlowProgressBar';
 import {
   fetchScheduledJobs,
   approveScheduledJob,
@@ -595,6 +596,8 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
         </div>
       )}
 
+      {!embedded && <FlowProgressBar current="schedule" className="buzz-fade-in" />}
+
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-neutral-500">
           週ビューは時間帯へドロップ。月ビューは日付ドロップ後に時刻を選べます。下書きトレイからも配置できます。
@@ -628,7 +631,7 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
             type="button"
             onClick={() => setDropHourPref(null)}
             className={`border px-2.5 py-1.5 text-xs ${
-              dropHour === null ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-200 bg-[#f5f4f0]'
+              dropHour === null ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-200 bg-neutral-50'
             }`}
           >
             元の時刻を維持
@@ -647,7 +650,7 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
                     ? 'border-neutral-900 bg-neutral-900 text-white'
                     : isBest
                       ? 'border-amber-700 bg-amber-50 text-amber-950'
-                      : 'border-neutral-200 bg-[#f5f4f0]'
+                      : 'border-neutral-200 bg-neutral-50'
                 }`}
               >
                 {String(hour).padStart(2, '0')}:00
@@ -678,7 +681,7 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
                 className={`inline-flex max-w-[220px] cursor-grab items-center gap-1.5 border px-2.5 py-2 text-xs active:cursor-grabbing ${
                   draggingId === job.id
                     ? 'border-neutral-900 bg-neutral-900 text-white'
-                    : 'border-neutral-300 bg-[#f5f4f0] text-neutral-800'
+                    : 'border-neutral-300 bg-neutral-50 text-neutral-800'
                 }`}
               >
                 <GripVertical className="h-3.5 w-3.5 shrink-0 opacity-60" />
@@ -951,7 +954,7 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
                                   j.status === 'failed'
                                     ? 'border-red-200 bg-red-50 text-red-800'
                                     : j.status === 'draft'
-                                      ? 'border-dashed border-neutral-300 bg-[#f5f4f0]'
+                                      ? 'border-dashed border-neutral-300 bg-neutral-50'
                                       : 'border-neutral-200 bg-neutral-50'
                                 } ${draggingId === j.id ? 'opacity-40' : ''}`}
                               >
@@ -1049,7 +1052,7 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
           </div>
 
           {selectedDay && dayOpenSlots.length > 0 && (
-            <div className="border border-neutral-200 bg-[#f5f4f0] p-3">
+            <div className="border border-neutral-200 bg-neutral-50 p-3">
               <p className="mb-2 text-xs font-medium text-neutral-600">この日の空きおすすめ枠（ワンタップ配置）</p>
               <div className="flex flex-wrap gap-2">
                 {dayOpenSlots.map((slot) => (
@@ -1222,7 +1225,7 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
 
       {editingJob && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/40 p-4"
+          className="buzz-modal-overlay"
           onClick={() => !editSaving && setEditingJob(null)}
         >
           <div
@@ -1327,7 +1330,7 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
 
       {monthDropPicker && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/40 p-4"
+          className="buzz-modal-overlay"
           onClick={() => setMonthDropPicker(null)}
         >
           <div
@@ -1393,7 +1396,7 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
 
       {tempoJob && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/40 p-4"
+          className="buzz-modal-overlay"
           onClick={() => !tempoBusy && setTempoJob(null)}
         >
           <div

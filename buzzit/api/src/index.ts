@@ -9,7 +9,11 @@ import {
   MAX_VIDEO_BYTES,
   checkBrandSafety,
 } from './services/repurpose';
-import { generateRepurposeWithGemini, voiceDraftWithGemini } from './services/gemini';
+import {
+  generateRepurposeWithGemini,
+  generateXSeriesBatchWithGemini,
+  voiceDraftWithGemini,
+} from './services/gemini';
 import { getAyrshareProfiles } from './services/ayrshare';
 import {
   ensureUser,
@@ -35,9 +39,20 @@ import {
   recordTrackingClick,
   findUserByLineDestination,
   listPostInsights,
+  createSharedInsightsReport,
+  getSharedInsightsReport,
 } from './services/firestore';
 import { buildWeeklyReportForUser } from './services/weeklyReport';
 import { buildInsightsSummary, syncInsightsForUser } from './services/insightsSync';
+import {
+  buildInsightsDashboard,
+  recordInsightsDailySnapshot,
+  type InsightsPlatformFilter,
+} from './services/insightsDashboard';
+import { buildInsightsHtmlReport } from './services/insightsReport';
+import { buildInsightsPptxBuffer, reportFileBaseName } from './services/insightsReportPptx';
+import { buildInsightsPdfBuffer } from './services/insightsReportPdf';
+import { randomUUID } from 'crypto';
 import {
   listLineFriends,
   setFriendTags,
@@ -141,11 +156,45 @@ import {
   updateXScheduleRule,
   deleteXScheduleRule,
   parseSeriesCsv,
+  parseBulkPasteText,
+  approveAllPendingItems,
   seedDefaultXSeriesPack,
   processXSeriesSchedules,
   publishSeriesNow,
+  composeTweetText,
 } from './services/xSeries';
+import { xSeriesCapabilities, assertXSeriesFeature } from './services/xSeriesFeatures';
+import {
+  buildXSeriesInsights,
+  computeNextScheduledPosts,
+  exportSeriesToCsv,
+  enrichUrlForXPost,
+  reorderXSeriesItems,
+  moveXSeriesItems,
+  retryFailedXSeriesItem,
+  voiceToXSeriesBatch,
+} from './services/xSeriesExtras';
 import { saveOAuthState, consumeOAuthState } from './services/schedulerWorker';
+import { assertPostQuota, incrementPostQuota, getPostsThisMonth, freePostLimitForPlan } from './services/planLimits';
+import {
+  getGoogleOAuthUrl,
+  exchangeGoogleCode,
+  listGbpAccounts,
+  listGbpLocations,
+  listGbpReviews,
+  fetchGbpInsights,
+} from './services/gbp';
+import { createCheckoutSession, isStripeConfigured, verifyStripeWebhookSignature } from './services/stripeBilling';
+import {
+  buildCrossStoreKpis,
+  bulkDistributeTemplate,
+  listTamperAlerts,
+  recordGbpSnapshot,
+  saveEnterpriseInquiry,
+} from './services/enterprise';
+import { importLstepCsv } from './services/lstepMigration';
+import { runStrategyAgent } from './services/geminiAgent';
+import { resolveTrackingDestination } from './services/tracking';
 import type { PublishMode } from './types/schedule';
 import {
   createAbTest,
@@ -161,7 +210,33 @@ import {
   LINE_PRICE_PER_MSG,
 } from './services/lineCostEstimate.js';
 import { requireAuth, type AuthedRequest } from './middleware/auth';
+import { requireAdmin, isAdminUid } from './middleware/admin';
+import {
+  setupAccount,
+  getAccountForUser,
+  resolveEntitlements,
+  listAccountMembers,
+  listAllAccounts,
+  adminUpdateAccount,
+  accountSummaryForSettings,
+  userHasAccount,
+  inviteAccountMemberByEmail,
+  removeAccountMember,
+  getAccountMemberRole,
+  listAccountInvitations,
+  revokeAccountInvitation,
+  getAccountInvitationByToken,
+  acceptAccountInvitation,
+} from './services/accounts';
+import { isMailConfigured } from './services/mail';
+import { isPaymentConfigured, getActivePaymentProvider } from './services/paymentProvider';
+import {
+  ACCOUNT_TYPE_LABELS,
+  BILLING_STATUS_LABELS,
+  EXTRA_ACCOUNT_SEAT_MONTHLY,
+} from './services/billing';
 import { functionSecrets } from './config/secrets';
+import { checkLoginHintRateLimit, getLoginHint } from './services/loginHint';
 
 if (!getApps().length) initializeApp();
 
@@ -261,16 +336,23 @@ api.post('/v1/repurpose', requireAuth, async (req: AuthedRequest, res) => {
     return;
   }
 
-  const settings = await getUserSettings(req.uid!);
-  const effectivePlan = plan ?? settings.plan;
-  const safety = checkBrandSafety(idea);
-  const { results, usedGemini } = await generateRepurposeWithGemini(idea, effectivePlan, mediaUrls);
+  try {
+    const settings = await assertPostQuota(req.uid!);
+    const effectivePlan = plan ?? settings.plan;
+    const safety = checkBrandSafety(idea);
+    const { results, usedGemini } = await generateRepurposeWithGemini(idea, effectivePlan, mediaUrls);
+    await incrementPostQuota(req.uid!);
 
-  res.json({
-    results,
-    usedGemini,
-    safetyViolations: safety.safe ? undefined : safety.violations,
-  });
+    res.json({
+      results,
+      usedGemini,
+      safetyViolations: safety.safe ? undefined : safety.violations,
+      postsThisMonth: await getPostsThisMonth(req.uid!),
+      postsLimit: freePostLimitForPlan(effectivePlan),
+    });
+  } catch (err) {
+    res.status(403).json({ error: err instanceof Error ? err.message : '投稿上限に達しています' });
+  }
 });
 
 // --- Schedule (Firestore + Worker / Meta / LINE / Notify) ---
@@ -300,8 +382,9 @@ api.post('/v1/schedule', requireAuth, async (req: AuthedRequest, res) => {
   }
 
   try {
-    const settings = await getUserSettings(req.uid!);
-    const dest = destinationUrl ?? settings.defaultDestinationUrl;
+    const settings = await assertPostQuota(req.uid!);
+    if (!asDraft) await incrementPostQuota(req.uid!);
+    const dest = resolveTrackingDestination(settings, destinationUrl);
     const mode: PublishMode = publishMode ?? settings.defaultPublishMode ?? 'notify';
     const trackingLinks: Array<{ platform: string; trackingUrl: string; postId: string }> = [];
 
@@ -503,6 +586,142 @@ api.get('/v1/insights/posts', requireAuth, async (req: AuthedRequest, res) => {
   }
 });
 
+function parseInsightsPlatform(raw: string | undefined): InsightsPlatformFilter {
+  if (raw === 'x' || raw === 'instagram' || raw === 'line' || raw === 'facebook') return raw;
+  return 'all';
+}
+
+api.get('/v1/insights/dashboard', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const platform = parseInsightsPlatform(
+      typeof req.query.platform === 'string' ? req.query.platform : undefined,
+    );
+    const days = Number(req.query.days) || 30;
+    const dashboard = await buildInsightsDashboard(req.uid!, { platform, days });
+    res.json({ dashboard });
+  } catch (err) {
+    console.error('insights dashboard failed', err);
+    res.status(500).json({ error: '解析ダッシュボードの生成に失敗しました' });
+  }
+});
+
+api.get('/v1/insights/report', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const platform = parseInsightsPlatform(
+      typeof req.query.platform === 'string' ? req.query.platform : undefined,
+    );
+    const days = Number(req.query.days) || 30;
+    const dashboard = await buildInsightsDashboard(req.uid!, { platform, days, useAi: true });
+    const settings = await getUserSettings(req.uid!);
+    const html = buildInsightsHtmlReport(dashboard, {
+      businessName: settings.displayName ?? settings.brandProfile?.slice(0, 30),
+    });
+    res.json({ html, dashboard });
+  } catch (err) {
+    console.error('insights report failed', err);
+    res.status(500).json({ error: 'レポート生成に失敗しました' });
+  }
+});
+
+api.get('/v1/insights/report/download', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const platform = parseInsightsPlatform(
+      typeof req.query.platform === 'string' ? req.query.platform : undefined,
+    );
+    const days = Number(req.query.days) || 30;
+    const format = typeof req.query.format === 'string' ? req.query.format.toLowerCase() : 'html';
+    const dashboard = await buildInsightsDashboard(req.uid!, { platform, days, useAi: true });
+    const settings = await getUserSettings(req.uid!);
+    const businessName = settings.displayName ?? settings.brandProfile?.slice(0, 30);
+    const base = reportFileBaseName(platform);
+
+    if (format === 'pptx') {
+      const buffer = await buildInsightsPptxBuffer(dashboard, { businessName });
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
+      res.setHeader('Content-Disposition', `attachment; filename="${base}.pptx"`);
+      res.send(buffer);
+      return;
+    }
+    if (format === 'pdf') {
+      const buffer = await buildInsightsPdfBuffer(dashboard, { businessName });
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${base}.pdf"`);
+      res.send(buffer);
+      return;
+    }
+    const html = buildInsightsHtmlReport(dashboard, { businessName });
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${base}.html"`);
+    res.send(html);
+  } catch (err) {
+    console.error('insights report download failed', err);
+    res.status(500).json({ error: 'レポートのダウンロードに失敗しました' });
+  }
+});
+
+api.post('/v1/insights/report/share', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const platform = parseInsightsPlatform(
+      typeof req.body?.platform === 'string' ? req.body.platform : undefined,
+    );
+    const days = Number(req.body?.days) || 30;
+    const dashboard = await buildInsightsDashboard(req.uid!, { platform, days, useAi: true });
+    const settings = await getUserSettings(req.uid!);
+    const businessName = settings.displayName ?? settings.brandProfile?.slice(0, 30);
+    const html = buildInsightsHtmlReport(dashboard, { businessName });
+
+    const token = randomUUID().replace(/-/g, '');
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30);
+
+    await createSharedInsightsReport(req.uid!, {
+      token,
+      html,
+      businessName,
+      platform,
+      expiresAt: expiresAt.toISOString(),
+    });
+
+    const appOrigin = process.env.BUZZIT_APP_ORIGIN ?? 'https://app.buzzit.shigotoku.com';
+    const shareUrl = `${appOrigin}/api/v1/insights/report/view/${token}`;
+
+    res.json({
+      shareUrl,
+      token,
+      expiresAt: expiresAt.toISOString(),
+      platform,
+    });
+  } catch (err) {
+    console.error('insights report share failed', err);
+    res.status(500).json({ error: '共有URLの作成に失敗しました' });
+  }
+});
+
+api.post('/v1/insights/analyze', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const force = req.body?.force !== false;
+    const platform = parseInsightsPlatform(
+      typeof req.body?.platform === 'string' ? req.body.platform : undefined,
+    );
+    const days = Number(req.body?.days) || 30;
+    const useAi = req.body?.useAi !== false;
+
+    const result = await syncInsightsForUser(req.uid!, { force });
+    const dashboard = await buildInsightsDashboard(req.uid!, { platform, days, useAi });
+    await recordInsightsDailySnapshot(req.uid!, dashboard);
+    await writeAuditLog(req.uid!, 'insights.analyze', JSON.stringify({
+      fetched: result.fetched,
+      errors: result.errors,
+      platform,
+      ai: dashboard.aiPowered,
+    }));
+    res.json({ success: true, result, dashboard });
+  } catch (err) {
+    console.error('insights analyze failed', err);
+    res.status(500).json({ error: '解析の更新に失敗しました' });
+  }
+});
+
 api.post('/v1/insights/sync', requireAuth, async (req: AuthedRequest, res) => {
   try {
     const force = req.body?.force === true;
@@ -608,6 +827,8 @@ const DEFAULT_SNS_CONNECTIONS = [
 // --- Settings ---
 api.get('/v1/settings', requireAuth, async (req: AuthedRequest, res) => {
   const settings = await getUserSettings(req.uid!);
+  const account = await getAccountForUser(req.uid!);
+  const entitlements = await resolveEntitlements(req.uid!);
   const metaConnected = !!(settings.metaAccessToken && settings.metaIgUserId);
   const xConnected = !!credentialsFromSettings(settings);
   // 秘密鍵はクライアントに返さない
@@ -632,7 +853,22 @@ api.get('/v1/settings', requireAuth, async (req: AuthedRequest, res) => {
     canUseSlack: canUseSlack(settings),
     canUseAutoMode: settings.plan === 'growth',
     lineWebhookUrl: lineWebhookUrl(req.uid!),
+    hpbTrackingEnabled: settings.hpbTrackingEnabled ?? false,
+    postsThisMonth: await getPostsThisMonth(req.uid!, settings),
+    postsLimit: freePostLimitForPlan(settings.plan),
+    autoModeGoal: settings.autoModeGoal ?? 'reach',
+    stripeConfigured: isStripeConfigured(),
+    paymentConfigured: isPaymentConfigured(),
+    paymentProvider: getActivePaymentProvider(),
+    referralCode: settings.referralCode,
+    xSeriesCapabilities: xSeriesCapabilities(entitlements?.plan ?? settings.plan),
+    account: accountSummaryForSettings(account, entitlements, settings),
   });
+});
+
+api.get('/v1/x/capabilities', requireAuth, async (req: AuthedRequest, res) => {
+  const settings = await getUserSettings(req.uid!);
+  res.json({ capabilities: xSeriesCapabilities(settings.plan) });
 });
 
 api.get('/v1/sns-connections', requireAuth, async (_req: AuthedRequest, res) => {
@@ -650,7 +886,7 @@ api.put('/v1/settings', requireAuth, async (req: AuthedRequest, res) => {
     'displayName', 'lineChannelSecret', 'lineChannelAccessToken', 'lineAdminUserId',
     'lineDestinationId', 'defaultDestinationUrl', 'defaultPublishMode',
     'metaAccessToken', 'metaPageAccessToken', 'metaIgUserId', 'metaPageId', 'metaTokenExpiresAt',
-    'hpbStoreUrl', 'gbpConnected', 'gbpLocationName', 'notifyEmail', 'industry',
+    'hpbStoreUrl', 'hpbTrackingEnabled', 'autoModeGoal', 'gbpConnected', 'gbpLocationName', 'notifyEmail', 'industry',
     'brandProfile',
     'extraSnsAccounts',
     'insightsEnabled',
@@ -678,7 +914,21 @@ api.put('/v1/settings', requireAuth, async (req: AuthedRequest, res) => {
     const n = Number(patch.extraSnsAccounts);
     patch.extraSnsAccounts = Number.isFinite(n) ? Math.max(0, Math.min(20, Math.floor(n))) : 0;
   }
+  if ('plan' in patch) {
+    const current = await getUserSettings(req.uid!);
+    const nextPlan = patch.plan as string;
+    const storeIds = current.storeIds ?? [];
+    if (storeIds.length > MAX_STORES_BY_PLAN[nextPlan as keyof typeof MAX_STORES_BY_PLAN]) {
+      res.status(400).json({
+        error: `${nextPlan} プランは最大 ${MAX_STORES_BY_PLAN[nextPlan as keyof typeof MAX_STORES_BY_PLAN]} 店舗です。先に店舗数を減らしてください`,
+      });
+      return;
+    }
+  }
   const settings = await updateUserSettings(req.uid!, patch as Partial<UserSettings>);
+  if ('gbpLocationName' in patch || 'gbpConnected' in patch) {
+    await recordGbpSnapshot(req.uid!, settings);
+  }
   const {
     xApiKey: _xk,
     xApiSecret: _xs,
@@ -734,6 +984,15 @@ api.get('/v1/x/series', requireAuth, async (req: AuthedRequest, res) => {
 
 api.post('/v1/x/series', requireAuth, async (req: AuthedRequest, res) => {
   try {
+    const settings = await getUserSettings(req.uid!);
+    const caps = xSeriesCapabilities(settings.plan);
+    const existing = await listXSeries(req.uid!);
+    if (existing.length >= caps.maxSeries) {
+      res.status(403).json({
+        error: `シリーズは最大 ${caps.maxSeries} 件まで（${settings.plan}）。${caps.upgradeHint ?? ''}`,
+      });
+      return;
+    }
     const { name, description } = req.body as { name?: string; description?: string };
     const series = await createXSeries(req.uid!, { name: name ?? '', description });
     res.json({ series });
@@ -824,12 +1083,113 @@ api.post('/v1/x/series/:id/import-csv', requireAuth, async (req: AuthedRequest, 
   }
 });
 
+api.post('/v1/x/series/:id/import-paste', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const { text, approved } = req.body as { text?: string; approved?: boolean };
+    if (!text?.trim()) {
+      res.status(400).json({ error: 'text が必要です' });
+      return;
+    }
+    const settings = await getUserSettings(req.uid!);
+    const parsed = parseBulkPasteText(text).map((row) => ({
+      ...row,
+      approved: approved === true,
+    }));
+    if (!parsed.length) {
+      res.status(400).json({ error: '分割できる投稿がありません（空行または --- で区切ってください）' });
+      return;
+    }
+    assertXSeriesFeature(settings.plan, 'pasteBatchMax', parsed.length);
+    const created = await addXSeriesItems(
+      req.uid!,
+      String(req.params.id),
+      parsed.slice(0, xSeriesCapabilities(settings.plan).pasteBatchMax),
+    );
+    res.json({ imported: created.length, items: created });
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : '貼り付け取り込みに失敗しました' });
+  }
+});
+
+api.post('/v1/x/series/:id/generate-batch', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const { source, approved, seriesHint, dryRun } = req.body as {
+      source?: string;
+      approved?: boolean;
+      seriesHint?: string;
+      dryRun?: boolean;
+    };
+    const lines = (source ?? '')
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
+    if (!lines.length) {
+      res.status(400).json({ error: '1行以上のテーマ・URLを入力してください' });
+      return;
+    }
+    const settings = await getUserSettings(req.uid!);
+    assertXSeriesFeature(settings.plan, 'aiBatchMax', lines.length);
+    const capped = lines.slice(0, xSeriesCapabilities(settings.plan).aiBatchMax);
+    const { items, usedGemini } = await generateXSeriesBatchWithGemini(
+      capped,
+      settings.plan ?? 'starter',
+      seriesHint,
+    );
+    if (dryRun) {
+      res.json({
+        generated: items.length,
+        usedGemini,
+        items: items.map((it) => ({ ...it, approved: approved === true })),
+      });
+      return;
+    }
+    const created = await addXSeriesItems(
+      req.uid!,
+      String(req.params.id),
+      items.map((it) => ({ ...it, approved: approved === true })),
+    );
+    res.json({ generated: created.length, usedGemini, items: created });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : 'AI一括生成に失敗しました' });
+  }
+});
+
+api.post('/v1/x/series/:id/approve-all', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const settings = await getUserSettings(req.uid!);
+    const caps = xSeriesCapabilities(settings.plan);
+    if (caps.staffCannotApprove && settings.activeStoreId) {
+      const role = await getUserRoleInStore(settings.activeStoreId, req.uid!);
+      if (role === 'staff') {
+        res.status(403).json({ error: '投稿OKの一括承認はマネージャー以上のみ（Proプラン）' });
+        return;
+      }
+    }
+    const count = await approveAllPendingItems(req.uid!, String(req.params.id));
+    res.json({ approved: count });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : '一括承認に失敗しました' });
+  }
+});
+
 api.patch('/v1/x/series/:seriesId/items/:itemId', requireAuth, async (req: AuthedRequest, res) => {
+  const patch = req.body ?? {};
+  if (patch.approved === true) {
+    const settings = await getUserSettings(req.uid!);
+    const caps = xSeriesCapabilities(settings.plan);
+    if (caps.staffCannotApprove && settings.activeStoreId) {
+      const role = await getUserRoleInStore(settings.activeStoreId, req.uid!);
+      if (role === 'staff') {
+        res.status(403).json({ error: '投稿OKはマネージャー以上のみ設定できます（Proプラン）' });
+        return;
+      }
+    }
+  }
   const item = await updateXSeriesItem(
     req.uid!,
     String(req.params.seriesId),
     String(req.params.itemId),
-    req.body ?? {},
+    patch,
   );
   if (!item) {
     res.status(404).json({ error: 'ネタが見つかりません' });
@@ -853,6 +1213,15 @@ api.get('/v1/x/schedule-rules', requireAuth, async (req: AuthedRequest, res) => 
 
 api.post('/v1/x/schedule-rules', requireAuth, async (req: AuthedRequest, res) => {
   try {
+    const settings = await getUserSettings(req.uid!);
+    const caps = xSeriesCapabilities(settings.plan);
+    const rules = await listXScheduleRules(req.uid!);
+    if (rules.length >= caps.maxRulesTotal) {
+      res.status(403).json({
+        error: `スケジュールルールは最大 ${caps.maxRulesTotal} 件まで。${caps.upgradeHint ?? ''}`,
+      });
+      return;
+    }
     const rule = await createXScheduleRule(req.uid!, req.body ?? {});
     res.json({ rule });
   } catch (err) {
@@ -876,6 +1245,132 @@ api.delete('/v1/x/schedule-rules/:id', requireAuth, async (req: AuthedRequest, r
     return;
   }
   res.json({ success: true });
+});
+
+api.get('/v1/x/series/:id/insights', requireAuth, async (req: AuthedRequest, res) => {
+  const seriesId = String(req.params.id);
+  const settings = await getUserSettings(req.uid!);
+  const [insights, nextPosts] = await Promise.all([
+    buildXSeriesInsights(req.uid!, seriesId, settings),
+    computeNextScheduledPosts(req.uid!, seriesId, xSeriesCapabilities(settings.plan).nextPostsPreview),
+  ]);
+  res.json({ insights, nextPosts });
+});
+
+api.get('/v1/x/series/:id/export-csv', requireAuth, async (req: AuthedRequest, res) => {
+  const settings = await getUserSettings(req.uid!);
+  assertXSeriesFeature(settings.plan, 'csvExport');
+  const items = await listXSeriesItems(req.uid!, String(req.params.id), { limit: 400 });
+  const csv = exportSeriesToCsv(items);
+  res.json({ csv, count: items.length });
+});
+
+api.post('/v1/x/series/enrich-url', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const settings = await getUserSettings(req.uid!);
+    assertXSeriesFeature(settings.plan, 'urlEnrich');
+    const { url } = req.body as { url?: string };
+    if (!url?.trim()) {
+      res.status(400).json({ error: 'url が必要です' });
+      return;
+    }
+    const enriched = await enrichUrlForXPost(url.trim());
+    res.json(enriched);
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : 'URL取得に失敗しました' });
+  }
+});
+
+api.post('/v1/x/series/:id/reorder', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const settings = await getUserSettings(req.uid!);
+    if (!xSeriesCapabilities(settings.plan).dragReorder) {
+      res.status(403).json({ error: '並び替えは Starter 以上の機能です' });
+      return;
+    }
+    const { orderedIds } = req.body as { orderedIds?: string[] };
+    if (!orderedIds?.length) {
+      res.status(400).json({ error: 'orderedIds が必要です' });
+      return;
+    }
+    await reorderXSeriesItems(req.uid!, String(req.params.id), orderedIds);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : '並び替えに失敗しました' });
+  }
+});
+
+api.post('/v1/x/series/:id/move-items', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const settings = await getUserSettings(req.uid!);
+    assertXSeriesFeature(settings.plan, 'moveBetweenSeries');
+    const { toSeriesId, itemIds } = req.body as { toSeriesId?: string; itemIds?: string[] };
+    if (!toSeriesId || !itemIds?.length) {
+      res.status(400).json({ error: 'toSeriesId と itemIds が必要です' });
+      return;
+    }
+    const moved = await moveXSeriesItems(req.uid!, String(req.params.id), toSeriesId, itemIds);
+    res.json({ moved });
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : '移動に失敗しました' });
+  }
+});
+
+api.post('/v1/x/series/:seriesId/items/:itemId/retry', requireAuth, async (req: AuthedRequest, res) => {
+  const ok = await retryFailedXSeriesItem(
+    req.uid!,
+    String(req.params.seriesId),
+    String(req.params.itemId),
+  );
+  if (!ok) {
+    res.status(404).json({ error: '失敗した投稿が見つかりません' });
+    return;
+  }
+  res.json({ success: true });
+});
+
+api.post('/v1/x/series/:id/voice-batch', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const settings = await getUserSettings(req.uid!);
+    assertXSeriesFeature(settings.plan, 'voiceBatch');
+    const { transcript, approved } = req.body as { transcript?: string; approved?: boolean };
+    if (!transcript?.trim()) {
+      res.status(400).json({ error: 'transcript が必要です' });
+      return;
+    }
+    const result = await voiceToXSeriesBatch(
+      req.uid!,
+      String(req.params.id),
+      transcript.trim(),
+      settings.plan,
+      approved === true,
+    );
+    res.json({ generated: result.items.length, usedGemini: result.usedGemini, items: result.items });
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : '音声バッチに失敗しました' });
+  }
+});
+
+api.post('/v1/x/preview-text', requireAuth, async (req: AuthedRequest, res) => {
+  const body = req.body as {
+    text?: string;
+    tags?: string;
+    title?: string;
+    linkUrl?: string;
+  };
+  const composed = composeTweetText({
+    text: body.text ?? '',
+    tags: body.tags,
+    title: body.title,
+    linkUrl: body.linkUrl,
+  });
+  const charCount = [...composed].length;
+  res.json({
+    composed,
+    charCount,
+    overLimit: charCount > 280,
+    remaining: 280 - charCount,
+  });
 });
 
 /** 手動でシリーズ在庫を即時消化 / 全ルール強制実行 */
@@ -926,6 +1421,24 @@ api.post('/v1/metrics/event', requireAuth, async (req: AuthedRequest, res) => {
 });
 
 // --- UTM click tracking (public redirect) ---
+/** 共有レポート閲覧（認証不要・30日有効） */
+api.get('/v1/insights/report/view/:token', async (req, res) => {
+  try {
+    const token = String(req.params.token);
+    const report = await getSharedInsightsReport(token);
+    if (!report) {
+      res.status(404).send('レポートが見つからないか、有効期限が切れています');
+      return;
+    }
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.send(report.html);
+  } catch (err) {
+    console.error('insights report view failed', err);
+    res.status(500).send('レポートの表示に失敗しました');
+  }
+});
+
 api.get('/v1/track/click/:token', async (req, res) => {
   try {
     const token = String(req.params.token);
@@ -952,7 +1465,7 @@ api.post('/v1/tracking/link', requireAuth, async (req: AuthedRequest, res) => {
   };
 
   const settings = await getUserSettings(req.uid!);
-  const dest = destinationUrl ?? settings.defaultDestinationUrl;
+  const dest = resolveTrackingDestination(settings, destinationUrl);
   if (!dest) {
     res.status(400).json({ error: 'destinationUrl または設定のリダイレクト先 URL が必要です' });
     return;
@@ -970,7 +1483,9 @@ api.post('/v1/tracking/link', requireAuth, async (req: AuthedRequest, res) => {
   }
 
   const token = generateTrackingToken();
-  const utmCampaign = `buzzit_${platform ?? 'link'}_${Date.now()}`;
+  const utmCampaign = settings.hpbTrackingEnabled
+    ? `buzzit_hpb_${effectivePostId ?? platform ?? 'link'}_${Date.now()}`
+    : `buzzit_${platform ?? 'link'}_${Date.now()}`;
   await createTrackingLink(req.uid!, {
     token,
     postId: effectivePostId,
@@ -1247,24 +1762,31 @@ api.post('/v1/voice-draft', requireAuth, async (req: AuthedRequest, res) => {
     res.status(413).json({ error: '音声が大きすぎます。2分以内の録音にしてください' });
     return;
   }
-  const settings = await getUserSettings(req.uid!);
-  const { transcript, results, usedGemini } = await voiceDraftWithGemini(
-    audioBase64,
-    mimeType || 'audio/webm',
-    settings.plan,
-    hint,
-  );
-  res.json({
-    transcript,
-    drafts: results.map((r) => ({
-      kind: r.platform,
+  try {
+    const settings = await assertPostQuota(req.uid!);
+    const { transcript, results, usedGemini } = await voiceDraftWithGemini(
+      audioBase64,
+      mimeType || 'audio/webm',
+      settings.plan,
+      hint,
+    );
+    await incrementPostQuota(req.uid!);
+    res.json({
+      transcript,
+      drafts: results.map((r) => ({
+        kind: r.platform,
       platform: r.platform,
       label: r.label,
       content: r.content,
       carouselSlides: r.carouselSlides,
     })),
-    usedGemini,
-  });
+      usedGemini,
+      postsThisMonth: await getPostsThisMonth(req.uid!),
+      postsLimit: freePostLimitForPlan(settings.plan),
+    });
+  } catch (err) {
+    res.status(403).json({ error: err instanceof Error ? err.message : '投稿上限に達しています' });
+  }
 });
 
 // --- LINE Cost Estimate (Phase 5) ---
@@ -1489,6 +2011,22 @@ api.post('/v1/line/segments', requireAuth, async (req: AuthedRequest, res) => {
   res.json({ id: ref.id });
 });
 
+api.patch('/v1/line/segments/:id', requireAuth, async (req: AuthedRequest, res) => {
+  const { name, conditions } = req.body as { name?: string; conditions?: unknown[] };
+  const { getFirestore } = await import('firebase-admin/firestore');
+  const ref = getFirestore().doc(lineCrmDocPath(req.uid!, 'lineSegments', String(req.params.id)));
+  const snap = await ref.get();
+  if (!snap.exists) {
+    res.status(404).json({ error: 'セグメントが見つかりません' });
+    return;
+  }
+  const patch: Record<string, unknown> = { updatedAt: new Date().toISOString() };
+  if (name?.trim()) patch.name = name.trim();
+  if (conditions) patch.conditions = conditions;
+  await ref.update(patch);
+  res.json({ success: true });
+});
+
 // セグメント配信（multicast / narrowcast 自動切替）
 api.post('/v1/line/narrowcast', requireAuth, async (req: AuthedRequest, res) => {
   const { segmentId, text, conditions } = req.body as {
@@ -1583,8 +2121,8 @@ api.post('/v1/line/richmenu', requireAuth, async (req: AuthedRequest, res) => {
     res.status(400).json({ error: 'LINE Channel Access Token 未設定' });
     return;
   }
-  const { name, chatBarText, size, areas } = req.body as {
-    name?: string; chatBarText?: string; size?: { width: number; height: number };
+  const { name, chatBarText, size, areas, segmentId } = req.body as {
+    name?: string; chatBarText?: string; size?: { width: number; height: number }; segmentId?: string;
     areas?: Array<{ bounds: { x: number; y: number; width: number; height: number }; action: { type: string; uri?: string; data?: string; label?: string } }>;
   };
   if (!name || !chatBarText || !size || !areas?.length) {
@@ -1598,7 +2136,7 @@ api.post('/v1/line/richmenu', requireAuth, async (req: AuthedRequest, res) => {
   }
   const { getFirestore } = await import('firebase-admin/firestore');
   const ref = await getFirestore().collection(lineCrmDocPath(req.uid!, 'lineRichMenus')).add({
-    name, lineRichMenuId: result.richMenuId, createdAt: new Date().toISOString(),
+    name, lineRichMenuId: result.richMenuId, segmentId: segmentId ?? null, createdAt: new Date().toISOString(),
   });
   res.json({ id: ref.id, lineRichMenuId: result.richMenuId });
 });
@@ -1646,13 +2184,76 @@ api.post('/v1/hpb/conversions', requireAuth, async (req: AuthedRequest, res) => 
 });
 
 // --- GBP ---
+function googleOAuthRedirectUri(): string {
+  return `${META_APP_ORIGIN}/api/v1/oauth/google/callback`;
+}
+
 api.get('/v1/oauth/google/start', requireAuth, async (req: AuthedRequest, res) => {
-  // 本番OAuth前の接続フロー: ロケーション名保存で「連携済み」扱いにできる
-  res.json({
-    mode: 'manual',
-    message: '設定画面で店舗名・ロケーションを保存すると GBP モードが使えます（OAuth本番接続は順次開放）',
-    settingsPath: '/settings',
+  const state = await saveOAuthState(req.uid!, 'google');
+  const url = getGoogleOAuthUrl(state, googleOAuthRedirectUri());
+  if (!url) {
+    res.json({
+      mode: 'manual',
+      message: 'GOOGLE_OAUTH_CLIENT_ID が未設定です。設定画面で店舗名を手動保存できます',
+      settingsPath: '/settings?tab=sns',
+    });
+    return;
+  }
+  res.json({ url, mode: 'oauth' });
+});
+
+api.get('/v1/oauth/google/callback', async (req, res) => {
+  const code = typeof req.query.code === 'string' ? req.query.code : null;
+  const state = typeof req.query.state === 'string' ? req.query.state : null;
+  if (!code || !state) {
+    res.redirect(302, `${META_APP_ORIGIN}/settings?tab=sns&gbp=error`);
+    return;
+  }
+  const uid = await consumeOAuthState(state);
+  if (!uid) {
+    res.redirect(302, `${META_APP_ORIGIN}/settings?tab=sns&gbp=expired`);
+    return;
+  }
+  const exchanged = await exchangeGoogleCode(code, googleOAuthRedirectUri());
+  if (!exchanged) {
+    res.redirect(302, `${META_APP_ORIGIN}/settings?tab=sns&gbp=error`);
+    return;
+  }
+  const accounts = await listGbpAccounts(exchanged.accessToken);
+  const account = accounts[0];
+  let locationTitle = '';
+  let locationId = '';
+  let locationResourceName = '';
+  if (account) {
+    const locations = await listGbpLocations(exchanged.accessToken, account.name);
+    const loc = locations[0];
+    if (loc) {
+      locationTitle = loc.title;
+      locationId = loc.locationId;
+      locationResourceName = loc.name;
+    }
+  }
+  const expiresAt = exchanged.expiresIn
+    ? new Date(Date.now() + exchanged.expiresIn * 1000).toISOString()
+    : undefined;
+  await updateUserSettings(uid, {
+    gbpAccessToken: exchanged.accessToken,
+    gbpRefreshToken: exchanged.refreshToken,
+    gbpTokenExpiresAt: expiresAt,
+    gbpAccountName: account?.name,
+    gbpLocationId: locationId || undefined,
+    gbpLocationResourceName: locationResourceName || undefined,
+    gbpLocationName: locationTitle || undefined,
+    gbpConnected: true,
   });
+  res.redirect(302, `${META_APP_ORIGIN}/settings?tab=sns&gbp=connected`);
+});
+
+api.get('/v1/gbp/insights', requireAuth, async (req: AuthedRequest, res) => {
+  const settings = await getUserSettings(req.uid!);
+  const insights = await fetchGbpInsights(settings);
+  const reviews = await listGbpReviews(settings);
+  res.json({ insights, reviews });
 });
 
 api.post('/v1/gbp/review-reply', requireAuth, async (req: AuthedRequest, res) => {
@@ -1664,6 +2265,156 @@ api.post('/v1/gbp/review-reply', requireAuth, async (req: AuthedRequest, res) =>
   const settings = await getUserSettings(req.uid!);
   const result = await draftGbpReviewReply(reviewText.trim(), settings.plan);
   res.json(result);
+});
+
+// --- Stripe Billing ---
+api.post('/v1/billing/checkout', requireAuth, async (req: AuthedRequest, res) => {
+  const { plan, interval = 'monthly', referralCode, startupDiscount } = req.body as {
+    plan?: string; interval?: 'monthly' | 'annual'; referralCode?: string; startupDiscount?: boolean;
+  };
+  if (!plan || !['line_lite', 'line_pro', 'starter', 'pro', 'growth'].includes(plan)) {
+    res.status(400).json({ error: '有効なプランを指定してください' });
+    return;
+  }
+  const settings = await getUserSettings(req.uid!);
+  const session = await createCheckoutSession({
+    uid: req.uid!,
+    email: settings.email,
+    plan: plan as import('./services/firestore').PlanTier,
+    interval,
+    successUrl: `${META_APP_ORIGIN}/settings?tab=plan&checkout=success`,
+    cancelUrl: `${META_APP_ORIGIN}/settings?tab=plan&checkout=cancel`,
+    referralCode,
+    startupDiscount: !!startupDiscount,
+  });
+  if (!session) {
+    res.status(503).json({ error: '決済が未設定です（STRIPE_SECRET_KEY）' });
+    return;
+  }
+  res.json(session);
+});
+
+// --- Lステップ移行 ---
+api.post('/v1/line/import/lstep', requireAuth, async (req: AuthedRequest, res) => {
+  const settings = await getUserSettings(req.uid!);
+  if (!['pro', 'team', 'growth', 'enterprise'].includes(settings.plan)) {
+    res.status(403).json({ error: 'Pro プラン以上が必要です' });
+    return;
+  }
+  const { csv } = req.body as { csv?: string };
+  if (!csv?.trim()) {
+    res.status(400).json({ error: 'csv が必要です' });
+    return;
+  }
+  const result = await importLstepCsv(req.uid!, csv);
+  res.json(result);
+});
+
+// --- Gemini 戦略エージェント ---
+api.post('/v1/agent/chat', requireAuth, async (req: AuthedRequest, res) => {
+  const { messages } = req.body as {
+    messages?: Array<{ role: 'user' | 'assistant'; content: string }>;
+  };
+  if (!messages?.length) {
+    res.status(400).json({ error: 'messages が必要です' });
+    return;
+  }
+  const result = await runStrategyAgent(req.uid!, messages);
+  res.json(result);
+});
+
+api.post('/v1/billing/webhook', async (req, res) => {
+  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  const sig = req.header('stripe-signature') ?? '';
+  const raw = (req as AuthedRequest).rawBody?.toString() ?? JSON.stringify(req.body);
+  if (secret && !verifyStripeWebhookSignature(raw, sig, secret)) {
+    res.status(400).send('Invalid signature');
+    return;
+  }
+  const event = (raw ? JSON.parse(raw) : req.body) as { type?: string; data?: { object?: Record<string, unknown> } };
+  if (event.type === 'checkout.session.completed') {
+    const session = (event.data?.object ?? {}) as {
+      metadata?: { uid?: string; plan?: string; interval?: string };
+      customer?: string;
+    };
+    const meta = session.metadata ?? {};
+    if (meta.uid && meta.plan) {
+      await updateUserSettings(meta.uid, {
+        plan: meta.plan as import('./services/firestore').PlanTier,
+        billingInterval: (meta.interval as 'monthly' | 'annual') ?? 'monthly',
+        stripeCustomerId: session.customer,
+      });
+    }
+  }
+  res.json({ received: true });
+});
+
+api.post('/v1/billing/referral/apply', requireAuth, async (req: AuthedRequest, res) => {
+  const { code } = req.body as { code?: string };
+  if (!code?.trim()) {
+    res.status(400).json({ error: '紹介コードが必要です' });
+    return;
+  }
+  const { getFirestore } = await import('firebase-admin/firestore');
+  const snap = await getFirestore().collection('users').where('referralCode', '==', code.trim()).limit(1).get();
+  if (snap.empty) {
+    res.status(404).json({ error: '紹介コードが見つかりません' });
+    return;
+  }
+  await updateUserSettings(req.uid!, { referredBy: snap.docs[0].id });
+  res.json({ success: true, message: '紹介コードを適用しました（初月無料は決済時に反映）' });
+});
+
+// --- Enterprise ---
+api.get('/v1/enterprise/kpis', requireAuth, async (req: AuthedRequest, res) => {
+  const settings = await getUserSettings(req.uid!);
+  if (!['growth', 'enterprise'].includes(settings.plan)) {
+    res.status(403).json({ error: 'Growth OS / Enterprise プランが必要です' });
+    return;
+  }
+  const kpis = await buildCrossStoreKpis(req.uid!);
+  const tamperAlerts = await listTamperAlerts(req.uid!);
+  res.json({ kpis, tamperAlerts });
+});
+
+api.post('/v1/enterprise/bulk-distribute', requireAuth, async (req: AuthedRequest, res) => {
+  const settings = await getUserSettings(req.uid!);
+  if (!['enterprise'].includes(settings.plan)) {
+    res.status(403).json({ error: 'Enterprise プランが必要です' });
+    return;
+  }
+  const { storeIds, templateTitle, templateBody, publishMode } = req.body as {
+    storeIds?: string[]; templateTitle?: string; templateBody?: string; publishMode?: string;
+  };
+  if (!storeIds?.length || !templateTitle?.trim() || !templateBody?.trim()) {
+    res.status(400).json({ error: 'storeIds, templateTitle, templateBody が必要です' });
+    return;
+  }
+  const result = await bulkDistributeTemplate(req.uid!, {
+    storeIds,
+    templateTitle: templateTitle.trim(),
+    templateBody: templateBody.trim(),
+    publishMode: publishMode ?? 'approval',
+  });
+  res.json(result);
+});
+
+api.post('/v1/enterprise/inquiry', async (req, res) => {
+  const { company, email, storeCount, message, uid } = req.body as {
+    company?: string; email?: string; storeCount?: number; message?: string; uid?: string;
+  };
+  if (!company?.trim() || !email?.trim() || !message?.trim()) {
+    res.status(400).json({ error: 'company, email, message が必要です' });
+    return;
+  }
+  const id = await saveEnterpriseInquiry({
+    uid,
+    company: company.trim(),
+    email: email.trim(),
+    storeCount: Number(storeCount ?? 1),
+    message: message.trim(),
+  });
+  res.json({ success: true, id });
 });
 
 // --- Product extras: inbox / patterns / coupons / chat / health / export / watch ---
@@ -2049,12 +2800,259 @@ api.post('/v1/invitations/:token/accept', requireAuth, async (req: AuthedRequest
   }
 });
 
+// --- Account (課金主体) ---
+api.get('/v1/account', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const account = await getAccountForUser(req.uid!);
+    if (!account) {
+      res.json({ account: null, entitlements: null, accountSetupRequired: true });
+      return;
+    }
+    const entitlements = await resolveEntitlements(req.uid!);
+    const members = await listAccountMembers(account.id);
+    res.json({ account, entitlements, members, accountSetupRequired: false });
+  } catch (err) {
+    console.error('account get failed', err);
+    res.status(500).json({ error: 'アカウント情報の取得に失敗しました' });
+  }
+});
+
+api.post('/v1/account/setup', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const { accountType, companyName, companyTaxId } = req.body as {
+      accountType: 'individual' | 'business';
+      companyName?: string;
+      companyTaxId?: string;
+    };
+    if (!accountType || !['individual', 'business'].includes(accountType)) {
+      res.status(400).json({ error: 'accountType は individual または business を指定してください' });
+      return;
+    }
+    const settings = await getUserSettings(req.uid!);
+    const result = await setupAccount(req.uid!, {
+      accountType,
+      companyName,
+      companyTaxId,
+    }, settings.email, settings.displayName);
+    res.json(result);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'アカウントの作成に失敗しました';
+    res.status(400).json({ error: message });
+  }
+});
+
+api.get('/v1/account/members', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const account = await getAccountForUser(req.uid!);
+    if (!account) {
+      res.status(404).json({ error: 'アカウントが見つかりません' });
+      return;
+    }
+    const [members, invitations] = await Promise.all([
+      listAccountMembers(account.id),
+      listAccountInvitations(account.id),
+    ]);
+    const myRole = await getAccountMemberRole(account.id, req.uid!);
+    const extraSeats = Math.max(0, account.seatCount - account.includedSeats);
+    res.json({
+      members,
+      invitations: invitations.filter((i) => !i.acceptedAt),
+      mailConfigured: isMailConfigured(),
+      seatCount: account.seatCount,
+      includedSeats: account.includedSeats,
+      extraSeats,
+      extraSeatMonthly: EXTRA_ACCOUNT_SEAT_MONTHLY,
+      extraSeatsCost: extraSeats * EXTRA_ACCOUNT_SEAT_MONTHLY,
+      accountType: account.accountType,
+      companyName: account.companyName,
+      myRole,
+      canManage: myRole === 'owner' || myRole === 'admin',
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'メンバー一覧の取得に失敗しました' });
+  }
+});
+
+api.post('/v1/account/members', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const { email, role } = req.body as { email?: string; role?: 'admin' | 'member' };
+    const account = await getAccountForUser(req.uid!);
+    if (!account) {
+      res.status(404).json({ error: 'アカウントが見つかりません' });
+      return;
+    }
+    const result = await inviteAccountMemberByEmail(
+      account.id,
+      email ?? '',
+      req.uid!,
+      role === 'admin' ? 'admin' : 'member',
+    );
+    res.json(result);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'メンバー招待に失敗しました';
+    res.status(400).json({ error: message });
+  }
+});
+
+api.delete('/v1/account/invitations/:invitationId', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const account = await getAccountForUser(req.uid!);
+    if (!account) {
+      res.status(404).json({ error: 'アカウントが見つかりません' });
+      return;
+    }
+    const { token } = req.body as { token?: string };
+    await revokeAccountInvitation(account.id, String(req.params.invitationId), req.uid!, token);
+    res.json({ success: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '招待の取り消しに失敗しました';
+    res.status(400).json({ error: message });
+  }
+});
+
+api.get('/v1/account/invitations/:token', async (req, res) => {
+  const info = await getAccountInvitationByToken(String(req.params.token));
+  if (!info) {
+    res.status(404).json({ error: '招待が見つかりません' });
+    return;
+  }
+  res.json(info);
+});
+
+api.post('/v1/account/invitations/:token/accept', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const settings = await getUserSettings(req.uid!);
+    const result = await acceptAccountInvitation(
+      String(req.params.token),
+      req.uid!,
+      settings.email,
+    );
+    res.json(result);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '招待の承認に失敗しました';
+    res.status(400).json({ error: message });
+  }
+});
+
+api.delete('/v1/account/members/:userId', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const account = await getAccountForUser(req.uid!);
+    if (!account) {
+      res.status(404).json({ error: 'アカウントが見つかりません' });
+      return;
+    }
+    await removeAccountMember(account.id, String(req.params.userId), req.uid!);
+    res.json({ success: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'メンバー削除に失敗しました';
+    res.status(400).json({ error: message });
+  }
+});
+
+// --- Admin (アカウント管理) ---
+api.get('/v1/admin/me', requireAuth, async (req: AuthedRequest, res) => {
+  const admin = await isAdminUid(req.uid!);
+  res.json({ admin });
+});
+
+api.get('/v1/admin/accounts', requireAuth, requireAdmin, async (_req: AuthedRequest, res) => {
+  try {
+    const accounts = await listAllAccounts(200);
+    const enriched = await Promise.all(
+      accounts.map(async (a) => {
+        const members = await listAccountMembers(a.id);
+        return {
+          ...a,
+          entitlements: {
+            billingExempt: a.billingExempt || a.billingStatus === 'monitor',
+            extraSeats: Math.max(0, a.seatCount - a.includedSeats),
+          },
+          memberCount: members.length,
+          accountTypeLabel: ACCOUNT_TYPE_LABELS[a.accountType] ?? a.accountType,
+          billingStatusLabel: BILLING_STATUS_LABELS[a.billingStatus] ?? a.billingStatus,
+        };
+      }),
+    );
+    res.json({ accounts: enriched });
+  } catch (err) {
+    console.error('admin accounts list failed', err);
+    res.status(500).json({ error: 'アカウント一覧の取得に失敗しました' });
+  }
+});
+
+api.patch('/v1/admin/accounts/:accountId', requireAuth, requireAdmin, async (req: AuthedRequest, res) => {
+  try {
+    const auth = await import('firebase-admin/auth');
+    const user = await auth.getAuth().getUser(req.uid!);
+    const updated = await adminUpdateAccount(
+      String(req.params.accountId),
+      req.body,
+      { uid: req.uid!, email: user.email },
+    );
+    res.json({ account: updated });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '更新に失敗しました';
+    res.status(400).json({ error: message });
+  }
+});
+
+api.get('/v1/admin/accounts/:accountId/members', requireAuth, requireAdmin, async (req: AuthedRequest, res) => {
+  try {
+    const members = await listAccountMembers(String(req.params.accountId));
+    res.json({ members });
+  } catch (err) {
+    res.status(500).json({ error: 'メンバー一覧の取得に失敗しました' });
+  }
+});
+
+api.get('/v1/admin/audit-log', requireAuth, requireAdmin, async (_req: AuthedRequest, res) => {
+  try {
+    const snap = await import('firebase-admin/firestore').then((m) =>
+      m.getFirestore().collection('admin_audit_log').orderBy('createdAt', 'desc').limit(50).get(),
+    );
+    const logs = snap.docs.map((d) => ({
+      id: d.id,
+      ...d.data(),
+      createdAt: d.data().createdAt?.toDate?.()?.toISOString?.() ?? d.data().createdAt,
+    }));
+    res.json({ logs });
+  } catch (err) {
+    res.status(500).json({ error: '監査ログの取得に失敗しました' });
+  }
+});
+
+// --- Auth login hint (公開・認証不要) ---
+api.post('/v1/auth/login-hint', async (req, res) => {
+  const clientKey = req.ip || req.socket.remoteAddress || 'unknown';
+  if (!checkLoginHintRateLimit(clientKey)) {
+    res.status(429).json({ error: 'リクエストが多すぎます。しばらく待ってから再度お試しください。' });
+    return;
+  }
+
+  try {
+    const { email } = req.body as { email?: string };
+    if (!email?.trim()) {
+      res.status(400).json({ error: 'メールアドレスを入力してください' });
+      return;
+    }
+    const hint = await getLoginHint(email);
+    res.json(hint);
+  } catch (err) {
+    console.error('auth/login-hint failed', err);
+    res.status(500).json({ error: 'ログイン方法の確認に失敗しました' });
+  }
+});
+
 // --- Auth bootstrap ---
 api.post('/v1/auth/bootstrap', requireAuth, async (req: AuthedRequest, res) => {
   try {
     const { email, displayName } = req.body as { email?: string; displayName?: string };
     const settings = await ensureUser(req.uid!, email, displayName);
-    res.json(settings);
+    const hasAccount = await userHasAccount(req.uid!);
+    res.json({
+      ...settings,
+      accountSetupRequired: !hasAccount && !settings.accountSetupComplete,
+    });
   } catch (err) {
     console.error('auth/bootstrap failed', err);
     res.status(500).json({ error: 'ユーザープロファイルの作成に失敗しました' });

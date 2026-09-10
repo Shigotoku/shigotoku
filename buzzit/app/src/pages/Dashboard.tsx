@@ -141,8 +141,8 @@ export default function Dashboard() {
 
       <DemoDataBanner isSample={isSample} />
 
-      <section className="border border-neutral-200 bg-white p-4 sm:p-5">
-        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">はじめての流れ</p>
+      <section className="buzz-card-pad !p-4 sm:!p-5">
+        <p className="buzz-section-label">はじめての流れ</p>
         <ol className="mt-3 grid gap-2 sm:grid-cols-4">
           {[
             { step: '1', label: 'ネタを溜める', to: '/inbox', hint: 'ネタInbox' },
@@ -153,9 +153,9 @@ export default function Dashboard() {
             <Link
               key={item.step}
               to={item.to}
-              className="border border-neutral-200 bg-[#f5f4f0] p-3 transition-colors hover:border-neutral-900"
+              className="rounded-xl border border-neutral-200/80 bg-neutral-50 p-3 transition-colors hover:border-violet-200 hover:bg-violet-50/50"
             >
-              <p className="text-[10px] font-bold text-neutral-400">STEP {item.step}</p>
+              <p className="text-[10px] font-semibold text-violet-600">{item.step}</p>
               <p className="mt-1 text-sm font-semibold text-neutral-900">{item.label}</p>
               <p className="mt-0.5 text-xs text-neutral-500">{item.hint}</p>
             </Link>
@@ -173,10 +173,10 @@ export default function Dashboard() {
       <SetupDiagnosisCard signals={signals} />
 
       {insights && (
-        <section className="border border-neutral-200 bg-white p-4 sm:p-5">
+        <section className="buzz-card-pad !p-4 sm:!p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+              <p className="buzz-section-label">
                 SNSインプレッション（自動取得）
               </p>
               <p className="mt-1 text-sm text-neutral-600">
@@ -216,10 +216,10 @@ export default function Dashboard() {
       )}
 
       {weekly && (
-        <section className="border border-neutral-200 bg-white p-4 sm:p-5">
+        <section className="buzz-card-pad !p-4 sm:!p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">週次レポート</p>
+              <p className="buzz-section-label">週次レポート</p>
               <p className="mt-1 text-sm text-neutral-600">{weekly.periodLabel}</p>
             </div>
             <Link to="/analytics" className="text-xs underline-offset-2 hover:underline">
@@ -257,7 +257,7 @@ export default function Dashboard() {
       )}
 
       {healthScore != null && (
-        <div className="border border-neutral-200 bg-white p-4 text-sm">
+        <div className="buzz-card-pad !p-4 text-sm">
           <p className="font-medium">
             接続ヘルス {healthScore}%（
             <GlossTooltip term="Webhook" /> / <GlossTooltip term="Meta" /> / 予約URL）
@@ -275,13 +275,13 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="border border-neutral-200 bg-white p-6 md:p-7">
-        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-neutral-500">
-          <Sun className="h-3.5 w-3.5" />
+      <div className="buzz-card-pad">
+        <div className="flex items-center gap-2 text-sm font-medium text-neutral-600">
+          <Sun className="h-4 w-4 text-amber-500" />
           毎朝5分ルーティン
         </div>
         <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-4">
-          <div className="border-l-2 border-neutral-900 pl-3">
+          <div className="border-l-2 border-violet-500 pl-3">
             <p className="text-xs text-neutral-500">1. 健康診断</p>
             <p className="mt-1 text-lg font-bold">スコア {metrics.healthScore}</p>
           </div>
@@ -305,7 +305,7 @@ export default function Dashboard() {
       {failedCount > 0 && (
         <Link
           to="/calendar"
-          className="flex items-center gap-3 border border-red-200 bg-red-50 p-4 text-sm text-red-900 hover:border-red-400"
+          className="flex items-center gap-3 rounded-xl border border-red-200/80 bg-red-50/80 p-4 text-sm text-red-900 transition-colors hover:border-red-300"
         >
           <AlertTriangle className="h-5 w-5 shrink-0" />
           <span>
@@ -318,14 +318,14 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="buzz-card lg:col-span-2">
           <div className="border-b border-neutral-200 bg-neutral-50 p-6 md:p-8">
-            <p className="buzz-section-label mb-3">Today&apos;s Mission</p>
+            <p className="buzz-section-label mb-3">今日のミッション</p>
             <h2 className="text-2xl font-bold md:text-3xl" data-headline-max="28">{mission.title}</h2>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-neutral-600 md:text-base">
               {mission.description}
             </p>
             {topTrend && (
               <div className="mt-4 border border-amber-200 bg-amber-50 p-3">
-                <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-amber-800">
+                <p className="flex items-center gap-1.5 text-xs font-semibold text-amber-800">
                   <Flame className="h-3.5 w-3.5" />
                   今日のトレンド枠
                 </p>
@@ -346,10 +346,7 @@ export default function Dashboard() {
                 内容を確認・承認する
                 <ArrowRight className="h-4 w-4" />
               </Link>
-              <Link
-                to="/calendar"
-                className="inline-flex items-center gap-2 border border-neutral-300 bg-white px-4 py-2 text-sm hover:border-neutral-900"
-              >
+              <Link to="/calendar" className="buzz-btn-secondary !px-4 !py-2.5 text-sm">
                 カレンダーを見る
               </Link>
             </div>
@@ -389,14 +386,14 @@ export default function Dashboard() {
 
         <div className="grid grid-cols-1 gap-px overflow-hidden border border-neutral-200 bg-neutral-200 md:grid-cols-3">
           <div className="bg-white p-6">
-            <div className="mb-4 flex h-10 w-10 items-center justify-center border border-neutral-200 bg-neutral-50 text-neutral-700">
+            <div className="buzz-icon-box mb-4">
               <Users className="h-5 w-5" />
             </div>
             <div className="mb-1 text-sm text-neutral-500">総リーチ数</div>
             <div className="buzz-stat-value text-2xl">{metrics.reach.toLocaleString()}</div>
           </div>
           <div className="bg-white p-6">
-            <div className="mb-4 flex h-10 w-10 items-center justify-center border border-neutral-200 bg-neutral-50 text-neutral-700">
+            <div className="buzz-icon-box mb-4">
               <CheckCircle2 className="h-5 w-5" />
             </div>
             <div className="mb-1 text-sm text-neutral-500">{kpiLabels.leads}</div>
@@ -406,7 +403,7 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="bg-white p-6">
-            <div className="mb-4 flex h-10 w-10 items-center justify-center border border-neutral-200 bg-neutral-50 text-neutral-700">
+            <div className="buzz-icon-box mb-4">
               <DollarSign className="h-5 w-5" />
             </div>
             <div className="mb-1 text-sm text-neutral-500">{kpiLabels.revenue}</div>
@@ -423,7 +420,7 @@ export default function Dashboard() {
           </div>
           <div className="space-y-3">
             {pendingJobs.map((job) => (
-              <div key={job.id} className="border border-neutral-200 bg-neutral-50 p-4">
+              <div key={job.id} className="buzz-surface p-4">
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                   <span className="text-sm font-medium">
                     {new Date(job.scheduledAt).toLocaleString('ja-JP')} · {job.publishMode}
@@ -432,7 +429,7 @@ export default function Dashboard() {
                     type="button"
                     disabled={approvingId === job.id}
                     onClick={() => handleApproveJob(job.id)}
-                    className="buzz-btn-primary px-4 py-2 text-sm disabled:opacity-60"
+                    className="buzz-btn-accent !px-4 !py-2 text-sm disabled:opacity-60"
                   >
                     {approvingId === job.id ? '承認中...' : '承認して予約'}
                   </button>

@@ -43,6 +43,23 @@ export function bootstrapAuth(email?: string, displayName?: string) {
   });
 }
 
+export interface LoginHintResponse {
+  suggest?: 'google';
+}
+
+/** ログイン失敗時に登録済みプロバイダを案内（認証不要） */
+export async function fetchLoginHint(email: string): Promise<LoginHintResponse> {
+  const res = await fetch(`${API_BASE}/v1/auth/login-hint`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: email.trim() }),
+  });
+  if (!res.ok) {
+    return {};
+  }
+  return res.json() as Promise<LoginHintResponse>;
+}
+
 export interface DashboardResponse {
   metrics: {
     healthScore: number;
@@ -1157,4 +1174,366 @@ export function runXSeriesNow(body: {
     '/v1/x/series/run-now',
     { method: 'POST', body: JSON.stringify(body) },
   );
+}
+
+// --- Insights Dashboard ---
+export type InsightsPlatformFilter = 'all' | 'x' | 'instagram' | 'facebook' | 'line';
+
+export interface InsightsDashboard {
+  platform: InsightsPlatformFilter;
+  periodDays: number;
+  totals: {
+    impressions: number;
+    reach: number;
+    engagements: number;
+    postCount: number;
+    clicks: number;
+    lineSignups: number;
+    revenue: number;
+  };
+  byPlatform: Record<string, { impressions: number; reach: number; engagements: number; postCount: number }>;
+  dailySeries: Array<{ date: string; impressions: number; reach: number; engagements: number; posts: number }>;
+  topPosts: Array<{
+    id: string;
+    platform: string;
+    preview: string;
+    impressions: number;
+    engagement: number;
+    engagementRate: number;
+    scheduledAt?: string;
+  }>;
+  takeaways: Array<{
+    type: 'success' | 'warning' | 'tip';
+    title: string;
+    body: string;
+    actionLabel?: string;
+    actionPath?: string;
+  }>;
+  connections: {
+    x: boolean;
+    instagram: boolean;
+    facebook: boolean;
+    threads: boolean;
+    line: boolean;
+    meta: boolean;
+  };
+  lineFollowers: number | null;
+  tiktok: { publishedCount: number; note: string };
+  summary: InsightsSummary;
+  funnel: {
+    posts: number;
+    reach: number;
+    clicks: number;
+    lineSignups: number;
+    revenue: number;
+  };
+  lastSyncedAt?: string;
+  aiPowered?: boolean;
+  snapshotDays?: number;
+}
+
+export function fetchInsightsDashboard(platform: InsightsPlatformFilter = 'all', days = 30) {
+  const params = new URLSearchParams({ platform, days: String(days) });
+  return request<{ dashboard: InsightsDashboard }>(`/v1/insights/dashboard?${params}`);
+}
+
+export function analyzeInsights(body: {
+  platform?: InsightsPlatformFilter;
+  force?: boolean;
+  days?: number;
+  useAi?: boolean;
+}) {
+  return request<{ success: boolean; result: Record<string, unknown>; dashboard: InsightsDashboard }>(
+    '/v1/insights/analyze',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        platform: body.platform ?? 'all',
+        force: body.force ?? true,
+        days: body.days ?? 30,
+        useAi: body.useAi ?? true,
+      }),
+    },
+  );
+}
+
+export function fetchInsightsReport(platform: InsightsPlatformFilter = 'all', days = 30) {
+  const params = new URLSearchParams({ platform, days: String(days) });
+  return request<{ html: string; dashboard: InsightsDashboard }>(`/v1/insights/report?${params}`);
+}
+
+export type InsightsReportFormat = 'pptx' | 'pdf' | 'html';
+
+export async function downloadInsightsReportFile(
+  format: InsightsReportFormat,
+  platform: InsightsPlatformFilter = 'all',
+  days = 30,
+): Promise<void> {
+  const params = new URLSearchParams({ format, platform, days: String(days) });
+  const res = await authFetch(`/v1/insights/report/download?${params}`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { error?: string }).error ?? 'ダウンロードに失敗しました');
+  }
+  const blob = await res.blob();
+  const base = `buzzit-sns-report-${platform}-${new Date().toISOString().slice(0, 10)}`;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${base}.${format}`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export function shareInsightsReport(platform: InsightsPlatformFilter = 'all', days = 30) {
+  return request<{ shareUrl: string; token: string; expiresAt: string; platform: string }>(
+    '/v1/insights/report/share',
+    {
+      method: 'POST',
+      body: JSON.stringify({ platform, days }),
+    },
+  );
+}
+
+// --- X Series extras ---
+export type ReviewDraftItem = {
+  text: string;
+  tags?: string;
+  title?: string;
+  linkUrl?: string;
+  imageUrl?: string;
+  imageAlt?: string;
+  approved?: boolean;
+};
+
+export function generateXSeriesBatch(
+  seriesId: string,
+  body: { source: string; approved?: boolean; seriesHint?: string; dryRun?: boolean },
+) {
+  return request<{ generated: number; usedGemini: boolean; items: ReviewDraftItem[] | XSeriesItem[] }>(
+    `/v1/x/series/${seriesId}/generate-batch`,
+    { method: 'POST', body: JSON.stringify(body) },
+  );
+}
+
+export function importXSeriesPaste(seriesId: string, text: string, approved = false) {
+  return request<{ imported: number; items: XSeriesItem[] }>(`/v1/x/series/${seriesId}/import-paste`, {
+    method: 'POST',
+    body: JSON.stringify({ text, approved }),
+  });
+}
+
+export function enrichXSeriesUrl(url: string) {
+  return request<{ suggestedText?: string; title?: string; linkUrl?: string }>('/v1/x/series/enrich-url', {
+    method: 'POST',
+    body: JSON.stringify({ url }),
+  });
+}
+
+export interface XSeriesInsights {
+  approvedStock: number;
+  pendingStock: number;
+  postsPerWeek: number;
+  weeksOfStock: number | null;
+  xPostsRemaining: number;
+  stockRunsOutBeforeMonthEnd: boolean;
+  lowStockWarning: boolean;
+  nextFireAt: string | null;
+}
+
+export interface NextScheduledPost {
+  at: string;
+  seriesId: string;
+  seriesName: string;
+  ruleId: string;
+  previewText: string;
+  itemId?: string;
+}
+
+export function fetchXSeriesInsights(seriesId: string) {
+  return request<{ insights: XSeriesInsights; nextPosts: NextScheduledPost[] }>(`/v1/x/series/${seriesId}/insights`);
+}
+
+// --- GBP / MEO ---
+export function fetchGbpInsights() {
+  return request<{
+    insights: { views: number; searches: number; actions: number } | null;
+    reviews: Array<{ id: string; reviewer: string; comment: string; starRating: string; createTime: string }>;
+  }>('/v1/gbp/insights');
+}
+
+// --- Agent ---
+export function sendAgentMessage(messages: Array<{ role: 'user' | 'assistant'; content: string }>) {
+  return request<{ reply: string; suggestions: string[] }>('/v1/agent/chat', {
+    method: 'POST',
+    body: JSON.stringify({ messages }),
+  });
+}
+
+// --- Enterprise ---
+export function fetchEnterpriseKpis() {
+  return request<{
+    kpis: Array<{
+      storeId: string;
+      storeName: string;
+      healthScore: number;
+      lineFriends: number;
+      reach: number;
+      revenue: number;
+      metaConnected: boolean;
+      lineConnected: boolean;
+      gbpConnected: boolean;
+    }>;
+    tamperAlerts: Array<{ id: string; field: string; detail: string; status: string }>;
+  }>('/v1/enterprise/kpis');
+}
+
+export function bulkDistributeTemplate(body: {
+  storeIds: string[];
+  templateTitle: string;
+  templateBody: string;
+  publishMode?: string;
+}) {
+  return request<{ jobIds: string[] }>('/v1/enterprise/bulk-distribute', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+// --- Account ---
+export function fetchAccount() {
+  return request<{
+    account: Record<string, unknown> | null;
+    entitlements: Record<string, unknown> | null;
+    accountSetupRequired: boolean;
+  }>('/v1/account');
+}
+
+export function setupAccount(body: {
+  accountType: 'individual' | 'business';
+  companyName?: string;
+  companyTaxId?: string;
+}) {
+  return request<Record<string, unknown>>('/v1/account/setup', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export interface AccountMemberRow {
+  userId: string;
+  email?: string;
+  displayName?: string;
+  role: string;
+  joinedAt?: string;
+  createdAt?: string;
+}
+
+export interface AccountInvitationRow {
+  id: string;
+  email: string;
+  role: string;
+  token: string;
+  expiresAt: string;
+  inviterName?: string;
+  createdAt?: string;
+}
+
+export function fetchAccountMembers() {
+  return request<{
+    members: AccountMemberRow[];
+    invitations: AccountInvitationRow[];
+    mailConfigured: boolean;
+    accountType: string;
+    companyName?: string;
+    seatCount: number;
+    includedSeats: number;
+    extraSeats: number;
+    extraSeatMonthly: number;
+    extraSeatsCost: number;
+    canManage: boolean;
+    myRole?: string;
+  }>('/v1/account/members');
+}
+
+export type InviteAccountMemberResult =
+  | { kind: 'member'; member: AccountMemberRow; emailSent: false }
+  | { kind: 'invitation'; invitation: AccountInvitationRow; inviteUrl: string; emailSent: boolean };
+
+export function inviteAccountMember(email: string, role: 'admin' | 'member' = 'member') {
+  return request<InviteAccountMemberResult>('/v1/account/members', {
+    method: 'POST',
+    body: JSON.stringify({ email, role }),
+  });
+}
+
+export function revokeAccountInvitation(invitationId: string, token: string) {
+  return request<{ success: boolean }>(`/v1/account/invitations/${invitationId}`, {
+    method: 'DELETE',
+    body: JSON.stringify({ token }),
+  });
+}
+
+export function fetchAccountInvitationByToken(token: string) {
+  return request<{
+    companyName: string;
+    role: string;
+    email: string;
+    inviterName?: string;
+    expired: boolean;
+  }>(`/v1/account/invitations/${token}`);
+}
+
+export function acceptAccountInvitation(token: string) {
+  return request<{ accountId: string; companyName?: string }>(
+    `/v1/account/invitations/${token}/accept`,
+    { method: 'POST', body: JSON.stringify({}) },
+  );
+}
+
+export function removeAccountMember(userId: string) {
+  return request<{ success: boolean }>(`/v1/account/members/${userId}`, { method: 'DELETE' });
+}
+
+// --- Admin ---
+export interface AdminAccountRow {
+  id: string;
+  accountType: string;
+  accountTypeLabel: string;
+  companyName?: string;
+  ownerEmail?: string;
+  ownerUid: string;
+  billingStatus: string;
+  billingStatusLabel: string;
+  billingExempt?: boolean;
+  billingExemptReason?: string;
+  plan: string;
+  seatCount: number;
+  includedSeats: number;
+  paymentProvider?: string;
+  entitlements: { billingExempt: boolean; extraSeats: number };
+}
+
+export function fetchAdminMe() {
+  return request<{ admin: boolean }>('/v1/admin/me');
+}
+
+export function fetchAdminAccounts() {
+  return request<{ accounts: AdminAccountRow[] }>('/v1/admin/accounts');
+}
+
+export function updateAdminAccount(
+  accountId: string,
+  body: Partial<{
+    plan: string;
+    billingStatus: string;
+    billingExempt: boolean;
+    billingExemptReason?: string;
+    billingExemptType?: string;
+  }>,
+) {
+  return request<{ account: AdminAccountRow }>(`/v1/admin/accounts/${accountId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
 }

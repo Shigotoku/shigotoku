@@ -14,6 +14,8 @@ import {
 import {
   fetchInstagramMediaInsights,
   fetchXTweetMetrics,
+  fetchFacebookPostInsights,
+  fetchThreadsPostInsights,
   normalizeInsightPlatform,
   type FetchedInsight,
 } from './insights';
@@ -85,7 +87,6 @@ export async function syncInsightsForUser(
       if (!pr.success || !pr.externalId) continue;
       const platform = normalizeInsightPlatform(pr.platform);
       if (!platform) continue;
-      if (platform !== 'instagram' && platform !== 'x') continue;
 
       result.scanned += 1;
       const id = insightDocId(job.id, platform, pr.externalId);
@@ -115,6 +116,22 @@ export async function syncInsightsForUser(
           continue;
         }
         fetched = await fetchInstagramMediaInsights(pr.externalId, meta);
+      } else if (platform === 'facebook') {
+        const pageToken = meta?.pageAccessToken ?? meta?.accessToken;
+        if (!pageToken) {
+          result.errors += 1;
+          result.messages.push('Meta Page 未連携のため Facebook をスキップ');
+          continue;
+        }
+        fetched = await fetchFacebookPostInsights(pr.externalId, pageToken);
+      } else if (platform === 'threads') {
+        const token = meta?.pageAccessToken ?? meta?.accessToken;
+        if (!token) {
+          result.errors += 1;
+          result.messages.push('Meta 未連携のため Threads をスキップ');
+          continue;
+        }
+        fetched = await fetchThreadsPostInsights(pr.externalId, token);
       } else {
         if (!xCreds) {
           result.errors += 1;

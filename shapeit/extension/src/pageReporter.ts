@@ -58,7 +58,7 @@ type DupCandidate = { id: string; title: string; score: number };
 let fabRoot: HTMLElement | null = null;
 let overlayRoot: HTMLElement | null = null;
 let speechRec: SpeechRecognition | null = null;
-let silenceTimer: ReturnType<typeof setTimeout> | null = null;
+let speechWanted = false;
 
 function isCapturablePage(): boolean {
   const u = location.href;
@@ -133,6 +133,39 @@ function injectStyles(shadow: ShadowRoot) {
   shadow.append(style);
 }
 
+function setFabVisible(visible: boolean) {
+  if (fabRoot) fabRoot.style.display = visible ? "" : "none";
+}
+
+function showFabToast(message: string) {
+  const toast = document.createElement("div");
+  toast.textContent = message;
+  Object.assign(toast.style, {
+    position: "fixed",
+    right: "18px",
+    bottom: "84px",
+    zIndex: "2147483641",
+    maxWidth: "280px",
+    padding: "10px 14px",
+    borderRadius: "10px",
+    background: "#0b1320",
+    color: "#fff",
+    fontSize: "12px",
+    lineHeight: "1.5",
+    boxShadow: "0 8px 24px rgba(11,19,32,.35)",
+    fontFamily: '"Segoe UI","Noto Sans JP",system-ui,sans-serif',
+  });
+  document.documentElement.append(toast);
+  globalThis.setTimeout(() => toast.remove(), 3200);
+}
+
+async function hideFab() {
+  if (!extensionAlive()) return;
+  await chrome.storage.sync.set({ shapeitFabHidden: true });
+  setFabVisible(false);
+  showFabToast("フローティングボタンを非表示にしました。拡張アイコン →「右下ボタンを表示」で戻せます。");
+}
+
 function createFab() {
   if (!isCapturablePage() || isShapeitAppPage() || fabRoot) return;
 
@@ -149,12 +182,13 @@ function createFab() {
     <button type="button" data-action="element">要素を指定して報告<span class="sub">Marker.io 型</span></button>
     <button type="button" data-action="annotate">範囲を選んで詳しく編集<span class="sub">Alt+Shift+F</span></button>
     <button type="button" data-action="comment">コメントだけ送る<span class="sub">Alt+Shift+C</span></button>
+    <button type="button" data-action="hide-fab" style="color:#5b6b7c;font-weight:500">ボタンを非表示にする</button>
   `;
 
   const fab = document.createElement("button");
   fab.type = "button";
   fab.className = "fab";
-  fab.title = "ShapeIt に報告";
+  fab.title = "ShapeIt に報告（右クリックで非表示）";
   fab.innerHTML =
     '<svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm1 15h-2v-6h2Zm0-8h-2V7h2Z"/></svg>';
 
@@ -163,11 +197,22 @@ function createFab() {
     menu.classList.toggle("open");
   });
 
+  fab.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    menu.classList.remove("open");
+    void hideFab();
+  });
+
   menu.addEventListener("click", (e) => {
     const btn = (e.target as HTMLElement).closest("button[data-action]");
     if (!btn) return;
     menu.classList.remove("open");
     const action = btn.getAttribute("data-action");
+    if (action === "hide-fab") {
+      void hideFab();
+      return;
+    }
     if (action === "full") void sendRuntimeMessage({ type: "SHAPEIT_START_FULL" });
     if (action === "instant") void sendRuntimeMessage({ type: "SHAPEIT_START_INSTANT" });
     if (action === "element") void sendRuntimeMessage({ type: "SHAPEIT_START_ELEMENT" });
@@ -182,16 +227,18 @@ function createFab() {
 
   if (extensionAlive()) {
     void chrome.storage.sync.get("shapeitFabHidden").then((s) => {
-      if (s.shapeitFabHidden) fabRoot!.style.display = "none";
+      if (s.shapeitFabHidden) setFabVisible(false);
     }).catch(() => {});
+
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area !== "sync" || !changes.shapeitFabHidden) return;
+      setFabVisible(!changes.shapeitFabHidden.newValue);
+    });
   }
 }
 
 function stopSpeech() {
-  if (silenceTimer) {
-    clearTimeout(silenceTimer);
-    silenceTimer = null;
-  }
+  speechWanted = false;
   if (speechRec) {
     try {
       speechRec.stop();
@@ -202,52 +249,64 @@ function stopSpeech() {
   }
 }
 
-function startSpeech(textarea: HTMLTextAreaElement, micBtn: HTMLButtonElement, onSilence: () => void) {
+function startSpeech(textarea: HTMLTextAreaElement, micBtn: HTMLButtonElement) {
   const Ctor = window.SpeechRecognition || (window as unknown as { webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition;
   if (!Ctor) return;
 
-  if (speechRec) {
+  if (speechRec || speechWanted) {
     stopSpeech();
     micBtn.classList.remove("active");
     return;
   }
 
+  speechWanted = true;
   let base = textarea.value.trim();
-  const rec = new Ctor();
-  rec.lang = "ja-JP";
-  rec.continuous = true;
-  rec.interimResults = true;
-  rec.onresult = (ev: SpeechRecognitionEvent) => {
-    let finalChunk = "";
-    let interim = "";
-    for (let i = ev.resultIndex; i < ev.results.length; i++) {
-      const t = ev.results[i][0]?.transcript ?? "";
-      if (ev.results[i].isFinal) finalChunk += t;
-      else interim += t;
-    }
-    if (interim) textarea.value = base ? `${base}${interim}` : interim;
-    if (finalChunk) {
-      base = base ? `${base}${finalChunk}` : finalChunk;
-      textarea.value = base;
-    }
-    if (silenceTimer) clearTimeout(silenceTimer);
-    silenceTimer = setTimeout(() => {
-      stopSpeech();
+
+  const beginRecognition = () => {
+    if (!speechWanted) return;
+    const rec = new Ctor();
+    rec.lang = "ja-JP";
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.onresult = (ev: SpeechRecognitionEvent) => {
+      let finalChunk = "";
+      let interim = "";
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        const t = ev.results[i][0]?.transcript ?? "";
+        if (ev.results[i].isFinal) finalChunk += t;
+        else interim += t;
+      }
+      if (interim) textarea.value = base ? `${base}${interim}` : interim;
+      if (finalChunk) {
+        base = base ? `${base}${finalChunk}` : finalChunk;
+        textarea.value = base;
+      }
+    };
+    rec.onerror = (ev: SpeechRecognitionErrorEvent) => {
+      if (ev.error === "aborted" || !speechWanted) return;
       micBtn.classList.remove("active");
-      onSilence();
-    }, 2000);
+      speechWanted = false;
+      speechRec = null;
+    };
+    rec.onend = () => {
+      speechRec = null;
+      if (speechWanted) {
+        globalThis.setTimeout(() => beginRecognition(), 120);
+        return;
+      }
+      micBtn.classList.remove("active");
+    };
+    try {
+      rec.start();
+      speechRec = rec;
+      micBtn.classList.add("active");
+    } catch {
+      speechWanted = false;
+      micBtn.classList.remove("active");
+    }
   };
-  rec.onerror = () => {
-    micBtn.classList.remove("active");
-    stopSpeech();
-  };
-  rec.onend = () => {
-    micBtn.classList.remove("active");
-    speechRec = null;
-  };
-  rec.start();
-  speechRec = rec;
-  micBtn.classList.add("active");
+
+  beginRecognition();
 }
 
 function showInstantOverlay(payload: InstantPayload) {
@@ -270,7 +329,7 @@ function showInstantOverlay(payload: InstantPayload) {
 
   card.innerHTML = `
     <h2>${payload.commentOnly ? "コメントを送る" : "気づきを話す"}</h2>
-    <p class="sub">${payload.commentOnly ? "音声または文字で入力" : "範囲選択済み · 話すと文字になります"}</p>
+    <p class="sub">${payload.commentOnly ? "音声または文字で入力 · 話し終わったら「次へ」" : "範囲選択済み · 話すと文字になります · 終わったら「次へ」"}</p>
     ${payload.screenshotDataUrl ? `<img class="thumb" src="${payload.screenshotDataUrl}" alt="" />` : ""}
     <textarea id="note" placeholder="話すか、ここに入力…">${payload.recentText ?? ""}</textarea>
     <div class="row" id="inputActions">
@@ -372,7 +431,7 @@ function showInstantOverlay(payload: InstantPayload) {
     setTimeout(closeOverlay, 1200);
   };
 
-  micBtn.addEventListener("click", () => startSpeech(textarea, micBtn, goConfirm));
+  micBtn.addEventListener("click", () => startSpeech(textarea, micBtn));
   nextBtn.addEventListener("click", () => void goConfirm());
   cancelBtn.addEventListener("click", closeOverlay);
 
@@ -390,7 +449,7 @@ function showInstantOverlay(payload: InstantPayload) {
 
   textarea.focus();
   if (!payload.commentOnly) {
-    globalThis.setTimeout(() => startSpeech(textarea, micBtn, goConfirm), 300);
+    globalThis.setTimeout(() => startSpeech(textarea, micBtn), 300);
   }
 }
 

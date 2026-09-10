@@ -6,6 +6,10 @@ export type PlanTier = 'free' | 'line_lite' | 'line_pro' | 'starter' | 'pro' | '
 export interface UserSettings {
   uid: string;
   plan: PlanTier;
+  /** 所属アカウント（課金主体） */
+  accountId?: string;
+  accountType?: 'individual' | 'business';
+  accountSetupComplete?: boolean;
   email?: string;
   displayName?: string;
   slackWebhookUrl?: string;
@@ -48,10 +52,28 @@ export interface UserSettings {
   activeStoreId?: string;
   /** HPB / 予約サイトURL */
   hpbStoreUrl?: string;
+  /** HPB 予約トラッキングを有効化 */
+  hpbTrackingEnabled?: boolean;
+  /** Free プラン月間投稿カウント */
+  postsMonthKey?: string;
+  postsThisMonth?: number;
+  /** Auto Mode 最適化目標 */
+  autoModeGoal?: 'reach' | 'cv';
+  /** 紹介コード */
+  referralCode?: string;
+  referredBy?: string;
+  /** Stripe */
+  stripeCustomerId?: string;
+  billingInterval?: 'monthly' | 'annual';
   /** Googleビジネスプロフィール */
   gbpConnected?: boolean;
   gbpLocationName?: string;
   gbpAccessToken?: string;
+  gbpRefreshToken?: string;
+  gbpTokenExpiresAt?: string;
+  gbpAccountName?: string;
+  gbpLocationId?: string;
+  gbpLocationResourceName?: string;
   /** 店長通知用メール（将来拡張・現状はSlack/LINE優先） */
   notifyEmail?: string;
   /**
@@ -176,11 +198,14 @@ export async function ensureUser(uid: string, email?: string, displayName?: stri
   const snap = await ref.get();
 
   if (!snap.exists) {
+    const { randomBytes } = await import('crypto');
+    const referralCode = `BZ${randomBytes(4).toString('hex').toUpperCase()}`;
     const settings: UserSettings = {
       uid,
       plan: 'starter',
       autoModeEnabled: false,
       industry: 'salon',
+      referralCode,
       ...(email ? { email } : {}),
       ...(displayName ? { displayName } : {}),
     };
@@ -409,12 +434,30 @@ export async function recordTrackingClick(uid: string, token: string, postId?: s
   const utmCampaign = linkSnap.data()?.utmCampaign as string;
   const platform = linkSnap.data()?.platform as string | undefined;
 
-  const { appendUtmParams } = await import('./tracking');
-  return appendUtmParams(destinationUrl, {
+  const settings = await getUserSettings(uid);
+  const { appendUtmParams, isHpbUrl } = await import('./tracking');
+  const redirectUrl = appendUtmParams(destinationUrl, {
     campaign: utmCampaign,
     medium: platform ?? 'social',
     content: postId,
+    hpbTracking: settings.hpbTrackingEnabled || isHpbUrl(destinationUrl),
   });
+
+  if (postId && (settings.hpbTrackingEnabled || isHpbUrl(destinationUrl))) {
+    const { upsertHpbConversion } = await import('./productExtras');
+    const postSnap = await db().collection('users').doc(uid).collection('posts').doc(postId).get();
+    const title = (postSnap.data()?.title as string) ?? '投稿';
+    const prev = await db().collection(`users/${uid}/hpbConversions`).doc(postId).get();
+    const reservations = (prev.data()?.reservations as number) ?? 0;
+    await upsertHpbConversion(uid, {
+      postId,
+      title,
+      reservations: reservations + 1,
+      estimatedRevenue: (reservations + 1) * 8000,
+    });
+  }
+
+  return redirectUrl;
 }
 
 export async function findUserByLineDestination(destination: string): Promise<string | null> {
@@ -834,4 +877,87 @@ export async function listPostInsights(
     .limit(limit)
     .get();
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<PostInsightDoc, 'id'>) }));
+}
+
+/** 日次インサイトスナップショット（長期推移グラフ用） */
+export interface InsightsDailySnapshot {
+  date: string;
+  impressions: number;
+  reach: number;
+  engagements: number;
+  postCount: number;
+  byPlatform: Record<string, { impressions: number; reach: number; engagements: number; postCount: number }>;
+  lineFollowers?: number | null;
+  savedAt: string;
+}
+
+export async function upsertInsightsDailySnapshot(
+  uid: string,
+  snapshot: InsightsDailySnapshot,
+): Promise<void> {
+  await db()
+    .collection('users')
+    .doc(uid)
+    .collection('insightsDaily')
+    .doc(snapshot.date)
+    .set(
+      {
+        ...snapshot,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+}
+
+export async function listInsightsDailySnapshots(
+  uid: string,
+  days = 90,
+): Promise<InsightsDailySnapshot[]> {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  const cutoffKey = cutoff.toISOString().slice(0, 10);
+  const snap = await db()
+    .collection('users')
+    .doc(uid)
+    .collection('insightsDaily')
+    .where('date', '>=', cutoffKey)
+    .orderBy('date', 'asc')
+    .limit(days)
+    .get();
+  return snap.docs.map((d) => d.data() as InsightsDailySnapshot);
+}
+
+/** 共有レポート（URL閲覧用・30日有効） */
+export interface SharedInsightsReportDoc {
+  token: string;
+  uid: string;
+  html: string;
+  businessName?: string;
+  platform: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
+export async function createSharedInsightsReport(
+  uid: string,
+  doc: Omit<SharedInsightsReportDoc, 'token' | 'uid' | 'createdAt'> & { token: string },
+): Promise<string> {
+  const createdAt = new Date().toISOString();
+  await db()
+    .collection('sharedInsightsReports')
+    .doc(doc.token)
+    .set({
+      ...doc,
+      uid,
+      createdAt,
+    });
+  return doc.token;
+}
+
+export async function getSharedInsightsReport(token: string): Promise<SharedInsightsReportDoc | null> {
+  const snap = await db().collection('sharedInsightsReports').doc(token).get();
+  if (!snap.exists) return null;
+  const data = snap.data() as SharedInsightsReportDoc;
+  if (new Date(data.expiresAt).getTime() < Date.now()) return null;
+  return data;
 }

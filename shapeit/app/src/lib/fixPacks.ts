@@ -5,6 +5,8 @@ export interface FixPackItem {
   issue: Issue;
   feedbacks: Feedback[];
   reportCount: number;
+  /** 受信箱に残っている未 Issue 化の投稿 */
+  isPending?: boolean;
 }
 
 export interface FixPack {
@@ -31,6 +33,31 @@ export interface FixPackCluster {
 
 const SEV: Record<string, number> = { S0: 4, S1: 3, S2: 2, S3: 1 };
 
+function issueFromPendingFeedback(fb: Feedback): Issue {
+  return {
+    id: `pending:${fb.id}`,
+    title: fb.analysis?.title || fb.rawText.slice(0, 80),
+    summary: fb.analysis?.summary || fb.rawText.slice(0, 200),
+    category: fb.analysis?.category || "OTHER",
+    severity: fb.analysis?.severity || "S3",
+    priorityScore: fb.analysis?.priorityScore ?? 40,
+    status: "todo",
+    productArea: fb.analysis?.productArea || "",
+    feedbackIds: [fb.id],
+    createdAt: fb.createdAt,
+    updatedAt: fb.createdAt,
+  };
+}
+
+function isInboxPending(fb: Feedback) {
+  if (fb.issueId) return false;
+  if (fb.triageStatus === "pending") return true;
+  return (
+    fb.triageStatus === "snoozed" &&
+    (!fb.snoozeUntil || fb.snoozeUntil <= new Date().toISOString())
+  );
+}
+
 export function pageKeyOfIssue(issue: Issue, linked: Feedback[]) {
   const url = linked.find((f) => f.pageUrl)?.pageUrl || "";
   return canonicalizePageKey(url);
@@ -39,13 +66,30 @@ export function pageKeyOfIssue(issue: Issue, linked: Feedback[]) {
 export function buildFixPacks(issues: Issue[], feedback: Feedback[]): FixPack[] {
   const byId = new Map(feedback.map((f) => [f.id, f]));
   const groups = new Map<string, FixPackItem[]>();
+  const linkedFeedbackIds = new Set<string>();
+
   for (const issue of issues) {
     if (issue.status === "done" || issue.status === "archived") continue;
     const linked = issue.feedbackIds.map((id) => byId.get(id)).filter(Boolean) as Feedback[];
+    for (const fb of linked) linkedFeedbackIds.add(fb.id);
     const key = pageKeyOfIssue(issue, linked);
     if (!key) continue;
     const list = groups.get(key) ?? [];
     list.push({ issue, feedbacks: linked, reportCount: linked.length || 1 });
+    groups.set(key, list);
+  }
+
+  for (const fb of feedback) {
+    if (!isInboxPending(fb) || linkedFeedbackIds.has(fb.id)) continue;
+    const key = canonicalizePageKey(fb.pageUrl);
+    if (!key) continue;
+    const list = groups.get(key) ?? [];
+    list.push({
+      issue: issueFromPendingFeedback(fb),
+      feedbacks: [fb],
+      reportCount: 1,
+      isPending: true,
+    });
     groups.set(key, list);
   }
   return Array.from(groups.entries()).map(([pageKey, items]) => {

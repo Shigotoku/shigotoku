@@ -114,6 +114,7 @@ let pendingTextAnnot = null;
 let activeSpeechRec = null;
 let speechTargetKind = null;
 let speechBaseText = "";
+let speechUserStopped = false;
 
 function getSpeechRecognitionCtor() {
   return window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -129,6 +130,7 @@ function setMicActive(active) {
 }
 
 function stopSpeech() {
+  speechUserStopped = true;
   if (activeSpeechRec) {
     try {
       activeSpeechRec.stop();
@@ -161,52 +163,64 @@ function startSpeechForTarget(kind, getBaseText, setText) {
   }
 
   stopSpeech();
+  speechUserStopped = false;
   speechTargetKind = kind;
   speechBaseText = getBaseText().trim();
   let committed = speechBaseText;
 
-  const rec = new Ctor();
-  rec.lang = "ja-JP";
-  rec.continuous = true;
-  rec.interimResults = true;
-  rec.onresult = (ev) => {
-    let finalChunk = "";
-    let interim = "";
-    for (let i = ev.resultIndex; i < ev.results.length; i++) {
-      const t = ev.results[i][0]?.transcript ?? "";
-      if (ev.results[i].isFinal) finalChunk += t;
-      else interim += t;
+  const beginRecognition = () => {
+    if (speechUserStopped || speechTargetKind !== kind) return;
+
+    const rec = new Ctor();
+    rec.lang = "ja-JP";
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.onresult = (ev) => {
+      let finalChunk = "";
+      let interim = "";
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        const t = ev.results[i][0]?.transcript ?? "";
+        if (ev.results[i].isFinal) finalChunk += t;
+        else interim += t;
+      }
+      if (interim) setText(composeSpeechText(speechBaseText, committed, interim));
+      if (finalChunk) {
+        committed = committed ? `${committed}${finalChunk}` : finalChunk;
+        setText(committed);
+      }
+    };
+    rec.onerror = (ev) => {
+      const code = ev.error || "error";
+      if (code === "aborted" || speechUserStopped) return;
+      stopSpeech();
+      if (code === "not-allowed") setStatus("マイクの許可が必要です");
+      else if (code === "network") setStatus("音声認識にネットワーク接続が必要です");
+      else setStatus("音声認識に失敗しました");
+    };
+    rec.onend = () => {
+      activeSpeechRec = null;
+      if (!speechUserStopped && speechTargetKind === kind) {
+        setTimeout(() => beginRecognition(), 120);
+        return;
+      }
+      speechTargetKind = null;
+      setMicActive(false);
+    };
+
+    try {
+      rec.start();
+    } catch {
+      stopSpeech();
+      setStatus("音声認識を開始できませんでした");
+      return;
     }
-    if (interim) setText(composeSpeechText(speechBaseText, committed, interim));
-    if (finalChunk) {
-      committed = committed ? `${committed}${finalChunk}` : finalChunk;
-      setText(committed);
-    }
-  };
-  rec.onerror = (ev) => {
-    const code = ev.error || "error";
-    stopSpeech();
-    if (code === "not-allowed") setStatus("マイクの許可が必要です");
-    else if (code === "network") setStatus("音声認識にネットワーク接続が必要です");
-    else setStatus("音声認識に失敗しました");
-  };
-  rec.onend = () => {
-    activeSpeechRec = null;
-    speechTargetKind = null;
-    setMicActive(false);
+
+    activeSpeechRec = rec;
+    setMicActive(true);
+    setStatus("聞いています…（もう一度押すと停止）");
   };
 
-  try {
-    rec.start();
-  } catch {
-    stopSpeech();
-    setStatus("音声認識を開始できませんでした");
-    return false;
-  }
-
-  activeSpeechRec = rec;
-  setMicActive(true);
-  setStatus("聞いています…（もう一度押すと停止）");
+  beginRecognition();
   return true;
 }
 

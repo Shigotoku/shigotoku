@@ -42,10 +42,7 @@ export async function runAutoModeForUser(uid: string): Promise<{ mission: { titl
     });
   }
 
-  const publishMode: PublishMode =
-    settings.defaultPublishMode === 'auto' || settings.defaultPublishMode === 'meta'
-      ? (settings.defaultPublishMode ?? 'approval')
-      : 'approval';
+  const publishMode: PublishMode = resolveAutoPublishMode(settings);
 
   await createScheduledJob(uid, {
     contents: results.map((r) => ({
@@ -122,4 +119,20 @@ export function canUseSlack(settings: UserSettings): boolean {
 
 export function canUseAutoMode(settings: UserSettings): boolean {
   return settings.plan === 'growth' && !!settings.autoModeEnabled;
+}
+
+/** Auto Mode の配信先をリーチ/CV 目標に応じて最適化 */
+export function resolveAutoPublishMode(settings: UserSettings): PublishMode {
+  if (settings.defaultPublishMode && settings.defaultPublishMode !== 'auto') {
+    return settings.defaultPublishMode;
+  }
+  const goal = settings.autoModeGoal ?? 'reach';
+  if (goal === 'cv') {
+    if (settings.lineChannelAccessToken) return 'line';
+    return 'approval';
+  }
+  if (settings.gbpConnected && settings.gbpAccessToken) return 'gbp';
+  if (settings.metaAccessToken && settings.metaIgUserId) return 'meta';
+  if (settings.lineChannelAccessToken) return 'line';
+  return 'approval';
 }

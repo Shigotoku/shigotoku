@@ -99,8 +99,8 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-dvh bg-[#f5f4f0] text-neutral-900">
-      <header className="border-b border-neutral-200 bg-[#f5f4f0]/95 px-4 py-4 md:px-8">
+    <div className="min-h-dvh bg-neutral-50 text-neutral-900">
+      <header className="border-b border-neutral-200 bg-neutral-50/95 px-4 py-4 md:px-8">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <BrandMark className="buzz-logo-mark" size={28} />

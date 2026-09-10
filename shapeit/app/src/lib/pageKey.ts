@@ -1,10 +1,14 @@
 export function canonicalizePageKey(url?: string | null): string {
   if (!url) return "";
+  const trimmed = url.trim();
   try {
-    const u = new URL(url);
-    return `${u.origin}${u.pathname.replace(/\/$/, "") || "/"}`;
+    const u = new URL(trimmed);
+    const host = u.hostname.replace(/^www\./i, "").toLowerCase();
+    const protocol = u.protocol === "http:" ? "https:" : u.protocol;
+    const path = u.pathname.replace(/\/$/, "") || "/";
+    return `${protocol}//${host}${path}`;
   } catch {
-    return url.split("?")[0] ?? "";
+    return trimmed.split(/[?#]/)[0]?.replace(/\/$/, "") || "";
   }
 }
 

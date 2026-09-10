@@ -156,7 +156,7 @@ export async function deleteXSeries(uid: string, seriesId: string): Promise<bool
   return true;
 }
 
-function composeTweetText(item: {
+export function composeTweetText(item: {
   text: string;
   tags?: string;
   title?: string;
@@ -300,6 +300,38 @@ export async function deleteXSeriesItem(uid: string, seriesId: string, itemId: s
   if (!(await ref.get()).exists) return false;
   await ref.delete();
   return true;
+}
+
+/** 未承認の pending をまとめて投稿OK */
+export async function approveAllPendingItems(uid: string, seriesId: string): Promise<number> {
+  const snap = await col(uid, 'xSeries')
+    .doc(seriesId)
+    .collection('items')
+    .where('status', '==', 'pending')
+    .limit(400)
+    .get();
+  const batch = db().batch();
+  let count = 0;
+  for (const doc of snap.docs) {
+    if (doc.data().approved === true) continue;
+    batch.update(doc.ref, { approved: true, updatedAt: FieldValue.serverTimestamp() });
+    count++;
+  }
+  if (count) await batch.commit();
+  return count;
+}
+
+/** 空行または --- で区切ったテキストを複数投稿に分割 */
+export function parseBulkPasteText(raw: string): Array<{ text: string }> {
+  const normalized = raw.replace(/\r\n/g, '\n').trim();
+  if (!normalized) return [];
+  const blocks = normalized.includes('\n---\n')
+    ? normalized.split(/\n---\n/)
+    : normalized.split(/\n{2,}/);
+  return blocks
+    .map((b) => b.trim())
+    .filter(Boolean)
+    .map((text) => ({ text }));
 }
 
 export async function listXScheduleRules(uid: string): Promise<XScheduleRule[]> {
@@ -496,6 +528,7 @@ async function publishSeriesItem(
     linkUrl: data.linkUrl as string | undefined,
   });
   const mediaUrls = data.imageUrl ? [String(data.imageUrl)] : undefined;
+  const mediaAltTexts = data.imageAlt?.trim() ? [String(data.imageAlt).trim()] : undefined;
   const itemRef = col(uid, 'xSeries').doc(seriesId).collection('items').doc(itemId);
 
   if (mode === 'notify') {
@@ -535,7 +568,7 @@ async function publishSeriesItem(
     return { ok: false, message: '月次上限' };
   }
 
-  const result = await postTweetWithXApi(creds, text, mediaUrls);
+  const result = await postTweetWithXApi(creds, text, mediaUrls, mediaAltTexts);
   if (result.success) {
     await incrementXApiPostCount(uid);
     await itemRef.update({

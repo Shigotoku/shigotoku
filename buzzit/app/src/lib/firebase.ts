@@ -115,6 +115,8 @@ export async function getIdToken(): Promise<string | null> {
   return user.getIdToken();
 }
 
+export type LoginHintSuggest = 'google';
+
 export function formatAuthError(err: unknown): string {
   const code = (err as { code?: string })?.code ?? '';
   switch (code) {
@@ -128,6 +130,8 @@ export function formatAuthError(err: unknown): string {
     case 'auth/wrong-password':
     case 'auth/user-not-found':
       return 'メールアドレスまたはパスワードが正しくありません。';
+    case 'auth/account-exists-with-different-credential':
+      return 'このメールアドレスはパスワードで登録されています。メールアドレスとパスワードでログインしてください。';
     case 'auth/email-already-in-use':
       return 'このメールアドレスは既に登録されています。';
     case 'auth/weak-password':
@@ -140,4 +144,35 @@ export function formatAuthError(err: unknown): string {
     default:
       return (err as Error)?.message ?? 'ログインに失敗しました';
   }
+}
+
+/** ログイン失敗時に API でプロバイダを確認し、案内メッセージを返す */
+export async function resolveAuthError(
+  err: unknown,
+  email: string,
+  fetchHint: (email: string) => Promise<{ suggest?: LoginHintSuggest }>,
+): Promise<{ message: string; hint?: LoginHintSuggest }> {
+  const code = (err as { code?: string })?.code ?? '';
+
+  if (
+    code === 'auth/invalid-credential' ||
+    code === 'auth/wrong-password' ||
+    code === 'auth/user-not-found' ||
+    code === 'auth/email-already-in-use'
+  ) {
+    try {
+      const hint = await fetchHint(email);
+      if (hint.suggest === 'google') {
+        const message =
+          code === 'auth/email-already-in-use'
+            ? 'このメールアドレスは既に Google で登録されています。「Google でログイン」をお試しください。'
+            : 'このメールアドレスは Google で登録されています。下の「Google でログイン」をお試しください。';
+        return { message, hint: 'google' };
+      }
+    } catch {
+      // API 未接続時は汎用メッセージにフォールバック
+    }
+  }
+
+  return { message: formatAuthError(err) };
 }

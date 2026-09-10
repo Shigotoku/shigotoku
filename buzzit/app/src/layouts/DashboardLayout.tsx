@@ -29,6 +29,8 @@ import { useAuth } from '../store/authContext';
 import { useStore } from '../store/storeContext';
 import StoreSwitcher from '../components/StoreSwitcher';
 import PwaInstallBanner from '../components/PwaInstallBanner';
+import MobileBottomNav from '../components/MobileBottomNav';
+import OnboardingTour from '../components/OnboardingTour';
 import BrandMark from '../components/BrandMark';
 import { ROLE_LABELS, canEditSettings, canManageLineCrm, isStaffOnly } from '../lib/permissions';
 import { getPageMeta } from '../lib/pageMeta';
@@ -188,10 +190,10 @@ function SidebarContent({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex h-12 shrink-0 items-center border-b border-neutral-200 px-3 lg:h-14 lg:px-4">
+      <div className="flex h-12 shrink-0 items-center border-b border-white/10 px-3 lg:h-14 lg:px-4">
         <div className="flex items-center gap-2">
           <BrandMark className="buzz-logo-mark !h-7 !w-7" size={28} />
-          <span className="font-display text-base font-bold tracking-tight">{BRAND_NAME}</span>
+          <span className="font-display text-base font-bold tracking-tight text-white">{BRAND_NAME}</span>
         </div>
       </div>
       <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto overscroll-contain px-2 py-2">
@@ -211,7 +213,7 @@ function SidebarContent({
                 <button
                   type="button"
                   onClick={() => toggleGroup(entry.id)}
-                  className={`buzz-nav-group-btn ${groupActive ? 'text-neutral-900' : ''}`}
+                  className={`buzz-nav-group-btn ${groupActive ? 'text-white' : ''}`}
                   aria-expanded={open}
                 >
                   <entry.icon className="h-4 w-4 shrink-0" />
@@ -221,8 +223,10 @@ function SidebarContent({
                   />
                 </button>
                 {open && (
-                  <div className="mb-1 ml-2 space-y-0.5 border-l border-neutral-200 pl-2">
-                    {entry.children.map((child) => (
+                  <div className="mb-1 ml-2 space-y-0.5 border-l border-white/10 pl-2">
+                    {entry.children.map((child) => {
+                      const platform = SNS_NAV_PLATFORMS.find((p) => child.path === `/sns/${p.id}`);
+                      return (
                       <NavLink
                         key={child.path}
                         to={child.path}
@@ -231,9 +235,16 @@ function SidebarContent({
                           `buzz-nav-link ${isActive ? 'buzz-nav-link-active' : 'buzz-nav-link-inactive'}`
                         }
                       >
+                        {platform && (
+                          <span
+                            className="buzz-nav-platform-dot"
+                            style={{ backgroundColor: platform.brandColor }}
+                            aria-hidden
+                          />
+                        )}
                         {child.name}
                       </NavLink>
-                    ))}
+                    );})}
                   </div>
                 )}
               </div>
@@ -254,42 +265,42 @@ function SidebarContent({
           );
         })}
       </nav>
-      <div className="shrink-0 space-y-1.5 border-t border-neutral-200 bg-[#f5f4f0] px-2.5 py-2">
+      <div className="shrink-0 space-y-1.5 border-t border-white/10 px-2.5 py-2">
         <div className="flex items-center gap-2 text-[11px] text-neutral-500">
           <NavLink
             to="/onboarding?edit=1"
             onClick={onNavigate}
-            className="underline-offset-2 hover:text-neutral-900 hover:underline"
+            className="underline-offset-2 hover:text-white hover:underline"
             title="業種・目的の見直し"
           >
             はじめに
           </NavLink>
-          <span className="text-neutral-300">|</span>
+          <span className="text-neutral-600">|</span>
           <a
             href={landingPath('/')}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-0.5 underline-offset-2 hover:text-neutral-900 hover:underline"
+            className="inline-flex items-center gap-0.5 underline-offset-2 hover:text-white hover:underline"
           >
             サイト
             <ExternalLink className="h-3 w-3" />
           </a>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-neutral-300 bg-white text-[10px] font-bold text-neutral-700">
+          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10 text-[10px] font-bold text-white">
             {displayName.slice(0, 1)}
           </div>
           <p
-            className="min-w-0 flex-1 truncate text-[11px] text-neutral-700"
+            className="min-w-0 flex-1 truncate text-[11px] text-neutral-400"
             title={`${displayName} · ${roleLabel} (${planLabels[plan]})`}
           >
-            <span className="font-medium text-neutral-900">{displayName}</span>
-            <span className="text-neutral-400"> · {roleLabel}</span>
+            <span className="font-medium text-neutral-200">{displayName}</span>
+            <span className="text-neutral-500"> · {roleLabel}</span>
           </p>
           <button
             type="button"
             onClick={onLogout}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-neutral-500 transition-colors hover:bg-white hover:text-neutral-900"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-neutral-500 transition-colors hover:bg-white/10 hover:text-white"
             title="ログアウト"
           >
             <LogOut className="h-3.5 w-3.5" />
@@ -299,7 +310,7 @@ function SidebarContent({
           href={landingPath('/guide/')}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex h-8 w-full items-center justify-center gap-1.5 bg-neutral-900 text-xs font-semibold text-white transition-colors hover:bg-neutral-800"
+          className="flex h-8 w-full items-center justify-center gap-1.5 rounded-lg bg-white/10 text-xs font-semibold text-white transition-colors hover:bg-white/15"
         >
           <BookOpen className="h-3.5 w-3.5 shrink-0" />
           使い方説明書
@@ -351,7 +362,7 @@ export default function DashboardLayout() {
   }
 
   return (
-    <div className="flex h-dvh min-h-0 overflow-hidden bg-[#f5f4f0] text-neutral-900">
+    <div className="flex h-dvh min-h-0 overflow-hidden bg-[var(--color-buzz-paper)] text-neutral-900">
       {navOpen && (
         <button
           type="button"
@@ -362,13 +373,13 @@ export default function DashboardLayout() {
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex h-dvh w-[min(100vw-3rem,18rem)] shrink-0 flex-col border-r border-neutral-200 bg-[#f5f4f0] transition-transform duration-200 lg:static lg:z-auto lg:h-dvh lg:w-64 lg:translate-x-0 ${
+        className={`buzz-sidebar fixed inset-y-0 left-0 z-50 flex h-dvh w-[min(100vw-3rem,18rem)] shrink-0 flex-col border-r transition-transform duration-200 lg:static lg:z-auto lg:h-dvh lg:w-64 lg:translate-x-0 ${
           navOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         <button
           type="button"
-          className="absolute right-3 top-4 flex min-h-[44px] min-w-[44px] items-center justify-center rounded text-neutral-500 hover:bg-white lg:hidden"
+          className="absolute right-3 top-4 flex min-h-[44px] min-w-[44px] items-center justify-center rounded text-neutral-400 hover:bg-white/10 hover:text-white lg:hidden"
           aria-label="メニューを閉じる"
           onClick={() => setNavOpen(false)}
         >
@@ -385,11 +396,11 @@ export default function DashboardLayout() {
       </aside>
 
       <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="relative z-10 flex min-h-14 shrink-0 items-center justify-between gap-3 border-b border-neutral-200 bg-[#f5f4f0]/95 px-4 py-2 lg:min-h-16 lg:px-8">
+        <header className="relative z-10 flex min-h-14 shrink-0 items-center justify-between gap-3 border-b border-neutral-200/80 bg-white/95 px-4 py-2 backdrop-blur-sm lg:min-h-16 lg:px-8">
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
-              className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded text-neutral-600 hover:bg-white lg:hidden"
+              className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg text-neutral-600 hover:bg-neutral-100 lg:hidden"
               aria-label="メニューを開く"
               aria-expanded={navOpen}
               onClick={() => setNavOpen(true)}
@@ -407,16 +418,19 @@ export default function DashboardLayout() {
             <StoreSwitcher />
             <button
               type="button"
-              className="relative flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-white hover:text-neutral-900"
+              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700"
+              title="通知（準備中）"
+              aria-label="通知（準備中）"
             >
               <Bell className="h-5 w-5" />
-              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-neutral-900" />
             </button>
           </div>
         </header>
         <div className="relative z-10 flex-1 overflow-auto p-4 pb-24 md:p-6 lg:p-8 lg:pb-8">
           <Outlet />
         </div>
+        <MobileBottomNav onOpenMenu={() => setNavOpen(true)} />
+        <OnboardingTour />
         <PwaInstallBanner />
       </main>
     </div>

@@ -21,6 +21,10 @@ import XSeriesPage from './pages/XSeriesPage';
 import SnsHubPage from './pages/SnsHubPage';
 import OnboardingPage from './pages/OnboardingPage';
 import AcceptInvitePage from './pages/AcceptInvitePage';
+import AcceptAccountInvitePage from './pages/AcceptAccountInvitePage';
+import AccountSetupPage from './pages/AccountSetupPage';
+import AccountSetupGate from './components/AccountSetupGate';
+import AdminAccountsPage from './pages/AdminAccountsPage';
 
 function App() {
   return (
@@ -32,8 +36,11 @@ function App() {
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/invite/:token" element={<AcceptInvitePage />} />
+              <Route path="/account-invite/:token" element={<AcceptAccountInvitePage />} />
               <Route element={<ProtectedRoute />}>
-                <Route element={<OnboardingGate />}>
+                <Route element={<AccountSetupGate />}>
+                  <Route path="/account-setup" element={<AccountSetupPage />} />
+                  <Route element={<OnboardingGate />}>
                   <Route path="/onboarding" element={<OnboardingPage />} />
                   <Route path="/" element={<DashboardLayout />}>
                     <Route index element={<Navigate to="/dashboard" replace />} />
@@ -50,6 +57,8 @@ function App() {
                     <Route path="line-crm" element={<LineCrmPage />} />
                     <Route path="settings" element={<SettingsPage />} />
                     <Route path="team" element={<Navigate to="/settings?tab=staff" replace />} />
+                    <Route path="admin/accounts" element={<AdminAccountsPage />} />
+                  </Route>
                   </Route>
                 </Route>
               </Route>

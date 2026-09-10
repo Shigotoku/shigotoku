@@ -76,11 +76,11 @@ export async function processDueScheduledJobs(): Promise<{ processed: number; er
   return { processed, errors };
 }
 
-export async function saveOAuthState(uid: string): Promise<string> {
+export async function saveOAuthState(uid: string, provider: 'meta' | 'google' = 'meta'): Promise<string> {
   const state = randomUUID();
   await getFirestore().collection('oauthStates').doc(state).set({
     uid,
-    provider: 'meta',
+    provider,
     createdAt: FieldValue.serverTimestamp(),
     expiresAt: Date.now() + 10 * 60 * 1000,
   });

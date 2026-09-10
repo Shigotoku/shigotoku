@@ -351,7 +351,7 @@ export default function TeamPage({ embedded }: TeamPageProps = {}) {
       )}
 
       {removeTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/40 p-4">
+        <div className="buzz-modal-overlay">
           <div className="w-full max-w-md border border-neutral-200 bg-white p-6">
             <h3 className="text-lg font-bold">メンバーを削除</h3>
             <p className="mt-2 text-sm text-neutral-600">
@@ -368,7 +368,7 @@ export default function TeamPage({ embedded }: TeamPageProps = {}) {
       )}
 
       {transferTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/40 p-4">
+        <div className="buzz-modal-overlay">
           <div className="w-full max-w-md border border-neutral-200 bg-white p-6">
             <button type="button" onClick={() => setTransferTarget(null)} className="absolute right-4 top-4 text-neutral-400">
               <X className="h-5 w-5" />

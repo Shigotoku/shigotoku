@@ -202,7 +202,7 @@ export default function BulkScheduleModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/40 p-4"
+      className="buzz-modal-overlay"
       onClick={() => !busy && onClose()}
     >
       <div
@@ -331,7 +331,7 @@ export default function BulkScheduleModal({
               プレビュー（{activeRows.length}媒体）
             </p>
             {rows.map((r) => (
-              <div key={r.platform} className="border border-neutral-200 bg-[#f5f4f0] p-3">
+              <div key={r.platform} className="border border-neutral-200 bg-neutral-50 p-3">
                 <div className="flex items-center gap-2">
                   <input
                     type="checkbox"

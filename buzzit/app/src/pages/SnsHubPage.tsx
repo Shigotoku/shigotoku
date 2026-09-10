@@ -109,23 +109,24 @@ export default function SnsHubPage() {
 
   return (
     <div className="buzz-page space-y-6">
-      <section className="border border-neutral-200 bg-white p-4 sm:p-5">
+      <section className="buzz-platform-header overflow-hidden">
+        <div className="px-4 py-4 sm:px-5 sm:py-5" style={{ background: sns.brandGradient }}>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
-            <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">SNS</p>
-            <h2 className="mt-1 font-display text-xl font-bold tracking-tight text-neutral-900">{sns.name}</h2>
-            <p className="mt-1 max-w-2xl text-sm text-neutral-600">
+            <p className="text-xs font-medium text-white/80">SNS · {sns.shortLabel}</p>
+            <h2 className="mt-1 font-display text-xl font-bold tracking-tight text-white">{sns.name}</h2>
+            <p className="mt-1 max-w-2xl text-sm text-white/90">
               {companion?.priorityNote ??
                 'この媒体の投稿内容・予約予定・カレンダーをまとめて管理します。'}
             </p>
-            <p className={`mt-2 text-xs font-medium ${conn.connected ? 'text-emerald-700' : 'text-amber-800'}`}>
+            <p className={`mt-2 text-xs font-medium ${conn.connected ? 'text-emerald-200' : 'text-amber-200'}`}>
               {conn.label}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Link
               to={`/magic-creator?sns=${encodeURIComponent(platformId)}`}
-              className="inline-flex min-h-[44px] items-center gap-1.5 border border-neutral-900 bg-neutral-900 px-3 text-sm font-medium text-white"
+              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg bg-white px-3 text-sm font-semibold text-neutral-900 shadow-sm hover:bg-neutral-100"
             >
               <Wand2 className="h-4 w-4" />
               ネタから作る
@@ -133,41 +134,42 @@ export default function SnsHubPage() {
             {platformId === 'x' && (
               <Link
                 to="/x-series"
-                className="inline-flex min-h-[44px] items-center gap-1.5 border border-neutral-300 px-3 text-sm"
+                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-white/30 bg-white/10 px-3 text-sm text-white hover:bg-white/15"
               >
                 Xシリーズキュー
               </Link>
             )}
             <Link
               to="/settings?tab=sns"
-              className="inline-flex min-h-[44px] items-center gap-1.5 border border-neutral-300 px-3 text-sm"
+              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-white/30 px-3 text-sm text-white hover:bg-white/10"
             >
               <Settings2 className="h-4 w-4" />
               API・連携
             </Link>
           </div>
         </div>
+        </div>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="border border-neutral-200 bg-[#f5f4f0] p-3">
+        <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-4">
+          <div className="rounded-xl border border-neutral-100 bg-neutral-50 p-3">
             <div className="flex items-center gap-2 text-xs font-medium text-neutral-500">
               <CalendarDays className="h-3.5 w-3.5" />
               予約・承認待ち
             </div>
             <p className="mt-1 text-2xl font-bold tabular-nums">{stats.pending}</p>
           </div>
-          <div className="border border-neutral-200 bg-[#f5f4f0] p-3">
+          <div className="rounded-xl border border-neutral-100 bg-neutral-50 p-3">
             <div className="text-xs font-medium text-neutral-500">下書き</div>
             <p className="mt-1 text-2xl font-bold tabular-nums">{stats.draft}</p>
           </div>
-          <div className="border border-neutral-200 bg-[#f5f4f0] p-3">
+          <div className="rounded-xl border border-neutral-100 bg-neutral-50 p-3">
             <div className="text-xs font-medium text-neutral-500">失敗 / 完了</div>
             <p className="mt-1 text-2xl font-bold tabular-nums">
               {stats.failed}
               <span className="text-base font-normal text-neutral-400"> / {stats.done}</span>
             </p>
           </div>
-          <div className="border border-neutral-200 bg-[#f5f4f0] p-3">
+          <div className="rounded-xl border border-neutral-100 bg-neutral-50 p-3">
             <div className="flex items-center justify-between gap-2 text-xs font-medium text-neutral-500">
               <span className="inline-flex items-center gap-2">
                 <BarChart3 className="h-3.5 w-3.5" />

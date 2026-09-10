@@ -46,14 +46,14 @@ export default function AcceptInvitePage() {
 
   if (loadingInfo) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-[#f5f4f0]">
+      <div className="flex min-h-dvh items-center justify-center bg-neutral-50">
         <Loader2 className="h-8 w-8 animate-spin text-neutral-600" />
       </div>
     );
   }
 
   return (
-    <div className="mx-auto min-h-dvh max-w-md bg-[#f5f4f0] px-4 py-16">
+    <div className="mx-auto min-h-dvh max-w-md bg-neutral-50 px-4 py-16">
       <div className="mb-8 text-center">
         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-neutral-300 bg-white text-xl font-bold">
           B
@@ -61,7 +61,7 @@ export default function AcceptInvitePage() {
         <h1 className="text-2xl font-bold">{BRAND_NAME} — 店舗への招待</h1>
       </div>
 
-      <div className="border border-neutral-200 bg-white p-6">
+      <div className="buzz-card-pad">
         {!info || info.expired ? (
           <div className="py-4 text-center">
             <AlertCircle className="mx-auto h-12 w-12 text-red-400" />
