@@ -4,15 +4,22 @@ import { images } from '../lib/images';
 
 const loginUrl = appPath('/login');
 
-const stats = [
-  { value: '90%', label: '運用時間削減' },
-  { value: '3.2×', label: 'リーチ改善' },
-  { value: '−¥33,760', label: '月コスト削減 / 複数ツール→1本' },
+const personas = [
+  {
+    title: 'SNSもLINEもまとめて',
+    description: '投稿・集客・売上まで1本化',
+    href: '#how-it-works',
+  },
+  {
+    title: 'LINE管理だけ安くしたい',
+    description: 'Lステップ代替・配信コスト削減',
+    href: '#line-cost',
+  },
 ];
 ---
 
 <section id="top" class="buzz-hero relative overflow-hidden pt-20 pb-14 md:pt-24 md:pb-24">
-  <div class="buzz-hero-bg" aria-hidden="true">
+  <div class="buzz-hero-bg buzz-hero-bg--animated" aria-hidden="true">
     <img
       src={images.heroCollage}
       alt=""
@@ -26,41 +33,47 @@ const stats = [
   <div class="buzz-hero-scrim" aria-hidden="true"></div>
 
   <div class="relative mx-auto max-w-6xl px-5 pt-6 md:px-8 md:pt-10">
-    <div class="buzz-hero-panel max-w-xl pb-16 pt-10 md:pb-24 md:pt-12 lg:max-w-2xl headline-fit-wrap">
+    <div class="buzz-hero-panel max-w-xl pb-12 pt-10 md:pb-20 md:pt-12 lg:max-w-2xl headline-fit-wrap">
       <p class="animate-on-scroll slide-up text-[11px] font-semibold uppercase tracking-[0.22em] text-neutral-600">
-        来店型のお店のための SNS・集客ツール
+        美容室・クリニック・飲食店向け
       </p>
-      <h1 class="animate-on-scroll slide-up delay-100 mt-5 font-display text-[2.25rem] font-bold leading-[1.12] md:text-5xl lg:text-[3.25rem]">
-        <span class="block" data-headline-fit data-headline-max="36">SNSを伸ばす。</span>
-        <span class="block" data-headline-fit data-headline-max="36">売上をつくる。</span>
+      <h1 class="animate-on-scroll slide-up delay-100 mt-5 font-display text-[2rem] font-bold leading-[1.15] md:text-[2.75rem] lg:text-[3.25rem]">
+        <span class="block" data-headline-fit data-headline-max="34">来店型のお店の、</span>
+        <span class="block" data-headline-fit data-headline-max="34">SNS・LINE・集客を1本化。</span>
       </h1>
       <p class="animate-on-scroll slide-up delay-200 mt-6 max-w-md text-base leading-[1.85] text-neutral-700 md:text-[17px]">
-        毎朝5分。AIが今日の台本を用意し、Instagram・LINE・Googleマップ・ホットペッパー予約まで一気通貫。美容・クリニック・飲食店の現場向けに設計されています。
+        毎朝5分。AIが今日の台本を用意し、Instagram・LINE・Googleマップ・ホットペッパー予約まで一気通貫で回せます。
       </p>
       <div class="animate-on-scroll slide-up delay-300 mt-9 flex flex-col gap-3 sm:flex-row">
         <a
           href={loginUrl}
           class="inline-flex items-center justify-center bg-neutral-900 px-8 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-neutral-700"
         >
-          無料診断を始める
+          無料で始める
         </a>
         <a
-          href="#features"
+          href="#how-it-works"
           class="inline-flex items-center justify-center border border-neutral-400/80 bg-white/90 px-8 py-3.5 text-sm font-semibold text-neutral-800 backdrop-blur-sm transition-colors hover:border-neutral-900"
         >
-          機能を見る
+          使い方を見る
         </a>
       </div>
 
-      <div class="animate-on-scroll slide-up delay-300 mt-12 border-t border-neutral-400/50 pt-8">
-        <div class="grid grid-cols-1 gap-6 sm:grid-cols-3 sm:gap-4 md:gap-6">
-          {stats.map((stat, i) => (
-            <div class:list={[i < 2 && 'sm:border-r sm:border-neutral-400/50 sm:pr-4 md:pr-6']}>
-              <p class="buzz-stat-value text-2xl sm:text-3xl md:text-4xl">{stat.value}</p>
-              <p class="buzz-stat-label">{stat.label}</p>
-            </div>
-          ))}
-        </div>
+      <div class="animate-on-scroll slide-up delay-300 mt-10 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {personas.map((persona) => (
+          <a
+            href={persona.href}
+            class="group border border-neutral-300/80 bg-white/80 px-4 py-3.5 transition-colors hover:border-neutral-900 hover:bg-white"
+          >
+            <p class="text-sm font-semibold text-neutral-900 group-hover:underline">{persona.title}</p>
+            <p class="mt-0.5 text-xs text-neutral-600">{persona.description}</p>
+          </a>
+        ))}
+      </div>
+
+      <div class="animate-on-scroll slide-up delay-300 mt-10 border-t border-neutral-400/50 pt-8">
+        <p class="buzz-stat-value text-3xl md:text-4xl">90%</p>
+        <p class="buzz-stat-label">運用時間削減（導入店舗の平均目安）</p>
       </div>
     </div>
   </div>

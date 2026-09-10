@@ -1,0 +1,119 @@
+---
+import LineCostSimulator from './LineCostSimulator.astro';
+
+function lineAccountCost(messages: number) {
+  if (messages <= 5000) return 5000;
+  return 16500 + (messages - 5000) * 3;
+}
+
+const LSTEP_CRM = 21780;
+const BUZZIT_CRM = 4980;
+
+const costRows = [3000, 5000, 10000, 20000, 50000].map((messages) => {
+  const line = lineAccountCost(messages);
+  const lstep = line + LSTEP_CRM;
+  const buzzit = line + BUZZIT_CRM;
+  return { messages, line, lstepCrm: LSTEP_CRM, buzzitCrm: BUZZIT_CRM, lstep, buzzit, savings: lstep - buzzit };
+});
+
+const example10k = costRows.find((r) => r.messages === 10000)!;
+const example10kSegmentLine = lineAccountCost(4000);
+const example10kSegmentTotal = example10kSegmentLine + BUZZIT_CRM;
+---
+
+<section id="line-cost" class="bg-white py-24 md:py-32">
+  <div class="mx-auto max-w-6xl px-5 md:px-8">
+    <div class="animate-on-scroll slide-up mb-10 headline-fit-wrap">
+      <p class="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-neutral-500">LINE料金</p>
+      <h2 class="font-display text-3xl font-bold md:text-4xl lg:text-5xl" data-headline-fit>
+        Lステップより安く、LINE運用を1本化。
+      </h2>
+      <p class="mt-4 max-w-2xl text-base leading-relaxed text-neutral-600">
+        2026年秋のLINE値上げに備えて、無駄な一斉配信をやめましょう。BuzzItなら「本当に必要なお客様にだけ」届け、配信コストを40〜60%削減できます。
+      </p>
+      <p class="mt-3 text-xs text-neutral-500">
+        ※ LINE公式アカウントの料金は各店舗へ直接請求されます。下表は LINE料金 + 管理ツール料の月間合計です。
+      </p>
+    </div>
+
+    <article class="animate-on-scroll slide-up delay-100 border border-neutral-200 bg-[#f5f4f0] p-6 md:p-8">
+      <div class="overflow-x-auto border border-neutral-200 bg-white">
+        <table class="w-full min-w-[640px] text-left text-xs">
+          <thead class="bg-neutral-50 text-neutral-500">
+            <tr>
+              <th class="px-3 py-2 font-semibold uppercase tracking-wider">月間通数</th>
+              <th class="px-3 py-2 font-semibold uppercase tracking-wider">LINE公式</th>
+              <th class="px-3 py-2 font-semibold uppercase tracking-wider">他社ツール</th>
+              <th class="px-3 py-2 font-semibold uppercase tracking-wider">BuzzIt</th>
+              <th class="px-3 py-2 font-semibold uppercase tracking-wider">他社合計</th>
+              <th class="px-3 py-2 font-semibold uppercase tracking-wider">BuzzIt合計</th>
+              <th class="px-3 py-2 font-semibold uppercase tracking-wider">差額</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-neutral-200">
+            {costRows.map((row) => (
+              <tr>
+                <td class="px-3 py-2 font-medium">{row.messages.toLocaleString('ja-JP')}通</td>
+                <td class="px-3 py-2">¥{row.line.toLocaleString('ja-JP')}</td>
+                <td class="px-3 py-2">¥{row.lstepCrm.toLocaleString('ja-JP')}</td>
+                <td class="px-3 py-2">¥{row.buzzitCrm.toLocaleString('ja-JP')}</td>
+                <td class="px-3 py-2">¥{row.lstep.toLocaleString('ja-JP')}</td>
+                <td class="px-3 py-2 font-medium">¥{row.buzzit.toLocaleString('ja-JP')}</td>
+                <td class="px-3 py-2 font-medium text-green-700">−¥{row.savings.toLocaleString('ja-JP')}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
+        <div class="border border-neutral-200 bg-white p-3">
+          <p class="text-[10px] uppercase tracking-wider text-neutral-500">例: 1万通/月（Lステップ利用時）</p>
+          <p class="mt-1 text-xs text-neutral-600">LINE公式 ¥{example10k.line.toLocaleString('ja-JP')}</p>
+          <p class="text-xs text-neutral-600">管理ツール ¥{LSTEP_CRM.toLocaleString('ja-JP')}</p>
+          <p class="buzz-stat-value mt-1 text-base">合計 ¥{example10k.lstep.toLocaleString('ja-JP')}</p>
+        </div>
+        <div class="border border-neutral-900 bg-neutral-900 p-3 text-white">
+          <p class="text-[10px] uppercase tracking-wider text-neutral-300">同条件 BuzzIt</p>
+          <p class="mt-1 text-xs text-neutral-400">LINE公式 ¥{example10k.line.toLocaleString('ja-JP')}</p>
+          <p class="text-xs text-neutral-400">BuzzIt ¥{BUZZIT_CRM.toLocaleString('ja-JP')}</p>
+          <p class="buzz-stat-value buzz-stat-value--light mt-1 text-base">合計 ¥{example10k.buzzit.toLocaleString('ja-JP')}</p>
+        </div>
+        <div class="border border-neutral-200 bg-white p-3">
+          <p class="text-[10px] uppercase tracking-wider text-neutral-500">絞り込み配信（4,000通）</p>
+          <p class="mt-1 text-xs text-neutral-600">LINE公式 ¥{example10kSegmentLine.toLocaleString('ja-JP')}</p>
+          <p class="text-xs text-neutral-600">BuzzIt ¥{BUZZIT_CRM.toLocaleString('ja-JP')}</p>
+          <p class="buzz-stat-value mt-1 text-base text-green-700">合計 ¥{example10kSegmentTotal.toLocaleString('ja-JP')}</p>
+        </div>
+      </div>
+
+      <details id="line-simulator" class="buzz-accordion mt-5 border border-neutral-200 bg-white">
+        <summary class="buzz-accordion-summary">
+          <span class="font-display text-base font-bold text-neutral-900 md:text-lg">
+            月に何通送ると、いくら安くなる？
+          </span>
+          <span class="buzz-accordion-hint text-xs text-neutral-500">タップして詳しい試算を表示</span>
+        </summary>
+        <LineCostSimulator />
+      </details>
+    </article>
+  </div>
+</section>
+
+<script>
+  function openLineSimulatorFromHash() {
+    const hash = window.location.hash;
+    if (hash !== '#line-simulator' && hash !== '#line-cost') return;
+    const el = document.getElementById('line-simulator');
+    if (el instanceof HTMLDetailsElement) {
+      el.open = true;
+      requestAnimationFrame(() => {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+  }
+
+  openLineSimulatorFromHash();
+  window.addEventListener('hashchange', openLineSimulatorFromHash);
+  document.addEventListener('astro:page-load', openLineSimulatorFromHash);
+</script>
