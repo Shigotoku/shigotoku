@@ -28,6 +28,7 @@ import { useApp } from '../store/appContext';
 import { useAuth } from '../store/authContext';
 import { useStore } from '../store/storeContext';
 import StoreSwitcher from '../components/StoreSwitcher';
+import PersonaSwitcher from '../components/PersonaSwitcher';
 import PwaInstallBanner from '../components/PwaInstallBanner';
 import MobileBottomNav from '../components/MobileBottomNav';
 import OnboardingTour from '../components/OnboardingTour';
@@ -415,6 +416,7 @@ export default function DashboardLayout() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <PersonaSwitcher />
             <StoreSwitcher />
             <button
               type="button"

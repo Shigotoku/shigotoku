@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider } from './store/appContext';
 import { AuthProvider } from './store/authContext';
 import { StoreProvider } from './store/storeContext';
+import { PersonaProvider } from './store/personaContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import OnboardingGate from './components/OnboardingGate';
 import HeadlineFitRoot from './components/HeadlineFitRoot';
@@ -31,6 +32,7 @@ function App() {
     <AuthProvider>
       <AppProvider>
         <StoreProvider>
+          <PersonaProvider>
           <BrowserRouter>
             <HeadlineFitRoot />
             <Routes>
@@ -64,6 +66,7 @@ function App() {
               </Route>
             </Routes>
           </BrowserRouter>
+          </PersonaProvider>
         </StoreProvider>
       </AppProvider>
     </AuthProvider>

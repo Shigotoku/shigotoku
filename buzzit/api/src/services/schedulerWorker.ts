@@ -5,6 +5,7 @@ import {
   updateScheduledJobStatus,
   getUserSettings,
 } from './firestore';
+import { getEffectiveSettings } from './personaSettings';
 import { executePublish } from './publish';
 import { postToSlackWebhook } from './slack';
 import { canUseSlack } from './autoMode';
@@ -33,7 +34,7 @@ export async function processDueScheduledJobs(): Promise<{ processed: number; er
 
   for (const job of jobs) {
     try {
-      const settings = await getUserSettings(job.uid);
+      const settings = await getEffectiveSettings(job.uid, job.personaId);
       const outcome = await executePublish(
         job.uid,
         settings,
@@ -76,18 +77,28 @@ export async function processDueScheduledJobs(): Promise<{ processed: number; er
   return { processed, errors };
 }
 
-export async function saveOAuthState(uid: string, provider: 'meta' | 'google' = 'meta'): Promise<string> {
+export async function saveOAuthState(
+  uid: string,
+  provider: 'meta' | 'google' = 'meta',
+  personaId?: string,
+): Promise<string> {
   const state = randomUUID();
   await getFirestore().collection('oauthStates').doc(state).set({
     uid,
     provider,
+    personaId: personaId ?? null,
     createdAt: FieldValue.serverTimestamp(),
     expiresAt: Date.now() + 10 * 60 * 1000,
   });
   return state;
 }
 
-export async function consumeOAuthState(state: string): Promise<string | null> {
+export interface OAuthStatePayload {
+  uid: string;
+  personaId?: string;
+}
+
+export async function consumeOAuthState(state: string): Promise<OAuthStatePayload | null> {
   const ref = getFirestore().collection('oauthStates').doc(state);
   const snap = await ref.get();
   if (!snap.exists) return null;
@@ -97,6 +108,7 @@ export async function consumeOAuthState(state: string): Promise<string | null> {
     return null;
   }
   const uid = data.uid as string;
+  const personaId = data.personaId as string | undefined;
   await ref.delete();
-  return uid;
+  return { uid, personaId };
 }

@@ -116,6 +116,9 @@ export interface SettingsResponse {
   notifyEmail?: string;
   industry?: string;
   brandProfile?: string;
+  activePersonaId?: string;
+  activePersonaName?: string;
+  activePersonaType?: 'official' | 'personal' | 'character';
   extraSnsAccounts?: number;
   insightsEnabled?: boolean;
   xInsightsEnabled?: boolean;
@@ -725,6 +728,32 @@ export interface BillingResponse {
   storeLimitLabel: string;
   stores: Array<{ id: string; name: string }>;
   activeStoreId: string | null;
+  personaCount?: number;
+  includedPersonas?: number;
+  maxPersonas?: number;
+  canAddPersona?: boolean;
+  personaLimitLabel?: string;
+  personas?: Array<{ id: string; name: string; type: string }>;
+  activePersonaId?: string | null;
+}
+
+export type PersonaType = 'official' | 'personal' | 'character';
+export type PersonaRole = 'owner' | 'editor' | 'approver' | 'viewer';
+
+export interface PersonaRecord {
+  id: string;
+  name: string;
+  slug: string;
+  type: PersonaType;
+  description?: string;
+  avatarUrl?: string;
+  brandProfile?: string;
+  brandSafetyLevel?: 'medical' | 'standard';
+  status: 'active' | 'archived';
+  metaConnected?: boolean;
+  xConnected?: boolean;
+  requiresApproval?: boolean;
+  createdAt: string;
 }
 
 export interface StoreMember {
@@ -762,6 +791,54 @@ export function setActiveStore(storeId: string) {
   return request<{ success: boolean; activeStoreId: string }>('/v1/stores/active', {
     method: 'PUT',
     body: JSON.stringify({ storeId }),
+  });
+}
+
+export function fetchPersonas() {
+  return request<{
+    personas: PersonaRecord[];
+    activePersonaId: string;
+    role: PersonaRole | null;
+    limits: {
+      included: number;
+      extraSlots: number;
+      max: number;
+      canAdd: boolean;
+      label: string;
+    };
+  }>('/v1/personas');
+}
+
+export function createPersona(body: {
+  name: string;
+  type?: PersonaType;
+  description?: string;
+  brandProfile?: string;
+  brandSafetyLevel?: 'medical' | 'standard';
+}) {
+  return request<{ persona: PersonaRecord }>('/v1/personas', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function setActivePersona(personaId: string) {
+  return request<{ success: boolean; activePersonaId: string }>('/v1/personas/active', {
+    method: 'PUT',
+    body: JSON.stringify({ personaId }),
+  });
+}
+
+export function updatePersona(personaId: string, patch: Partial<PersonaRecord>) {
+  return request<{ persona: PersonaRecord }>(`/v1/personas/${encodeURIComponent(personaId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+}
+
+export function archivePersona(personaId: string) {
+  return request<{ success: boolean }>(`/v1/personas/${encodeURIComponent(personaId)}`, {
+    method: 'DELETE',
   });
 }
 
@@ -1232,8 +1309,13 @@ export interface InsightsDashboard {
   snapshotDays?: number;
 }
 
-export function fetchInsightsDashboard(platform: InsightsPlatformFilter = 'all', days = 30) {
+export function fetchInsightsDashboard(
+  platform: InsightsPlatformFilter = 'all',
+  days = 30,
+  personaId?: string | 'all',
+) {
   const params = new URLSearchParams({ platform, days: String(days) });
+  if (personaId) params.set('personaId', personaId);
   return request<{ dashboard: InsightsDashboard }>(`/v1/insights/dashboard?${params}`);
 }
 

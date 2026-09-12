@@ -9,6 +9,7 @@ import {
 } from '../lib/api';
 import InsightsDashboardPanel from '../components/InsightsDashboardPanel';
 import { useIsMobile } from '../hooks/useIsMobile';
+import { usePersona } from '../store/personaContext';
 
 function parsePlatform(raw: string | null): InsightsPlatformFilter {
   if (raw === 'x' || raw === 'instagram' || raw === 'line' || raw === 'facebook') return raw;
@@ -17,6 +18,12 @@ function parsePlatform(raw: string | null): InsightsPlatformFilter {
 
 export default function InsightsPage() {
   const isMobile = useIsMobile();
+  const { personas, activePersonaId, refreshPersonas } = usePersona();
+  const [personaScope, setPersonaScope] = useState<string | 'all'>('active');
+
+  useEffect(() => {
+    refreshPersonas().catch(() => {});
+  }, [refreshPersonas]);
   const [searchParams] = useSearchParams();
   const [platform, setPlatform] = useState<InsightsPlatformFilter>(() =>
     parsePlatform(searchParams.get('platform')),
@@ -26,8 +33,11 @@ export default function InsightsPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
 
-  const loadDashboard = useCallback((p: InsightsPlatformFilter) => {
-    fetchInsightsDashboard(p)
+  const resolvedPersonaId =
+    personaScope === 'all' ? 'all' : personaScope === 'active' ? activePersonaId ?? undefined : personaScope;
+
+  const loadDashboard = useCallback((p: InsightsPlatformFilter, personaId?: string | 'all') => {
+    fetchInsightsDashboard(p, 30, personaId)
       .then((r) => {
         setDashboard(r.dashboard);
         setLoaded(true);
@@ -39,8 +49,9 @@ export default function InsightsPage() {
   }, []);
 
   useEffect(() => {
-    loadDashboard(platform);
-  }, [platform, loadDashboard]);
+    if (personaScope !== 'all' && personaScope !== 'active' && !personaScope) return;
+    loadDashboard(platform, resolvedPersonaId);
+  }, [platform, personaScope, resolvedPersonaId, loadDashboard]);
 
   const handleAnalyze = async () => {
     setAnalyzing(true);
@@ -83,6 +94,23 @@ export default function InsightsPage() {
       </div>
 
       {message && <p className="buzz-alert buzz-alert-info text-sm">{message}</p>}
+
+      {personas.length > 1 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-neutral-500">表示キャラ:</span>
+          <select
+            value={personaScope}
+            onChange={(e) => setPersonaScope(e.target.value)}
+            className="rounded-lg border border-neutral-200 px-2 py-1.5 text-xs"
+          >
+            <option value="active">現在のキャラ</option>
+            <option value="all">すべて合算</option>
+            {personas.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <InsightsDashboardPanel
         dashboard={dashboard}

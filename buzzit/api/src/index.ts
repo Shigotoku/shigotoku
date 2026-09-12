@@ -108,6 +108,10 @@ import {
   storeLimitLabel,
   ADDITIONAL_STORE_DISCOUNT,
   EXTRA_SNS_ACCOUNT_MONTHLY,
+  canAddPersona,
+  includedPersonasForPlan,
+  maxPersonasForPlan,
+  personaLimitLabel,
 } from './services/billing';
 import {
   listStoresForUser,
@@ -125,6 +129,26 @@ import {
   getUserRoleInStore,
   countPendingInvites,
 } from './services/stores';
+import {
+  listPersonasForUser,
+  createPersona,
+  updatePersona,
+  setActivePersona,
+  archivePersona,
+  resolveActivePersonaId,
+  getUserRoleInPersona,
+  listPersonaMembers,
+  setPersonaMemberRole,
+  addPersonaMember,
+  removePersonaMember,
+  listPersonaAuditLogs,
+  safePersonaForClient,
+  personaRequiresApproval,
+  getPersona,
+  assertPersonaAccess,
+  PERSONA_SETTINGS_ALLOWLIST,
+} from './services/personas';
+import { getEffectiveSettings } from './services/personaSettings';
 import {
   generateTrackingToken,
   trackingClickUrl,
@@ -382,10 +406,16 @@ api.post('/v1/schedule', requireAuth, async (req: AuthedRequest, res) => {
   }
 
   try {
-    const settings = await assertPostQuota(req.uid!);
+    await assertPostQuota(req.uid!);
     if (!asDraft) await incrementPostQuota(req.uid!);
-    const dest = resolveTrackingDestination(settings, destinationUrl);
-    const mode: PublishMode = publishMode ?? settings.defaultPublishMode ?? 'notify';
+    const effective = await getEffectiveSettings(req.uid!);
+    const activePersonaId = effective.activePersonaId;
+    const dest = resolveTrackingDestination(effective, destinationUrl);
+    let mode: PublishMode = publishMode ?? effective.defaultPublishMode ?? 'notify';
+    const persona = await getPersona(activePersonaId);
+    if (!asDraft && !publishMode && persona && personaRequiresApproval(persona)) {
+      mode = 'approval';
+    }
     const trackingLinks: Array<{ platform: string; trackingUrl: string; postId: string }> = [];
 
     if (dest) {
@@ -419,6 +449,7 @@ api.post('/v1/schedule', requireAuth, async (req: AuthedRequest, res) => {
       mediaUrls,
       destinationUrl: dest,
       trackingLinks,
+      personaId: activePersonaId,
     });
 
     if (!asDraft && mode === 'approval') {
@@ -467,7 +498,9 @@ api.get('/v1/scheduled', requireAuth, async (req: AuthedRequest, res) => {
         ? (statusParam as import('./types/schedule').ScheduledJobStatus)
         : undefined;
 
-  const jobs = await getScheduledJobs(req.uid!, status);
+  const personaId = typeof req.query.personaId === 'string' ? req.query.personaId : undefined;
+  const activePersonaId = personaId ?? await resolveActivePersonaId(req.uid!);
+  const jobs = await getScheduledJobs(req.uid!, status, activePersonaId);
   res.json({ jobs });
 });
 
@@ -597,7 +630,9 @@ api.get('/v1/insights/dashboard', requireAuth, async (req: AuthedRequest, res) =
       typeof req.query.platform === 'string' ? req.query.platform : undefined,
     );
     const days = Number(req.query.days) || 30;
-    const dashboard = await buildInsightsDashboard(req.uid!, { platform, days });
+    const personaQuery = typeof req.query.personaId === 'string' ? req.query.personaId : undefined;
+    const personaId = personaQuery === 'all' ? 'all' : (personaQuery ?? await resolveActivePersonaId(req.uid!));
+    const dashboard = await buildInsightsDashboard(req.uid!, { platform, days, personaId });
     res.json({ dashboard });
   } catch (err) {
     console.error('insights dashboard failed', err);
@@ -611,10 +646,12 @@ api.get('/v1/insights/report', requireAuth, async (req: AuthedRequest, res) => {
       typeof req.query.platform === 'string' ? req.query.platform : undefined,
     );
     const days = Number(req.query.days) || 30;
-    const dashboard = await buildInsightsDashboard(req.uid!, { platform, days, useAi: true });
-    const settings = await getUserSettings(req.uid!);
+    const personaQuery = typeof req.query.personaId === 'string' ? req.query.personaId : undefined;
+    const personaId = personaQuery === 'all' ? 'all' : (personaQuery ?? await resolveActivePersonaId(req.uid!));
+    const dashboard = await buildInsightsDashboard(req.uid!, { platform, days, useAi: true, personaId });
+    const settings = await getEffectiveSettings(req.uid!, personaId === 'all' ? undefined : personaId);
     const html = buildInsightsHtmlReport(dashboard, {
-      businessName: settings.displayName ?? settings.brandProfile?.slice(0, 30),
+      businessName: settings.activePersonaName ?? settings.displayName ?? settings.brandProfile?.slice(0, 30),
     });
     res.json({ html, dashboard });
   } catch (err) {
@@ -630,9 +667,11 @@ api.get('/v1/insights/report/download', requireAuth, async (req: AuthedRequest, 
     );
     const days = Number(req.query.days) || 30;
     const format = typeof req.query.format === 'string' ? req.query.format.toLowerCase() : 'html';
-    const dashboard = await buildInsightsDashboard(req.uid!, { platform, days, useAi: true });
-    const settings = await getUserSettings(req.uid!);
-    const businessName = settings.displayName ?? settings.brandProfile?.slice(0, 30);
+    const personaQuery = typeof req.query.personaId === 'string' ? req.query.personaId : undefined;
+    const personaId = personaQuery === 'all' ? 'all' : (personaQuery ?? await resolveActivePersonaId(req.uid!));
+    const dashboard = await buildInsightsDashboard(req.uid!, { platform, days, useAi: true, personaId });
+    const settings = await getEffectiveSettings(req.uid!, personaId === 'all' ? undefined : personaId);
+    const businessName = settings.activePersonaName ?? settings.displayName ?? settings.brandProfile?.slice(0, 30);
     const base = reportFileBaseName(platform);
 
     if (format === 'pptx') {
@@ -665,9 +704,11 @@ api.post('/v1/insights/report/share', requireAuth, async (req: AuthedRequest, re
       typeof req.body?.platform === 'string' ? req.body.platform : undefined,
     );
     const days = Number(req.body?.days) || 30;
-    const dashboard = await buildInsightsDashboard(req.uid!, { platform, days, useAi: true });
-    const settings = await getUserSettings(req.uid!);
-    const businessName = settings.displayName ?? settings.brandProfile?.slice(0, 30);
+    const personaQuery = typeof req.body?.personaId === 'string' ? req.body.personaId : undefined;
+    const personaId = personaQuery === 'all' ? 'all' : (personaQuery ?? await resolveActivePersonaId(req.uid!));
+    const dashboard = await buildInsightsDashboard(req.uid!, { platform, days, useAi: true, personaId });
+    const settings = await getEffectiveSettings(req.uid!, personaId === 'all' ? undefined : personaId);
+    const businessName = settings.activePersonaName ?? settings.displayName ?? settings.brandProfile?.slice(0, 30);
     const html = buildInsightsHtmlReport(dashboard, { businessName });
 
     const token = randomUUID().replace(/-/g, '');
@@ -706,8 +747,9 @@ api.post('/v1/insights/analyze', requireAuth, async (req: AuthedRequest, res) =>
     const days = Number(req.body?.days) || 30;
     const useAi = req.body?.useAi !== false;
 
+    const personaId = await resolveActivePersonaId(req.uid!);
     const result = await syncInsightsForUser(req.uid!, { force });
-    const dashboard = await buildInsightsDashboard(req.uid!, { platform, days, useAi });
+    const dashboard = await buildInsightsDashboard(req.uid!, { platform, days, useAi, personaId });
     await recordInsightsDailySnapshot(req.uid!, dashboard);
     await writeAuditLog(req.uid!, 'insights.analyze', JSON.stringify({
       fetched: result.fetched,
@@ -747,7 +789,8 @@ function metaOAuthRedirectUri(): string {
 }
 
 api.get('/v1/oauth/meta/start', requireAuth, async (req: AuthedRequest, res) => {
-  const state = await saveOAuthState(req.uid!);
+  const personaId = await resolveActivePersonaId(req.uid!);
+  const state = await saveOAuthState(req.uid!, 'meta', personaId);
   const url = getMetaOAuthUrl(state, metaOAuthRedirectUri());
   if (!url) {
     res.status(503).json({ error: 'Meta OAuth が未設定です（META_APP_ID / META_APP_SECRET）' });
@@ -765,8 +808,8 @@ api.get('/v1/oauth/meta/callback', async (req, res) => {
     return;
   }
 
-  const uid = await consumeOAuthState(state);
-  if (!uid) {
+  const oauth = await consumeOAuthState(state);
+  if (!oauth) {
     res.redirect(302, `${META_APP_ORIGIN}/settings?meta=expired`);
     return;
   }
@@ -782,7 +825,8 @@ api.get('/v1/oauth/meta/callback', async (req, res) => {
     ? new Date(Date.now() + exchanged.expiresIn * 1000).toISOString()
     : undefined;
 
-  await updateUserSettings(uid, {
+  const personaId = oauth.personaId ?? await resolveActivePersonaId(oauth.uid);
+  await updatePersona(personaId, oauth.uid, {
     metaAccessToken: exchanged.accessToken,
     metaPageAccessToken: accounts.pageAccessToken,
     metaIgUserId: accounts.igUserId,
@@ -826,7 +870,7 @@ const DEFAULT_SNS_CONNECTIONS = [
 
 // --- Settings ---
 api.get('/v1/settings', requireAuth, async (req: AuthedRequest, res) => {
-  const settings = await getUserSettings(req.uid!);
+  const settings = await getEffectiveSettings(req.uid!);
   const account = await getAccountForUser(req.uid!);
   const entitlements = await resolveEntitlements(req.uid!);
   const metaConnected = !!(settings.metaAccessToken && settings.metaIgUserId);
@@ -863,6 +907,9 @@ api.get('/v1/settings', requireAuth, async (req: AuthedRequest, res) => {
     referralCode: settings.referralCode,
     xSeriesCapabilities: xSeriesCapabilities(entitlements?.plan ?? settings.plan),
     account: accountSummaryForSettings(account, entitlements, settings),
+    activePersonaId: settings.activePersonaId,
+    activePersonaName: settings.activePersonaName,
+    activePersonaType: settings.activePersonaType,
   });
 });
 
@@ -881,42 +928,38 @@ api.get('/v1/sns-connections', requireAuth, async (_req: AuthedRequest, res) => 
 });
 
 api.put('/v1/settings', requireAuth, async (req: AuthedRequest, res) => {
-  const allowed = [
-    'plan', 'slackWebhookUrl', 'ayrshareProfileKey', 'autoModeEnabled', 'slackTeamId',
-    'displayName', 'lineChannelSecret', 'lineChannelAccessToken', 'lineAdminUserId',
-    'lineDestinationId', 'defaultDestinationUrl', 'defaultPublishMode',
-    'metaAccessToken', 'metaPageAccessToken', 'metaIgUserId', 'metaPageId', 'metaTokenExpiresAt',
-    'hpbStoreUrl', 'hpbTrackingEnabled', 'autoModeGoal', 'gbpConnected', 'gbpLocationName', 'notifyEmail', 'industry',
-    'brandProfile',
+  const userAllowed = [
+    'plan', 'slackWebhookUrl', 'autoModeEnabled', 'slackTeamId',
+    'displayName', 'defaultDestinationUrl',
+    'hpbStoreUrl', 'hpbTrackingEnabled', 'autoModeGoal', 'notifyEmail', 'industry',
     'extraSnsAccounts',
-    'insightsEnabled',
-    'xInsightsEnabled',
-    'xApiKey', 'xApiSecret', 'xAccessToken', 'xAccessSecret', 'xUsername',
   ];
-  const patch: Record<string, unknown> = {};
-  for (const key of allowed) {
-    if (key in req.body) patch[key] = req.body[key];
+  const personaAllowed = PERSONA_SETTINGS_ALLOWLIST.filter(
+    (k) => !['name', 'slug', 'type', 'status'].includes(k),
+  );
+  const userPatch: Record<string, unknown> = {};
+  const personaPatch: Record<string, unknown> = {};
+  for (const key of userAllowed) {
+    if (key in req.body) userPatch[key] = req.body[key];
   }
-  // 空文字の X 鍵は「未変更」扱い（誤上書き防止）。切断は xDisconnect
+  for (const key of personaAllowed) {
+    if (key in req.body) personaPatch[key] = req.body[key];
+  }
   for (const key of ['xApiKey', 'xApiSecret', 'xAccessToken', 'xAccessSecret'] as const) {
-    if (key in patch && String(patch[key] ?? '').trim() === '') {
-      delete patch[key];
+    if (key in personaPatch && String(personaPatch[key] ?? '').trim() === '') {
+      delete personaPatch[key];
     }
   }
   if (req.body?.xDisconnect === true) {
-    patch.xApiKey = '';
-    patch.xApiSecret = '';
-    patch.xAccessToken = '';
-    patch.xAccessSecret = '';
-    patch.xUsername = '';
+    personaPatch.xDisconnect = true;
   }
-  if ('extraSnsAccounts' in patch) {
-    const n = Number(patch.extraSnsAccounts);
-    patch.extraSnsAccounts = Number.isFinite(n) ? Math.max(0, Math.min(20, Math.floor(n))) : 0;
+  if ('extraSnsAccounts' in userPatch) {
+    const n = Number(userPatch.extraSnsAccounts);
+    userPatch.extraSnsAccounts = Number.isFinite(n) ? Math.max(0, Math.min(20, Math.floor(n))) : 0;
   }
-  if ('plan' in patch) {
+  if ('plan' in userPatch) {
     const current = await getUserSettings(req.uid!);
-    const nextPlan = patch.plan as string;
+    const nextPlan = userPatch.plan as string;
     const storeIds = current.storeIds ?? [];
     if (storeIds.length > MAX_STORES_BY_PLAN[nextPlan as keyof typeof MAX_STORES_BY_PLAN]) {
       res.status(400).json({
@@ -925,8 +968,15 @@ api.put('/v1/settings', requireAuth, async (req: AuthedRequest, res) => {
       return;
     }
   }
-  const settings = await updateUserSettings(req.uid!, patch as Partial<UserSettings>);
-  if ('gbpLocationName' in patch || 'gbpConnected' in patch) {
+  if (Object.keys(userPatch).length) {
+    await updateUserSettings(req.uid!, userPatch as Partial<UserSettings>);
+  }
+  const personaId = await resolveActivePersonaId(req.uid!);
+  if (Object.keys(personaPatch).length) {
+    await updatePersona(personaId, req.uid!, personaPatch as Partial<import('./types/persona').PersonaRecord> & { xDisconnect?: boolean });
+  }
+  const settings = await getEffectiveSettings(req.uid!);
+  if ('gbpLocationName' in personaPatch || 'gbpConnected' in personaPatch) {
     await recordGbpSnapshot(req.uid!, settings);
   }
   const {
@@ -943,6 +993,9 @@ api.put('/v1/settings', requireAuth, async (req: AuthedRequest, res) => {
     xConnected: !!credentialsFromSettings(settings),
     xApiPostsThisMonth: getXApiPostsThisMonth(settings),
     xApiMonthlyLimit: X_FREE_MONTHLY_SOFT_LIMIT,
+    activePersonaId: settings.activePersonaId,
+    activePersonaName: settings.activePersonaName,
+    activePersonaType: settings.activePersonaType,
   });
 });
 
@@ -953,7 +1006,7 @@ api.post('/v1/x/selftest', requireAuth, async (req: AuthedRequest, res) => {
     xAccessToken?: string;
     xAccessSecret?: string;
   };
-  const stored = await getUserSettings(req.uid!);
+  const stored = await getEffectiveSettings(req.uid!);
   const creds = credentialsFromSettings({
     xApiKey: body.xApiKey?.trim() || stored.xApiKey,
     xApiSecret: body.xApiSecret?.trim() || stored.xApiSecret,
@@ -979,14 +1032,16 @@ api.post('/v1/x/selftest', requireAuth, async (req: AuthedRequest, res) => {
 
 // --- X シリーズ（キュー＋曜日スケジュール） ---
 api.get('/v1/x/series', requireAuth, async (req: AuthedRequest, res) => {
-  res.json({ series: await listXSeries(req.uid!) });
+  const personaId = await resolveActivePersonaId(req.uid!);
+  res.json({ series: await listXSeries(req.uid!, personaId) });
 });
 
 api.post('/v1/x/series', requireAuth, async (req: AuthedRequest, res) => {
   try {
     const settings = await getUserSettings(req.uid!);
+    const personaId = await resolveActivePersonaId(req.uid!);
     const caps = xSeriesCapabilities(settings.plan);
-    const existing = await listXSeries(req.uid!);
+    const existing = await listXSeries(req.uid!, personaId);
     if (existing.length >= caps.maxSeries) {
       res.status(403).json({
         error: `シリーズは最大 ${caps.maxSeries} 件まで（${settings.plan}）。${caps.upgradeHint ?? ''}`,
@@ -994,7 +1049,7 @@ api.post('/v1/x/series', requireAuth, async (req: AuthedRequest, res) => {
       return;
     }
     const { name, description } = req.body as { name?: string; description?: string };
-    const series = await createXSeries(req.uid!, { name: name ?? '', description });
+    const series = await createXSeries(req.uid!, { name: name ?? '', description, personaId });
     res.json({ series });
   } catch (err) {
     res.status(400).json({ error: err instanceof Error ? err.message : '作成に失敗しました' });
@@ -2189,7 +2244,8 @@ function googleOAuthRedirectUri(): string {
 }
 
 api.get('/v1/oauth/google/start', requireAuth, async (req: AuthedRequest, res) => {
-  const state = await saveOAuthState(req.uid!, 'google');
+  const personaId = await resolveActivePersonaId(req.uid!);
+  const state = await saveOAuthState(req.uid!, 'google', personaId);
   const url = getGoogleOAuthUrl(state, googleOAuthRedirectUri());
   if (!url) {
     res.json({
@@ -2209,8 +2265,8 @@ api.get('/v1/oauth/google/callback', async (req, res) => {
     res.redirect(302, `${META_APP_ORIGIN}/settings?tab=sns&gbp=error`);
     return;
   }
-  const uid = await consumeOAuthState(state);
-  if (!uid) {
+  const oauth = await consumeOAuthState(state);
+  if (!oauth) {
     res.redirect(302, `${META_APP_ORIGIN}/settings?tab=sns&gbp=expired`);
     return;
   }
@@ -2236,7 +2292,8 @@ api.get('/v1/oauth/google/callback', async (req, res) => {
   const expiresAt = exchanged.expiresIn
     ? new Date(Date.now() + exchanged.expiresIn * 1000).toISOString()
     : undefined;
-  await updateUserSettings(uid, {
+  const personaId = oauth.personaId ?? await resolveActivePersonaId(oauth.uid);
+  await updatePersona(personaId, oauth.uid, {
     gbpAccessToken: exchanged.accessToken,
     gbpRefreshToken: exchanged.refreshToken,
     gbpTokenExpiresAt: expiresAt,
@@ -2646,6 +2703,157 @@ api.put('/v1/stores/active', requireAuth, async (req: AuthedRequest, res) => {
   }
 });
 
+// --- Personas（配信キャラ） ---
+api.get('/v1/personas', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const settings = await getUserSettings(req.uid!);
+    const personas = await listPersonasForUser(req.uid!, settings);
+    const activePersonaId = await resolveActivePersonaId(req.uid!, settings);
+    const extraSlots = Math.max(0, Number(settings.extraSnsAccounts) || 0);
+    const role = await getUserRoleInPersona(activePersonaId, req.uid!);
+    res.json({
+      personas: personas.map(safePersonaForClient),
+      activePersonaId,
+      role,
+      limits: {
+        included: includedPersonasForPlan(settings.plan),
+        extraSlots,
+        max: maxPersonasForPlan(settings.plan, extraSlots),
+        canAdd: canAddPersona(settings.plan, personas.length, extraSlots),
+        label: personaLimitLabel(settings.plan, extraSlots),
+      },
+    });
+  } catch (err) {
+    console.error('personas list failed', err);
+    res.status(500).json({ error: 'ペルソナ一覧の取得に失敗しました' });
+  }
+});
+
+api.post('/v1/personas', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const body = req.body as {
+      name?: string;
+      type?: import('./types/persona').PersonaType;
+      description?: string;
+      brandProfile?: string;
+      brandSafetyLevel?: 'medical' | 'standard';
+    };
+    const persona = await createPersona(req.uid!, {
+      name: body.name ?? '',
+      type: body.type,
+      description: body.description,
+      brandProfile: body.brandProfile,
+      brandSafetyLevel: body.brandSafetyLevel,
+    });
+    res.json({ persona: safePersonaForClient(persona) });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'ペルソナの作成に失敗しました';
+    res.status(400).json({ error: message });
+  }
+});
+
+api.put('/v1/personas/active', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const { personaId } = req.body as { personaId?: string };
+    if (!personaId) {
+      res.status(400).json({ error: 'personaId が必要です' });
+      return;
+    }
+    await setActivePersona(req.uid!, personaId);
+    res.json({ success: true, activePersonaId: personaId });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'ペルソナの切替に失敗しました';
+    res.status(400).json({ error: message });
+  }
+});
+
+api.patch('/v1/personas/:personaId', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const persona = await updatePersona(String(req.params.personaId), req.uid!, req.body);
+    res.json({ persona: safePersonaForClient(persona) });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'ペルソナの更新に失敗しました';
+    res.status(400).json({ error: message });
+  }
+});
+
+api.delete('/v1/personas/:personaId', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    await archivePersona(String(req.params.personaId), req.uid!);
+    res.json({ success: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'ペルソナの削除に失敗しました';
+    res.status(400).json({ error: message });
+  }
+});
+
+api.get('/v1/personas/:personaId/members', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const personaId = String(req.params.personaId);
+    await assertPersonaAccess(personaId, req.uid!, 'viewer');
+    const members = await listPersonaMembers(personaId);
+    res.json({ members });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'メンバー一覧の取得に失敗しました';
+    res.status(403).json({ error: message });
+  }
+});
+
+api.post('/v1/personas/:personaId/members', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const personaId = String(req.params.personaId);
+    const { userId, role } = req.body as { userId?: string; role?: import('./types/persona').PersonaRole };
+    if (!userId || !role || role === 'owner') {
+      res.status(400).json({ error: 'userId と role（editor/approver/viewer）が必要です' });
+      return;
+    }
+    await addPersonaMember(personaId, userId, role, req.uid!);
+    res.json({ success: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'メンバー追加に失敗しました';
+    res.status(400).json({ error: message });
+  }
+});
+
+api.patch('/v1/personas/:personaId/members/:userId', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const personaId = String(req.params.personaId);
+    const targetUid = String(req.params.userId);
+    const { role } = req.body as { role?: import('./types/persona').PersonaRole };
+    if (!role || role === 'owner') {
+      res.status(400).json({ error: '有効な role が必要です' });
+      return;
+    }
+    await setPersonaMemberRole(personaId, targetUid, role, req.uid!);
+    res.json({ success: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'ロール変更に失敗しました';
+    res.status(400).json({ error: message });
+  }
+});
+
+api.delete('/v1/personas/:personaId/members/:userId', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    await removePersonaMember(String(req.params.personaId), String(req.params.userId), req.uid!);
+    res.json({ success: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'メンバー削除に失敗しました';
+    res.status(400).json({ error: message });
+  }
+});
+
+api.get('/v1/personas/:personaId/audit', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const personaId = String(req.params.personaId);
+    await assertPersonaAccess(personaId, req.uid!, 'approver');
+    const logs = await listPersonaAuditLogs(personaId);
+    res.json({ logs });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '監査ログの取得に失敗しました';
+    res.status(403).json({ error: message });
+  }
+});
+
 api.get('/v1/billing', requireAuth, async (req: AuthedRequest, res) => {
   try {
     const settings = await getUserSettings(req.uid!);
@@ -2657,6 +2865,8 @@ api.get('/v1/billing', requireAuth, async (req: AuthedRequest, res) => {
       ? await Promise.all([listStoreMembers(activeStoreId), countPendingInvites(activeStoreId)])
       : [[], 0];
     const memberCount = members.length || 1;
+    const personas = await listPersonasForUser(req.uid!, settings);
+    const activePersonaId = await resolveActivePersonaId(req.uid!, settings);
     res.json({
       plan,
       storeCount: stores.length,
@@ -2673,6 +2883,13 @@ api.get('/v1/billing', requireAuth, async (req: AuthedRequest, res) => {
       storeLimitLabel: storeLimitLabel(plan),
       stores: stores.map((s) => ({ id: s.id, name: s.name })),
       activeStoreId,
+      personaCount: personas.length,
+      includedPersonas: includedPersonasForPlan(plan),
+      maxPersonas: maxPersonasForPlan(plan, extraSnsAccounts),
+      canAddPersona: canAddPersona(plan, personas.length, extraSnsAccounts),
+      personaLimitLabel: personaLimitLabel(plan, extraSnsAccounts),
+      personas: personas.map((p) => ({ id: p.id, name: p.name, type: p.type })),
+      activePersonaId,
     });
   } catch (err) {
     console.error('billing failed', err);

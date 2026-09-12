@@ -50,6 +50,10 @@ export interface UserSettings {
   storeIds?: string[];
   /** 現在操作中の店舗ID */
   activeStoreId?: string;
+  /** 所属ペルソナ（配信キャラ）ID一覧 */
+  personaIds?: string[];
+  /** 現在操作中のペルソナID */
+  activePersonaId?: string;
   /** HPB / 予約サイトURL */
   hpbStoreUrl?: string;
   /** HPB 予約トラッキングを有効化 */
@@ -111,6 +115,7 @@ export interface PostInsightDoc {
   lastError?: string;
   scheduledAt?: string;
   preview?: string;
+  personaId?: string;
 }
 
 export interface MetricsSummary {
@@ -491,6 +496,7 @@ export interface CreateScheduledJobInput {
   destinationUrl?: string;
   trackingLinks?: Array<{ platform: string; trackingUrl: string; postId: string }>;
   ayrshareResponse?: unknown;
+  personaId?: string;
 }
 
 export async function createScheduledJob(uid: string, input: CreateScheduledJobInput): Promise<string> {
@@ -507,6 +513,7 @@ export async function createScheduledJob(uid: string, input: CreateScheduledJobI
     destinationUrl: input.destinationUrl ?? null,
     trackingLinks: input.trackingLinks ?? [],
     ayrshareResponse: input.ayrshareResponse ?? null,
+    ...(input.personaId ? { personaId: input.personaId } : {}),
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   });
@@ -516,6 +523,7 @@ export async function createScheduledJob(uid: string, input: CreateScheduledJobI
 export interface ScheduledJobDoc {
   id: string;
   uid: string;
+  personaId?: string;
   contents: ScheduleContentItem[];
   scheduledAt: string;
   publishMode: PublishMode;
@@ -536,6 +544,7 @@ function mapScheduledDoc(uid: string, id: string, data: FirebaseFirestore.Docume
   return {
     id,
     uid,
+    personaId: data.personaId as string | undefined,
     contents: data.contents as ScheduleContentItem[],
     scheduledAt: data.scheduledAt as string,
     publishMode: (data.publishMode as PublishMode) ?? 'notify',
@@ -553,6 +562,7 @@ function mapScheduledDoc(uid: string, id: string, data: FirebaseFirestore.Docume
 export async function getScheduledJobs(
   uid: string,
   status?: ScheduledJobStatus | ScheduledJobStatus[],
+  personaId?: string,
 ): Promise<ScheduledJobDoc[]> {
   let query: FirebaseFirestore.Query = db()
     .collection('users')
@@ -572,6 +582,9 @@ export async function getScheduledJobs(
   let docs = snap.docs.map((d) => mapScheduledDoc(uid, d.id, d.data()));
   if (status && Array.isArray(status) && status.length > 1) {
     docs = docs.filter((d) => status.includes(d.status));
+  }
+  if (personaId) {
+    docs = docs.filter((d) => !d.personaId || d.personaId === personaId);
   }
   return docs;
 }

@@ -29,6 +29,8 @@ import {
 } from '../lib/api';
 import LineCostComparison from '../components/LineCostComparison';
 import StoreBillingSection from '../components/StoreBillingSection';
+import PersonaManagementSection from '../components/PersonaManagementSection';
+import { usePersona } from '../store/personaContext';
 import { useApp } from '../store/appContext';
 import type { PlanTier } from '../types';
 import TeamPage from './TeamPage';
@@ -134,8 +136,11 @@ export default function SettingsPage() {
   const [insightsLastSyncedAt, setInsightsLastSyncedAt] = useState('');
   const [insightsSyncing, setInsightsSyncing] = useState(false);
 
+  const { activePersona } = usePersona();
+
   const SETTINGS_TABS: { id: SettingsTab; label: string }[] = [
     { id: 'business', label: '事業所' },
+    { id: 'personas', label: '配信キャラ' },
     { id: 'sns', label: 'SNS連携' },
     { id: 'staff', label: 'スタッフ' },
     { id: 'plan', label: 'プラン' },
@@ -167,37 +172,43 @@ export default function SettingsPage() {
   }, [section, activeTab]);
 
   useEffect(() => {
-    fetchSettings()
-      .then((s) => {
-        setPlan(s.plan as PlanTier);
-        setSlackWebhookUrl(s.slackWebhookUrl ?? '');
-        setAyrshareProfileKey(s.ayrshareProfileKey ?? '');
-        setSlackTeamId(s.slackTeamId ?? '');
-        setAutoModeEnabled(!!s.autoModeEnabled);
-        setLineChannelSecret(s.lineChannelSecret ?? '');
-        setLineChannelAccessToken(s.lineChannelAccessToken ?? '');
-        setLineDestinationId(s.lineDestinationId ?? '');
-        setDefaultDestinationUrl(s.defaultDestinationUrl ?? '');
-        setDefaultPublishMode(s.defaultPublishMode ?? 'notify');
-        setMetaConnected(!!s.metaConnected);
-        setMetaTokenExpiresAt(s.metaTokenExpiresAt ?? '');
-        setLineWebhookUrl(s.lineWebhookUrl ?? '');
-        setSnsConnections(s.snsConnections);
-        setHpbStoreUrl(s.hpbStoreUrl ?? '');
-        setGbpConnected(!!s.gbpConnected);
-        setGbpLocationName(s.gbpLocationName ?? '');
-        setNotifyEmail(s.notifyEmail ?? '');
-        setXConnected(!!s.xConnected);
-        setXUsername(s.xUsername ?? '');
-        setXApiPostsThisMonth(s.xApiPostsThisMonth ?? 0);
-        setXApiMonthlyLimit(s.xApiMonthlyLimit ?? 500);
-        setBrandProfile(s.brandProfile ?? '');
-        setIndustry(s.industry ?? '');
-        setInsightsEnabled(s.insightsEnabled !== false);
-        setXInsightsEnabled(s.xInsightsEnabled === true);
-        setInsightsLastSyncedAt(s.insightsLastSyncedAt ?? '');
-      })
-      .catch(() => {});
+    const loadSettingsFromApi = () => {
+      fetchSettings()
+        .then((s) => {
+          setPlan(s.plan as PlanTier);
+          setSlackWebhookUrl(s.slackWebhookUrl ?? '');
+          setAyrshareProfileKey(s.ayrshareProfileKey ?? '');
+          setSlackTeamId(s.slackTeamId ?? '');
+          setAutoModeEnabled(!!s.autoModeEnabled);
+          setLineChannelSecret(s.lineChannelSecret ?? '');
+          setLineChannelAccessToken(s.lineChannelAccessToken ?? '');
+          setLineDestinationId(s.lineDestinationId ?? '');
+          setDefaultDestinationUrl(s.defaultDestinationUrl ?? '');
+          setDefaultPublishMode(s.defaultPublishMode ?? 'notify');
+          setMetaConnected(!!s.metaConnected);
+          setMetaTokenExpiresAt(s.metaTokenExpiresAt ?? '');
+          setLineWebhookUrl(s.lineWebhookUrl ?? '');
+          setSnsConnections(s.snsConnections);
+          setHpbStoreUrl(s.hpbStoreUrl ?? '');
+          setGbpConnected(!!s.gbpConnected);
+          setGbpLocationName(s.gbpLocationName ?? '');
+          setNotifyEmail(s.notifyEmail ?? '');
+          setXConnected(!!s.xConnected);
+          setXUsername(s.xUsername ?? '');
+          setXApiPostsThisMonth(s.xApiPostsThisMonth ?? 0);
+          setXApiMonthlyLimit(s.xApiMonthlyLimit ?? 500);
+          setBrandProfile(s.brandProfile ?? '');
+          setIndustry(s.industry ?? '');
+          setInsightsEnabled(s.insightsEnabled !== false);
+          setXInsightsEnabled(s.xInsightsEnabled === true);
+          setInsightsLastSyncedAt(s.insightsLastSyncedAt ?? '');
+        })
+        .catch(() => {});
+    };
+
+    loadSettingsFromApi();
+    const onPersonaChanged = () => loadSettingsFromApi();
+    window.addEventListener('buzzit-persona-changed', onPersonaChanged);
 
     // Ayrshare / LINE 系は初期表示後に遅延取得（店舗・請求カードをブロックしない）
     const idle =
@@ -239,6 +250,8 @@ export default function SettingsPage() {
       setMessage('Meta 連携の有効期限が切れました。再度お試しください');
       setSearchParams({ tab: 'sns' }, { replace: true });
     }
+
+    return () => window.removeEventListener('buzzit-persona-changed', onPersonaChanged);
   }, [setPlan, searchParams, setSearchParams]);
 
   const handleSave = async () => {
@@ -373,6 +386,12 @@ export default function SettingsPage() {
 
       {activeTab === 'staff' && <TeamPage embedded />}
 
+      {activeTab === 'personas' && (
+        <section className="buzz-card-pad">
+          <PersonaManagementSection />
+        </section>
+      )}
+
       {activeTab === 'business' && (
         <>
           <StoreBillingSection />
@@ -499,6 +518,13 @@ export default function SettingsPage() {
 
       {activeTab === 'sns' && (
         <>
+      {activePersona && (
+        <div className="buzz-card-pad border-l-4 border-l-amber-400 bg-amber-50/80 text-sm text-amber-900">
+          現在の配信キャラ: <strong>{activePersona.name}</strong>
+          （{activePersona.type === 'official' ? '公式' : activePersona.type === 'personal' ? '個人' : 'キャラ'}）
+          — ここで連携する SNS はこのキャラ専用です。
+        </div>
+      )}
       <section id="settings-meta" className="buzz-card-pad scroll-mt-24 space-y-4">
         <h3 className="flex items-center gap-2 text-lg font-bold">
           <Share2 className="h-5 w-5 text-neutral-700" />

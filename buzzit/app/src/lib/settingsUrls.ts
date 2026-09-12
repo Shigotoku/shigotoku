@@ -1,6 +1,6 @@
 /** 設定画面のタブ・SNS連携セクションへのディープリンク */
 
-export type SettingsTab = 'business' | 'sns' | 'staff' | 'plan' | 'advanced';
+export type SettingsTab = 'business' | 'personas' | 'sns' | 'staff' | 'plan' | 'advanced';
 
 export type SettingsSection =
   | 'meta'

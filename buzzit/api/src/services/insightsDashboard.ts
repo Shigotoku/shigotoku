@@ -2,7 +2,6 @@
  * SNS解析ダッシュボード（Buffer Insights / SocialDog ダッシュボード相当）
  */
 import {
-  getUserSettings,
   listPostInsights,
   getMetrics,
   getScheduledJobs,
@@ -16,6 +15,7 @@ import { buildInsightsSummary, type InsightsSummary } from './insightsSync';
 import { getLineFollowerInsight } from './lineMessaging';
 import { credentialsFromSettings } from './xApi';
 import { generateInsightsTakeawaysWithGemini } from './gemini';
+import { getEffectiveSettings } from './personaSettings';
 
 export type InsightsPlatformFilter = 'all' | 'x' | 'instagram' | 'facebook' | 'line';
 
@@ -287,13 +287,22 @@ export async function recordInsightsDailySnapshot(uid: string, dashboard: Insigh
 
 export async function buildInsightsDashboard(
   uid: string,
-  options: { platform?: InsightsPlatformFilter; days?: number; useAi?: boolean } = {},
+  options: {
+    platform?: InsightsPlatformFilter;
+    days?: number;
+    useAi?: boolean;
+    personaId?: string | 'all';
+  } = {},
 ): Promise<InsightsDashboard> {
   const platform = options.platform ?? 'all';
   const days = Math.min(90, Math.max(7, options.days ?? 30));
   const useAi = options.useAi === true;
+  const personaFilter = options.personaId ?? 'all';
 
-  const settings = await getUserSettings(uid);
+  const settings = await getEffectiveSettings(
+    uid,
+    personaFilter === 'all' ? undefined : personaFilter,
+  );
   const metrics = await getMetrics(uid);
   const allPosts = await listPostInsights(uid, { limit: 200 });
   const snapshots = await listInsightsDailySnapshots(uid, days);
@@ -302,7 +311,12 @@ export async function buildInsightsDashboard(
   cutoff.setDate(cutoff.getDate() - days);
   cutoff.setHours(0, 0, 0, 0);
 
-  const validPosts = allPosts.filter((p) => !p.lastError && matchesPlatform(p, platform));
+  const validPosts = allPosts.filter((p) => {
+    if (p.lastError) return false;
+    if (!matchesPlatform(p, platform)) return false;
+    if (personaFilter === 'all') return true;
+    return !p.personaId || p.personaId === personaFilter;
+  });
   const inPeriod = validPosts.filter((p) => {
     const d = new Date(p.scheduledAt || p.fetchedAt);
     return d >= cutoff;

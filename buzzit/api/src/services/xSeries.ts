@@ -7,7 +7,8 @@
 import { createHash } from 'node:crypto';
 import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import type { PublishMode } from '../types/schedule';
-import { createScheduledJob, getUserSettings, type UserSettings } from './firestore';
+import { createScheduledJob, type UserSettings } from './firestore';
+import { getEffectiveSettings } from './personaSettings';
 import {
   credentialsFromSettings,
   postTweetWithXApi,
@@ -32,6 +33,7 @@ export interface XSeries {
   name: string;
   description?: string;
   enabled: boolean;
+  personaId?: string;
   createdAt: string;
   pendingCount?: number;
   approvedCount?: number;
@@ -73,9 +75,9 @@ function tsToIso(value: unknown): string {
   return new Date().toISOString();
 }
 
-export async function listXSeries(uid: string): Promise<XSeries[]> {
+export async function listXSeries(uid: string, personaId?: string): Promise<XSeries[]> {
   const snap = await col(uid, 'xSeries').orderBy('createdAt', 'desc').limit(40).get();
-  const series = await Promise.all(
+  let series = await Promise.all(
     snap.docs.map(async (d) => {
       const data = d.data();
       const items = await col(uid, 'xSeries')
@@ -93,18 +95,22 @@ export async function listXSeries(uid: string): Promise<XSeries[]> {
         name: String(data.name ?? ''),
         description: data.description as string | undefined,
         enabled: data.enabled !== false,
+        personaId: data.personaId as string | undefined,
         createdAt: tsToIso(data.createdAt),
         pendingCount: items.size,
         approvedCount,
       } satisfies XSeries;
     }),
   );
+  if (personaId) {
+    series = series.filter((s) => !s.personaId || s.personaId === personaId);
+  }
   return series;
 }
 
 export async function createXSeries(
   uid: string,
-  input: { name: string; description?: string },
+  input: { name: string; description?: string; personaId?: string },
 ): Promise<XSeries> {
   const name = input.name.trim();
   if (!name) throw new Error('シリーズ名が必要です');
@@ -112,6 +118,7 @@ export async function createXSeries(
     name,
     description: input.description?.trim() ?? '',
     enabled: true,
+    ...(input.personaId ? { personaId: input.personaId } : {}),
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   });
@@ -658,7 +665,6 @@ export async function processXSeriesSchedules(opts?: {
   const jst = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
 
   for (const [uid, rules] of byUid) {
-    const settings = await getUserSettings(uid);
     for (const rule of rules) {
       if (!opts?.force && !shouldRunRuleNow(jst, rule)) continue;
       const slotKey = opts?.force
@@ -669,6 +675,8 @@ export async function processXSeriesSchedules(opts?: {
 
       const seriesSnap = await col(uid, 'xSeries').doc(rule.seriesId).get();
       if (!seriesSnap.exists || seriesSnap.data()?.enabled === false) continue;
+      const seriesPersonaId = seriesSnap.data()?.personaId as string | undefined;
+      const settings = await getEffectiveSettings(uid, seriesPersonaId);
 
       fired++;
       await recoverStuckPublishing(uid, rule.seriesId);
@@ -771,7 +779,9 @@ export async function publishSeriesNow(
   take = 1,
   mode: 'x_free' | 'notify' = 'x_free',
 ): Promise<{ posted: number; errors: number; messages: string[] }> {
-  const settings = await getUserSettings(uid);
+  const seriesSnap = await col(uid, 'xSeries').doc(seriesId).get();
+  const seriesPersonaId = seriesSnap.data()?.personaId as string | undefined;
+  const settings = await getEffectiveSettings(uid, seriesPersonaId);
   const claimed = await claimPendingItems(uid, seriesId, take);
   const messages: string[] = [];
   let posted = 0;
