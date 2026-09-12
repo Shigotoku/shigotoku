@@ -72,6 +72,13 @@ function personasCol() {
   return db().collection('personas');
 }
 
+/** Firestore は undefined を許可しない */
+function omitUndefined<T extends Record<string, unknown>>(obj: T): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== undefined),
+  );
+}
+
 function slugify(name: string): string {
   const base = name
     .trim()
@@ -191,7 +198,7 @@ export async function ensureDefaultPersona(
   const sns = extractSnsFromUser(settings);
 
   const personaRef = personasCol().doc();
-  const persona: Omit<PersonaRecord, 'id'> = {
+  const persona = omitUndefined({
     name,
     slug: slugify(name),
     type: 'official',
@@ -202,17 +209,17 @@ export async function ensureDefaultPersona(
     status: 'active',
     createdAt: new Date().toISOString(),
     ...sns,
-  };
+  }) as Omit<PersonaRecord, 'id'>;
 
   const batch = db().batch();
   batch.set(personaRef, persona);
-  batch.set(personaRef.collection('members').doc(uid), {
+  batch.set(personaRef.collection('members').doc(uid), omitUndefined({
     userId: uid,
     role: 'owner',
-    email: settings.email,
-    displayName: settings.displayName,
+    ...(settings.email ? { email: settings.email } : {}),
+    ...(settings.displayName ? { displayName: settings.displayName } : {}),
     createdAt: FieldValue.serverTimestamp(),
-  });
+  }));
   batch.set(db().collection('users').doc(uid), {
     personaIds: FieldValue.arrayUnion(personaRef.id),
     activePersonaId: personaRef.id,
@@ -276,29 +283,29 @@ export async function createPersona(
   }
 
   const personaRef = personasCol().doc();
-  const persona: Omit<PersonaRecord, 'id'> = {
+  const persona = omitUndefined({
     name,
     slug: slugify(name),
     type: input.type ?? 'character',
     description: input.description?.trim() ?? '',
-    avatarUrl: input.avatarUrl,
+    ...(input.avatarUrl?.trim() ? { avatarUrl: input.avatarUrl.trim() } : {}),
     brandProfile: input.brandProfile?.trim() ?? '',
     brandSafetyLevel: input.brandSafetyLevel ?? 'standard',
     ownerId: uid,
     ...(settings.accountId ? { accountId: settings.accountId } : {}),
     status: 'active',
     createdAt: new Date().toISOString(),
-  };
+  }) as Omit<PersonaRecord, 'id'>;
 
   const batch = db().batch();
   batch.set(personaRef, persona);
-  batch.set(personaRef.collection('members').doc(uid), {
+  batch.set(personaRef.collection('members').doc(uid), omitUndefined({
     userId: uid,
     role: 'owner',
-    email: settings.email,
-    displayName: settings.displayName,
+    ...(settings.email ? { email: settings.email } : {}),
+    ...(settings.displayName ? { displayName: settings.displayName } : {}),
     createdAt: FieldValue.serverTimestamp(),
-  });
+  }));
   batch.set(db().collection('users').doc(uid), {
     personaIds: FieldValue.arrayUnion(personaRef.id),
     activePersonaId: personaRef.id,
@@ -346,7 +353,7 @@ export async function updatePersona(
   }
 
   await personasCol().doc(personaId).set(
-    { ...safe, updatedAt: FieldValue.serverTimestamp() },
+    omitUndefined({ ...safe, updatedAt: FieldValue.serverTimestamp() }),
     { merge: true },
   );
 
@@ -425,13 +432,13 @@ export async function addPersonaMember(
   await assertPersonaAccess(personaId, actorUid, 'owner');
   const targetSettings = await getUserSettings(targetUid);
   const batch = db().batch();
-  batch.set(personasCol().doc(personaId).collection('members').doc(targetUid), {
+  batch.set(personasCol().doc(personaId).collection('members').doc(targetUid), omitUndefined({
     userId: targetUid,
     role,
-    email: targetSettings.email,
-    displayName: targetSettings.displayName,
+    ...(targetSettings.email ? { email: targetSettings.email } : {}),
+    ...(targetSettings.displayName ? { displayName: targetSettings.displayName } : {}),
     createdAt: FieldValue.serverTimestamp(),
-  });
+  }));
   batch.set(db().collection('users').doc(targetUid), {
     personaIds: FieldValue.arrayUnion(personaId),
     updatedAt: FieldValue.serverTimestamp(),
