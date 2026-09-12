@@ -364,7 +364,47 @@ export async function updatePersona(
   return updated;
 }
 
+/** 移行データなどで欠けた owner / members / personaIds を補修 */
+async function ensurePersonaMembership(uid: string, personaId: string): Promise<void> {
+  const persona = await getPersona(personaId);
+  if (!persona || persona.status === 'archived') return;
+
+  const settings = await getUserSettings(uid);
+  const userRef = db().collection('users').doc(uid);
+  const memberRef = personasCol().doc(personaId).collection('members').doc(uid);
+  const memberSnap = await memberRef.get();
+  const batch = db().batch();
+  let needsCommit = false;
+
+  if (!persona.ownerId) {
+    batch.set(personasCol().doc(personaId), { ownerId: uid }, { merge: true });
+    needsCommit = true;
+  }
+
+  if (!memberSnap.exists) {
+    batch.set(memberRef, omitUndefined({
+      userId: uid,
+      role: 'owner',
+      ...(settings.email ? { email: settings.email } : {}),
+      ...(settings.displayName ? { displayName: settings.displayName } : {}),
+      createdAt: FieldValue.serverTimestamp(),
+    }));
+    needsCommit = true;
+  }
+
+  if (!(settings.personaIds ?? []).includes(personaId)) {
+    batch.set(userRef, {
+      personaIds: FieldValue.arrayUnion(personaId),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    needsCommit = true;
+  }
+
+  if (needsCommit) await batch.commit();
+}
+
 export async function setActivePersona(uid: string, personaId: string): Promise<void> {
+  await ensurePersonaMembership(uid, personaId);
   await assertPersonaAccess(personaId, uid, 'viewer');
   await db().collection('users').doc(uid).set(
     { activePersonaId: personaId, updatedAt: FieldValue.serverTimestamp() },

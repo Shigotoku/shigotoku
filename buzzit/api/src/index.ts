@@ -2713,7 +2713,7 @@ api.get('/v1/personas', requireAuth, async (req: AuthedRequest, res) => {
   try {
     const settings = await getUserSettingsWithDevBoost(req.uid!);
     const personas = await listPersonasForUser(req.uid!, settings);
-    const activePersonaId = await resolveActivePersonaId(req.uid!, settings);
+    const activePersonaId = await resolveActivePersonaId(req.uid!);
     const role = await getUserRoleInPersona(activePersonaId, req.uid!);
     const limits = await resolvePersonaLimits(req.uid!, { settings, personaCount: personas.length });
     res.json({

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 import {
   fetchPersonas,
   setActivePersona as setActivePersonaApi,
@@ -20,6 +20,7 @@ interface PersonaContextValue {
     devFullAccess?: boolean;
   } | null;
   loading: boolean;
+  switching: boolean;
   refreshPersonas: () => Promise<void>;
   switchPersona: (personaId: string) => Promise<void>;
 }
@@ -32,6 +33,7 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
   const [userRole, setUserRole] = useState<PersonaRole | null>(null);
   const [limits, setLimits] = useState<PersonaContextValue['limits']>(null);
   const [loading, setLoading] = useState(false);
+  const [switching, setSwitching] = useState(false);
 
   const refreshPersonas = useCallback(async () => {
     setLoading(true);
@@ -47,14 +49,35 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const switchPersona = useCallback(async (personaId: string) => {
-    await setActivePersonaApi(personaId);
-    setActivePersonaId(personaId);
-    const data = await fetchPersonas();
-    setPersonas(data.personas);
-    if (data.role) setUserRole(data.role);
+    setSwitching(true);
+    try {
+      const result = await setActivePersonaApi(personaId);
+      setActivePersonaId(result.activePersonaId);
+
+      const data = await fetchPersonas();
+      setPersonas(data.personas);
+      setActivePersonaId(data.activePersonaId);
+      setLimits(data.limits);
+      if (data.role) setUserRole(data.role);
+
+      if (data.activePersonaId !== personaId) {
+        throw new Error('配信キャラの切り替えを反映できませんでした。ページを再読み込みしてください。');
+      }
+
+      window.dispatchEvent(new CustomEvent('buzzit-persona-changed'));
+    } finally {
+      setSwitching(false);
+    }
   }, []);
 
-  const activePersona = personas.find((p) => p.id === activePersonaId) ?? personas[0] ?? null;
+  const activePersona = useMemo(() => {
+    if (!personas.length) return null;
+    if (activePersonaId) {
+      const found = personas.find((p) => p.id === activePersonaId);
+      if (found) return found;
+    }
+    return personas[0] ?? null;
+  }, [personas, activePersonaId]);
 
   return (
     <PersonaContext.Provider
@@ -65,6 +88,7 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
         userRole,
         limits,
         loading,
+        switching,
         refreshPersonas,
         switchPersona,
       }}

@@ -17,8 +17,10 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 export default function PersonaSwitcher() {
-  const { personas, activePersonaId, activePersona, limits, loading, refreshPersonas, switchPersona } = usePersona();
+  const { personas, activePersonaId, activePersona, limits, loading, switching, refreshPersonas, switchPersona } =
+    usePersona();
   const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -29,45 +31,62 @@ export default function PersonaSwitcher() {
     const onClick = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
-    document.addEventListener('click', onClick);
-    return () => document.removeEventListener('click', onClick);
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
   }, []);
 
   if (!activePersona) return null;
 
   const typeClass = TYPE_COLORS[activePersona.type] ?? TYPE_COLORS.character;
   const personasPath = settingsPath({ tab: 'personas' });
+  const busy = loading || switching;
 
   return (
     <div ref={ref} className="relative">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
-        className={`flex max-w-[14rem] items-center gap-1.5 truncate rounded-lg border px-2.5 py-1.5 text-xs font-medium shadow-sm hover:opacity-90 ${typeClass}`}
+        onClick={() => {
+          setError(null);
+          setOpen((v) => !v);
+        }}
+        disabled={busy}
+        className={`flex max-w-[14rem] items-center gap-1.5 truncate rounded-lg border px-2.5 py-1.5 text-xs font-medium shadow-sm hover:opacity-90 disabled:cursor-wait disabled:opacity-60 ${typeClass}`}
         title="配信キャラを切り替え・追加"
       >
         <UserCircle2 className="h-3.5 w-3.5 shrink-0" />
-        <span className="truncate">{activePersona.name}</span>
+        <span className="truncate">{switching ? '切り替え中…' : activePersona.name}</span>
         <ChevronDown className="h-3.5 w-3.5 shrink-0" />
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 min-w-[14rem] overflow-hidden rounded-xl border border-neutral-200/80 bg-white py-1 shadow-lg">
+        <div
+          className="absolute left-0 top-full z-50 mt-1 min-w-[14rem] overflow-hidden rounded-xl border border-neutral-200/80 bg-white py-1 shadow-lg"
+          onMouseDown={(e) => e.stopPropagation()}
+        >
           <p className="px-3 py-1.5 text-[10px] font-medium uppercase tracking-wide text-neutral-400">
             配信キャラ
           </p>
+          {error && (
+            <p className="mx-2 mb-1 rounded-lg bg-red-50 px-2 py-1.5 text-[10px] text-red-700">{error}</p>
+          )}
           {personas.map((persona) => (
             <button
               key={persona.id}
               type="button"
-              disabled={loading}
+              disabled={busy}
               onClick={async () => {
-                if (persona.id !== activePersonaId) {
-                  await switchPersona(persona.id);
-                  window.dispatchEvent(new CustomEvent('buzzit-persona-changed'));
+                if (persona.id === activePersonaId) {
+                  setOpen(false);
+                  return;
                 }
-                setOpen(false);
+                setError(null);
+                try {
+                  await switchPersona(persona.id);
+                  setOpen(false);
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : '配信キャラの切り替えに失敗しました');
+                }
               }}
-              className={`block w-full px-3 py-2 text-left text-xs hover:bg-neutral-50 ${
+              className={`block w-full px-3 py-2 text-left text-xs hover:bg-neutral-50 disabled:cursor-wait disabled:opacity-50 ${
                 persona.id === activePersonaId ? 'font-semibold text-neutral-900' : 'text-neutral-600'
               }`}
             >
