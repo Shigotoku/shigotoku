@@ -25,6 +25,8 @@ import {
 import { BRAND_NAME } from '../constants/brand';
 import { landingPath } from '../lib/urls';
 import { useApp } from '../store/appContext';
+import { fetchSettings } from '../lib/api';
+import type { PlanTier } from '../types';
 import { useAuth } from '../store/authContext';
 import { useStore } from '../store/storeContext';
 import StoreSwitcher from '../components/StoreSwitcher';
@@ -323,7 +325,7 @@ function SidebarContent({
 }
 
 export default function DashboardLayout() {
-  const { plan } = useApp();
+  const { plan, setPlan } = useApp();
   const { user, logout } = useAuth();
   const { userRole, refreshStores } = useStore();
   const location = useLocation();
@@ -338,6 +340,12 @@ export default function DashboardLayout() {
   useEffect(() => {
     refreshStores().catch(() => {});
   }, [refreshStores]);
+
+  useEffect(() => {
+    fetchSettings()
+      .then((s) => setPlan((s.devFullAccess ? 'enterprise' : s.plan) as PlanTier))
+      .catch(() => {});
+  }, [setPlan]);
 
   useEffect(() => {
     setNavOpen(false);

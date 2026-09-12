@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, UserCircle2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ChevronDown, Plus, UserCircle2 } from 'lucide-react';
 import { usePersona } from '../store/personaContext';
+import { settingsPath } from '../lib/settingsUrls';
 
 const TYPE_LABELS: Record<string, string> = {
   official: '公式',
@@ -15,7 +17,7 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 export default function PersonaSwitcher() {
-  const { personas, activePersonaId, activePersona, loading, refreshPersonas, switchPersona } = usePersona();
+  const { personas, activePersonaId, activePersona, limits, loading, refreshPersonas, switchPersona } = usePersona();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -34,6 +36,7 @@ export default function PersonaSwitcher() {
   if (!activePersona) return null;
 
   const typeClass = TYPE_COLORS[activePersona.type] ?? TYPE_COLORS.character;
+  const personasPath = settingsPath({ tab: 'personas' });
 
   return (
     <div ref={ref} className="relative">
@@ -41,13 +44,13 @@ export default function PersonaSwitcher() {
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={`flex max-w-[14rem] items-center gap-1.5 truncate rounded-lg border px-2.5 py-1.5 text-xs font-medium shadow-sm hover:opacity-90 ${typeClass}`}
-        title="配信キャラを切り替え"
+        title="配信キャラを切り替え・追加"
       >
         <UserCircle2 className="h-3.5 w-3.5 shrink-0" />
         <span className="truncate">{activePersona.name}</span>
-        {personas.length > 1 && <ChevronDown className="h-3.5 w-3.5 shrink-0" />}
+        <ChevronDown className="h-3.5 w-3.5 shrink-0" />
       </button>
-      {open && personas.length > 1 && (
+      {open && (
         <div className="absolute left-0 top-full z-50 mt-1 min-w-[14rem] overflow-hidden rounded-xl border border-neutral-200/80 bg-white py-1 shadow-lg">
           <p className="px-3 py-1.5 text-[10px] font-medium uppercase tracking-wide text-neutral-400">
             配信キャラ
@@ -58,9 +61,11 @@ export default function PersonaSwitcher() {
               type="button"
               disabled={loading}
               onClick={async () => {
-                await switchPersona(persona.id);
+                if (persona.id !== activePersonaId) {
+                  await switchPersona(persona.id);
+                  window.dispatchEvent(new CustomEvent('buzzit-persona-changed'));
+                }
                 setOpen(false);
-                window.dispatchEvent(new CustomEvent('buzzit-persona-changed'));
               }}
               className={`block w-full px-3 py-2 text-left text-xs hover:bg-neutral-50 ${
                 persona.id === activePersonaId ? 'font-semibold text-neutral-900' : 'text-neutral-600'
@@ -70,6 +75,19 @@ export default function PersonaSwitcher() {
               <span className="text-[10px] text-neutral-400">{TYPE_LABELS[persona.type] ?? persona.type}</span>
             </button>
           ))}
+          <div className="border-t border-neutral-100 px-2 py-1.5">
+            <Link
+              to={personasPath}
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-1.5 rounded-lg px-2 py-2 text-xs font-semibold text-violet-800 hover:bg-violet-50"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              キャラを追加・管理
+            </Link>
+            {limits?.devFullAccess && (
+              <p className="px-2 pb-1 text-[10px] text-green-700">開発モード（全機能利用可）</p>
+            )}
+          </div>
         </div>
       )}
     </div>

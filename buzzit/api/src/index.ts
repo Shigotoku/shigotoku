@@ -108,10 +108,6 @@ import {
   storeLimitLabel,
   ADDITIONAL_STORE_DISCOUNT,
   EXTRA_SNS_ACCOUNT_MONTHLY,
-  canAddPersona,
-  includedPersonasForPlan,
-  maxPersonasForPlan,
-  personaLimitLabel,
 } from './services/billing';
 import {
   listStoresForUser,
@@ -136,6 +132,7 @@ import {
   setActivePersona,
   archivePersona,
   resolveActivePersonaId,
+  resolvePersonaLimits,
   getUserRoleInPersona,
   listPersonaMembers,
   setPersonaMemberRole,
@@ -149,6 +146,10 @@ import {
   PERSONA_SETTINGS_ALLOWLIST,
 } from './services/personas';
 import { getEffectiveSettings } from './services/personaSettings';
+import {
+  getUserSettingsWithDevBoost,
+  hasDevFullAccess,
+} from './services/devAccess';
 import {
   generateTrackingToken,
   trackingClickUrl,
@@ -843,7 +844,7 @@ api.get('/v1/dashboard', requireAuth, async (req: AuthedRequest, res) => {
     await ensureUser(req.uid!);
     const [metrics, settings] = await Promise.all([
       getMetrics(req.uid!),
-      getUserSettings(req.uid!),
+      getUserSettingsWithDevBoost(req.uid!),
     ]);
     res.json({ metrics, plan: settings.plan });
   } catch (err) {
@@ -870,7 +871,9 @@ const DEFAULT_SNS_CONNECTIONS = [
 
 // --- Settings ---
 api.get('/v1/settings', requireAuth, async (req: AuthedRequest, res) => {
+  const devFullAccess = await hasDevFullAccess(req.uid!);
   const settings = await getEffectiveSettings(req.uid!);
+  const boosted = devFullAccess ? await getUserSettingsWithDevBoost(req.uid!) : settings;
   const account = await getAccountForUser(req.uid!);
   const entitlements = await resolveEntitlements(req.uid!);
   const metaConnected = !!(settings.metaAccessToken && settings.metaIgUserId);
@@ -895,7 +898,7 @@ api.get('/v1/settings', requireAuth, async (req: AuthedRequest, res) => {
     xApiPostsThisMonth: getXApiPostsThisMonth(settings),
     xApiMonthlyLimit: X_FREE_MONTHLY_SOFT_LIMIT,
     canUseSlack: canUseSlack(settings),
-    canUseAutoMode: settings.plan === 'growth',
+    canUseAutoMode: devFullAccess || settings.plan === 'growth' || settings.plan === 'enterprise',
     lineWebhookUrl: lineWebhookUrl(req.uid!),
     hpbTrackingEnabled: settings.hpbTrackingEnabled ?? false,
     postsThisMonth: await getPostsThisMonth(req.uid!, settings),
@@ -905,16 +908,18 @@ api.get('/v1/settings', requireAuth, async (req: AuthedRequest, res) => {
     paymentConfigured: isPaymentConfigured(),
     paymentProvider: getActivePaymentProvider(),
     referralCode: settings.referralCode,
-    xSeriesCapabilities: xSeriesCapabilities(entitlements?.plan ?? settings.plan),
-    account: accountSummaryForSettings(account, entitlements, settings),
+    xSeriesCapabilities: xSeriesCapabilities(entitlements?.plan ?? boosted.plan),
+    account: accountSummaryForSettings(account, entitlements, boosted),
     activePersonaId: settings.activePersonaId,
     activePersonaName: settings.activePersonaName,
     activePersonaType: settings.activePersonaType,
+    devFullAccess,
+    plan: boosted.plan,
   });
 });
 
 api.get('/v1/x/capabilities', requireAuth, async (req: AuthedRequest, res) => {
-  const settings = await getUserSettings(req.uid!);
+  const settings = await getUserSettingsWithDevBoost(req.uid!);
   res.json({ capabilities: xSeriesCapabilities(settings.plan) });
 });
 
@@ -958,7 +963,7 @@ api.put('/v1/settings', requireAuth, async (req: AuthedRequest, res) => {
     userPatch.extraSnsAccounts = Number.isFinite(n) ? Math.max(0, Math.min(20, Math.floor(n))) : 0;
   }
   if ('plan' in userPatch) {
-    const current = await getUserSettings(req.uid!);
+    const current = await getUserSettingsWithDevBoost(req.uid!);
     const nextPlan = userPatch.plan as string;
     const storeIds = current.storeIds ?? [];
     if (storeIds.length > MAX_STORES_BY_PLAN[nextPlan as keyof typeof MAX_STORES_BY_PLAN]) {
@@ -1038,7 +1043,7 @@ api.get('/v1/x/series', requireAuth, async (req: AuthedRequest, res) => {
 
 api.post('/v1/x/series', requireAuth, async (req: AuthedRequest, res) => {
   try {
-    const settings = await getUserSettings(req.uid!);
+    const settings = await getUserSettingsWithDevBoost(req.uid!);
     const personaId = await resolveActivePersonaId(req.uid!);
     const caps = xSeriesCapabilities(settings.plan);
     const existing = await listXSeries(req.uid!, personaId);
@@ -1145,7 +1150,7 @@ api.post('/v1/x/series/:id/import-paste', requireAuth, async (req: AuthedRequest
       res.status(400).json({ error: 'text が必要です' });
       return;
     }
-    const settings = await getUserSettings(req.uid!);
+    const settings = await getUserSettingsWithDevBoost(req.uid!);
     const parsed = parseBulkPasteText(text).map((row) => ({
       ...row,
       approved: approved === true,
@@ -1182,7 +1187,7 @@ api.post('/v1/x/series/:id/generate-batch', requireAuth, async (req: AuthedReque
       res.status(400).json({ error: '1行以上のテーマ・URLを入力してください' });
       return;
     }
-    const settings = await getUserSettings(req.uid!);
+    const settings = await getUserSettingsWithDevBoost(req.uid!);
     assertXSeriesFeature(settings.plan, 'aiBatchMax', lines.length);
     const capped = lines.slice(0, xSeriesCapabilities(settings.plan).aiBatchMax);
     const { items, usedGemini } = await generateXSeriesBatchWithGemini(
@@ -1211,7 +1216,7 @@ api.post('/v1/x/series/:id/generate-batch', requireAuth, async (req: AuthedReque
 
 api.post('/v1/x/series/:id/approve-all', requireAuth, async (req: AuthedRequest, res) => {
   try {
-    const settings = await getUserSettings(req.uid!);
+    const settings = await getUserSettingsWithDevBoost(req.uid!);
     const caps = xSeriesCapabilities(settings.plan);
     if (caps.staffCannotApprove && settings.activeStoreId) {
       const role = await getUserRoleInStore(settings.activeStoreId, req.uid!);
@@ -1230,7 +1235,7 @@ api.post('/v1/x/series/:id/approve-all', requireAuth, async (req: AuthedRequest,
 api.patch('/v1/x/series/:seriesId/items/:itemId', requireAuth, async (req: AuthedRequest, res) => {
   const patch = req.body ?? {};
   if (patch.approved === true) {
-    const settings = await getUserSettings(req.uid!);
+    const settings = await getUserSettingsWithDevBoost(req.uid!);
     const caps = xSeriesCapabilities(settings.plan);
     if (caps.staffCannotApprove && settings.activeStoreId) {
       const role = await getUserRoleInStore(settings.activeStoreId, req.uid!);
@@ -1268,7 +1273,7 @@ api.get('/v1/x/schedule-rules', requireAuth, async (req: AuthedRequest, res) => 
 
 api.post('/v1/x/schedule-rules', requireAuth, async (req: AuthedRequest, res) => {
   try {
-    const settings = await getUserSettings(req.uid!);
+    const settings = await getUserSettingsWithDevBoost(req.uid!);
     const caps = xSeriesCapabilities(settings.plan);
     const rules = await listXScheduleRules(req.uid!);
     if (rules.length >= caps.maxRulesTotal) {
@@ -1304,7 +1309,7 @@ api.delete('/v1/x/schedule-rules/:id', requireAuth, async (req: AuthedRequest, r
 
 api.get('/v1/x/series/:id/insights', requireAuth, async (req: AuthedRequest, res) => {
   const seriesId = String(req.params.id);
-  const settings = await getUserSettings(req.uid!);
+  const settings = await getUserSettingsWithDevBoost(req.uid!);
   const [insights, nextPosts] = await Promise.all([
     buildXSeriesInsights(req.uid!, seriesId, settings),
     computeNextScheduledPosts(req.uid!, seriesId, xSeriesCapabilities(settings.plan).nextPostsPreview),
@@ -1313,7 +1318,7 @@ api.get('/v1/x/series/:id/insights', requireAuth, async (req: AuthedRequest, res
 });
 
 api.get('/v1/x/series/:id/export-csv', requireAuth, async (req: AuthedRequest, res) => {
-  const settings = await getUserSettings(req.uid!);
+  const settings = await getUserSettingsWithDevBoost(req.uid!);
   assertXSeriesFeature(settings.plan, 'csvExport');
   const items = await listXSeriesItems(req.uid!, String(req.params.id), { limit: 400 });
   const csv = exportSeriesToCsv(items);
@@ -1322,7 +1327,7 @@ api.get('/v1/x/series/:id/export-csv', requireAuth, async (req: AuthedRequest, r
 
 api.post('/v1/x/series/enrich-url', requireAuth, async (req: AuthedRequest, res) => {
   try {
-    const settings = await getUserSettings(req.uid!);
+    const settings = await getUserSettingsWithDevBoost(req.uid!);
     assertXSeriesFeature(settings.plan, 'urlEnrich');
     const { url } = req.body as { url?: string };
     if (!url?.trim()) {
@@ -1338,7 +1343,7 @@ api.post('/v1/x/series/enrich-url', requireAuth, async (req: AuthedRequest, res)
 
 api.post('/v1/x/series/:id/reorder', requireAuth, async (req: AuthedRequest, res) => {
   try {
-    const settings = await getUserSettings(req.uid!);
+    const settings = await getUserSettingsWithDevBoost(req.uid!);
     if (!xSeriesCapabilities(settings.plan).dragReorder) {
       res.status(403).json({ error: '並び替えは Starter 以上の機能です' });
       return;
@@ -1357,7 +1362,7 @@ api.post('/v1/x/series/:id/reorder', requireAuth, async (req: AuthedRequest, res
 
 api.post('/v1/x/series/:id/move-items', requireAuth, async (req: AuthedRequest, res) => {
   try {
-    const settings = await getUserSettings(req.uid!);
+    const settings = await getUserSettingsWithDevBoost(req.uid!);
     assertXSeriesFeature(settings.plan, 'moveBetweenSeries');
     const { toSeriesId, itemIds } = req.body as { toSeriesId?: string; itemIds?: string[] };
     if (!toSeriesId || !itemIds?.length) {
@@ -1386,7 +1391,7 @@ api.post('/v1/x/series/:seriesId/items/:itemId/retry', requireAuth, async (req: 
 
 api.post('/v1/x/series/:id/voice-batch', requireAuth, async (req: AuthedRequest, res) => {
   try {
-    const settings = await getUserSettings(req.uid!);
+    const settings = await getUserSettingsWithDevBoost(req.uid!);
     assertXSeriesFeature(settings.plan, 'voiceBatch');
     const { transcript, approved } = req.body as { transcript?: string; approved?: boolean };
     if (!transcript?.trim()) {
@@ -1519,7 +1524,7 @@ api.post('/v1/tracking/link', requireAuth, async (req: AuthedRequest, res) => {
     postId?: string;
   };
 
-  const settings = await getUserSettings(req.uid!);
+  const settings = await getUserSettingsWithDevBoost(req.uid!);
   const dest = resolveTrackingDestination(settings, destinationUrl);
   if (!dest) {
     res.status(400).json({ error: 'destinationUrl または設定のリダイレクト先 URL が必要です' });
@@ -1632,7 +1637,7 @@ api.get('/v1/trends', requireAuth, async (req: AuthedRequest, res) => {
 
 api.post('/v1/trends/refresh', requireAuth, async (req: AuthedRequest, res) => {
   try {
-    const settings = await getUserSettings(req.uid!);
+    const settings = await getUserSettingsWithDevBoost(req.uid!);
     if (!['pro', 'team', 'growth'].includes(settings.plan)) {
       res.status(403).json({ error: 'Pro プラン以上が必要です' });
       return;
@@ -1670,7 +1675,7 @@ api.post('/v1/ab-tests', requireAuth, async (req: AuthedRequest, res) => {
     res.status(400).json({ error: 'idea と platform が必要です' });
     return;
   }
-  const settings = await getUserSettings(req.uid!);
+  const settings = await getUserSettingsWithDevBoost(req.uid!);
   if (!['pro', 'team', 'growth'].includes(settings.plan)) {
     res.status(403).json({ error: 'Pro プラン以上が必要です' });
     return;
@@ -1725,7 +1730,7 @@ api.post('/v1/slack/ideas', requireAuth, async (req: AuthedRequest, res) => {
     res.status(400).json({ error: 'text が必要です' });
     return;
   }
-  const settings = await getUserSettings(req.uid!);
+  const settings = await getUserSettingsWithDevBoost(req.uid!);
   const preview = await formatSlackIdeaReply(text, settings.plan);
   const id = await addSlackIdea(req.uid!, text, author, preview);
 
@@ -1792,7 +1797,7 @@ api.post('/v1/slack/events', async (req: AuthedRequest, res) => {
 
 // --- Auto Mode ---
 api.post('/v1/auto-mode/run', requireAuth, async (req: AuthedRequest, res) => {
-  const settings = await getUserSettings(req.uid!);
+  const settings = await getUserSettingsWithDevBoost(req.uid!);
   if (settings.plan !== 'growth') {
     res.status(403).json({ error: 'Growth OS プランが必要です' });
     return;
@@ -2097,7 +2102,7 @@ api.post('/v1/line/narrowcast', requireAuth, async (req: AuthedRequest, res) => 
     res.status(400).json({ error: 'segmentId または conditions が必要です' });
     return;
   }
-  const settings = await getUserSettings(req.uid!);
+  const settings = await getUserSettingsWithDevBoost(req.uid!);
   if (!['pro', 'team', 'growth', 'enterprise'].includes(settings.plan)) {
     res.status(403).json({ error: 'Pro プラン以上が必要です' });
     return;
@@ -2131,7 +2136,7 @@ api.post('/v1/line/steps', requireAuth, async (req: AuthedRequest, res) => {
     res.status(400).json({ error: 'name が必要です' });
     return;
   }
-  const settings = await getUserSettings(req.uid!);
+  const settings = await getUserSettingsWithDevBoost(req.uid!);
   if (!['pro', 'team', 'growth', 'enterprise'].includes(settings.plan)) {
     res.status(403).json({ error: 'Pro プラン以上が必要です' });
     return;
@@ -2167,7 +2172,7 @@ api.get('/v1/line/richmenu', requireAuth, async (req: AuthedRequest, res) => {
 });
 
 api.post('/v1/line/richmenu', requireAuth, async (req: AuthedRequest, res) => {
-  const settings = await getUserSettings(req.uid!);
+  const settings = await getUserSettingsWithDevBoost(req.uid!);
   if (!['pro', 'team', 'growth', 'enterprise'].includes(settings.plan)) {
     res.status(403).json({ error: 'Pro プラン以上が必要です' });
     return;
@@ -2198,7 +2203,7 @@ api.post('/v1/line/richmenu', requireAuth, async (req: AuthedRequest, res) => {
 
 // インサイト
 api.get('/v1/line/insights', requireAuth, async (req: AuthedRequest, res) => {
-  const settings = await getUserSettings(req.uid!);
+  const settings = await getUserSettingsWithDevBoost(req.uid!);
   if (!settings.lineChannelAccessToken) {
     res.json({ followers: null, demographic: null });
     return;
@@ -2307,7 +2312,7 @@ api.get('/v1/oauth/google/callback', async (req, res) => {
 });
 
 api.get('/v1/gbp/insights', requireAuth, async (req: AuthedRequest, res) => {
-  const settings = await getUserSettings(req.uid!);
+  const settings = await getUserSettingsWithDevBoost(req.uid!);
   const insights = await fetchGbpInsights(settings);
   const reviews = await listGbpReviews(settings);
   res.json({ insights, reviews });
@@ -2319,7 +2324,7 @@ api.post('/v1/gbp/review-reply', requireAuth, async (req: AuthedRequest, res) =>
     res.status(400).json({ error: 'reviewText が必要です' });
     return;
   }
-  const settings = await getUserSettings(req.uid!);
+  const settings = await getUserSettingsWithDevBoost(req.uid!);
   const result = await draftGbpReviewReply(reviewText.trim(), settings.plan);
   res.json(result);
 });
@@ -2333,7 +2338,7 @@ api.post('/v1/billing/checkout', requireAuth, async (req: AuthedRequest, res) =>
     res.status(400).json({ error: '有効なプランを指定してください' });
     return;
   }
-  const settings = await getUserSettings(req.uid!);
+  const settings = await getUserSettingsWithDevBoost(req.uid!);
   const session = await createCheckoutSession({
     uid: req.uid!,
     email: settings.email,
@@ -2353,7 +2358,7 @@ api.post('/v1/billing/checkout', requireAuth, async (req: AuthedRequest, res) =>
 
 // --- Lステップ移行 ---
 api.post('/v1/line/import/lstep', requireAuth, async (req: AuthedRequest, res) => {
-  const settings = await getUserSettings(req.uid!);
+  const settings = await getUserSettingsWithDevBoost(req.uid!);
   if (!['pro', 'team', 'growth', 'enterprise'].includes(settings.plan)) {
     res.status(403).json({ error: 'Pro プラン以上が必要です' });
     return;
@@ -2424,7 +2429,7 @@ api.post('/v1/billing/referral/apply', requireAuth, async (req: AuthedRequest, r
 
 // --- Enterprise ---
 api.get('/v1/enterprise/kpis', requireAuth, async (req: AuthedRequest, res) => {
-  const settings = await getUserSettings(req.uid!);
+  const settings = await getUserSettingsWithDevBoost(req.uid!);
   if (!['growth', 'enterprise'].includes(settings.plan)) {
     res.status(403).json({ error: 'Growth OS / Enterprise プランが必要です' });
     return;
@@ -2435,7 +2440,7 @@ api.get('/v1/enterprise/kpis', requireAuth, async (req: AuthedRequest, res) => {
 });
 
 api.post('/v1/enterprise/bulk-distribute', requireAuth, async (req: AuthedRequest, res) => {
-  const settings = await getUserSettings(req.uid!);
+  const settings = await getUserSettingsWithDevBoost(req.uid!);
   if (!['enterprise'].includes(settings.plan)) {
     res.status(403).json({ error: 'Enterprise プランが必要です' });
     return;
@@ -2597,7 +2602,7 @@ api.get('/v1/export', requireAuth, async (req: AuthedRequest, res) => {
 });
 
 api.get('/v1/regional-watch', requireAuth, async (req: AuthedRequest, res) => {
-  const settings = await getUserSettings(req.uid!);
+  const settings = await getUserSettingsWithDevBoost(req.uid!);
   res.json({ ideas: regionalWatchIdeas(settings.industry) });
 });
 
@@ -2663,7 +2668,7 @@ api.post('/v1/line/flex-preview', requireAuth, async (req: AuthedRequest, res) =
 api.get('/v1/stores', requireAuth, async (req: AuthedRequest, res) => {
   try {
     const stores = await listStoresForUser(req.uid!);
-    const settings = await getUserSettings(req.uid!);
+    const settings = await getUserSettingsWithDevBoost(req.uid!);
     const activeStoreId = settings.activeStoreId ?? stores[0]?.id ?? null;
     const role = activeStoreId ? await getUserRoleInStore(activeStoreId, req.uid!) : null;
     res.json({ stores, activeStoreId, role });
@@ -2706,22 +2711,16 @@ api.put('/v1/stores/active', requireAuth, async (req: AuthedRequest, res) => {
 // --- Personas（配信キャラ） ---
 api.get('/v1/personas', requireAuth, async (req: AuthedRequest, res) => {
   try {
-    const settings = await getUserSettings(req.uid!);
+    const settings = await getUserSettingsWithDevBoost(req.uid!);
     const personas = await listPersonasForUser(req.uid!, settings);
     const activePersonaId = await resolveActivePersonaId(req.uid!, settings);
-    const extraSlots = Math.max(0, Number(settings.extraSnsAccounts) || 0);
     const role = await getUserRoleInPersona(activePersonaId, req.uid!);
+    const limits = await resolvePersonaLimits(req.uid!, { settings, personaCount: personas.length });
     res.json({
       personas: personas.map(safePersonaForClient),
       activePersonaId,
       role,
-      limits: {
-        included: includedPersonasForPlan(settings.plan),
-        extraSlots,
-        max: maxPersonasForPlan(settings.plan, extraSlots),
-        canAdd: canAddPersona(settings.plan, personas.length, extraSlots),
-        label: personaLimitLabel(settings.plan, extraSlots),
-      },
+      limits,
     });
   } catch (err) {
     console.error('personas list failed', err);
@@ -2856,7 +2855,7 @@ api.get('/v1/personas/:personaId/audit', requireAuth, async (req: AuthedRequest,
 
 api.get('/v1/billing', requireAuth, async (req: AuthedRequest, res) => {
   try {
-    const settings = await getUserSettings(req.uid!);
+    const settings = await getUserSettingsWithDevBoost(req.uid!);
     const plan = settings.plan;
     const extraSnsAccounts = Math.max(0, Number(settings.extraSnsAccounts) || 0);
     const stores = await listStoresForUser(req.uid!, settings);
@@ -2867,6 +2866,8 @@ api.get('/v1/billing', requireAuth, async (req: AuthedRequest, res) => {
     const memberCount = members.length || 1;
     const personas = await listPersonasForUser(req.uid!, settings);
     const activePersonaId = await resolveActivePersonaId(req.uid!, settings);
+    const personaLimits = await resolvePersonaLimits(req.uid!, { settings, personaCount: personas.length });
+    const devFullAccess = await hasDevFullAccess(req.uid!);
     res.json({
       plan,
       storeCount: stores.length,
@@ -2884,12 +2885,13 @@ api.get('/v1/billing', requireAuth, async (req: AuthedRequest, res) => {
       stores: stores.map((s) => ({ id: s.id, name: s.name })),
       activeStoreId,
       personaCount: personas.length,
-      includedPersonas: includedPersonasForPlan(plan),
-      maxPersonas: maxPersonasForPlan(plan, extraSnsAccounts),
-      canAddPersona: canAddPersona(plan, personas.length, extraSnsAccounts),
-      personaLimitLabel: personaLimitLabel(plan, extraSnsAccounts),
+      includedPersonas: personaLimits.included,
+      maxPersonas: personaLimits.max,
+      canAddPersona: personaLimits.canAdd,
+      personaLimitLabel: personaLimits.label,
       personas: personas.map((p) => ({ id: p.id, name: p.name, type: p.type })),
       activePersonaId,
+      devFullAccess,
     });
   } catch (err) {
     console.error('billing failed', err);
@@ -3008,7 +3010,7 @@ api.get('/v1/invitations/:token', async (req, res) => {
 
 api.post('/v1/invitations/:token/accept', requireAuth, async (req: AuthedRequest, res) => {
   try {
-    const settings = await getUserSettings(req.uid!);
+    const settings = await getUserSettingsWithDevBoost(req.uid!);
     const result = await acceptStoreInvitation(String(req.params.token), req.uid!, settings.email);
     res.json(result);
   } catch (err) {
@@ -3045,7 +3047,7 @@ api.post('/v1/account/setup', requireAuth, async (req: AuthedRequest, res) => {
       res.status(400).json({ error: 'accountType は individual または business を指定してください' });
       return;
     }
-    const settings = await getUserSettings(req.uid!);
+    const settings = await getUserSettingsWithDevBoost(req.uid!);
     const result = await setupAccount(req.uid!, {
       accountType,
       companyName,
@@ -3138,7 +3140,7 @@ api.get('/v1/account/invitations/:token', async (req, res) => {
 
 api.post('/v1/account/invitations/:token/accept', requireAuth, async (req: AuthedRequest, res) => {
   try {
-    const settings = await getUserSettings(req.uid!);
+    const settings = await getUserSettingsWithDevBoost(req.uid!);
     const result = await acceptAccountInvitation(
       String(req.params.token),
       req.uid!,

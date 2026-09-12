@@ -17,6 +17,7 @@ interface PersonaContextValue {
     max: number;
     canAdd: boolean;
     label: string;
+    devFullAccess?: boolean;
   } | null;
   loading: boolean;
   refreshPersonas: () => Promise<void>;

@@ -16,6 +16,7 @@ import {
   formatYen,
 } from '../lib/billing';
 import { canManageBilling } from '../lib/permissions';
+import PersonaQuickGuide from './PersonaQuickGuide';
 
 export default function StoreBillingSection() {
   const { plan, setPlan } = useApp();
@@ -92,11 +93,15 @@ export default function StoreBillingSection() {
         <h3 className="text-lg font-bold">店舗・請求</h3>
       </div>
 
+      <div className="mb-4">
+        <PersonaQuickGuide />
+      </div>
+
       <p className="mb-4 text-sm text-neutral-600">
         料金は<strong className="font-semibold text-neutral-800">店舗単位</strong>で請求されます。
         1店舗目はプラン基本料、2店舗目以降は基本料の{Math.round(ADDITIONAL_STORE_DISCOUNT * 100)}%OFF（
-        {formatYen(addStorePrice)}/月）です。配信キャラ（ペルソナ）はプランに1体込み、追加は
-        {formatYen(EXTRA_SNS_ACCOUNT_MONTHLY)}/月/体です。
+        {formatYen(addStorePrice)}/月）です。配信キャラはプランに1体込み、2体目以降は
+        {formatYen(EXTRA_SNS_ACCOUNT_MONTHLY)}/月/体（下の追加枠）です。
       </p>
 
       {loading && !billing ? (
@@ -167,8 +172,8 @@ export default function StoreBillingSection() {
       <div className="mb-5 border border-neutral-200 bg-white p-4">
         <p className="text-sm font-semibold text-neutral-900">追加ペルソナ枠</p>
         <p className="mt-1 text-xs leading-relaxed text-neutral-500">
-          Instagram公式と採用用など、同じ媒体で2つ目以降のアカウントを扱う場合に追加します（1枠 ={' '}
-          {formatYen(EXTRA_SNS_ACCOUNT_MONTHLY)}/月）。
+          追加の配信キャラ枠数です（1枠 = {formatYen(EXTRA_SNS_ACCOUNT_MONTHLY)}/月）。
+          キャラの登録自体は<strong className="font-medium text-neutral-700">設定 → 配信キャラ</strong>タブで行います。
         </p>
         <div className="mt-3 flex items-center gap-3">
           <button

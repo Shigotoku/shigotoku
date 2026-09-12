@@ -30,6 +30,7 @@ import {
 import LineCostComparison from '../components/LineCostComparison';
 import StoreBillingSection from '../components/StoreBillingSection';
 import PersonaManagementSection from '../components/PersonaManagementSection';
+import PersonaQuickGuide from '../components/PersonaQuickGuide';
 import { usePersona } from '../store/personaContext';
 import { useApp } from '../store/appContext';
 import type { PlanTier } from '../types';
@@ -139,8 +140,8 @@ export default function SettingsPage() {
   const { activePersona } = usePersona();
 
   const SETTINGS_TABS: { id: SettingsTab; label: string }[] = [
-    { id: 'business', label: '事業所' },
     { id: 'personas', label: '配信キャラ' },
+    { id: 'business', label: '事業所' },
     { id: 'sns', label: 'SNS連携' },
     { id: 'staff', label: 'スタッフ' },
     { id: 'plan', label: 'プラン' },
@@ -151,7 +152,7 @@ export default function SettingsPage() {
   const tabParam = searchParams.get('tab');
   const activeTab: SettingsTab =
     (section ? sectionTab(section) : null) ??
-    (SETTINGS_TABS.some((t) => t.id === tabParam) ? (tabParam as SettingsTab) : 'business');
+    (SETTINGS_TABS.some((t) => t.id === tabParam) ? (tabParam as SettingsTab) : 'personas');
   const scrolledSectionRef = useRef<string | null>(null);
   const setTab = (id: SettingsTab) => {
     const next = new URLSearchParams(searchParams);
@@ -175,7 +176,7 @@ export default function SettingsPage() {
     const loadSettingsFromApi = () => {
       fetchSettings()
         .then((s) => {
-          setPlan(s.plan as PlanTier);
+          setPlan((s.devFullAccess ? 'enterprise' : s.plan) as PlanTier);
           setSlackWebhookUrl(s.slackWebhookUrl ?? '');
           setAyrshareProfileKey(s.ayrshareProfileKey ?? '');
           setSlackTeamId(s.slackTeamId ?? '');
@@ -387,7 +388,7 @@ export default function SettingsPage() {
       {activeTab === 'staff' && <TeamPage embedded />}
 
       {activeTab === 'personas' && (
-        <section className="buzz-card-pad">
+        <section className="buzz-card-pad space-y-4">
           <PersonaManagementSection />
         </section>
       )}
@@ -433,6 +434,10 @@ export default function SettingsPage() {
       )}
 
       {activeTab === 'plan' && (
+      <>
+      <section className="buzz-card-pad pb-0">
+        <PersonaQuickGuide />
+      </section>
       <section className="buzz-card-pad">
         <h3 className="mb-2 text-lg font-bold">LINE CRM プラン（Lステップ代替）</h3>
         <p className="mb-4 text-sm text-neutral-600">
@@ -513,7 +518,7 @@ export default function SettingsPage() {
           ))}
         </div>
       </section>
-
+      </>
       )}
 
       {activeTab === 'sns' && (

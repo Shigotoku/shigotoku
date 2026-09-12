@@ -92,10 +92,16 @@ export default function PersonaManagementSection() {
         <h3 className="text-sm font-semibold text-neutral-900">配信キャラ（ペルソナ）</h3>
         <p className="mt-1 text-xs text-neutral-500">
           公式・院長・キャラクターなど、投稿主体ごとに SNS 連携とトーンを分けて管理できます。
+          下のフォームから<strong className="text-neutral-700">名前を入力して「ペルソナを追加」</strong>してください。
           {limits && (
             <span className="ml-1 text-neutral-600">（{limits.label}）</span>
           )}
         </p>
+        {limits?.devFullAccess && (
+          <p className="mt-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-900">
+            メディトク社内アカウント: 開発モードで全機能（Enterprise 相当）が利用できます。
+          </p>
+        )}
       </div>
 
       <ul className="divide-y divide-neutral-100 rounded-xl border border-neutral-200/80">
@@ -169,7 +175,7 @@ export default function PersonaManagementSection() {
 
       {!limits?.canAdd && (
         <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-          ペルソナ上限に達しています。プランタブで「追加ペルソナ枠」を購入してください（¥980/月/体）。
+          ペルソナ上限に達しています。プランタブで「追加ペルソナ枠」を購入するか、管理者に連絡してください（¥980/月/体）。
         </p>
       )}
 

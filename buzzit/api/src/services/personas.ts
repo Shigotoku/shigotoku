@@ -5,7 +5,10 @@ import { getUserSettings } from './firestore';
 import {
   canAddPersona,
   includedPersonasForPlan,
+  maxPersonasForPlan,
+  personaLimitLabel,
 } from './billing';
+import { devPersonaLimits, hasDevFullAccess } from './devAccess';
 import type {
   PersonaMemberRecord,
   PersonaRecord,
@@ -260,12 +263,16 @@ export async function createPersona(
   const settings = await getUserSettings(uid);
   const personas = await listPersonasForUser(uid, settings);
   const extraSlots = Math.max(0, Number(settings.extraSnsAccounts) || 0);
+  const devAccess = await hasDevFullAccess(uid);
 
-  if (!canAddPersona(settings.plan as PlanTier, personas.length, extraSlots)) {
+  if (!devAccess && !canAddPersona(settings.plan as PlanTier, personas.length, extraSlots)) {
     const included = includedPersonasForPlan(settings.plan as PlanTier);
     throw new Error(
-      `ペルソナ上限に達しています（プラン込み ${included}体 + 追加枠 ${extraSlots}体）。設定のプランタブで追加枠を購入してください。`,
+      `ペルソナ上限に達しています（プラン込み ${included}体 + 追加枠 ${extraSlots}体）。設定の「配信キャラ」タブで確認するか、プランタブで追加枠を購入してください。`,
     );
+  }
+  if (devAccess && personas.length >= devPersonaLimits(personas.length).max) {
+    throw new Error('開発モードのペルソナ上限（50体）に達しています');
   }
 
   const personaRef = personasCol().doc();
@@ -495,6 +502,26 @@ const PERSONA_SECRET_KEYS = [
   'lineChannelSecret', 'lineChannelAccessToken',
   'gbpAccessToken', 'gbpRefreshToken',
 ] as const;
+
+export async function resolvePersonaLimits(
+  uid: string,
+  options: { settings?: UserSettings; personaCount?: number } = {},
+) {
+  const settings = options.settings ?? (await getUserSettings(uid));
+  const personas = options.personaCount ?? (await listPersonasForUser(uid, settings)).length;
+  const extraSlots = Math.max(0, Number(settings.extraSnsAccounts) || 0);
+  if (await hasDevFullAccess(uid)) {
+    return devPersonaLimits(personas);
+  }
+  return {
+    included: includedPersonasForPlan(settings.plan as PlanTier),
+    extraSlots,
+    max: maxPersonasForPlan(settings.plan as PlanTier, extraSlots),
+    canAdd: canAddPersona(settings.plan as PlanTier, personas, extraSlots),
+    label: personaLimitLabel(settings.plan as PlanTier, extraSlots),
+    devFullAccess: false,
+  };
+}
 
 export function safePersonaForClient(persona: PersonaRecord) {
   const safe = { ...persona } as Record<string, unknown>;

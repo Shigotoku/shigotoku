@@ -119,6 +119,7 @@ export interface SettingsResponse {
   activePersonaId?: string;
   activePersonaName?: string;
   activePersonaType?: 'official' | 'personal' | 'character';
+  devFullAccess?: boolean;
   extraSnsAccounts?: number;
   insightsEnabled?: boolean;
   xInsightsEnabled?: boolean;
@@ -805,6 +806,7 @@ export function fetchPersonas() {
       max: number;
       canAdd: boolean;
       label: string;
+      devFullAccess?: boolean;
     };
   }>('/v1/personas');
 }
