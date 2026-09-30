@@ -51,6 +51,7 @@ import { useStore } from '../store/storeContext';
 import { canApprovePosts } from '../lib/permissions';
 import { getSnsNavPlatform, jobMatchesSnsPlatform } from '../lib/snsPlatforms';
 import { getPostTemplates } from '../data/postTemplates';
+import { settingsPath } from '../lib/settingsUrls';
 
 type EditableStatus = 'pending' | 'pending_approval' | 'draft' | 'failed';
 
@@ -161,8 +162,7 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => {
-    load();
+  const loadConnections = () => {
     fetchSettings()
       .then((s) =>
         setConnected({
@@ -172,6 +172,17 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
         }),
       )
       .catch(() => {});
+  };
+
+  useEffect(() => {
+    load();
+    loadConnections();
+    const onPersona = () => {
+      load();
+      loadConnections();
+    };
+    window.addEventListener('buzzit-persona-changed', onPersona);
+    return () => window.removeEventListener('buzzit-persona-changed', onPersona);
   }, []);
 
   const scopedJobs = useMemo(() => {
@@ -597,6 +608,21 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
       )}
 
       {!embedded && <FlowProgressBar current="schedule" className="buzz-fade-in" />}
+
+      {(!platformId || platformId === 'x') && connected.x === false && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          <p className="font-medium">X（自動投稿）が未連携です</p>
+          <p className="mt-1 text-xs text-amber-900/85">
+            右上の配信キャラを選んだあと、設定でそのキャラ用の X API を接続してください。連携後、ここで予約・承認できます。
+          </p>
+          <Link
+            to={settingsPath({ tab: 'sns', section: 'x' })}
+            className="mt-2 inline-flex min-h-[40px] items-center border border-amber-900 bg-amber-900 px-3 text-xs font-medium text-white"
+          >
+            設定 → X 連携を開く
+          </Link>
+        </div>
+      )}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-neutral-500">

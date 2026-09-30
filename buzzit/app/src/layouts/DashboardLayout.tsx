@@ -34,6 +34,7 @@ import PersonaSwitcher from '../components/PersonaSwitcher';
 import PwaInstallBanner from '../components/PwaInstallBanner';
 import MobileBottomNav from '../components/MobileBottomNav';
 import OnboardingTour from '../components/OnboardingTour';
+import PersonaSelectGate from '../components/PersonaSelectGate';
 import BrandMark from '../components/BrandMark';
 import { ROLE_LABELS, canEditSettings, canManageLineCrm, isStaffOnly } from '../lib/permissions';
 import { getPageMeta } from '../lib/pageMeta';
@@ -405,7 +406,7 @@ export default function DashboardLayout() {
       </aside>
 
       <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="relative z-10 flex min-h-14 shrink-0 items-center justify-between gap-3 border-b border-neutral-200/80 bg-white/95 px-4 py-2 backdrop-blur-sm lg:min-h-16 lg:px-8">
+        <header className="relative z-30 flex min-h-14 shrink-0 items-center justify-between gap-3 border-b border-neutral-200/80 bg-white/95 px-4 py-2 backdrop-blur-sm lg:min-h-16 lg:px-8">
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
@@ -436,10 +437,11 @@ export default function DashboardLayout() {
             </button>
           </div>
         </header>
-        <div className="relative z-10 flex-1 overflow-auto p-4 pb-24 md:p-6 lg:p-8 lg:pb-8">
+        <div className="relative z-0 flex-1 overflow-auto p-4 pb-24 md:p-6 lg:p-8 lg:pb-8">
           <Outlet />
         </div>
         <MobileBottomNav onOpenMenu={() => setNavOpen(true)} />
+        <PersonaSelectGate />
         <OnboardingTour />
         <PwaInstallBanner />
       </main>
