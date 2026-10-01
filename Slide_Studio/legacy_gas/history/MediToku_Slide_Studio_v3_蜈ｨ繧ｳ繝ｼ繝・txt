@@ -1,0 +1,420 @@
+
+========================= README.md =========================
+# MediToku Slide Studio v3 — 独立実装・試作版
+
+## 今回の到達点
+
+Googleアカウントを持つユーザーが、会社テンプレートと資料から編集可能なGoogle Slidesを作るためのGAS試作版です。第三者スライド生成器のコード・素材・テンプレートは同梱せず、v2で新規作成した自社コードを発展させています。AI分析はGemini/NotebookLMの画面で行い、構成JSONを貼り付けます。**Google AI Pro / Workspace契約を自社API認証に転用せず、Gemini API有料呼出しはありません。**
+
+### 実装済み
+- 条件設定（1～40枚、用途、読者、文体、文章量、出典、画像方針、必須/除外情報）とユーザー別プリセット
+- 参考Google Slidesを1～5件選び、フォント・色・タイトル長・本文長の統計を抽出したデザインDNA（UserProperties）
+- 明示的な手入力ルール15件。分析プロンプトへデザインDNAを反映
+- テンプレート複製／テキスト差込、PDF.jsによるブラウザ内PDF抽出と手動切り抜き、画像の対象スライドへの紐づけ
+- Slides生成直後の比較用スナップショットをユーザーのDriveに保存。編集後に差分をプレビューし、ユーザー承認時だけ書式統計を次回に反映
+- 編集可能なGoogle Slides、Drive API exportによるPPTXファイル保存
+- JSONプロフィールをDriveへ保存・明示的に読み込み（会社で共有する場合はファイル権限を別途管理）
+
+### 未実装／制約
+- Studio、Gems、Sparkの全自動呼出し、Geminiの公式サブスクリプションを使用した非対話API実行は未実装。利用可否を管理者と本人が確認してから別のコネクタとして作る。
+- PPTXをPowerPointで編集した後の自動差分学習は未実装。編集済みファイルをGoogle Slidesへ変換して参考デッキとして分析可能（レイアウト互換性は要確認）。
+- 画像の切り抜きは手動ドラッグ、画像内の文字は画像のまま、入力表はネイティブ表に再構成しない。元資料のページや数値の正確性は人間が確認する。
+- 「デザインDNA」はルール・レイアウト傾向の統計であり基盤モデルの再学習ではない。自動学習はユーザー承認操作が必要。まだ生成されたテンプレートへ書式を直接上書きせず、Gemini構成プロンプトと参考テンプレートの選択で反映する。
+- 本v3はローカル構文チェック済みで、実アカウント・OAuth・Slides変換のE2E確認前。商用公開・大規模配布は行わない。
+- スナップショットには**比較のための生成時全文**が含まれる。ユーザー自身のDriveで管理し、共有や保存期間・削除方針を設定すること。プロフィール本体には全文を保存しない。
+
+## 導入手順（先に個人アカウントで試す）
+1. [Apps Script](https://script.google.com/)でスタンドアロンプロジェクトを作成し、`Code.gs` と `Learning.gs` をスクリプトとして、`Index.html` をHTMLファイル `Index` として追加。
+2. プロジェクト設定で manifest を表示し、`appsscript.json` を同梱内容に合わせる。`appsscript.json` は説明用のWebアプリ設定を含みます。実行ユーザーは必ず **アクセスしているユーザー** を選択してください。**「自分として実行＋全員に公開」はユーザー間ファイル漏えいの危険があるため禁止**。
+3. `makeStarterTemplate()` を実行し、権限を認可。返却URLのGoogle Slidesを開いて、自分または会社のロゴ／色／文章／プレースホルダを調整。第三者コード固有の装飾は移植しない。
+4. デプロイ > 新しいデプロイ > ウェブアプリ。アクセス範囲はテスト段階では自身または限定テスターを選択。個人アカウントでのウェブアプリ公開設定や未確認OAuthアプリ警告は環境で変わります。大量公開前にOAuthアプリの検証等を行ってください。
+5. Webアプリを開き、テンプレートURL、必要なら出力先／画像フォルダを設定。参考Slidesを学習、プリセット保存、PDF→Geminiプロンプト→JSON貼付→生成。
+6. 編集後、完成したGoogle Slidesに戻って「編集差分を確認」→「編集後のデザインを学習」。PPTXが必要ならPowerPoint版をDriveへ保存。
+
+## 権利・利用者保護
+- 元のまじん式ヘッダーには書籍1冊1人・法人利用人数分または法人プラン等の条件が記載されています。著作権表示を消すことは独自開発になりません。本リポジトリはその実装・素材・独自図解を取り込まず新規実装する方針です。元コードの運用条件は原規約と権利者に確認してください。
+- Workspace資料を個人AI Proへ無断転送しない。資料をGemini等へ貼る前に利用者が内容を確認。
+- Profile JSONは明示的な共有操作のみ。組織別の権限管理、監査ログ、テナント分離、削除・持ち出しポリシーは商用版で必須。
+
+## 商用化に向けたコスト重視の段階設計
+- **Stage 0（本試作）**: 各ユーザーのDrive・Slidesを使用し、当社のAI API呼出しゼロ。ファイル保存は利用者自身のGoogleストレージ消費。GAS実行枠・日次クォータ・URL Fetch容量上限はアカウント依存。
+- **Stage 1（限定β）**: Google OAuth、最小権限、アプリ別ログ、ジョブの冪等性、原価計測を追加。GAS共用の「自分として実行」は不可。サーバー側で個人と法人のテナント分離。
+- **Stage 2（商用SaaS）**: 生成エンジンをTypeScript等の共通ライブラリ化。Drive/Slides APIを本人のOAuthで利用し、JSON構成の検証・レンダリングをサーバーで実施。GASは補助コネクタ。AIの接続方法は (A) 手動貼付 (B) 利用可能な正規Studio/Gem経路 (C) 明示的なAPI課金モードを別々にする。
+- **原価**: AI推論、文書解析、画像処理、保存容量、生成API呼出し、エクスポート、サポートの各費用を1生成あたり計測。AIプラン契約＝当社の無制限API枠、とは扱わない。大量無料利用はページ数・ファイル数・出力回数を上限管理する。
+- 価格は実ユーザーの利用データが揃ってから決定。無料プランには低い生成枠、有料にはテンプレート/デザインDNA/法人管理/長期履歴などの価値を置く。
+
+## QA（試す順序）
+1. 1枚・5枚・40枚の枚数検証と表紙／締めの整合性。
+2. 複数アカウントで設定・デザインDNA・生成ファイルが混ざらないこと。
+3. PDF抽出、切り抜き配置、編集可能テキストの確認。
+4. 編集前後比較と「承認するまで学習しない」こと。
+5. PPTXへ変換後の文字・図形・画像の編集可能性とズレ。
+6. 特殊文字・巨大PDF・権限がないSlides URL・Quota超過の異常系。
+
+
+========================= Code.gs =========================
+/** MediToku Slide Studio — independent implementation, no third-party slide-generator code. */
+const MT = { PROP_TEMPLATE:'MT_TEMPLATE_ID', PROP_OUTPUT:'MT_OUTPUT_FOLDER', PROP_MEDIA:'MT_MEDIA_FOLDER', MAX_SLIDES:40, PROP_PRESETS:'MT_SLIDE_PRESETS_V2', MAX_IMAGE_BYTES:8*1024*1024 };
+
+function doGet() { return HtmlService.createHtmlOutputFromFile('Index').setTitle('MediToku Slide Studio').addMetaTag('viewport','width=device-width, initial-scale=1'); }
+function getAppConfig() {
+ const p=PropertiesService.getUserProperties();
+ return {templateId:p.getProperty(MT.PROP_TEMPLATE)||'', outputFolder:p.getProperty(MT.PROP_OUTPUT)||'', mediaFolder:p.getProperty(MT.PROP_MEDIA)||'', email:Session.getActiveUser().getEmail()||''};
+}
+function saveAppConfig(config) {
+ const p=PropertiesService.getUserProperties();
+ const t=parseDriveId_(config.templateId); if(!t) throw Error('テンプレートのURLまたはIDを入力してください。');
+ const f=DriveApp.getFileById(t); if(f.getMimeType()!=='application/vnd.google-apps.presentation') throw Error('Google Slides形式のテンプレートを指定してください。');
+ const o=config.outputFolder?parseDriveId_(config.outputFolder):'';
+ const m=config.mediaFolder?parseDriveId_(config.mediaFolder):'';
+ if(o) DriveApp.getFolderById(o).getName(); if(m) DriveApp.getFolderById(m).getName();
+ p.setProperty(MT.PROP_TEMPLATE,t);p.setProperty(MT.PROP_OUTPUT,o);p.setProperty(MT.PROP_MEDIA,m);
+ return getAppConfig();
+}
+/** Preferences are stored per signed-in user; no third-party AI endpoint is called. */
+function getSlidePresets(){
+ const raw=PropertiesService.getUserProperties().getProperty(MT.PROP_PRESETS);
+ return raw?JSON.parse(raw):{};
+}
+function saveSlidePreset(name,options){
+ name=String(name||'').trim().slice(0,60);
+ if(!name)throw Error('プリセット名を入力してください。');
+ const clean=validateOptions_(options);
+ const all=getSlidePresets();
+ if(Object.keys(all).length>=20&&!Object.prototype.hasOwnProperty.call(all,name))throw Error('プリセットは最大20件です。');
+ all[name]=clean;
+ PropertiesService.getUserProperties().setProperty(MT.PROP_PRESETS,JSON.stringify(all));
+ return all;
+}
+function deleteSlidePreset(name){
+ const all=getSlidePresets();delete all[String(name||'')];
+ PropertiesService.getUserProperties().setProperty(MT.PROP_PRESETS,JSON.stringify(all));
+ return all;
+}
+function validateOptions_(x){
+ x=x||{};
+ const n=Number(x.slideCount);
+ if(!Number.isInteger(n)||n<1||n>MT.MAX_SLIDES)throw Error('枚数は1〜40の整数で指定してください。');
+ const allowed=(v,list,field)=>{v=String(v||'');if(!list.includes(v))throw Error(field+'が不正です。');return v;};
+ return {slideCount:n,
+  purpose:allowed(x.purpose,['sales','report','product','internal','training','custom'],'用途'),
+  audience:String(x.audience||'').slice(0,160),
+  density:allowed(x.density,['minimal','standard','detailed'],'文章量'),
+  tone:allowed(x.tone,['factual','formal','friendly'],'文体'),
+  evidence:allowed(x.evidence,['strict','standard'],'根拠'),
+  visuals:allowed(x.visuals,['source_only','source_preferred','text_only'],'画像方針'),
+  includeCover:!!x.includeCover,includeClosing:!!x.includeClosing,
+  mustInclude:String(x.mustInclude||'').slice(0,2000),
+  mustExclude:String(x.mustExclude||'').slice(0,2000),
+  extra:String(x.extra||'').slice(0,3000)};
+}
+function parseDriveId_(v){let s=String(v||'').trim();let match=s.match(/\/d\/([\w-]+)/)||s.match(/[?&]id=([\w-]+)/);return match?match[1]:(/^[\w-]{15,}$/.test(s)?s:'');}
+function makeStarterTemplate(){
+ const p=SlidesApp.create('MediToku Slide Studio テンプレート（原本）');
+ const first=p.getSlides()[0];
+ const specs=[
+  ['cover','{{TITLE}}','{{SUBTITLE}}'],
+  ['statement','{{TITLE}}','{{MESSAGE}}'],
+  ['evidence','{{TITLE}}','{{BODY}}','{{IMAGE_1}}'],
+  ['two_column','{{TITLE}}','{{LEFT}}','{{RIGHT}}'],
+  ['closing','{{TITLE}}','{{MESSAGE}}']
+ ];
+ const w=p.getPageWidth(),h=p.getPageHeight();
+ specs.forEach((s,i)=>{
+  const slide=p.appendSlide(SlidesApp.PredefinedLayout.BLANK);
+  slide.getBackground().setSolidFill('#FFFFFF');
+  const tag=slide.insertTextBox('[[LAYOUT:'+s[0]+']]',8,8,125,13);tag.getText().getTextStyle().setFontSize(5).setForegroundColor('#999999');
+  const bar=slide.insertShape(SlidesApp.ShapeType.RECTANGLE,0,h-6,w,6);bar.getFill().setSolidFill('#176B86');bar.getBorder().setTransparent();
+  const brand=slide.insertTextBox('MediToku',w-110,18,100,20);brand.getText().getTextStyle().setFontFamily('Arial').setFontSize(13).setBold(true).setForegroundColor('#176B86');
+  const title=slide.insertTextBox(s[1],36,i===0?150:50,w-72,80);title.getText().getTextStyle().setFontFamily('Noto Sans JP').setFontSize(i===0?32:25).setBold(true).setForegroundColor('#183449');
+  if(s[0]==='evidence'){
+   addBox_(slide,s[2],36,145,w*.37,240,15);addBox_(slide,s[3],w*.44,145,w*.49,240,12);
+  } else if(s[0]==='two_column'){
+   addBox_(slide,s[2],36,145,w*.42,245,17);addBox_(slide,s[3],w*.52,145,w*.42,245,17);
+  } else {addBox_(slide,s[2],36,i===0?258:155,w-72,195,i===0?18:21);}
+  if(i!==0){const foot=slide.insertTextBox('{{SOURCE}}',36,h-30,w-72,17);foot.getText().getTextStyle().setFontSize(9).setForegroundColor('#64748B');}
+ });
+ first.remove();
+ PropertiesService.getUserProperties().setProperty(MT.PROP_TEMPLATE,p.getId());
+ return {url:p.getUrl(),id:p.getId()};
+}
+function addBox_(slide,text,x,y,w,h,font){const sh=slide.insertTextBox(text,x,y,w,h);sh.getText().getTextStyle().setFontFamily('Noto Sans JP').setFontSize(font).setForegroundColor('#243B53');return sh;}
+function validateDeck_(deck){
+ if(!deck||typeof deck!=='object'||Array.isArray(deck)) throw Error('JSONオブジェクトを入力してください。');
+ if(!Array.isArray(deck.slides)||!deck.slides.length||deck.slides.length>MT.MAX_SLIDES) throw Error('slidesは1〜40枚の配列にしてください。');
+ const allowed=['cover','statement','evidence','two_column','closing'];
+ deck.slides.forEach((s,i)=>{if(!s||!allowed.includes(s.layout))throw Error((i+1)+'枚目: 不明なlayout');if(!String(s.title||'').trim())throw Error((i+1)+'枚目: titleが空です');});
+ return deck;
+}
+function createDeck(payload){
+ const deck=validateDeck_(payload.deck);if(payload.options){const opt=validateOptions_(payload.options);if(deck.slides.length!==opt.slideCount)throw Error('指定枚数とJSONの枚数が一致しません。');if(opt.includeCover&&deck.slides[0].layout!=='cover')throw Error('表紙を含む設定です。1枚目をcoverにしてください。');if(opt.includeClosing&&deck.slides[deck.slides.length-1].layout!=='closing')throw Error('締めを含む設定です。最終ページをclosingにしてください。');}const cfg=getAppConfig();if(!cfg.templateId)throw Error('先にテンプレートを設定してください。');
+ const src=DriveApp.getFileById(cfg.templateId);let copy;
+ const title=String(deck.title||'資料').slice(0,100)+' - '+Utilities.formatDate(new Date(),Session.getScriptTimeZone(),'yyyyMMdd-HHmm');
+ copy=cfg.outputFolder?src.makeCopy(title,DriveApp.getFolderById(cfg.outputFolder)):src.makeCopy(title);
+ try{
+  const p=SlidesApp.openById(copy.getId());const seeds={};p.getSlides().forEach(sl=>{const txt=sl.getPageElements().filter(e=>e.getPageElementType()===SlidesApp.PageElementType.SHAPE).map(e=>e.asShape().getText().asString()).join('\n');const m=txt.match(/\[\[LAYOUT:([a-z_]+)\]\]/);if(m)seeds[m[1]]=sl;});
+  deck.slides.forEach((item,i)=>{
+   if(!seeds[item.layout]) throw Error('テンプレート内に [[LAYOUT:'+item.layout+']] がありません。');
+   const sl=seeds[item.layout].duplicate();sl.move(i);removeLayoutMarker_(sl);
+   const values={TITLE:item.title,SUBTITLE:item.subtitle||'',MESSAGE:item.message||'',BODY:item.body||'',LEFT:item.left||'',RIGHT:item.right||'',SOURCE:formatSource_(item)};
+   Object.keys(values).forEach(k=>sl.replaceAllText('{{'+k+'}}',String(values[k]).slice(0,2400)));
+   insertImages_(sl,item.images||{});
+   clearResidualTags_(sl);
+   if(item.source) try{sl.getNotesPage().getSpeakerNotesShape().getText().setText('出典: '+formatSource_(item));}catch(e){}
+  });
+  Object.keys(seeds).forEach(k=>seeds[k].remove());p.saveAndClose();
+  const baseline=mt3SaveBaseline_(SlidesApp.openById(copy.getId()));
+  return {id:copy.getId(),url:'https://docs.google.com/presentation/d/'+copy.getId()+'/edit',count:deck.slides.length,baselineFileId:baseline.fileId};
+ }catch(e){copy.setTrashed(true);throw e;}
+}
+function removeLayoutMarker_(slide){slide.getPageElements().forEach(e=>{if(e.getPageElementType()===SlidesApp.PageElementType.SHAPE&&/^\[\[LAYOUT:/.test(e.asShape().getText().asString().trim()))e.remove();});}
+function formatSource_(s){const src=s.source||{};return [src.file||'',src.page?'p.'+src.page:'',src.note||''].filter(Boolean).join(' / ').slice(0,260);}
+function insertImages_(slide,images){
+ Object.keys(images).forEach(key=>{
+  if(!/^IMAGE_[1-3]$/.test(key))return;
+  const id=parseDriveId_(images[key]);if(!id)throw Error(key+' のDrive画像IDが不正です。');
+  const f=DriveApp.getFileById(id);if(!/^image\/(png|jpeg|gif)$/.test(f.getMimeType()))throw Error('画像はPNG/JPEG/GIFを指定してください。');
+  const boxes=slide.getPageElements().filter(e=>e.getPageElementType()===SlidesApp.PageElementType.SHAPE&&e.asShape().getText().asString().includes('{{'+key+'}}'));
+  boxes.forEach(box=>{const rect={left:box.getLeft(),top:box.getTop(),width:box.getWidth(),height:box.getHeight()};box.remove();slide.insertImage(f.getBlob(),rect.left,rect.top,rect.width,rect.height);});
+ });
+}
+function clearResidualTags_(slide){slide.getPageElements().forEach(e=>{if(e.getPageElementType()===SlidesApp.PageElementType.SHAPE){const t=e.asShape().getText();if(t.asString().match(/\{\{[A-Z_0-9]+\}\}/g))t.setText(t.asString().replace(/\{\{[A-Z_0-9]+\}\}/g,''));}});}
+function uploadCrop(dataUrl,name){
+ const m=String(dataUrl||'').match(/^data:image\/(png|jpeg);base64,([A-Za-z0-9+/=]+)$/);if(!m)throw Error('PNG/JPEG画像のみアップロード可能です。');
+ const bytes=Utilities.base64Decode(m[2]);if(bytes.length>MT.MAX_IMAGE_BYTES)throw Error('画像サイズは8MB以下にしてください。');
+ const blob=Utilities.newBlob(bytes,'image/'+m[1],String(name||'crop').replace(/[^\w.\-ぁ-んァ-ヶ一-龥]/g,'_').slice(0,80)+'.'+(m[1]==='jpeg'?'jpg':'png'));
+ const cfg=getAppConfig();const f=cfg.mediaFolder?DriveApp.getFolderById(cfg.mediaFolder).createFile(blob):DriveApp.createFile(blob);
+ return {id:f.getId(),name:f.getName(),url:f.getUrl()};
+}
+
+
+========================= Learning.gs =========================
+/**
+ * MediToku Slide Studio v3 — first-party design profile and review workflow.
+ * Does not call an AI endpoint and contains no third-party slide-generator code.
+ * Profiles live in the signed-in user's UserProperties or explicitly selected Drive JSON.
+ */
+const MT3 = {
+  PROFILE: 'MT_DESIGN_PROFILE_V3', BASELINES: 'MT_BASELINE_INDEX_V3',
+  MAX_REFERENCES: 5, MAX_BASELINES: 20, PROFILE_VERSION: 1,
+  PPTX_MIME: 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+};
+function mt3SafeText_(x, max) { return String(x == null ? '' : x).slice(0, max || 500); }
+function mt3Color_(color) {
+  try { return color.asRgbColor().asHexString().toUpperCase(); } catch (e) { return ''; }
+}
+function mt3Counter_(arr) {
+  const map = {};
+  arr.filter(Boolean).forEach(v => map[v] = (map[v] || 0) + 1);
+  return Object.keys(map).sort((a,b) => map[b] - map[a])[0] || '';
+}
+function mt3GetShapeText_(element) {
+  try { return element.getPageElementType() === SlidesApp.PageElementType.SHAPE ? element.asShape().getText().asString() : ''; }
+  catch (e) { return ''; }
+}
+function mt3Snapshot_(presentation) {
+  const slides = presentation.getSlides().map(slide => {
+    const elements = slide.getPageElements().map(element => {
+      const item = {kind:String(element.getPageElementType()),x:Math.round(element.getLeft()),y:Math.round(element.getTop()),w:Math.round(element.getWidth()),h:Math.round(element.getHeight())};
+      const txt = mt3GetShapeText_(element);
+      if (txt) {
+        item.text = mt3SafeText_(txt, 3000);
+        try { const st = element.asShape().getText().getTextStyle(); item.font=st.getFontFamily()||''; item.size=st.getFontSize()||0; item.color=mt3Color_(st.getForegroundColor()); } catch(e) {}
+      }
+      return item;
+    });
+    return {id:slide.getObjectId(),elements:elements};
+  });
+  return {version:1,deckId:presentation.getId(),capturedAt:new Date().toISOString(),pageWidth:presentation.getPageWidth(),pageHeight:presentation.getPageHeight(),slides:slides};
+}
+function mt3ProfileFromSnapshots_(snapshots) {
+  const fonts=[],colors=[],sizes=[],titles=[],bodyLengths=[];
+  snapshots.forEach(snap => (snap.slides||[]).forEach(sl => {
+    const texts=sl.elements.filter(x=>x.text && !/^\[\[LAYOUT:/.test(x.text) && !/^MediToku$/.test(x.text));
+    texts.forEach(x=>{if(x.font)fonts.push(x.font);if(x.color)colors.push(x.color);if(x.size)sizes.push(x.size)});
+    const ordered=texts.slice().sort((a,b)=>a.y-b.y || a.x-b.x);
+    if(ordered.length)titles.push(ordered[0].text.trim().length);
+    ordered.slice(1).forEach(x=>bodyLengths.push(x.text.trim().length));
+  }));
+  const median=a=>a.length?a.slice().sort((x,y)=>x-y)[Math.floor(a.length/2)]:0;
+  return {version:MT3.PROFILE_VERSION,kind:'personal',name:'My Design DNA',font:mt3Counter_(fonts),textColor:mt3Counter_(colors),typicalFontSize:median(sizes),medianTitleLength:median(titles),medianBodyLength:median(bodyLengths),preferredTemplateId:'',rules:[],sourceDecks:snapshots.map(x=>x.deckId).slice(0,MT3.MAX_REFERENCES),updatedAt:new Date().toISOString()};
+}
+function getDesignProfile() {
+  const v=PropertiesService.getUserProperties().getProperty(MT3.PROFILE);
+  return v?JSON.parse(v):{version:1,kind:'personal',name:'My Design DNA',font:'',textColor:'',typicalFontSize:0,medianTitleLength:0,medianBodyLength:0,preferredTemplateId:'',rules:[],sourceDecks:[]};
+}
+function learnFromReferenceDecks(urls) {
+  if(!Array.isArray(urls) || !urls.length || urls.length>MT3.MAX_REFERENCES)throw Error('参考スライドは1〜5件指定してください。');
+  const ids=Array.from(new Set(urls.map(parseDriveId_)));
+  if(ids.some(x=>!x))throw Error('Google SlidesのURLまたはIDを指定してください。');
+  const snaps=ids.map(id=>mt3Snapshot_(SlidesApp.openById(id)));
+  const prior=getDesignProfile(), p=mt3ProfileFromSnapshots_(snaps);
+  p.rules=(prior.rules||[]).slice(0,15);p.preferredTemplateId=prior.preferredTemplateId||'';
+  PropertiesService.getUserProperties().setProperty(MT3.PROFILE,JSON.stringify(p));
+  return p;
+}
+function setProfileRule(rule) {
+  const p=getDesignProfile(); const s=mt3SafeText_(rule,180).trim();if(!s)throw Error('ルールを入力してください。');
+  if((p.rules||[]).length>=15)throw Error('ルールは最大15件です。');
+  p.rules=(p.rules||[]).concat(s);p.updatedAt=new Date().toISOString();
+  PropertiesService.getUserProperties().setProperty(MT3.PROFILE,JSON.stringify(p));return p;
+}
+function removeProfileRule(index) {
+  const p=getDesignProfile(),i=Number(index);if(!Number.isInteger(i)||i<0||i>=p.rules.length)throw Error('ルールがありません。');
+  p.rules.splice(i,1);p.updatedAt=new Date().toISOString();
+  PropertiesService.getUserProperties().setProperty(MT3.PROFILE,JSON.stringify(p));return p;
+}
+function mt3BaselineIndex_() {
+  const s=PropertiesService.getUserProperties().getProperty(MT3.BASELINES);
+  return s?JSON.parse(s):{};
+}
+function mt3SaveBaseline_(presentation) {
+  const snapshot=mt3Snapshot_(presentation);
+  const folderId=getAppConfig().outputFolder;
+  const filename='MediToku_baseline_'+presentation.getId()+'.json';
+  const blob=Utilities.newBlob(JSON.stringify(snapshot),'application/json',filename);
+  const file=folderId?DriveApp.getFolderById(folderId).createFile(blob):DriveApp.createFile(blob);
+  const idx=mt3BaselineIndex_();idx[presentation.getId()]={fileId:file.getId(),capturedAt:snapshot.capturedAt};
+  const keys=Object.keys(idx).sort((a,b)=>idx[b].capturedAt.localeCompare(idx[a].capturedAt));
+  keys.slice(MT3.MAX_BASELINES).forEach(k=>delete idx[k]);
+  PropertiesService.getUserProperties().setProperty(MT3.BASELINES,JSON.stringify(idx));
+  return {fileId:file.getId()};
+}
+function previewEditedDeckLearning(presentationUrl) {
+  const id=parseDriveId_(presentationUrl),idx=mt3BaselineIndex_();
+  if(!id||!idx[id])throw Error('このユーザーのStudio生成資料が見つかりません。生成後のGoogle Slides URLを指定してください。');
+  const baseline=JSON.parse(DriveApp.getFileById(idx[id].fileId).getBlob().getDataAsString('UTF-8'));
+  const current=mt3Snapshot_(SlidesApp.openById(id));
+  const firstTitle=sl=>(sl.elements.filter(x=>x.text && x.text.trim() && x.text.trim()!=='MediToku' && !/^\[\[LAYOUT:/.test(x.text)).sort((a,b)=>a.y-b.y || a.x-b.x)[0]||{}).text||'';
+  const changes=[];
+  baseline.slides.forEach((old,i)=>{
+    const now=current.slides[i];if(!now){changes.push({slide:i+1,type:'removed',before:firstTitle(old),after:''});return;}
+    const before=firstTitle(old),after=firstTitle(now);
+    if(before!==after)changes.push({slide:i+1,type:'title',before:mt3SafeText_(before,160),after:mt3SafeText_(after,160)});
+    const oldText=old.elements.map(x=>x.text||'').join('\n'),newText=now.elements.map(x=>x.text||'').join('\n');
+    if(oldText!==newText && before===after)changes.push({slide:i+1,type:'body',before:'本文が変更されました',after:'本文の編集を検出'});
+    const sig=es=>es.map(x=>[x.x,x.y,x.w,x.h,x.font||'',x.size||0,x.color||''].join(':')).join('|');
+    if(sig(old.elements)!==sig(now.elements))changes.push({slide:i+1,type:'layout',before:'元の配置',after:'配置・書式の変更を検出'});
+  });
+  if(current.slides.length>baseline.slides.length)changes.push({slide:0,type:'added',before:'',after:(current.slides.length-baseline.slides.length)+'枚追加'});
+  const candidate=mt3ProfileFromSnapshots_([current]);
+  return {deckId:id,changes:changes.slice(0,100),candidate:candidate,notice:'変更内容はまだ学習されません。「反映する」を押すと、統計的なデザイン設定のみ更新されます。本文や機密情報をプロフィールに保存しません。'};
+}
+function approveEditedDeckLearning(presentationUrl) {
+  const preview=previewEditedDeckLearning(presentationUrl),prev=getDesignProfile(),next=preview.candidate;
+  next.rules=(prev.rules||[]).slice(0,15);next.preferredTemplateId=prev.preferredTemplateId||'';
+  next.sourceDecks=Array.from(new Set((prev.sourceDecks||[]).concat(preview.deckId))).slice(-MT3.MAX_REFERENCES);
+  PropertiesService.getUserProperties().setProperty(MT3.PROFILE,JSON.stringify(next));
+  return {profile:next,changeCount:preview.changes.length};
+}
+function exportDesignProfile() {
+  const p=getDesignProfile(),name='MediToku_Design_DNA.json';
+  const f=DriveApp.createFile(Utilities.newBlob(JSON.stringify(p,null,2),'application/json',name));
+  return {url:f.getUrl(),id:f.getId()};
+}
+function importDesignProfile(url) {
+  const id=parseDriveId_(url);if(!id)throw Error('プロフィールJSONのDriveファイルURLを入力してください。');
+  const file=DriveApp.getFileById(id);if(file.getSize()>100000)throw Error('プロフィールファイルが大きすぎます。');
+  const p=JSON.parse(file.getBlob().getDataAsString('UTF-8'));
+  if(!p||p.version!==1||typeof p.name!=='string'||!Array.isArray(p.rules))throw Error('プロフィール形式が不正です。');
+  const clean={version:1,kind:'imported',name:mt3SafeText_(p.name,60),font:mt3SafeText_(p.font,60),textColor:/^#[0-9A-Fa-f]{6}$/.test(p.textColor||'')?p.textColor:'',typicalFontSize:Number(p.typicalFontSize)||0,medianTitleLength:Number(p.medianTitleLength)||0,medianBodyLength:Number(p.medianBodyLength)||0,preferredTemplateId:'',rules:p.rules.slice(0,15).map(x=>mt3SafeText_(x,180)),sourceDecks:[],updatedAt:new Date().toISOString()};
+  PropertiesService.getUserProperties().setProperty(MT3.PROFILE,JSON.stringify(clean));return clean;
+}
+function exportPptx(presentationUrl) {
+  const id=parseDriveId_(presentationUrl);if(!id)throw Error('Google Slides URLを入力してください。');
+  const source=DriveApp.getFileById(id);
+  if(source.getMimeType()!=='application/vnd.google-apps.presentation')throw Error('Google Slides形式のみ出力できます。');
+  const endpoint='https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(id)+'/export?mimeType='+encodeURIComponent(MT3.PPTX_MIME);
+  const response=UrlFetchApp.fetch(endpoint,{headers:{Authorization:'Bearer '+ScriptApp.getOAuthToken()},muteHttpExceptions:true});
+  if(response.getResponseCode()!==200)throw Error('PowerPoint変換エラー HTTP '+response.getResponseCode()+' : '+response.getContentText().slice(0,250));
+  const blob=response.getBlob().setName(source.getName().replace(/[\\/:*?"<>|]/g,'_')+'.pptx');
+  const folder=getAppConfig().outputFolder;const f=folder?DriveApp.getFolderById(folder).createFile(blob):DriveApp.createFile(blob);
+  return {id:f.getId(),name:f.getName(),url:f.getUrl(),size:f.getSize()};
+}
+
+
+========================= Index.html =========================
+<!DOCTYPE html><html lang="ja"><head><base target="_top"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>MediToku Slide Studio</title><style>
+:root{font-family:system-ui,'Noto Sans JP',sans-serif;color:#183449;background:#f3f6f8}*{box-sizing:border-box}main{max-width:1100px;margin:24px auto;padding:0 16px}header{display:flex;align-items:center;justify-content:space-between}section{background:white;padding:22px;margin:16px 0;border:1px solid #dae3e9;border-radius:14px}label{display:block;font-weight:600;margin:10px 0 5px}input,textarea,select{width:100%;padding:11px;border:1px solid #c4d2dd;border-radius:7px;font:inherit}textarea{min-height:155px}button,.link{border:0;border-radius:8px;padding:10px 15px;background:#176b86;color:white;cursor:pointer;text-decoration:none;display:inline-block;font:inherit}button.secondary,.link.secondary{background:#e6f1f4;color:#176b86}button:disabled{opacity:.5;cursor:default}.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.row>*{flex:1}.muted{color:#5c7181;font-size:13px}.error{color:#a11919;white-space:pre-wrap}.success{color:#126b44;white-space:pre-wrap}#canvas{max-width:100%;border:1px solid #cad7df;touch-action:none;cursor:crosshair}pre{white-space:pre-wrap;overflow-wrap:anywhere}.small{font-size:12px}.hidden{display:none}summary{cursor:pointer;font-weight:650}nav a{margin-right:8px}
+</style><script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script></head><body><main><header><div><h1>MediToku Slide Studio</h1><p class="muted">会社テンプレート × 元資料 × 編集可能なGoogle Slides / API課金不要</p></div></header>
+<section><details><summary>初期設定（初回のみ）</summary><p class="muted">会社で承認したGoogle Slidesのひな形を登録。原本はコピーされ、変更されません。</p><label>テンプレートのGoogle Slides URL / ID</label><input id="template"><label>出力先Driveフォルダ（任意）</label><input id="output"><label>切り抜き画像保存フォルダ（任意）</label><input id="media"><p class="row"><button onclick="saveConfig()">設定を保存</button><button class="secondary" onclick="starter()">サンプルひな形を新規作成</button></p><p id="setupStatus" class="muted"></p></details></section>
+<section><h2>作成条件（プリセット保存対応）</h2><p class="muted">指定枚数を厳守して構成案を作成します。表紙・締めも枚数に含めます。</p>
+<div class="row"><label>枚数<input id="slideCount" type="number" min="1" max="40" value="8"></label><label>用途<select id="purpose"><option value="sales">営業提案</option><option value="report">事業報告</option><option value="product">サービス紹介</option><option value="internal">社内会議</option><option value="training">研修</option><option value="custom">その他</option></select></label><label>対象読者<input id="audience" value="医療機関の経営者"></label></div>
+<div class="row"><label>文章量<select id="density"><option value="minimal">少なめ</option><option value="standard" selected>標準</option><option value="detailed">多め</option></select></label><label>文体<select id="tone"><option value="factual" selected>事実中心</option><option value="formal">フォーマル</option><option value="friendly">わかりやすい</option></select></label><label>出典方針<select id="evidence"><option value="strict" selected>全数値に出典を要求</option><option value="standard">重要事項に出典</option></select></label></div>
+<label>画像・図表方針<select id="visuals"><option value="source_only" selected>元資料のみ（AI画像なし）</option><option value="source_preferred">元資料を優先</option><option value="text_only">画像なし</option></select></label>
+<div class="row"><label><input id="includeCover" type="checkbox" checked style="width:auto"> 表紙を含める</label><label><input id="includeClosing" type="checkbox" checked style="width:auto"> 最後に次のアクションを入れる</label></div>
+<label>必ず入れる内容</label><textarea id="mustInclude" style="min-height:65px" placeholder="実績数値、料金、導入手順など"></textarea><label>入れない内容</label><textarea id="mustExclude" style="min-height:65px" placeholder="誇張表現、未確認の実績など"></textarea><label>その他の指定</label><textarea id="extra" style="min-height:65px" placeholder="例：最後は問い合わせではなく次回打合せの確認にする"></textarea>
+<div class="row"><label>プリセット名<input id="presetName" placeholder="例：MediToku営業8枚"></label><label>保存済み<select id="presetList"><option value="">選択してください</option></select></label></div><div class="row"><button class="secondary" onclick="savePreset()">現在の条件を保存</button><button class="secondary" onclick="loadPreset()">選択した条件を適用</button><button class="secondary" onclick="deletePreset()">選択した条件を削除</button></div><p id="presetStatus" class="muted"></p>
+</section>
+<section><h2>デザインDNA（個人・会社のひな形）</h2><p class="muted">気に入っているGoogle SlidesのURLを1行に1件（最大5件）入力。フォント・色・文字量などの傾向を抽出します。本文はプロフィールへ保存しません。会社で共有する場合はプロフィールJSONを明示的に共有してください。</p>
+<label>参考Google Slides URL（1行に1件）</label><textarea id="referenceDecks" style="min-height:90px" placeholder="https://docs.google.com/presentation/d/.../edit"></textarea>
+<div class="row"><button class="secondary" onclick="learnReferences()">参考資料からデザインを抽出</button><button class="secondary" onclick="exportProfile()">プロフィールをDriveへ保存</button></div>
+<label>共有プロフィールJSONのDrive URL（任意）</label><input id="profileUrl" placeholder="会社が共有したMediToku_Design_DNA.jsonのURL"><button class="secondary" onclick="importProfile()">共有プロフィールを読み込む</button>
+<label>次回から適用したいルール</label><div class="row"><input id="newRule" placeholder="例：見出しは20文字以内"><button class="secondary" onclick="addRule()">追加</button></div><pre id="profileSummary" class="small muted">プロフィールを読み込み中…</pre><p id="profileStatus" class="muted"></p></section>
+<section><h2>1. 元資料を読み込む</h2><p class="muted">PDFはブラウザ内で文字を抽出します。PDF自体を自動でAIへ送信することはありません。機密情報は貼り付け先のアカウントの利用規約を確認してください。</p><input id="pdfFile" type="file" accept="application/pdf" multiple><p id="pdfStatus" class="muted"></p><label>補足資料・目的・対象読者</label><textarea id="brief" placeholder="例：医療機関向け営業提案書。相手は院長。重要な実績数値は省略しない。"></textarea><div class="row"><button onclick="makePrompt()">AI分析用プロンプトを作成・コピー</button><a class="link secondary" target="_blank" rel="noopener" href="https://gemini.google.com/">Geminiを開く</a><a class="link secondary" target="_blank" rel="noopener" href="https://notebooklm.google.com/">NotebookLMを開く</a></div><label>AIに渡すプロンプト（内容確認・手動コピー可能）</label><textarea id="prompt" style="min-height:190px"></textarea></section>
+<section><h2>2. AIの構成JSONを貼り付ける</h2><p class="muted">個人Google AI Proでも、会社WorkspaceのGeminiでも同じ形式で利用できます。</p><textarea id="json" placeholder='{"title":"提案書","slides":[{"layout":"cover","title":"...","subtitle":"..."}]}' style="min-height:220px"></textarea><p class="row"><button class="secondary" onclick="sample()">サンプルJSONを入力</button><button class="secondary" onclick="check()">構成を確認</button></p><pre id="checkResult" class="muted"></pre></section>
+<section><h2>3. 元資料から図表を切り抜く</h2><p class="muted">PDFページを表示してドラッグで範囲を指定します。右側ではなく、選択した画像のDrive IDをJSONの images.IMAGE_1 に指定してください。</p><div class="row"><label>資料<select id="fileSelect" onchange="changeFile()"></select></label><label>ページ<input type="number" min="1" id="page" value="1" onchange="renderPage()"></label></div><canvas id="canvas"></canvas><p id="cropStatus" class="muted">PDFを読み込むとプレビューが表示されます。</p><div class="row"><button class="secondary" onclick="renderPage()">ページ表示</button><button onclick="cropUpload()">選択範囲を切り抜き・Driveに保存</button></div><pre id="cropResult" class="small"></pre></section>
+<section><h2>4. Google Slidesを生成</h2><p class="muted">会社テンプレートを複製し、要素を編集可能な状態で配置します。元資料の画像部分は画像オブジェクトです。</p><button id="generate" onclick="generate()">Google Slidesを作成</button><p id="result" class="muted"></p><div class="row"><button class="secondary" onclick="pptx()">PowerPoint版をDriveへ保存</button><button class="secondary" onclick="previewLearning()">編集差分を確認</button><button class="secondary" onclick="approveLearning()">編集後のデザインを学習</button></div><pre id="learningResult" class="small muted"></pre><p class="muted">まずGoogle Slidesで編集してください。学習は承認操作をした場合だけ反映されます。PowerPointを編集した場合、現時点ではGoogle Slidesへ再取り込みした資料を参考資料として学習させます。</p></section>
+</main><script>
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const $=id=>document.getElementById(id);let files=[],pdf=null,selection=null,dragStart=null,lastDeckUrl='';const cv=$('canvas'),ctx=cv.getContext('2d');
+function call(method,...args){return new Promise((resolve,reject)=>google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[method](...args));}
+function show(id,text,err=false){$(id).textContent=text;$(id).className=err?'error':'muted';}
+async function init(){try{let c=await call('getAppConfig');$('template').value=c.templateId;$('output').value=c.outputFolder;$('media').value=c.mediaFolder;}catch(e){show('setupStatus',e.message,true)}}init();
+async function saveConfig(){try{await call('saveAppConfig',{templateId:$('template').value,outputFolder:$('output').value,mediaFolder:$('media').value});show('setupStatus','保存しました。')}catch(e){show('setupStatus',e.message,true)}}
+async function starter(){try{let x=await call('makeStarterTemplate');$('template').value=x.id;$('setupStatus').innerHTML='作成しました：<a target="_blank" rel="noopener" href="'+x.url+'">テンプレートを開く</a>。ロゴや色、配置を編集できます。';}catch(e){show('setupStatus',e.message,true)}}
+$('pdfFile').addEventListener('change',async ev=>{files=[];show('pdfStatus','読み込み中…');for(const file of Array.from(ev.target.files)){if(file.type!=='application/pdf')continue;const data=await file.arrayBuffer();const doc=await pdfjsLib.getDocument({data}).promise;let parts=[];for(let i=1;i<=Math.min(doc.numPages,50);i++){let page=await doc.getPage(i),tc=await page.getTextContent();parts.push('【'+file.name+' p.'+i+'】\n'+tc.items.map(x=>x.str).join(' '));}files.push({name:file.name,doc,text:parts.join('\n').slice(0,140000)});} $('fileSelect').innerHTML=files.map((f,i)=>'<option value="'+i+'">'+f.name.replace(/</g,'&lt;')+'</option>').join('');show('pdfStatus',files.map(f=>f.name+' ('+f.doc.numPages+'ページ)').join(' / ')||'PDFがありません');if(files.length)await changeFile();});
+async function changeFile(){pdf=files[+$('fileSelect').value]?.doc||null;$('page').value=1;await renderPage();}
+async function renderPage(){if(!pdf)return;const n=+$('page').value;if(n<1||n>pdf.numPages){show('cropStatus','ページ番号を確認してください',true);return;}const p=await pdf.getPage(n),v=p.getViewport({scale:1.6});cv.width=Math.floor(v.width);cv.height=Math.floor(v.height);await p.render({canvasContext:ctx,viewport:v}).promise;selection=null;show('cropStatus','ドラッグして図表の範囲を指定してください。');}
+function pos(e){const r=cv.getBoundingClientRect();return {x:(e.clientX-r.left)*cv.width/r.width,y:(e.clientY-r.top)*cv.height/r.height};}
+cv.addEventListener('pointerdown',e=>{dragStart=pos(e);cv.setPointerCapture(e.pointerId)});cv.addEventListener('pointerup',async e=>{if(!dragStart)return;const end=pos(e);selection={x:Math.max(0,Math.min(dragStart.x,end.x)),y:Math.max(0,Math.min(dragStart.y,end.y)),w:Math.abs(dragStart.x-end.x),h:Math.abs(dragStart.y-end.y)};dragStart=null;await renderPageKeepSelection();});
+async function renderPageKeepSelection(){const sel=selection;if(!pdf)return;const p=await pdf.getPage(+$('page').value),v=p.getViewport({scale:1.6});await p.render({canvasContext:ctx,viewport:v}).promise;selection=sel;if(sel){ctx.strokeStyle='#0086a8';ctx.lineWidth=3;ctx.strokeRect(sel.x,sel.y,sel.w,sel.h);show('cropStatus','選択範囲 '+Math.round(sel.w)+' × '+Math.round(sel.h)+' px');}}
+async function cropUpload(){if(!selection||selection.w<15||selection.h<15)return show('cropStatus','切り抜く領域をドラッグしてください',true);try{const p=await pdf.getPage(+$('page').value),v=p.getViewport({scale:1.6});const temp=document.createElement('canvas');temp.width=cv.width;temp.height=cv.height;await p.render({canvasContext:temp.getContext('2d'),viewport:v}).promise;const out=document.createElement('canvas');out.width=Math.floor(selection.w);out.height=Math.floor(selection.h);out.getContext('2d').drawImage(temp,selection.x,selection.y,selection.w,selection.h,0,0,out.width,out.height);const name=files[+$('fileSelect').value].name+'_p'+$('page').value;const res=await call('uploadCrop',out.toDataURL('image/png'),name);$('cropResult').textContent='保存しました。画像ID: '+res.id+'\n貼り付けたいスライド番号を指定して「画像を挿入」してください。';const n=Number(prompt('画像を配置するスライド番号（1から）を入力してください。','2'));if(n){try{const d=JSON.parse($('json').value);if(!d.slides||!d.slides[n-1])throw Error('該当するスライドがありません。');d.slides[n-1].images=d.slides[n-1].images||{};d.slides[n-1].images.IMAGE_1=res.id;$('json').value=JSON.stringify(d,null,2);$('cropResult').textContent+='\n'+n+'枚目に画像を設定しました。';}catch(err){show('cropStatus',err.message,true)}}try{await navigator.clipboard.writeText(res.id)}catch(e){} }catch(e){show('cropStatus',e.message,true)}}
+const optionIds=['slideCount','purpose','audience','density','tone','evidence','visuals','mustInclude','mustExclude','extra'];
+function getOptions(){const o={};optionIds.forEach(id=>o[id]=$(id).value);o.slideCount=Number(o.slideCount);o.includeCover=$('includeCover').checked;o.includeClosing=$('includeClosing').checked;if(!Number.isInteger(o.slideCount)||o.slideCount<1||o.slideCount>40)throw Error('枚数は1〜40枚で指定してください。');if(o.includeCover&&o.includeClosing&&o.slideCount<2)throw Error('表紙と締めを両方含む場合は2枚以上です。');return o;}
+function setOptions(o){optionIds.forEach(id=>{if(o[id]!==undefined)$(id).value=o[id]});$('includeCover').checked=!!o.includeCover;$('includeClosing').checked=!!o.includeClosing;}
+async function refreshPresets(){const all=await call('getSlidePresets');$('presetList').innerHTML='<option value="">選択してください</option>';Object.keys(all).sort().forEach(n=>{$('presetList').add(new Option(n,n));});return all;}
+async function savePreset(){try{const all=await call('saveSlidePreset',$('presetName').value,getOptions());await refreshPresets();$('presetList').value=$('presetName').value.trim().slice(0,60);show('presetStatus','保存しました。')}catch(e){show('presetStatus',e.message,true)}}
+async function loadPreset(){try{const n=$('presetList').value,all=await call('getSlidePresets');if(!all[n])throw Error('プリセットを選択してください。');setOptions(all[n]);$('presetName').value=n;show('presetStatus','適用しました。')}catch(e){show('presetStatus',e.message,true)}}
+async function deletePreset(){try{const n=$('presetList').value;if(!n)throw Error('削除するプリセットを選択してください。');await call('deleteSlidePreset',n);await refreshPresets();show('presetStatus','削除しました。')}catch(e){show('presetStatus',e.message,true)}}
+refreshPresets().catch(e=>show('presetStatus',e.message,true));
+const layouts='cover / statement / evidence / two_column / closing';
+function makePrompt(){let o;try{o=getOptions()}catch(e){return show('pdfStatus',e.message,true)}const text=files.map(f=>f.text).join('\n\n').slice(0,160000);const profileText=window.currentProfile?JSON.stringify({font:currentProfile.font,textColor:currentProfile.textColor,medianTitleLength:currentProfile.medianTitleLength,medianBodyLength:currentProfile.medianBodyLength,rules:currentProfile.rules}):'未登録';const prompt=`あなたは企業の資料編集者です。以下の作成条件を厳守して、Google Slides差し込み用JSONを出力してください。説明文やMarkdownコードフェンスは禁止。JSONだけを返すこと。元資料にない数字・実績・引用・図表を捏造しない。広告調・AI特有の大げさな言い回しを避ける。タイトルは短く、1枚1メッセージ。各ページの根拠は source:{file,page,note} に記録。画像は生成せず、evidenceページでは使う図表のファイルとページを必ず示す。imagesは空オブジェクトとする。layoutは ${layouts} から選ぶ。各スライドは title,subtitle,message,body,left,right,source,images を必要に応じ持つ。トップレベルは {"title":"...","slides":[...]}。\n\n【デザインDNA（過去資料・承認済みルール）】\n${profileText}\n\n【作成条件】\n${JSON.stringify(o,null,2)}\n厳密に${o.slideCount}枚にする。表紙・締めも枚数に含む。表紙=${o.includeCover?'1枚目をcover':'必須ではない'}。締め=${o.includeClosing?'最終ページをclosing':'必須ではない'}。元資料に情報が不足するときは推測で補わず、確認が必要な点を文中に明示する。\n\n【作成目的・補足】\n${$('brief').value}\n\n【元資料：PDFからの抽出テキスト。図表は元PDFで確認】\n${text||'添付テキストなし。出典を捏造しないこと。'}`;$('prompt').value=prompt;navigator.clipboard?.writeText(prompt).then(()=>show('pdfStatus','プロンプトをコピーしました。')).catch(()=>show('pdfStatus','プロンプト欄からコピーしてください。'));}
+function sample(){$('json').value=JSON.stringify({title:'サンプル資料',slides:[{layout:'cover',title:'サンプル資料',subtitle:'会社独自テンプレート'},{layout:'statement',title:'主なポイント',message:'元資料の根拠に基づいて簡潔に説明します。',source:{file:'サンプル',page:1}}]},null,2);check();}
+function check(){try{let v=JSON.parse($('json').value.trim().replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,''));const o=getOptions();if(!Array.isArray(v.slides)||v.slides.length!==o.slideCount)throw Error('指定は'+o.slideCount+'枚ですが、JSONは'+(v.slides||[]).length+'枚です。');if(o.includeCover&&v.slides[0].layout!=='cover')throw Error('1枚目はcoverにしてください。');if(o.includeClosing&&v.slides[v.slides.length-1].layout!=='closing')throw Error('最終ページはclosingにしてください。');v.slides.forEach((s,i)=>{if(!['cover','statement','evidence','two_column','closing'].includes(s.layout)||!s.title)throw Error((i+1)+'枚目のlayout/titleが不正')});$('checkResult').textContent='検証OK：'+v.slides.length+'枚 / '+v.slides.map(s=>s.layout).join(', ');return v;}catch(e){$('checkResult').textContent='JSONエラー: '+e.message;return null;}}
+async function generate(){const deck=check();if(!deck)return;const b=$('generate');b.disabled=true;show('result','スライドを生成しています…');try{const res=await call('createDeck',{deck,options:getOptions()});lastDeckUrl=res.url;$('result').innerHTML='完成：<a href="'+res.url+'" target="_blank" rel="noopener">Google Slidesを開く（'+res.count+'枚）</a>'; }catch(e){show('result',e.message,true)}finally{b.disabled=false}}
+
+async function refreshProfile(){try{window.currentProfile=await call('getDesignProfile');const p=currentProfile;$('profileSummary').textContent=JSON.stringify({name:p.name,font:p.font,color:p.textColor,titleLength:p.medianTitleLength,bodyLength:p.medianBodyLength,rules:p.rules,sourceDecks:p.sourceDecks},null,2)}catch(e){show('profileStatus',e.message,true)}}
+async function learnReferences(){try{const urls=$('referenceDecks').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);await call('learnFromReferenceDecks',urls);await refreshProfile();show('profileStatus','デザインの傾向を保存しました。')}catch(e){show('profileStatus',e.message,true)}}
+async function addRule(){try{await call('setProfileRule',$('newRule').value);$('newRule').value='';await refreshProfile();show('profileStatus','ルールを追加しました。')}catch(e){show('profileStatus',e.message,true)}}
+async function exportProfile(){try{const x=await call('exportDesignProfile');$('profileStatus').textContent='共有する場合、このJSONのDrive権限を自分で設定してください：'+x.url;}catch(e){show('profileStatus',e.message,true)}}
+async function importProfile(){try{await call('importDesignProfile',$('profileUrl').value);await refreshProfile();show('profileStatus','プロフィールを読み込みました。')}catch(e){show('profileStatus',e.message,true)}}
+function editedUrl(){const v=lastDeckUrl||prompt('編集済みGoogle SlidesのURLを入力してください。');if(!v)throw Error('資料URLがありません。');return v;}
+async function pptx(){try{const x=await call('exportPptx',editedUrl());$('learningResult').textContent='PowerPointファイルをDriveへ保存しました：'+x.url}catch(e){$('learningResult').textContent=e.message}}
+async function previewLearning(){try{const x=await call('previewEditedDeckLearning',editedUrl());$('learningResult').textContent=JSON.stringify(x,null,2)}catch(e){$('learningResult').textContent=e.message}}
+async function approveLearning(){try{if(!confirm('現在の編集済みGoogle Slidesの書式傾向を、次回の生成に反映しますか？'))return;const x=await call('approveEditedDeckLearning',editedUrl());await refreshProfile();$('learningResult').textContent='学習しました。検出した変更 '+x.changeCount+'件。'}catch(e){$('learningResult').textContent=e.message}}
+refreshProfile();
+</script></body></html>
+
+
+========================= appsscript.json =========================
+{
+  "timeZone": "Asia/Tokyo",
+  "runtimeVersion": "V8",
+  "exceptionLogging": "STACKDRIVER",
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/presentations",
+    "https://www.googleapis.com/auth/drive",
+    "https://www.googleapis.com/auth/script.external_request"
+  ],
+  "webapp": {
+    "access": "ANYONE",
+    "executeAs": "USER_ACCESSING"
+  }
+}
+
+
+========================= CHANGELOG.md =========================
+# Changelog
+v3: デザインDNA統計、参考Slides読込、ユーザー承認型の編集差分学習、プロフィールのDriveエクスポート／インポート、PPTX出力、切り抜きのスライド番号紐付け、生成時スナップショットを追加。既存v2の自社作成コードを継承。第三者コードは取り込んでいない。
+
