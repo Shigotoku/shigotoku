@@ -1,48 +1,36 @@
 ---
 import { appPath } from '../lib/urls';
-import StudioMock from './StudioMock.astro';
 
 const loginUrl = appPath('/login');
-const howUrl = `${import.meta.env.BASE_URL}#how-it-works`;
 ---
 
-<section class="relative overflow-hidden bg-deck-side text-white">
-  <div
-    class="pointer-events-none absolute inset-0 opacity-80"
-    aria-hidden="true"
-    style="background: radial-gradient(ellipse 80% 55% at 70% 20%, rgba(15, 108, 120, 0.35), transparent 60%), radial-gradient(ellipse 50% 40% at 10% 90%, rgba(15, 108, 120, 0.15), transparent);"
-  ></div>
-
-  <div class="relative mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-2 lg:gap-12 lg:py-24">
-    <div class="text-center lg:text-left">
-      <p class="text-sm font-medium tracking-wide text-deck-accent-soft/90">Google Drive ネイティブの資料作成</p>
-      <h1 class="deckit-h1 mt-3 font-bold tracking-tight" data-jp-heading>
-        <span class="block text-4xl sm:text-5xl lg:text-6xl">DeckIt</span>
-        <span class="mt-2 block text-2xl font-semibold text-deck-accent-soft sm:text-3xl">資料、できた。</span>
-      </h1>
-      <p class="deckit-lead mx-auto mt-5 max-w-xl text-[#c8d4dc] lg:mx-0" data-jp-wrap>
-        元資料・Style・お手本を活かし、あなたらしい Google Slides を短時間で。資料本体はあなたの Drive に残ります。
-      </p>
-      <div class="mt-8 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center lg:justify-start">
-        <a
-          href={loginUrl}
-          class="deckit-tap inline-flex items-center justify-center rounded-lg bg-white px-8 py-3.5 text-base font-semibold text-deck-side shadow-md hover:bg-deck-accent-soft"
-        >
-          Google でログイン
-        </a>
-        <a
-          href={howUrl}
-          class="deckit-tap inline-flex items-center justify-center rounded-lg border border-white/25 px-8 py-3.5 text-base font-semibold text-white/90 hover:border-white/40 hover:bg-white/5"
-        >
-          使い方を見る
-        </a>
-      </div>
-      <p class="mt-5 text-xs text-[#9fb0bc] sm:text-sm" data-jp-wrap>
-        元資料 → 構成 → 生成 → 編集 · Style / Reference · 16:9 プレビュー
-      </p>
-    </div>
-    <div class="mx-auto w-full max-w-lg lg:max-w-none">
-      <StudioMock />
-    </div>
+<section
+  class="flex min-h-[100svh] flex-col items-center justify-center gap-6 bg-deck-side px-6 text-center text-white"
+  aria-label="DeckIt"
+>
+  <div class="space-y-2">
+    <h1 class="text-5xl font-bold tracking-tight sm:text-6xl">DeckIt</h1>
+    <p class="text-2xl font-medium text-deck-accent-soft sm:text-3xl">資料、できた。</p>
   </div>
+
+  <p class="max-w-lg text-lg text-[#c8d4dc] sm:text-xl" data-jp-wrap>
+    Google アカウントでログインしてください。
+  </p>
+
+  <a
+    href={loginUrl}
+    class="deckit-tap rounded-lg bg-white px-8 py-3 text-base font-semibold text-deck-side shadow-md transition-colors hover:bg-deck-accent-soft"
+  >
+    Google でログイン
+  </a>
+
+  <p class="absolute bottom-[max(1.25rem,env(safe-area-inset-bottom))] text-xs text-[#9fb0bc]">
+    <a href="https://shigotoku.com/" class="hover:text-[#c8d4dc]">株式会社シゴトク</a>
+  </p>
 </section>
+
+<style>
+  section {
+    position: relative;
+  }
+</style>

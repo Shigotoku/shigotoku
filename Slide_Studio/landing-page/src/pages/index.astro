@@ -1,54 +1,12 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import HeroSection from '../components/HeroSection.astro';
-import TrustBar from '../components/TrustBar.astro';
-import ProblemSection from '../components/ProblemSection.astro';
-import FeaturesSection from '../components/FeaturesSection.astro';
-import HowItWorksSection from '../components/HowItWorksSection.astro';
-import UseCasesSection from '../components/UseCasesSection.astro';
-import FaqSection from '../components/FaqSection.astro';
-import { appPath } from '../lib/urls';
-
-const loginUrl = appPath('/login');
 ---
 
 <Layout
-  title="DeckIt（デキット）— 資料、できた。"
-  description="元資料・Style・お手本から Google Slides を短時間で。資料はあなたの Google Drive に。DeckIt は資料作成ノウハウを蓄積するスタジオです。"
+  minimal
+  title="DeckIt — 資料、できた。"
+  description="元資料・Style から Google Slides を短時間で。Google アカウントでログインして始められます。"
 >
   <HeroSection />
-  <TrustBar />
-  <ProblemSection />
-  <FeaturesSection />
-  <HowItWorksSection />
-  <UseCasesSection />
-  <FaqSection />
-
-  <section class="relative overflow-hidden bg-deck-side py-12 text-center sm:py-20">
-    <div
-      class="pointer-events-none absolute inset-0"
-      aria-hidden="true"
-      style="background: radial-gradient(ellipse 70% 60% at 50% 100%, rgba(15, 108, 120, 0.35), transparent);"
-    ></div>
-    <div class="relative mx-auto max-w-3xl px-4 pb-[env(safe-area-inset-bottom)] sm:px-6">
-      <h2 class="deckit-h2 font-bold text-white" data-jp-heading>まずは、1本だけ作ってみてください。</h2>
-      <p class="deckit-lead mt-3 text-[#c8d4dc]" data-jp-wrap>
-        Google アカウントでログイン。元資料と Style を選ぶだけで、資料づくりの流れが始まります。
-      </p>
-      <div class="mt-7 flex flex-col items-stretch justify-center gap-3 sm:mt-8 sm:flex-row sm:items-center">
-        <a
-          href={loginUrl}
-          class="deckit-tap inline-flex items-center justify-center rounded-lg bg-white px-8 py-3.5 text-base font-semibold text-deck-side shadow-md hover:bg-deck-accent-soft"
-        >
-          Google でログイン
-        </a>
-        <a
-          href={`${import.meta.env.BASE_URL}#how-it-works`}
-          class="deckit-tap inline-flex items-center justify-center rounded-lg border border-white/25 px-8 py-3.5 text-base font-semibold text-white/90 hover:border-white/40"
-        >
-          使い方を見る
-        </a>
-      </div>
-    </div>
-  </section>
 </Layout>
