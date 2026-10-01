@@ -4,7 +4,6 @@
 import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { getUserSettings, getMetrics, getPosts, getScheduledJobs, type UserSettings } from './firestore';
 import { postToSlackWebhook } from './slack';
-import { sendLinePush } from './lineMessaging';
 import { generateRepurposeWithGemini } from './gemini';
 
 function db() {
@@ -375,16 +374,6 @@ export async function buildConnectionHealth(uid: string) {
     checks,
     alerts: checks.filter((c) => !c.ok || c.warn),
   };
-}
-
-export async function notifyApprovalNeeded(uid: string, jobId: string, summary: string): Promise<void> {
-  const settings = await getUserSettings(uid);
-  const text = `✅ *承認待ちの投稿があります*\n${summary.slice(0, 200)}\n👉 https://app.buzzit.shigotoku.com/calendar`;
-  if (settings.slackWebhookUrl) await postToSlackWebhook(settings.slackWebhookUrl, text);
-  if (settings.lineChannelAccessToken && settings.lineAdminUserId) {
-    await sendLinePush(settings.lineChannelAccessToken, settings.lineAdminUserId, text.replace(/\*/g, ''));
-  }
-  await writeAuditLog(uid, 'schedule.approval_requested', summary.slice(0, 120), { jobId });
 }
 
 export async function listHpbConversions(uid: string) {

@@ -19,6 +19,7 @@ import {
   saveBulkPatternPref,
   saveBulkSplitPref,
 } from '../lib/schedulePrefs';
+import PersonaPublishConfirmModal, { type PersonaConfirmAction } from './PersonaPublishConfirmModal';
 
 type Props = {
   open: boolean;
@@ -49,6 +50,7 @@ export default function BulkScheduleModal({
   const [publishMode, setPublishMode] = useState<PublishMode>(defaultPublishMode);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<PersonaConfirmAction | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -117,7 +119,11 @@ export default function BulkScheduleModal({
         return;
       }
     }
+    setConfirmAction('schedule');
+  };
 
+  const runSubmit = async () => {
+    setConfirmAction(null);
     setBusy(true);
     try {
       if (!splitJobs && pattern === 'same') {
@@ -171,6 +177,11 @@ export default function BulkScheduleModal({
       setError('媒体を1つ以上選んでください');
       return;
     }
+    setConfirmAction('draft');
+  };
+
+  const runSaveDrafts = async () => {
+    setConfirmAction(null);
     setBusy(true);
     try {
       for (const r of activeRows) {
@@ -380,6 +391,18 @@ export default function BulkScheduleModal({
           </button>
         </div>
       </div>
+
+      <PersonaPublishConfirmModal
+        open={confirmAction !== null}
+        action={confirmAction ?? 'schedule'}
+        publishMode={publishMode}
+        contentLabels={activeRows.map((r) => r.label)}
+        onCancel={() => setConfirmAction(null)}
+        onConfirm={() => {
+          if (confirmAction === 'draft') void runSaveDrafts();
+          else void runSubmit();
+        }}
+      />
     </div>
   );
 }

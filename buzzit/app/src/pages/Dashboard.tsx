@@ -38,9 +38,12 @@ import DemoDataBanner from '../components/DemoDataBanner';
 import EmptyState from '../components/EmptyState';
 import { useSetupSignals } from '../hooks/useSetupSignals';
 import GlossTooltip from '../components/GlossTooltip';
+import PersonaPublishConfirmModal from '../components/PersonaPublishConfirmModal';
+import { usePersona } from '../store/personaContext';
 
 export default function Dashboard() {
   const { signals, isSample } = useSetupSignals();
+  const { activePersonaId, activePersona } = usePersona();
   const [metrics, setMetrics] = useState(mockMetrics);
   const [mission, setMission] = useState(mockMission);
   const [loading, setLoading] = useState(true);
@@ -56,6 +59,15 @@ export default function Dashboard() {
   const [regional, setRegional] = useState<Array<{ topic: string; hook: string; score: number }>>([]);
   const [weekly, setWeekly] = useState<WeeklyReport | null>(null);
   const [insights, setInsights] = useState<InsightsSummary | null>(null);
+  const [approveConfirmJob, setApproveConfirmJob] = useState<ScheduledJob | null>(null);
+  const [approveMessage, setApproveMessage] = useState<string | null>(null);
+
+  const loadPending = () => {
+    if (!activePersonaId) return;
+    fetchScheduledJobs('pending_approval', activePersonaId)
+      .then((r) => setPendingJobs(r.jobs))
+      .catch(() => setPendingJobs([]));
+  };
 
   useEffect(() => {
     fetchInsightsSummary()
@@ -85,9 +97,7 @@ export default function Dashboard() {
     fetchTrends()
       .then((r) => setTrends(r.trends.slice(0, 3)))
       .catch(() => {});
-    fetchScheduledJobs('pending_approval')
-      .then((r) => setPendingJobs(r.jobs))
-      .catch(() => {});
+    loadPending();
     fetchScheduledJobs('failed')
       .then((r) => setFailedCount(r.jobs.length))
       .catch(() => {});
@@ -109,18 +119,34 @@ export default function Dashboard() {
     fetchWeeklyReport()
       .then((r) => setWeekly(r.report))
       .catch(() => {});
-  }, []);
+  }, [activePersonaId]);
+
+  useEffect(() => {
+    const onPersona = () => loadPending();
+    window.addEventListener('buzzit-persona-changed', onPersona);
+    return () => window.removeEventListener('buzzit-persona-changed', onPersona);
+  }, [activePersonaId]);
 
   const handleApproveJob = async (jobId: string) => {
     setApprovingId(jobId);
+    setApproveMessage(null);
     try {
-      await approveScheduledJob(jobId);
-      setPendingJobs((prev) => prev.filter((j) => j.id !== jobId));
+      const res = await approveScheduledJob(jobId);
+      if (res.needsSecondApproval) {
+        setApproveMessage(res.message ?? '1人目を承認しました。別の担当者の2人目承認が必要です。');
+        loadPending();
+      } else {
+        setPendingJobs((prev) => prev.filter((j) => j.id !== jobId));
+        setApproveMessage(res.message ?? '承認しました。');
+      }
     } catch {
-      /* ignore */
+      setApproveMessage('承認に失敗しました。別キャラの予約の可能性があります。');
     }
     setApprovingId(null);
+    setApproveConfirmJob(null);
   };
+
+  const xHandle = activePersona?.xUsername?.trim().replace(/^@/, '');
 
   const handleUseTrendAsMission = async (trendId: string) => {
     setUsingTrendId(trendId);
@@ -412,15 +438,34 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {approveMessage && <p className="buzz-alert buzz-alert-info text-sm">{approveMessage}</p>}
+
       {pendingJobs.length > 0 ? (
         <div className="buzz-card-pad">
           <div className="mb-4 flex items-center gap-2">
             <Clock className="h-5 w-5 text-neutral-700" />
             <h2 className="text-lg font-bold">承認待ちの投稿（{pendingJobs.length}件）</h2>
           </div>
+          <p className="mb-3 text-xs text-neutral-600">
+            表示中のキャラ: <strong>{activePersona?.name ?? '—'}</strong>
+            {xHandle ? ` · X @${xHandle}` : ''}
+            {activePersona?.type === 'official' ? ' · 公式は2人の別担当者承認が必要です' : ''}
+          </p>
           <div className="space-y-3">
             {pendingJobs.map((job) => (
-              <div key={job.id} className="buzz-surface p-4">
+              <div key={job.id} className="buzz-surface border-l-4 border-violet-500 p-4">
+                <div className="mb-2 rounded-lg bg-violet-50 px-3 py-2">
+                  <p className="text-[10px] font-semibold uppercase text-violet-700">配信キャラ</p>
+                  <p className="text-base font-bold text-violet-950">{job.personaName ?? activePersona?.name ?? '配信キャラ'}</p>
+                  {xHandle && (
+                    <p className="mt-1 text-sm font-semibold text-neutral-900">X 投稿先: @{xHandle}</p>
+                  )}
+                  {job.dualApprovalRequired && (
+                    <p className="mt-1 text-xs text-amber-800">
+                      {job.firstApprovedBy ? '2人目の承認待ち（別担当者が承認してください）' : '公式・2人体制（1人目の承認）'}
+                    </p>
+                  )}
+                </div>
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                   <span className="text-sm font-medium">
                     {new Date(job.scheduledAt).toLocaleString('ja-JP')} · {job.publishMode}
@@ -428,10 +473,10 @@ export default function Dashboard() {
                   <button
                     type="button"
                     disabled={approvingId === job.id}
-                    onClick={() => handleApproveJob(job.id)}
+                    onClick={() => setApproveConfirmJob(job)}
                     className="buzz-btn-accent !px-4 !py-2 text-sm disabled:opacity-60"
                   >
-                    {approvingId === job.id ? '承認中...' : '承認して予約'}
+                    {approvingId === job.id ? '承認中...' : job.firstApprovedBy ? '2人目を承認' : '承認して予約'}
                   </button>
                 </div>
                 <p className="line-clamp-2 text-sm text-neutral-600">
@@ -527,6 +572,15 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      <PersonaPublishConfirmModal
+        open={!!approveConfirmJob}
+        action="approve"
+        publishMode={approveConfirmJob?.publishMode}
+        contentLabels={approveConfirmJob?.contents.map((c) => c.label) ?? []}
+        onCancel={() => setApproveConfirmJob(null)}
+        onConfirm={() => approveConfirmJob && void handleApproveJob(approveConfirmJob.id)}
+      />
     </div>
   );
 }

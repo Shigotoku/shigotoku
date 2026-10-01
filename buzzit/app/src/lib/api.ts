@@ -442,6 +442,10 @@ export interface ScheduleApiRequest {
 
 export interface ScheduledJob {
   id: string;
+  personaId?: string;
+  personaName?: string;
+  dualApprovalRequired?: boolean;
+  firstApprovedBy?: string;
   contents: ScheduleApiRequest['contents'];
   scheduledAt: string;
   publishMode: PublishMode;
@@ -451,6 +455,11 @@ export interface ScheduledJob {
   errorMessage?: string;
   createdAt: string;
 }
+
+export type ScheduledJobsScope = {
+  personaId: string;
+  personaName: string;
+};
 
 export function scheduleViaApi(body: ScheduleApiRequest) {
   return request<{
@@ -465,13 +474,21 @@ export function scheduleViaApi(body: ScheduleApiRequest) {
   });
 }
 
-export function fetchScheduledJobs(status?: string) {
-  const q = status ? `?status=${encodeURIComponent(status)}` : '';
-  return request<{ jobs: ScheduledJob[] }>(`/v1/scheduled${q}`);
+export function fetchScheduledJobs(status?: string, personaId?: string) {
+  const params = new URLSearchParams();
+  if (status) params.set('status', status);
+  if (personaId) params.set('personaId', personaId);
+  const q = params.toString();
+  return request<{ jobs: ScheduledJob[]; scope: ScheduledJobsScope }>(`/v1/scheduled${q ? `?${q}` : ''}`);
 }
 
 export function approveScheduledJob(id: string) {
-  return request<{ success: boolean; job: ScheduledJob }>(`/v1/scheduled/${id}/approve`, {
+  return request<{
+    success: boolean;
+    job: ScheduledJob;
+    needsSecondApproval?: boolean;
+    message?: string;
+  }>(`/v1/scheduled/${id}/approve`, {
     method: 'POST',
   });
 }
@@ -753,6 +770,10 @@ export interface PersonaRecord {
   status: 'active' | 'archived';
   metaConnected?: boolean;
   xConnected?: boolean;
+  lineConnected?: boolean;
+  gbpConnected?: boolean;
+  xUsername?: string;
+  gbpLocationName?: string;
   requiresApproval?: boolean;
   createdAt: string;
 }

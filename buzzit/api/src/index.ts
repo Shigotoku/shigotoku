@@ -29,6 +29,7 @@ import {
   approveSlackIdea,
   createScheduledJob,
   getScheduledJobs,
+  getScheduledJob,
   approveScheduledJob,
   retryScheduledJob,
   revertScheduledJobToDraft,
@@ -79,7 +80,6 @@ import {
   enqueueChatNeedReply,
   resolveChatQueue,
   buildConnectionHealth,
-  notifyApprovalNeeded,
   listHpbConversions,
   upsertHpbConversion,
   draftGbpReviewReply,
@@ -90,6 +90,8 @@ import {
   writeAuditLog,
   listStoreProgress,
 } from './services/productExtras';
+import { notifyApprovalNeeded } from './services/approvalNotify';
+import { assertConnectedForPublishMode, isAutoPublishMode } from './services/schedulePublishSafety';
 import {
   verifySlackSignature,
   formatSlackIdeaReply,
@@ -417,6 +419,15 @@ api.post('/v1/schedule', requireAuth, async (req: AuthedRequest, res) => {
     if (!asDraft && !publishMode && persona && personaRequiresApproval(persona)) {
       mode = 'approval';
     }
+
+    if (!asDraft && isAutoPublishMode(mode)) {
+      const connectErr = assertConnectedForPublishMode(effective, mode);
+      if (connectErr) {
+        res.status(400).json({ error: connectErr });
+        return;
+      }
+    }
+
     const trackingLinks: Array<{ platform: string; trackingUrl: string; postId: string }> = [];
 
     if (dest) {
@@ -442,6 +453,8 @@ api.post('/v1/schedule', requireAuth, async (req: AuthedRequest, res) => {
       }
     }
 
+    const dualApprovalRequired = !asDraft && mode === 'approval' && persona?.type === 'official';
+
     const jobId = await createScheduledJob(req.uid!, {
       contents,
       scheduledAt: scheduledDate.toISOString(),
@@ -451,14 +464,17 @@ api.post('/v1/schedule', requireAuth, async (req: AuthedRequest, res) => {
       destinationUrl: dest,
       trackingLinks,
       personaId: activePersonaId,
+      dualApprovalRequired,
     });
 
     if (!asDraft && mode === 'approval') {
-      await notifyApprovalNeeded(
-        req.uid!,
+      await notifyApprovalNeeded(req.uid!, {
         jobId,
-        contents.map((c) => c.label).join(' / '),
-      );
+        personaId: activePersonaId,
+        publishMode: mode,
+        scheduledAt: scheduledDate.toISOString(),
+        contentSummary: contents.map((c) => c.label).join(' / '),
+      });
     }
     await writeAuditLog(req.uid!, 'schedule.create', `${asDraft ? 'draft' : mode} ${contents.length}件`, { jobId });
 
@@ -502,20 +518,84 @@ api.get('/v1/scheduled', requireAuth, async (req: AuthedRequest, res) => {
   const personaId = typeof req.query.personaId === 'string' ? req.query.personaId : undefined;
   const activePersonaId = personaId ?? await resolveActivePersonaId(req.uid!);
   const jobs = await getScheduledJobs(req.uid!, status, activePersonaId);
-  res.json({ jobs });
+  const persona = await getPersona(activePersonaId);
+  const enriched = await Promise.all(
+    jobs.map(async (job) => {
+      let personaName = persona?.name ?? '配信キャラ';
+      if (job.personaId && job.personaId !== activePersonaId) {
+        const p = await getPersona(job.personaId);
+        if (p?.name) personaName = p.name;
+      }
+      return { ...job, personaName };
+    }),
+  );
+  res.json({
+    jobs: enriched,
+    scope: {
+      personaId: activePersonaId,
+      personaName: persona?.name ?? '配信キャラ',
+    },
+  });
 });
 
 api.post('/v1/scheduled/:id/approve', requireAuth, async (req: AuthedRequest, res) => {
-  const job = await approveScheduledJob(req.uid!, String(req.params.id));
-  if (!job) {
+  const jobId = String(req.params.id);
+  const existing = await getScheduledJob(req.uid!, jobId);
+  if (!existing) {
     res.status(404).json({ error: '承認待ちジョブが見つかりません' });
     return;
   }
-  res.json({ success: true, job });
+  const activePersonaId = await resolveActivePersonaId(req.uid!);
+  if (existing.personaId && existing.personaId !== activePersonaId) {
+    res.status(403).json({ error: 'この予約は別の配信キャラに紐づいています。右上でキャラを切り替えてから承認してください。' });
+    return;
+  }
+  const result = await approveScheduledJob(req.uid!, jobId, req.uid!);
+  if (result.kind === 'error') {
+    if (result.code === 'same_approver') {
+      res.status(403).json({
+        error: '公式キャラは2人の別担当者による承認が必要です。別の方に2人目の承認を依頼してください。',
+      });
+      return;
+    }
+    res.status(404).json({ error: '承認待ちジョブが見つかりません' });
+    return;
+  }
+
+  if (result.kind === 'first_approval') {
+    await notifyApprovalNeeded(req.uid!, {
+      jobId: result.job.id,
+      personaId: result.job.personaId,
+      publishMode: result.job.publishMode,
+      scheduledAt: result.job.scheduledAt,
+      contentSummary: result.job.contents.map((c) => c.label).join(' / '),
+      secondApproverNeeded: true,
+    });
+    res.json({
+      success: true,
+      job: result.job,
+      needsSecondApproval: true,
+      message: '1人目の承認を記録しました。別の担当者による2人目の承認が必要です。',
+    });
+    return;
+  }
+
+  res.json({ success: true, job: result.job, message: '承認しました。予約キューに入りました。' });
 });
 
 api.post('/v1/scheduled/:id/retry', requireAuth, async (req: AuthedRequest, res) => {
-  const job = await retryScheduledJob(req.uid!, String(req.params.id));
+  const jobId = String(req.params.id);
+  const existing = await getScheduledJob(req.uid!, jobId);
+  if (!existing) {
+    res.status(404).json({ error: '再試行できる失敗ジョブが見つかりません' });
+    return;
+  }
+  const activePersonaId = await resolveActivePersonaId(req.uid!);
+  if (existing.personaId && existing.personaId !== activePersonaId) {
+    res.status(403).json({ error: 'この予約は別の配信キャラに紐づいています。右上でキャラを切り替えてから操作してください。' });
+    return;
+  }
+  const job = await retryScheduledJob(req.uid!, jobId);
   if (!job) {
     res.status(404).json({ error: '再試行できる失敗ジョブが見つかりません' });
     return;
@@ -525,7 +605,18 @@ api.post('/v1/scheduled/:id/retry', requireAuth, async (req: AuthedRequest, res)
 });
 
 api.post('/v1/scheduled/:id/draft', requireAuth, async (req: AuthedRequest, res) => {
-  const job = await revertScheduledJobToDraft(req.uid!, String(req.params.id));
+  const jobId = String(req.params.id);
+  const existing = await getScheduledJob(req.uid!, jobId);
+  if (!existing) {
+    res.status(404).json({ error: '下書きに戻せるジョブが見つかりません' });
+    return;
+  }
+  const activePersonaId = await resolveActivePersonaId(req.uid!);
+  if (existing.personaId && existing.personaId !== activePersonaId) {
+    res.status(403).json({ error: 'この予約は別の配信キャラに紐づいています。右上でキャラを切り替えてから操作してください。' });
+    return;
+  }
+  const job = await revertScheduledJobToDraft(req.uid!, jobId);
   if (!job) {
     res.status(404).json({ error: '下書きに戻せるジョブが見つかりません' });
     return;
@@ -565,7 +656,27 @@ api.patch('/v1/scheduled/:id', requireAuth, async (req: AuthedRequest, res) => {
     return;
   }
 
-  const job = await updateScheduledJob(req.uid!, String(req.params.id), {
+  if (publishMode !== undefined && isAutoPublishMode(publishMode)) {
+    const effective = await getEffectiveSettings(req.uid!);
+    const connectErr = assertConnectedForPublishMode(effective, publishMode);
+    if (connectErr) {
+      res.status(400).json({ error: connectErr });
+      return;
+    }
+  }
+
+  const jobId = String(req.params.id);
+  const existing = await getScheduledJob(req.uid!, jobId);
+  if (!existing) {
+    res.status(404).json({ error: '編集できる予約が見つかりません（処理中・完了済みは編集不可）' });
+    return;
+  }
+  const activePersonaId = await resolveActivePersonaId(req.uid!);
+  if (existing.personaId && existing.personaId !== activePersonaId) {
+    res.status(403).json({ error: 'この予約は別の配信キャラに紐づいています。右上でキャラを切り替えてから編集してください。' });
+    return;
+  }
+  const job = await updateScheduledJob(req.uid!, jobId, {
     scheduledAt: normalizedScheduledAt,
     contents,
     publishMode,

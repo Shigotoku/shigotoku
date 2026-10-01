@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { ChevronDown, Plus, UserCircle2 } from 'lucide-react';
 import { usePersona } from '../store/personaContext';
 import { settingsPath } from '../lib/settingsUrls';
+import { personaSnsLinks } from '../lib/personaSnsStatus';
+import { isPersonaLocked } from '../lib/personaLock';
 
 const TYPE_LABELS: Record<string, string> = {
   official: '公式',
@@ -21,7 +23,14 @@ export default function PersonaSwitcher() {
     usePersona();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [locked, setLocked] = useState(() => isPersonaLocked());
   const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onLock = () => setLocked(isPersonaLocked());
+    window.addEventListener('buzzit-persona-lock-changed', onLock);
+    return () => window.removeEventListener('buzzit-persona-lock-changed', onLock);
+  }, []);
 
   useEffect(() => {
     refreshPersonas().catch(() => {});
@@ -47,6 +56,11 @@ export default function PersonaSwitcher() {
         type="button"
         onClick={() => {
           setError(null);
+          if (locked) {
+            setError('キャラ固定中です。紫バーの「キャラ固定中」を押して解除してください。');
+            setOpen(true);
+            return;
+          }
           setOpen((v) => !v);
         }}
         disabled={busy}
@@ -92,6 +106,19 @@ export default function PersonaSwitcher() {
             >
               <span className="block truncate">{persona.name}</span>
               <span className="text-[10px] text-neutral-400">{TYPE_LABELS[persona.type] ?? persona.type}</span>
+              <span className="mt-0.5 flex flex-wrap gap-1">
+                {personaSnsLinks(persona).map((link) => (
+                  <span
+                    key={link.id}
+                    className={`rounded px-1 py-0.5 text-[9px] ${
+                      link.connected ? 'bg-emerald-100 text-emerald-800' : 'bg-neutral-100 text-neutral-500'
+                    }`}
+                  >
+                    {link.label}
+                    {link.connected ? '✓' : '—'}
+                  </span>
+                ))}
+              </span>
             </button>
           ))}
           <div className="border-t border-neutral-100 px-2 py-1.5">

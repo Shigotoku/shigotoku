@@ -579,10 +579,16 @@ export function safePersonaForClient(persona: PersonaRecord) {
   const xConnected = !!(
     persona.xApiKey && persona.xApiSecret && persona.xAccessToken && persona.xAccessSecret
   );
+  const lineConnected = !!persona.lineChannelAccessToken?.trim();
+  const gbpConnected = !!(persona.gbpAccessToken?.trim() || persona.gbpConnected);
   return {
     ...safe,
     metaConnected,
     xConnected,
+    lineConnected,
+    gbpConnected,
+    xUsername: persona.xUsername,
+    gbpLocationName: persona.gbpLocationName,
     requiresApproval: personaRequiresApproval(persona),
   };
 }

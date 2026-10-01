@@ -497,6 +497,7 @@ export interface CreateScheduledJobInput {
   trackingLinks?: Array<{ platform: string; trackingUrl: string; postId: string }>;
   ayrshareResponse?: unknown;
   personaId?: string;
+  dualApprovalRequired?: boolean;
 }
 
 export async function createScheduledJob(uid: string, input: CreateScheduledJobInput): Promise<string> {
@@ -514,6 +515,7 @@ export async function createScheduledJob(uid: string, input: CreateScheduledJobI
     trackingLinks: input.trackingLinks ?? [],
     ayrshareResponse: input.ayrshareResponse ?? null,
     ...(input.personaId ? { personaId: input.personaId } : {}),
+    ...(input.dualApprovalRequired ? { dualApprovalRequired: true } : {}),
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   });
@@ -524,6 +526,9 @@ export interface ScheduledJobDoc {
   id: string;
   uid: string;
   personaId?: string;
+  dualApprovalRequired?: boolean;
+  firstApprovedBy?: string;
+  firstApprovedAt?: string;
   contents: ScheduleContentItem[];
   scheduledAt: string;
   publishMode: PublishMode;
@@ -545,6 +550,9 @@ function mapScheduledDoc(uid: string, id: string, data: FirebaseFirestore.Docume
     id,
     uid,
     personaId: data.personaId as string | undefined,
+    dualApprovalRequired: data.dualApprovalRequired as boolean | undefined,
+    firstApprovedBy: data.firstApprovedBy as string | undefined,
+    firstApprovedAt: data.firstApprovedAt as string | undefined,
     contents: data.contents as ScheduleContentItem[],
     scheduledAt: data.scheduledAt as string,
     publishMode: (data.publishMode as PublishMode) ?? 'notify',
@@ -557,6 +565,13 @@ function mapScheduledDoc(uid: string, id: string, data: FirebaseFirestore.Docume
     publishResults: data.publishResults as ScheduledJobDoc['publishResults'],
     createdAt: created,
   };
+}
+
+export async function getScheduledJob(uid: string, jobId: string): Promise<ScheduledJobDoc | null> {
+  const ref = db().collection('users').doc(uid).collection('scheduled').doc(jobId);
+  const snap = await ref.get();
+  if (!snap.exists) return null;
+  return mapScheduledDoc(uid, jobId, snap.data()!);
 }
 
 export async function getScheduledJobs(
@@ -589,12 +604,36 @@ export async function getScheduledJobs(
   return docs;
 }
 
-export async function approveScheduledJob(uid: string, jobId: string): Promise<ScheduledJobDoc | null> {
+export type ApproveScheduledJobResult =
+  | { kind: 'approved'; job: ScheduledJobDoc }
+  | { kind: 'first_approval'; job: ScheduledJobDoc }
+  | { kind: 'error'; code: 'not_found' | 'invalid_status' | 'same_approver' };
+
+export async function approveScheduledJob(
+  uid: string,
+  jobId: string,
+  approverUid: string,
+): Promise<ApproveScheduledJobResult> {
   const ref = db().collection('users').doc(uid).collection('scheduled').doc(jobId);
   const snap = await ref.get();
-  if (!snap.exists) return null;
+  if (!snap.exists) return { kind: 'error', code: 'not_found' };
   const data = snap.data()!;
-  if (data.status !== 'pending_approval') return null;
+  if (data.status !== 'pending_approval') return { kind: 'error', code: 'invalid_status' };
+
+  if (data.dualApprovalRequired) {
+    if (!data.firstApprovedBy) {
+      await ref.update({
+        firstApprovedBy: approverUid,
+        firstApprovedAt: new Date().toISOString(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      const updated = await ref.get();
+      return { kind: 'first_approval', job: mapScheduledDoc(uid, jobId, updated.data()!) };
+    }
+    if (data.firstApprovedBy === approverUid) {
+      return { kind: 'error', code: 'same_approver' };
+    }
+  }
 
   await ref.update({
     status: 'pending',
@@ -603,7 +642,7 @@ export async function approveScheduledJob(uid: string, jobId: string): Promise<S
   });
 
   const updated = await ref.get();
-  return mapScheduledDoc(uid, jobId, updated.data()!);
+  return { kind: 'approved', job: mapScheduledDoc(uid, jobId, updated.data()!) };
 }
 
 export async function updateScheduledJobStatus(

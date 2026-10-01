@@ -35,6 +35,8 @@ import PwaInstallBanner from '../components/PwaInstallBanner';
 import MobileBottomNav from '../components/MobileBottomNav';
 import OnboardingTour from '../components/OnboardingTour';
 import PersonaSelectGate from '../components/PersonaSelectGate';
+import PersonaChangeToast from '../components/PersonaChangeToast';
+import ActivePersonaContextBar from '../components/ActivePersonaContextBar';
 import BrandMark from '../components/BrandMark';
 import { ROLE_LABELS, canEditSettings, canManageLineCrm, isStaffOnly } from '../lib/permissions';
 import { getPageMeta } from '../lib/pageMeta';
@@ -437,11 +439,13 @@ export default function DashboardLayout() {
             </button>
           </div>
         </header>
+        <ActivePersonaContextBar />
         <div className="relative z-0 flex-1 overflow-auto p-4 pb-24 md:p-6 lg:p-8 lg:pb-8">
           <Outlet />
         </div>
         <MobileBottomNav onOpenMenu={() => setNavOpen(true)} />
         <PersonaSelectGate />
+        <PersonaChangeToast />
         <OnboardingTour />
         <PwaInstallBanner />
       </main>

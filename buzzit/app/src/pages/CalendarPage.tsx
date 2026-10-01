@@ -47,7 +47,9 @@ import {
 import { loadCalendarViewPref, loadDropHourPref, saveCalendarViewPref, saveDropHourPref } from '../lib/schedulePrefs';
 import EmptyState from '../components/EmptyState';
 import CloneStaggerModal from '../components/CloneStaggerModal';
+import PersonaPublishConfirmModal from '../components/PersonaPublishConfirmModal';
 import { useStore } from '../store/storeContext';
+import { usePersona } from '../store/personaContext';
 import { canApprovePosts } from '../lib/permissions';
 import { getSnsNavPlatform, jobMatchesSnsPlatform } from '../lib/snsPlatforms';
 import { getPostTemplates } from '../data/postTemplates';
@@ -71,9 +73,11 @@ const filterLabels: Record<FilterKey, string> = {
   done: '完了',
 };
 
-function statusLabel(status: ScheduledJob['status']) {
+function statusLabel(status: ScheduledJob['status'], job?: ScheduledJob) {
   switch (status) {
     case 'pending_approval':
+      if (job?.dualApprovalRequired && job.firstApprovedBy) return '2人目承認待ち';
+      if (job?.dualApprovalRequired) return '承認待ち（公式・2人体制）';
       return '承認待ち';
     case 'pending':
       return '予約済み';
@@ -117,6 +121,7 @@ type CalendarPageProps = {
 
 export default function CalendarPage({ platformId, embedded }: CalendarPageProps = {}) {
   const { userRole } = useStore();
+  const { activePersonaId, activePersona } = usePersona();
   const canApprove = canApprovePosts(userRole);
   const sns = platformId ? getSnsNavPlatform(platformId) : undefined;
   const [jobs, setJobs] = useState<ScheduledJob[]>([]);
@@ -153,10 +158,12 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
   const [tempoJob, setTempoJob] = useState<ScheduledJob | null>(null);
   const [tempoWeeks, setTempoWeeks] = useState(4);
   const [tempoBusy, setTempoBusy] = useState(false);
+  const [approveConfirmJob, setApproveConfirmJob] = useState<ScheduledJob | null>(null);
 
   const load = () => {
+    if (!activePersonaId) return;
     setLoading(true);
-    fetchScheduledJobs()
+    fetchScheduledJobs(undefined, activePersonaId)
       .then((r) => setJobs(r.jobs))
       .catch(() => setJobs([]))
       .finally(() => setLoading(false));
@@ -183,7 +190,7 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
     };
     window.addEventListener('buzzit-persona-changed', onPersona);
     return () => window.removeEventListener('buzzit-persona-changed', onPersona);
-  }, []);
+  }, [activePersonaId]);
 
   const scopedJobs = useMemo(() => {
     if (!platformId) return jobs;
@@ -246,13 +253,14 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
     setBusyId(id);
     setMessage(null);
     try {
-      await approveScheduledJob(id);
-      setMessage('承認しました。予約キューに入りました。');
+      const res = await approveScheduledJob(id);
+      setMessage(res.message ?? (res.needsSecondApproval ? '1人目を承認しました。別の担当者の2人目承認が必要です。' : '承認しました。予約キューに入りました。'));
       load();
     } catch {
       setMessage('承認に失敗しました');
     }
     setBusyId(null);
+    setApproveConfirmJob(null);
   };
 
   const handleRetry = async (id: string) => {
@@ -609,11 +617,20 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
 
       {!embedded && <FlowProgressBar current="schedule" className="buzz-fade-in" />}
 
+      {activePersona && (
+        <p className="text-xs text-neutral-600">
+          表示中の予約・下書きは<strong className="font-semibold text-neutral-800">「{activePersona.name}」</strong>
+          だけです。別キャラの予約は右上でキャラを切り替えて表示します。
+        </p>
+      )}
+
       {(!platformId || platformId === 'x') && connected.x === false && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-          <p className="font-medium">X（自動投稿）が未連携です</p>
+          <p className="font-medium">
+            「{activePersona?.name ?? 'このキャラ'}」の X（自動投稿）が未連携です
+          </p>
           <p className="mt-1 text-xs text-amber-900/85">
-            右上の配信キャラを選んだあと、設定でそのキャラ用の X API を接続してください。連携後、ここで予約・承認できます。
+            画面上部の紫バーでキャラを確認し、設定で<strong>同じキャラ</strong>用の X API を接続してください。
           </p>
           <Link
             to={settingsPath({ tab: 'sns', section: 'x' })}
@@ -712,7 +729,7 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
               >
                 <GripVertical className="h-3.5 w-3.5 shrink-0 opacity-60" />
                 <span className="truncate">
-                  {job.contents.map((c) => c.label).join('/')} · {statusLabel(job.status)}
+                  {job.contents.map((c) => c.label).join('/')} · {statusLabel(job.status, job)}
                 </span>
               </div>
             ))}
@@ -1146,7 +1163,7 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
                         : 'text-neutral-600'
                   }`}
                 >
-                  {statusLabel(job.status)}
+                  {statusLabel(job.status, job)}
                 </span>
               </div>
               <div className="flex gap-3">
@@ -1204,7 +1221,7 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
                   <button
                     type="button"
                     disabled={busyId === job.id}
-                    onClick={() => handleApprove(job.id)}
+                    onClick={() => setApproveConfirmJob(job)}
                     className="buzz-btn-primary min-h-[44px] px-3 py-1.5 text-xs disabled:opacity-60"
                   >
                     <CheckCircle2 className="h-3.5 w-3.5" />
@@ -1479,6 +1496,15 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
           </div>
         </div>
       )}
+
+      <PersonaPublishConfirmModal
+        open={!!approveConfirmJob}
+        action="approve"
+        publishMode={approveConfirmJob?.publishMode}
+        contentLabels={approveConfirmJob?.contents.map((c) => c.label) ?? []}
+        onCancel={() => setApproveConfirmJob(null)}
+        onConfirm={() => approveConfirmJob && void handleApprove(approveConfirmJob.id)}
+      />
 
       <CloneStaggerModal
         open={!!cloneJob}

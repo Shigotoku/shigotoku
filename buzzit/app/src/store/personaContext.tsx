@@ -5,6 +5,7 @@ import {
   type PersonaRecord,
   type PersonaRole,
 } from '../lib/api';
+import { isPersonaLocked } from '../lib/personaLock';
 
 interface PersonaContextValue {
   personas: PersonaRecord[];
@@ -49,6 +50,9 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const switchPersona = useCallback(async (personaId: string) => {
+    if (isPersonaLocked() && activePersonaId && personaId !== activePersonaId) {
+      throw new Error('キャラ固定中です。画面上部の「キャラ固定中」を押して解除してから切り替えてください。');
+    }
     setSwitching(true);
     try {
       const result = await setActivePersonaApi(personaId);
@@ -64,11 +68,16 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
         throw new Error('配信キャラの切り替えを反映できませんでした。ページを再読み込みしてください。');
       }
 
-      window.dispatchEvent(new CustomEvent('buzzit-persona-changed'));
+      const persona = data.personas.find((p) => p.id === personaId);
+      window.dispatchEvent(
+        new CustomEvent('buzzit-persona-changed', {
+          detail: { personaName: persona?.name ?? '配信キャラ' },
+        }),
+      );
     } finally {
       setSwitching(false);
     }
-  }, []);
+  }, [activePersonaId]);
 
   const activePersona = useMemo(() => {
     if (!personas.length) return null;
