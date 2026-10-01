@@ -1,10 +1,11 @@
 ---
 import { RUNWITH_LP } from '../lib/urls';
+import { siteImages } from '../lib/assets';
 ---
 
 <section class="relative min-h-screen flex items-center pt-16 overflow-hidden">
   <div class="absolute inset-0">
-    <img src="/images/hero.jpg" alt="" class="w-full h-full object-cover object-center" />
+    <img src={siteImages.hero} alt="" class="w-full h-full object-cover object-center" />
     <div class="absolute inset-0 bg-white/70"></div>
     <div class="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-white/50"></div>
   </div>

@@ -11,6 +11,10 @@
 | [`runwith/app/`](./runwith/app/) | ランウィズ | Webアプリ | React + Vite |
 | [`buzzit/landing-page/`](./buzzit/landing-page/) | バジット（BuzzIt） | ランディングページ | Astro |
 | [`buzzit/app/`](./buzzit/app/) | バジット（BuzzIt） | Webアプリ | React + Vite |
+| [`clipit/landing-page/`](./clipit/landing-page/) | クリッピット（ClipIt） | ランディングページ | Astro |
+| [`clipit/app/`](./clipit/app/) | クリッピット（ClipIt） | Webアプリ | React + Vite |
+| [`shapeit/landing-page/`](./shapeit/landing-page/) | シェイプイット（ShapeIt） | ランディングページ | Astro |
+| [`shapeit/app/`](./shapeit/app/) | シェイプイット（ShapeIt） | Webアプリ | React + Vite |
 
 ## 開発の起動方法
 
@@ -29,6 +33,18 @@ cd buzzit/landing-page && npm install && npm run dev
 
 # バジット アプリ
 cd buzzit/app && npm install && npm run dev
+
+# クリッピット ランディングページ
+cd clipit/landing-page && npm install && npm run dev
+
+# クリッピット アプリ
+cd clipit/app && npm install && npm run dev
+
+# シェイプイット ランディングページ
+cd shapeit/landing-page && npm install && npm run dev
+
+# シェイプイット アプリ
+cd shapeit/app && npm install && npm run dev
 ```
 
 ## 本番 URL 構成
@@ -38,8 +54,12 @@ cd buzzit/app && npm install && npm run dev
 | `shigotoku.com/` | コーポレートサイト |
 | `shigotoku.com/runwith/` | ランウィズ LP |
 | `shigotoku.com/buzzit/` | バジット LP |
+| `shigotoku.com/clipit/` | クリッピット LP |
+| `shigotoku.com/shapeit/` | シェイプイット LP |
 | `app.runwith.shigotoku.com` | ランウィズ アプリ |
 | `app.buzzit.shigotoku.com` | バジット アプリ |
+| `app.clipit.shigotoku.com` | クリッピット アプリ |
+| `app.shapeit.shigotoku.com` | シェイプイット アプリ |
 
 詳細な進捗は [`docs/DEPLOY-STATUS.md`](./docs/DEPLOY-STATUS.md) を参照してください。
 

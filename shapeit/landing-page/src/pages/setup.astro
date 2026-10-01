@@ -1,0 +1,348 @@
+---
+import Layout from '../layouts/Layout.astro';
+import SetupToc from '../components/SetupToc.astro';
+import GuideCallout from '../components/GuideCallout.astro';
+import { appPath, sitePath } from '../lib/urls';
+
+const homeUrl = import.meta.env.BASE_URL;
+const guideUrl = sitePath('guide');
+const setupUrl = sitePath('setup');
+const loginUrl = appPath('/login?ext=1');
+const signupUrl = appPath('/signup?ext=1');
+const captureUrl = appPath('/capture');
+const settingsUrl = appPath('/settings');
+const extensionZipUrl = appPath('/downloads/shapeit-chrome-extension.zip');
+const extensionInstallUrl = appPath('/extension');
+---
+
+<Layout
+  title="ログイン・拡張の設定 - ShapeIt（社内向け）"
+  description="ShapeIt のログイン方法と、Chrome 拡張を開発者モードで導入する手順。社内メンバー向けのセットアップガイドです。"
+>
+  <div class="guide-portal-bar">
+    <div class="guide-portal-bar__inner">
+      <a href={homeUrl}>← ShapeIt トップ</a>
+      <span aria-hidden="true">·</span>
+      <a href={setupUrl} class="is-active">ログイン・拡張の設定</a>
+      <span aria-hidden="true">·</span>
+      <a href={guideUrl}>使い方ガイド</a>
+      <span aria-hidden="true">·</span>
+      <a href={loginUrl}>アプリでログイン</a>
+    </div>
+  </div>
+
+  <section class="guide-hero shapeit-section setup-hero">
+    <div class="mx-auto max-w-6xl px-4 sm:px-6">
+      <p class="setup-internal-badge">社内メンバー向け</p>
+      <p class="text-xs font-semibold uppercase tracking-[0.2em] text-mint">Setup</p>
+      <h1 class="shapeit-h1 font-display mt-3 font-bold text-ink" id="overview" data-jp-heading>
+        ログイン・拡張の設定
+      </h1>
+      <p class="shapeit-lead mt-4 max-w-3xl text-ink/70" data-jp-wrap>
+        このページは、<strong>社内で ShapeIt を使い始めるメンバー</strong>向けのセットアップ手順です。
+        普段使っている Google アカウントで ShapeIt にログインし、Chrome 拡張を<strong>開発者モード</strong>で入れると、
+        どの Web 画面からでもスクショ付きで気づきを投稿できます。
+      </p>
+
+      <div class="guide-intro-card mt-8">
+        <article class="guide-intro-card__item setup-intro-card setup-intro-card--primary">
+          <h3>⏱ 所要時間の目安</h3>
+          <p>初回セットアップは <strong>約10分</strong>です。2回目以降はログイン不要でそのまま投稿できます。</p>
+          <p class="text-xs text-ink/50">ログイン 3分 · 拡張の導入 5分 · 接続確認 2分</p>
+        </article>
+        <article class="guide-intro-card__item setup-intro-card">
+          <h3>📋 この手順でできること</h3>
+          <ul class="setup-checklist">
+            <li>ShapeIt アプリへのログイン</li>
+            <li>Chrome 拡張の開発者モードでの導入</li>
+            <li>拡張とアプリのアカウント連携</li>
+            <li>SaaS 画面からの報告テスト</li>
+          </ul>
+        </article>
+      </div>
+
+      <GuideCallout variant="important" title="開発者モードについて">
+        <p>
+          現在は Chrome ウェブストアでの限定公開ではなく、<strong>開発者モードでの導入</strong>で運用しています。
+          拡張に更新が入ったときは、同じ手順で zip を入れ直すか、拡張の「更新」ボタンで反映してください。
+        </p>
+      </GuideCallout>
+    </div>
+  </section>
+
+  <div class="guide-shell">
+    <SetupToc variant="sidebar" />
+
+    <article class="guide-main">
+      <SetupToc variant="inline" />
+
+      <section class="guide-chapter" id="before">
+        <h2>はじめる前に</h2>
+        <p class="guide-lead" data-jp-wrap>
+          拡張は「Chrome の Google」とは別に、<strong>ShapeIt にログインしているアカウント</strong>で動きます。
+          次の2点だけ先に揃えておくと、あとがスムーズです。
+        </p>
+
+        <div class="guide-section" id="before-profile">
+          <h3>Chrome プロファイルを揃える</h3>
+          <p class="guide-lead">
+            仕事用・個人用など Chrome プロファイルが複数ある場合、<strong>ShapeIt を使うプロファイルと同じもの</strong>で拡張を入れてください。
+          </p>
+          <GuideCallout variant="warn">
+            <p>個人プロファイルで ShapeIt にログインし、仕事用プロファイルで拡張を使うと「未接続」になります。</p>
+          </GuideCallout>
+        </div>
+
+        <div class="guide-section" id="before-google">
+          <h3>Google アカウントを決める</h3>
+          <p class="guide-lead" data-jp-wrap>
+            <strong>普段 SaaS や Web アプリで使っている Google アカウント</strong>で ShapeIt に登録・ログインすることを推奨します。
+            同じアカウントで拡張と Web アプリが自動でつながり、毎回ログインし直す必要がありません。
+          </p>
+        </div>
+
+        <div class="guide-section" id="before-invite">
+          <h3>招待について</h3>
+          <p class="guide-lead">
+            メンバーは管理者から届いた<strong>招待リンク</strong>から参加します。誰でも自由に登録できる仕組みではありません。
+            招待が届いていない場合は、社内の ShapeIt 管理者に連絡してください。
+          </p>
+        </div>
+      </section>
+
+      <section class="guide-chapter" id="login">
+        <h2>ShapeIt にログインする</h2>
+
+        <div class="guide-section" id="login-invited">
+          <h3>招待済みメンバー（通常はこちら）</h3>
+          <ol class="guide-steps">
+            <li>
+              <strong>招待リンクを開く</strong>
+              <p>管理者から送られた URL を Chrome で開きます。</p>
+            </li>
+            <li>
+              <strong>Google でログイン</strong>
+              <p>
+                <a href={loginUrl}>アプリのログイン画面（拡張用）</a>
+                または招待画面から、普段使う Google アカウントを選びます。
+              </p>
+            </li>
+            <li>
+              <strong>表示名などを確認</strong>
+              <p>初回のみオンボーディング画面が出る場合があります。完了すると投稿画面が開きます。</p>
+            </li>
+          </ol>
+        </div>
+
+        <div class="guide-section" id="login-admin">
+          <h3>初めての管理者（会社の登録）</h3>
+          <p class="guide-lead">
+            会社の最初の管理者だけが、新規で組織を作成します。登録は <strong>Google アカウント必須</strong>です。
+          </p>
+          <ol class="guide-steps">
+            <li>
+              <strong>会社情報を入力</strong>
+              <p>
+                <a href={signupUrl}>会社を登録</a> から、お名前・会社名を入力します。
+              </p>
+            </li>
+            <li>
+              <strong>Google で会社を登録</strong>
+              <p>「Google で会社を登録して始める」を押し、よく使う Google を選びます。</p>
+            </li>
+            <li>
+              <strong>メンバーを招待</strong>
+              <p>設定 → メンバーから招待リンクを作成し、チームに共有します。</p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="guide-chapter" id="extension">
+        <h2>拡張を開発者モードで入れる</h2>
+        <p class="guide-lead">
+          Chrome ウェブストアを経由せず、社内配布用 zip を<strong>開発者モード</strong>で読み込みます。
+        </p>
+
+        <div class="guide-section" id="ext-download">
+          <h3>1. zip をダウンロード</h3>
+          <p class="guide-lead">次のいずれかから最新版を入手してください。</p>
+          <div class="setup-action-card">
+            <a class="setup-action-card__btn" href={extensionZipUrl} download>
+              拡張 zip をダウンロード
+            </a>
+            <p class="setup-action-card__hint">
+              または <a href={extensionInstallUrl}>アプリ内の拡張インストールページ</a> からもダウンロードできます。
+            </p>
+          </div>
+          <ol class="guide-steps">
+            <li>
+              <strong>zip を解凍</strong>
+              <p>ダウンロードした <code>shapeit-chrome-extension.zip</code> をフォルダに展開します（中に manifest.json があるフォルダが必要です）。</p>
+            </li>
+          </ol>
+        </div>
+
+        <div class="guide-section" id="ext-install">
+          <h3>2. Chrome に読み込む</h3>
+          <ol class="guide-steps">
+            <li>
+              <strong>拡張機能ページを開く</strong>
+              <p>Chrome のアドレスバーに <code>chrome://extensions</code> と入力して Enter。</p>
+            </li>
+            <li>
+              <strong>デベロッパーモードを ON</strong>
+              <p>画面右上の「デベロッパーモード」をオンにします。</p>
+            </li>
+            <li>
+              <strong>パッケージ化されていない拡張機能を読み込む</strong>
+              <p>「パッケージ化されていない拡張機能を読み込む」をクリックし、<strong>解凍したフォルダ</strong>を選びます。</p>
+            </li>
+            <li>
+              <strong>ツールバーにアイコンを出す</strong>
+              <p>ピン留めアイコンから ShapeIt をツールバーに固定すると便利です。</p>
+            </li>
+          </ol>
+          <GuideCallout variant="warn">
+            <p>ソースフォルダではなく、必ず <strong>解凍後のフォルダ</strong>（manifest.json が入っている階層）を選んでください。</p>
+          </GuideCallout>
+        </div>
+
+        <div class="guide-section" id="ext-update">
+          <h3>3. 更新があったとき</h3>
+          <ul class="guide-feature-list">
+            <li>
+              <strong>zip の再配布時</strong>
+              新しい zip を解凍し、<code>chrome://extensions</code> で同じ手順で読み込み直す（または拡張カードの「更新」）。
+            </li>
+            <li>
+              <strong>アプリのみ更新時</strong>
+              拡張の入れ直しは不要です。Web アプリを再読み込みすれば十分な場合があります。
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="guide-chapter" id="connect">
+        <h2>初回接続（1回だけ）</h2>
+        <p class="guide-lead">
+          拡張を入れた直後は、ShapeIt のログイン情報を拡張へ渡す<strong>初回接続</strong>が必要です。
+        </p>
+
+        <div class="guide-section" id="connect-google">
+          <h3>Google で接続する</h3>
+          <ol class="guide-steps">
+            <li>
+              <strong>ShapeIt を開く</strong>
+              <p>
+                <a href={captureUrl}>アプリを開く</a> し、Google でログイン済みであることを確認します。
+              </p>
+            </li>
+            <li>
+              <strong>拡張から接続画面を開く（未接続のとき）</strong>
+              <p>
+                拡張アイコンを押し「ShapeIt にログイン」が出たら、
+                <a href={loginUrl}>Google で接続画面</a> が開きます。同じ Google を選びます。
+              </p>
+            </li>
+            <li>
+              <strong>再接続ボタン（任意）</strong>
+              <p>
+                <a href={settingsUrl}>設定 → Chrome 拡張</a> の「拡張へ再接続」でも同期できます。
+              </p>
+            </li>
+          </ol>
+        </div>
+
+        <div class="guide-section" id="connect-check">
+          <h3>接続の確認</h3>
+          <ul class="guide-feature-list">
+            <li>拡張ポップアップに <strong>メールアドレス付き</strong>で「〇〇 で投稿します」と表示される</li>
+            <li>設定 → Chrome 拡張で「接続済み」と表示される</li>
+            <li>テスト投稿が受信箱に届く（次の章で試せます）</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="guide-chapter" id="daily">
+        <h2>日常の使い方</h2>
+
+        <div class="guide-section" id="daily-report">
+          <h3>画面から報告する</h3>
+          <ol class="guide-steps">
+            <li>
+              <strong>報告したい Web アプリを開く</strong>
+              <p>自社 SaaS、管理画面、社内ツールなど、通常の https ページで動作します。</p>
+            </li>
+            <li>
+              <strong>ShapeIt 拡張アイコンをクリック</strong>
+              <p>「範囲を選んで報告」または「全画面キャプチャ」を選びます。</p>
+            </li>
+            <li>
+              <strong>気づきを一言書いて送信</strong>
+              <p>URL・スクショは自動で付きます。<a href={captureUrl}>受信箱</a>で確認できます。</p>
+            </li>
+          </ol>
+          <GuideCallout variant="tip">
+            <p><code>chrome://</code> や Chrome ウェブストアなど、一部の特殊ページではキャプチャできません。</p>
+          </GuideCallout>
+        </div>
+
+        <div class="guide-section" id="daily-shortcut">
+          <h3>ショートカット</h3>
+          <p class="guide-lead">
+            <kbd class="setup-kbd">Alt</kbd> + <kbd class="setup-kbd">Shift</kbd> + <kbd class="setup-kbd">F</kbd>
+            で、範囲選択キャプチャと報告画面を素早く開けます（Windows）。Mac でも同じキー割り当てです。
+          </p>
+        </div>
+      </section>
+
+      <section class="guide-chapter" id="troubleshoot">
+        <h2>困ったとき</h2>
+        <div class="guide-table-wrap">
+          <table class="guide-table">
+            <thead>
+              <tr>
+                <th>症状</th>
+                <th>対処</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>「先にログイン…」と出る</td>
+                <td>
+                  ShapeIt を Google でログイン → 設定 → Chrome 拡張 →「拡張へ再接続」。または
+                  <a href={loginUrl}>接続用ログイン</a> を開く。
+                </td>
+              </tr>
+              <tr>
+                <td>拡張が「未検出」</td>
+                <td><code>chrome://extensions</code> で有効化・<code>dist</code> フォルダの読み込みを確認。</td>
+              </tr>
+              <tr>
+                <td>送信 401 エラー</td>
+                <td>ShapeIt タブを開き直してから拡張を再度開く。それでも失敗なら再接続。</td>
+              </tr>
+              <tr>
+                <td>別プロファイルで未接続</td>
+                <td>ShapeIt にログインしたプロファイルと同じ Chrome で拡張を使う。</td>
+              </tr>
+              <tr>
+                <td>鈴・通知が届かない</td>
+                <td>設定 → 通知を確認。詳細は <a href={`${guideUrl}#troubleshoot`}>使い方ガイド</a> を参照。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <GuideCallout variant="note">
+          <p>
+            操作の詳細・受信箱・ボードなどは
+            <a href={guideUrl}>ShapeIt 使い方ガイド</a> を参照してください。
+            社内の管理者・サポート担当が不明な場合は、ShapeIt 管理者にエスカレーションしてください。
+          </p>
+        </GuideCallout>
+      </section>
+    </article>
+  </div>
+</Layout>

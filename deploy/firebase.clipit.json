@@ -1,0 +1,44 @@
+{
+  "hosting": [
+    {
+      "target": "clipit-app",
+      "public": "dist/clipit-app",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [
+        {
+          "source": "/api/**",
+          "function": {
+            "functionId": "clipitApi",
+            "codebase": "clipit-api",
+            "region": "asia-northeast1"
+          }
+        },
+        { "source": "**", "destination": "/index.html" }
+      ],
+      "headers": [
+        {
+          "source": "**",
+          "headers": [
+            { "key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains; preload" },
+            { "key": "Content-Security-Policy", "value": "upgrade-insecure-requests" },
+            { "key": "X-Content-Type-Options", "value": "nosniff" },
+            { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+            { "key": "X-Robots-Tag", "value": "noindex, nofollow" }
+          ]
+        }
+      ]
+    }
+  ],
+  "functions": [
+    {
+      "source": "functions/clipit-api",
+      "codebase": "clipit-api",
+      "runtime": "nodejs22"
+    }
+  ],
+  "storage": { "rules": "storage.clipit.rules" },
+  "firestore": {
+    "rules": "firestore.clipit.rules",
+    "indexes": "firestore.clipit.indexes.json"
+  }
+}

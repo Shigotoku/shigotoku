@@ -1,0 +1,42 @@
+---
+import { guideToc, guideTocItemCount } from '../lib/guideToc';
+
+interface Props {
+  variant?: 'sidebar' | 'inline';
+}
+
+const { variant = 'sidebar' } = Astro.props;
+const itemCount = guideTocItemCount();
+const chapterCount = guideToc.length;
+---
+
+<nav class={`guide-toc guide-toc--${variant}`} aria-label="目次">
+  <div class="guide-toc__head">
+    <p class="guide-toc__eyebrow">目次</p>
+    <p class="guide-toc__meta">
+      {chapterCount} 章 · {itemCount} 項目
+    </p>
+  </div>
+  <ol class="guide-toc__list">
+    {
+      guideToc.map((chapter) => (
+        <li class="guide-toc__chapter">
+          <a href={`#${chapter.id}`} class="guide-toc__chapter-link">
+            {chapter.title}
+          </a>
+          {chapter.items && chapter.items.length > 0 && (
+            <ol class="guide-toc__items">
+              {chapter.items.map((item) => (
+                <li>
+                  <a href={`#${item.id}`} class="guide-toc__item-link">
+                    {item.label}
+                  </a>
+                </li>
+              ))}
+            </ol>
+          )}
+        </li>
+      ))
+    }
+  </ol>
+</nav>

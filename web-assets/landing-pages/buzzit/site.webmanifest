@@ -1,0 +1,18 @@
+{
+  "name": "BuzzIt（バジット）",
+  "short_name": "BuzzIt",
+  "description": "SNS運用を毎朝5分のルーティンで。BtoC店舗向けの経営OS。",
+  "start_url": "/buzzit/",
+  "display": "browser",
+  "background_color": "#fafafa",
+  "theme_color": "#4f46e5",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "/buzzit/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

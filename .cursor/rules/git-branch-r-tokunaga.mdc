@@ -1,0 +1,26 @@
+---
+description: 徳永（r.tokunaga）がこのリポジトリから push するときの Git ブランチ命名
+globs:
+alwaysApply: true
+---
+
+# Git ブランチ（徳永 / r.tokunaga）
+
+このワークスペースから **コミット・push する前**に、次を守る。
+
+1. **`main` へ直接 push しない**（PR 経由で merge）
+2. ブランチ名は **`r.tokunaga-YYYY-MM-DD`**（push する日の日付、例: `r.tokunaga-2026-06-03`）
+3. 同じ日に2本目以降なら **`r.tokunaga-YYYY-MM-DD-2`** のように連番
+4. 担当者向けの `runwith/` `buzzit/` ブランチは、ランウィズ・バジット担当の作業用。徳永の横断変更（`clipit/`、`deploy/`、`corporate-site/`、`docs/` など）は **`r.tokunaga-日付`** を使う
+
+手順:
+
+```bash
+git checkout main
+git pull origin main
+git checkout -b r.tokunaga-YYYY-MM-DD
+# コミット後
+git push -u origin r.tokunaga-YYYY-MM-DD
+```
+
+詳細: `docs/GIT-TEAM-WORKFLOW.md` §5

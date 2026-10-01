@@ -1,0 +1,219 @@
+{
+  "package": "MediToku Slide Studio Cursor Handoff",
+  "version": "1.0",
+  "date": "2026-10-01",
+  "legacy_current": "GAS v5.1.6",
+  "target": "GCP SaaS / Next.js / TypeScript / Cloud Run",
+  "files": [
+    {
+      "path": ".cursor_rules.md",
+      "bytes": 1163,
+      "sha256": "6c88a8c285829addc53e1666738df1d05496c6e8bac5b487e3d73dccce9f2111"
+    },
+    {
+      "path": "00_README_FIRST.md",
+      "bytes": 1187,
+      "sha256": "9689bf0a33f7ed10f78aca67c9455ec3ec753ca410c82c31386484975eab6dc6"
+    },
+    {
+      "path": "architecture/ARCHITECTURE_v5.md",
+      "bytes": 1279,
+      "sha256": "f7d735b436bdd0104c42e8d98d8ed4a967cc72d4e1cdcfd8a76410fc10f9fa7d"
+    },
+    {
+      "path": "docs/01_MASTER_REQUIREMENTS.md",
+      "bytes": 18465,
+      "sha256": "3f9f4629210226b26f6e4416c089fe3b26303523f8f7c847b763d42a27d0fb3d"
+    },
+    {
+      "path": "docs/02_CURSOR_IMPLEMENTATION_PLAN.md",
+      "bytes": 1252,
+      "sha256": "4e48da652efe2c7002cea03c7745930195ef2873f1b1b7a4ae8b9d89eb999148"
+    },
+    {
+      "path": "docs/03_DATA_MODEL.md",
+      "bytes": 1631,
+      "sha256": "b7090714098f1d32467943ead742442aa888653a353ca4e3844d6379ba47b315"
+    },
+    {
+      "path": "docs/04_API_SPEC.md",
+      "bytes": 895,
+      "sha256": "500b6fd73e8bdf1b76d3e6bd5653e376f1e27e85e154f308571b6cf06a9e2abd"
+    },
+    {
+      "path": "docs/05_UI_UX_SPEC.md",
+      "bytes": 843,
+      "sha256": "bb7dad469069513da08c27542435ac7be4a30e13325c7365bb042ce03ab1ef41"
+    },
+    {
+      "path": "docs/06_GAS_TO_GCP_MAPPING.md",
+      "bytes": 3194,
+      "sha256": "e5752720a35816a0d79a0cbc8def925fc2b22418bfa1d2955880d5a32af852e0"
+    },
+    {
+      "path": "docs/07_SECURITY_OAUTH.md",
+      "bytes": 671,
+      "sha256": "950a05e2b2c91f3e91c18fd297e747b0d3d2973776e2eaeed84387ca04d8ce66"
+    },
+    {
+      "path": "docs/08_TEST_ACCEPTANCE.md",
+      "bytes": 689,
+      "sha256": "0e30476bc488960ca0d3f8364a5619316d73e1d0acdd2f127d35c28fa66d73e8"
+    },
+    {
+      "path": "docs/09_ROADMAP.md",
+      "bytes": 557,
+      "sha256": "439db4f84e35d709da9872f89683ecc0061bf3bf233874e0b503154aeafdac97"
+    },
+    {
+      "path": "docs/MediToku_Slide_Studio_GCP_Requirements_Cursor_Handoff.docx",
+      "bytes": 49542,
+      "sha256": "c5a7d69010ae4726db2ea8a6895dc46b75dd3cf7afac5ef0f1f8d380c707c615"
+    },
+    {
+      "path": "docs/UX_GUIDE_v51.md",
+      "bytes": 651,
+      "sha256": "1e5fc2172e2e26a0771d58a967a0f7068d00521accef440426b049897abbc326"
+    },
+    {
+      "path": "legacy_gas/current/Code.gs",
+      "bytes": 83075,
+      "sha256": "d8a2bacaf833224b7e0321dadb92ec22cb9891262ae476582e1dfc9320b335b4"
+    },
+    {
+      "path": "legacy_gas/current/Index.html",
+      "bytes": 80345,
+      "sha256": "92a7a236b5ba9e45ab6532943273b539c942a6fdd46a2b192b6fe70a3412cb01"
+    },
+    {
+      "path": "legacy_gas/current/appsscript.json",
+      "bytes": 355,
+      "sha256": "3fa9b190839201c984bc4cc9a84e7725ff4ef26255eb96f79866ce628635ac56"
+    },
+    {
+      "path": "legacy_gas/history/MediToku_Slide_Studio_MVP.zip",
+      "bytes": 11703,
+      "sha256": "81a0c7ee7d776e8587897a0a47d5c6f16b00f3122988b6e5fe376eb6221cd9e4"
+    },
+    {
+      "path": "legacy_gas/history/MediToku_Slide_Studio_v2.zip",
+      "bytes": 14235,
+      "sha256": "0c9fb42adf55c24c2186aa9484683cadfb4c5465316455adefbedaf6a663b9ed"
+    },
+    {
+      "path": "legacy_gas/history/MediToku_Slide_Studio_v3.zip",
+      "bytes": 21892,
+      "sha256": "7b69b22c9b25c0c1a8a79d5437626ed0a53ffa230370c77754c0987cf25b83b1"
+    },
+    {
+      "path": "legacy_gas/history/MediToku_Slide_Studio_v33_files.zip",
+      "bytes": 25656,
+      "sha256": "546e4ede6665fff764b0c449a95fdae0b8001f7e0dfbb71a67fe7bda6e7cf72e"
+    },
+    {
+      "path": "legacy_gas/history/MediToku_Slide_Studio_v34_progress_fix.zip",
+      "bytes": 27831,
+      "sha256": "be56acf41277c4cdcc11c5ed3b77e2f275b4be9716efbcbb746ba8102c59a822"
+    },
+    {
+      "path": "legacy_gas/history/MediToku_Slide_Studio_v3_全コード.txt",
+      "bytes": 52810,
+      "sha256": "0d800e59fc3a7ab5f0edbd1fe850e929b9d69f8e8c73191816fef10733b8b5a9"
+    },
+    {
+      "path": "legacy_gas/history/MediToku_Slide_Studio_v40_SaaS_UI.zip",
+      "bytes": 25407,
+      "sha256": "d141baacb6a41ac6b3c65b34475f794587e98fcd04fbf0f245f7bda1d413b8d3"
+    },
+    {
+      "path": "legacy_gas/history/MediToku_Slide_Studio_v411_style_init_fix.zip",
+      "bytes": 31050,
+      "sha256": "b1c3cbf5cd3bdef5915995aacb3ea6d7e0d7a96fbb11c2dcf1c35145fc26b7fb"
+    },
+    {
+      "path": "legacy_gas/history/MediToku_Slide_Studio_v41_styles.zip",
+      "bytes": 30819,
+      "sha256": "594279c477598b6e95ee1004f4801153e5108dd95abfcbbc2e7549990fa97093"
+    },
+    {
+      "path": "legacy_gas/history/MediToku_Slide_Studio_v42_UI_UX_fix.zip",
+      "bytes": 33246,
+      "sha256": "297f06e7cc1a2ba74d1b8520fa5327d52f0fde637dd67f974d5ebbfc95327292"
+    },
+    {
+      "path": "legacy_gas/history/MediToku_Slide_Studio_v43_stability_audit.zip",
+      "bytes": 34708,
+      "sha256": "8e9d48127687bbaf913989641ac7eab1faa76e8f03fc5a64e950c0b419f070aa"
+    },
+    {
+      "path": "legacy_gas/history/MediToku_Slide_Studio_v44_UX_polish.zip",
+      "bytes": 36706,
+      "sha256": "f1e58d8e297b43d77004aff91d2dd11273f63cb00ee04bef5e0bb5014381941f"
+    },
+    {
+      "path": "legacy_gas/history/MediToku_Slide_Studio_v50_futureproof.zip",
+      "bytes": 41405,
+      "sha256": "0ddf9444505ecede052dffede35669fe7db3b2cfb8810c3ac0199b361aaf1e28"
+    },
+    {
+      "path": "legacy_gas/history/MediToku_Slide_Studio_v511_click_hotfix.zip",
+      "bytes": 41638,
+      "sha256": "84a4a4d59d34ca3e8b27d85bdb4a65db499401c4ccc4efb9d4d5590a5580fe5e"
+    },
+    {
+      "path": "legacy_gas/history/MediToku_Slide_Studio_v512_boot_fix.zip",
+      "bytes": 41805,
+      "sha256": "434e5b550daf746fad16c955ab3fa10e1250059749fb122971a3d12438549154"
+    },
+    {
+      "path": "legacy_gas/history/MediToku_Slide_Studio_v513_robust_boot.zip",
+      "bytes": 42666,
+      "sha256": "a7f04a8aecd935138ab7c29969876354a895e4e76b93c9e57ad708b89032e618"
+    },
+    {
+      "path": "legacy_gas/history/MediToku_Slide_Studio_v514_single_boot.zip",
+      "bytes": 42890,
+      "sha256": "c5e89ffc16d33965086e3662c80de0a42c64a0cbcdcf538709a933020953d5de"
+    },
+    {
+      "path": "legacy_gas/history/MediToku_Slide_Studio_v515_server_first.zip",
+      "bytes": 43996,
+      "sha256": "1dfd167033bb6994ef48ae0d150e744040155bdf7abb0b0e49afda8543d689d1"
+    },
+    {
+      "path": "legacy_gas/history/MediToku_Slide_Studio_v516_fast_modal_fix.zip",
+      "bytes": 44118,
+      "sha256": "234effe392fefab1fb9e79da3fa738a3f2e1ba48d1e75a54953a3eaeb2a514b5"
+    },
+    {
+      "path": "legacy_gas/history/MediToku_Slide_Studio_v51_UI_polish.zip",
+      "bytes": 41749,
+      "sha256": "5ae00c0a01bd2e6bdefaf8ad42be7d6096091478a60124819dd012ba194ac171"
+    },
+    {
+      "path": "reference_screenshots/v40_good_ui.png",
+      "bytes": 144641,
+      "sha256": "81245d27f8da64638bae1970eb28f17a65bc2fae9ff21b2a2edf1613f89bbd14"
+    },
+    {
+      "path": "reference_screenshots/v42_layout_issue.png",
+      "bytes": 267832,
+      "sha256": "13cf2c5630a19bda0696c9be0508bcd0004a6228421d5b52838025c564c15659"
+    },
+    {
+      "path": "reference_screenshots/v514_nonresponsive.png",
+      "bytes": 180498,
+      "sha256": "8f5ad1a379fe9875c4cf4c8d442ad25e85fb68a05b9c5dd782e89b16897ce489"
+    },
+    {
+      "path": "reference_screenshots/v515_drive_visible.png",
+      "bytes": 201574,
+      "sha256": "1b6899d5e777cc15772e2b550baa20bbe72ff5b0158c36cd8ac1018a79f5b2d4"
+    },
+    {
+      "path": "reference_screenshots/v515_whiteout_issue.png",
+      "bytes": 46289,
+      "sha256": "0507fbec473695f6e8472ef512b74e1325706dd1ec4e2f7056bfad9743ddad22"
+    }
+  ]
+}

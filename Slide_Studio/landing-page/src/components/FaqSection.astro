@@ -1,0 +1,40 @@
+---
+const faqs = [
+  {
+    q: 'DeckIt と Google Slides の関係は？',
+    a: 'DeckIt は資料づくりのスタジオです。完成物は Google Slides としてあなたの Google Drive に保存され、以降はいつも通り Slides で編集・共有できます。',
+  },
+  {
+    q: '元資料はどこに置けますか？',
+    a: 'Google Drive 上の資料を前提としています。プロジェクト単位で元資料・Style・Reference を整理し、再利用しやすくします。',
+  },
+  {
+    q: 'Style と Reference の違いは？',
+    a: 'Style は色・レイアウト・ルールなど「型」。Reference は「この完成資料の雰囲気に近づけたい」というお手本です。両方を組み合わせて、ブレの少ない出力を目指します。',
+  },
+  {
+    q: 'ログイン方法は？',
+    a: 'Google アカウントでログインします。Drive / Slides 連携のため、ご利用の Google ワークスペースまたは個人アカウントをお使いください。',
+  },
+  {
+    q: '料金は？',
+    a: '公開プランは準備中です。まずは Google ログインでアプリをお試しください。法人・チーム向けの詳細は順次案内します。',
+  },
+];
+---
+
+<section id="faq" class="deckit-section--lg bg-deck-panel">
+  <div class="mx-auto max-w-3xl px-4 sm:px-6">
+    <div class="text-center">
+      <h2 class="deckit-h2 font-bold text-deck-text" data-jp-heading>よくある質問</h2>
+    </div>
+    <dl class="mt-8 space-y-3 sm:mt-10 sm:space-y-4">
+      {faqs.map((item) => (
+        <div class="rounded-xl border border-deck-line bg-deck-bg px-4 py-4 sm:px-6 sm:py-5">
+          <dt class="text-sm font-bold text-deck-text sm:text-base" data-jp-wrap>{item.q}</dt>
+          <dd class="deckit-body mt-2 text-deck-muted" data-jp-wrap>{item.a}</dd>
+        </div>
+      ))}
+    </dl>
+  </div>
+</section>

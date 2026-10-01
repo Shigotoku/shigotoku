@@ -1,0 +1,34 @@
+---
+type Variant = 'tip' | 'note' | 'warn' | 'important';
+
+interface Props {
+  variant?: Variant;
+  title?: string;
+}
+
+const { variant = 'tip', title } = Astro.props;
+
+const labels: Record<Variant, string> = {
+  tip: 'ヒント',
+  note: 'メモ',
+  warn: '注意',
+  important: '重要',
+};
+
+const icons: Record<Variant, string> = {
+  tip: '💡',
+  note: '📌',
+  warn: '⚠️',
+  important: '❗',
+};
+---
+
+<aside class={`guide-callout guide-callout--${variant}`} role="note">
+  <p class="guide-callout__label">
+    <span aria-hidden="true">{icons[variant]}</span>
+    {title ?? labels[variant]}
+  </p>
+  <div class="guide-callout__body">
+    <slot />
+  </div>
+</aside>

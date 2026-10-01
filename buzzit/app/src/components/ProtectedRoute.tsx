@@ -6,7 +6,7 @@ export default function ProtectedRoute() {
 
   if (initializing) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f5f4f0] text-neutral-500">
+      <div className="flex min-h-screen items-center justify-center bg-neutral-50 text-neutral-500">
         読み込み中...
       </div>
     );

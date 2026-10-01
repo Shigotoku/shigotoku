@@ -1,0 +1,86 @@
+{
+  "manifest_version": 3,
+  "name": "ShapeIt - 気づきを投稿",
+  "version": "0.4.3",
+  "description": "全画面・範囲選択スクショ、音声入力、ワンキー報告。気づきを最短で ShapeIt に届けます。",
+  "permissions": ["activeTab", "storage", "tabs", "scripting", "notifications", "alarms"],
+  "host_permissions": [
+    "https://app.shapeit.shigotoku.com/*",
+    "https://shigotoku-shapeit-app.web.app/*",
+    "https://asia-northeast1-shigotoku-shapeit-prod.cloudfunctions.net/*",
+    "http://localhost/*",
+    "<all_urls>"
+  ],
+  "icons": {
+    "16": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  },
+  "action": {
+    "default_title": "ShapeIt に報告",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon.png",
+      "48": "icon.png",
+      "128": "icon.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "commands": {
+    "full-report": {
+      "suggested_key": {
+        "default": "Alt+Shift+G",
+        "mac": "Alt+Shift+G"
+      },
+      "description": "全画面スクショ → 話す → 送信"
+    },
+    "region-report": {
+      "suggested_key": {
+        "default": "Alt+Shift+S",
+        "mac": "Alt+Shift+S"
+      },
+      "description": "範囲選択 → 話す → 送信"
+    },
+    "comment-report": {
+      "suggested_key": {
+        "default": "Alt+Shift+C",
+        "mac": "Alt+Shift+C"
+      },
+      "description": "スクショなし → 話す → 送信"
+    },
+    "annotate-report": {
+      "suggested_key": {
+        "default": "Alt+Shift+F",
+        "mac": "Alt+Shift+F"
+      },
+      "description": "範囲選択 → 詳しく編集"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://app.shapeit.shigotoku.com/*",
+        "https://shigotoku-shapeit-app.web.app/*",
+        "http://localhost:5178/*",
+        "http://127.0.0.1:5178/*"
+      ],
+      "js": ["contentBridge.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "exclude_matches": [
+        "https://app.shapeit.shigotoku.com/*",
+        "https://shigotoku-shapeit-app.web.app/*",
+        "http://localhost:5178/*",
+        "http://127.0.0.1:5178/*"
+      ],
+      "js": ["pageReporter.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "options_page": "onboarding.html"
+}

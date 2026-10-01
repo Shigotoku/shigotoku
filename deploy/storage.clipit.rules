@@ -1,0 +1,26 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // ロゴ（PDF出力用）
+    match /clipit/logos/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.resource.size < 2 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    // マニュアルのスクショ・マスク確定画像（公開閲覧のため read 許可）
+    match /clipit/manuals/{manualId}/{fileName=**} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.resource.size < 12 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    // 生成PDF
+    match /clipit/pdf/{manualId}/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+  }
+}

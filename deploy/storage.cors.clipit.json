@@ -1,0 +1,8 @@
+[
+  {
+    "origin": ["https://app.clipit.shigotoku.com", "http://localhost:5173", "http://localhost:5176"],
+    "method": ["GET", "HEAD"],
+    "maxAgeSeconds": 3600,
+    "responseHeader": ["Content-Type", "Content-Length"]
+  }
+]

@@ -171,6 +171,7 @@ footer h2 {
   position: absolute;
   inset: 0;
   z-index: 0;
+  overflow: hidden;
 }
 
 .buzz-hero-bg img {
@@ -179,6 +180,23 @@ footer h2 {
   height: 100%;
   object-fit: cover;
   object-position: center 40%;
+}
+
+.buzz-hero-bg--animated img {
+  width: 115%;
+  height: 115%;
+  max-width: none;
+  animation: buzz-hero-ken-burns 32s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+@keyframes buzz-hero-ken-burns {
+  0% {
+    transform: scale(1) translate(0, 0);
+  }
+  100% {
+    transform: scale(1.06) translate(-1.5%, -0.8%);
+  }
 }
 
 .buzz-hero-scrim {
@@ -215,11 +233,17 @@ footer h2 {
 
 @media (prefers-reduced-motion: reduce) {
   .animate-on-scroll,
-  .buzz-photo-strip-track {
+  .buzz-photo-strip-track,
+  .buzz-hero-bg--animated img {
     animation: none !important;
     transition: none !important;
     opacity: 1 !important;
     transform: none !important;
+  }
+
+  .buzz-hero-bg--animated img {
+    width: 100%;
+    height: 100%;
   }
 }
 

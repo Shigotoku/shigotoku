@@ -1,0 +1,37 @@
+---
+const cases = [
+  {
+    title: '営業・提案資料',
+    body: '過去の勝ち筋スライドを Reference に。案件ごとの元資料から素早く提案書を。',
+  },
+  {
+    title: '学会・研究発表',
+    body: '論文やメモを元に構成し、用途別 Style で統一感のある発表資料を。',
+  },
+  {
+    title: '経営会議・社内共有',
+    body: '会社 Style を locked ルールとして共有し、部門横断で同じトーンに。',
+  },
+  {
+    title: '個人の発信・ピッチ',
+    body: '個人 Style を育て、VC 向け資料も自分の言語で短時間に。',
+  },
+];
+---
+
+<section class="deckit-section border-t border-deck-line bg-deck-bg">
+  <div class="mx-auto max-w-6xl px-4 sm:px-6">
+    <div class="text-center">
+      <p class="text-xs font-semibold uppercase tracking-widest text-deck-accent sm:text-sm">Use cases</p>
+      <h2 class="deckit-h2 mt-3 font-bold text-deck-text" data-jp-heading>こんな場面で</h2>
+    </div>
+    <div class="deckit-grid-safe mt-8 grid gap-3 sm:grid-cols-2 sm:gap-5">
+      {cases.map((c) => (
+        <div class="rounded-xl border border-deck-line bg-deck-panel p-5 sm:p-6">
+          <h3 class="deckit-h3 font-bold text-deck-text" data-jp-heading>{c.title}</h3>
+          <p class="deckit-body mt-2 text-deck-muted" data-jp-wrap>{c.body}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>

@@ -3,6 +3,15 @@ export const RUNWITH_LP = import.meta.env.PUBLIC_RUNWITH_LP_URL ?? '/runwith/';
 export const RUNWITH_APP = import.meta.env.PUBLIC_RUNWITH_APP_URL ?? 'https://app.runwith.shigotoku.com';
 export const BUZZIT_LP = import.meta.env.PUBLIC_BUZZIT_LP_URL ?? '/buzzit/';
 export const BUZZIT_APP = import.meta.env.PUBLIC_BUZZIT_APP_URL ?? 'https://app.buzzit.shigotoku.com';
+export const CLIPIT_LP = import.meta.env.PUBLIC_CLIPIT_LP_URL ?? '/clipit/';
+export const CLIPIT_APP = import.meta.env.PUBLIC_CLIPIT_APP_URL ?? 'https://app.clipit.shigotoku.com';
+
+/** Formspree フォーム ID（お問い合わせメール送信用） */
+export const FORMSPREE_FORM_ID = import.meta.env.PUBLIC_FORMSPREE_FORM_ID ?? '';
+
+function appRoot(url: string) {
+  return url.replace(/\/$/, '');
+}
 
 export function runwithPath(path: string) {
   const base = RUNWITH_LP.endsWith('/') ? RUNWITH_LP.slice(0, -1) : RUNWITH_LP;
@@ -10,5 +19,17 @@ export function runwithPath(path: string) {
 }
 
 export function runwithAppPath(path: string) {
-  return `${RUNWITH_APP}${path.startsWith('/') ? path : `/${path}`}`;
+  return `${appRoot(RUNWITH_APP)}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
+export function runwithLoginUrl() {
+  return `${appRoot(RUNWITH_APP)}/login`;
+}
+
+export function buzzitLoginUrl() {
+  return `${appRoot(BUZZIT_APP)}/login`;
+}
+
+export function clipitLoginUrl() {
+  return `${appRoot(CLIPIT_APP)}/login`;
 }

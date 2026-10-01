@@ -47,3 +47,28 @@ export function assignableRoles(actorRole: string | null | undefined): Exclude<S
   if (actorRole === 'manager') return ['staff'];
   return [];
 }
+
+/** スタッフはネタ投稿・下書き中心。店長/オーナーは承認・配信・設定 */
+export function canApprovePosts(role: string | null | undefined): boolean {
+  return role == null || role === 'owner' || role === 'manager';
+}
+
+export function canManageLineCrm(role: string | null | undefined): boolean {
+  return role == null || role === 'owner' || role === 'manager';
+}
+
+export function canEditSettings(role: string | null | undefined): boolean {
+  return role == null || role === 'owner' || role === 'manager';
+}
+
+export function canPublishBroadcast(role: string | null | undefined): boolean {
+  return role == null || role === 'owner' || role === 'manager';
+}
+
+export function canSubmitIdeas(_role: string | null | undefined): boolean {
+  return true;
+}
+
+export function isStaffOnly(role: string | null | undefined): boolean {
+  return role === 'staff';
+}

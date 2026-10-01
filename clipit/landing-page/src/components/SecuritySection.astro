@@ -1,0 +1,44 @@
+---
+const items = [
+  {
+    title: '手動マスキング + 公開前確認',
+    body: 'AIの自動マスキングに頼らず、黒塗り・モザイクと「隠し忘れ確認」で医療・個人情報に配慮。',
+  },
+  {
+    title: '共有URLは検索に載せない',
+    body: '院内・社内向けの共有ページは noindex が既定。検索エンジンに載せません。',
+  },
+  {
+    title: 'Google Cloud（Firebase）で運用',
+    body: '認証・DB・ストレージは GCP 上。日本リージョン（東京）で API を稼働。',
+  },
+  {
+    title: '閲覧者はログイン不要',
+    body: '現場スタッフは QR や URL だけで閲覧。アカウント不要でハードルを下げます。',
+  },
+];
+---
+
+<section id="security" class="clipit-section border-y border-slate-100 bg-white py-12 sm:py-20">
+  <div class="mx-auto max-w-7xl px-4 sm:px-6">
+    <div class="text-center">
+      <p class="text-sm font-semibold uppercase tracking-widest text-primary-600">Security</p>
+      <h2 class="clipit-h2 mt-3 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl" data-jp-heading>安心して使える設計</h2>
+      <p class="clipit-lead mt-3 text-base text-slate-600 sm:mt-4" data-jp-wrap>クリニック・士業・中小企業が気にするポイントを、最初から織り込んでいます。</p>
+    </div>
+    <div class="clipit-grid-safe mt-8 grid gap-4 sm:mt-12 sm:grid-cols-2 sm:gap-6">
+      {items.map((item) => (
+        <div class="rounded-2xl border border-slate-200 bg-slate-50/50 p-6">
+          <h3 class="text-base font-bold text-slate-900">{item.title}</h3>
+          <p class="mt-2 text-sm leading-relaxed text-slate-600">{item.body}</p>
+        </div>
+      ))}
+    </div>
+    <p class="mt-8 text-center text-sm text-slate-500">
+      <a href="https://shigotoku.com/security/" class="font-semibold text-primary-600 hover:underline">
+        株式会社シゴトクのセキュリティ方針
+      </a>
+      をご確認ください。
+    </p>
+  </div>
+</section>

@@ -1,0 +1,196 @@
+import { useEffect, useState } from "react";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import {
+  LayoutDashboard,
+  FilePlus2,
+  LayoutTemplate,
+  Users,
+  Settings,
+  LogOut,
+  ExternalLink,
+  RefreshCw,
+  FolderOpen,
+  Menu,
+  X,
+  Puzzle,
+} from "lucide-react";
+import UsageNearLimitBanner from "../components/UsageNearLimitBanner";
+import { useAuth } from "../components/AuthProvider";
+import { signOutUser } from "../lib/firebase";
+import { landingPath } from "../lib/urls";
+import { useOrg } from "../context/OrgContext";
+
+const nav = [
+  { to: "/dashboard", label: "ダッシュボード", icon: LayoutDashboard },
+  { to: "/manuals", label: "マニュアル一覧", icon: FolderOpen },
+  { to: "/manuals/new", label: "新しく作る", icon: FilePlus2 },
+  { to: "/bulk-update", label: "まとめて修正", icon: RefreshCw },
+  { to: "/templates", label: "テンプレート", icon: LayoutTemplate },
+  { to: "/team", label: "スタッフ", icon: Users },
+  { to: "/extension/install", label: "Chrome拡張", icon: Puzzle },
+  { to: "/settings", label: "設定", icon: Settings },
+];
+
+const mobileNav = [
+  { to: "/dashboard", label: "ホーム", icon: LayoutDashboard },
+  { to: "/manuals", label: "一覧", icon: FolderOpen },
+  { to: "/manuals/new", label: "作成", icon: FilePlus2 },
+  { to: "/settings", label: "設定", icon: Settings },
+];
+
+function isNavItemActive(pathname: string, to: string): boolean {
+  if (to === "/manuals/new") {
+    return pathname === "/manuals/new" || pathname.startsWith("/manuals/new/");
+  }
+  if (to === "/manuals") {
+    if (pathname.startsWith("/manuals/new")) return false;
+    return pathname === "/manuals" || /^\/manuals\/[^/]+/.test(pathname);
+  }
+  return pathname === to || pathname.startsWith(`${to}/`);
+}
+
+function navLinkClass(active: boolean, mobile = false): string {
+  if (mobile) {
+    return `flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium ${
+      active ? "bg-primary-50 text-primary-700" : "text-slate-700"
+    }`;
+  }
+  return `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+    active ? "bg-primary-50 text-primary-700" : "text-slate-600 hover:bg-slate-100"
+  }`;
+}
+
+export default function AppLayout() {
+  const { user, demoMode } = useAuth();
+  const { organization, error: orgError, loading: orgLoading } = useOrg();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (demoMode || orgLoading || !organization) return;
+    if (!organization.onboardingCompleted && location.pathname !== "/setup") {
+      navigate("/setup", { replace: true });
+    }
+  }, [demoMode, orgLoading, organization, location.pathname, navigate]);
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [location.pathname]);
+
+  const handleSignOut = async () => {
+    if (!demoMode) await signOutUser();
+    navigate("/login");
+  };
+
+  return (
+    <div className="flex min-h-screen bg-slate-50">
+      <aside className="hidden w-60 shrink-0 flex-col border-r border-slate-200 bg-white md:flex">
+        <div className="flex items-center gap-2.5 px-5 py-5">
+          <span className="clipit-icon-frame h-9 w-9 shrink-0">
+            <img src="/icon.png" alt="クリッピット" className="clipit-brand-icon h-full w-full object-contain" />
+          </span>
+          <span className="text-base font-bold tracking-tight text-slate-900">クリッピット</span>
+        </div>
+        <nav className="flex-1 space-y-1 px-3">
+          {nav.map(({ to, label, icon: Icon }) => {
+            const active = isNavItemActive(location.pathname, to);
+            return (
+              <NavLink key={to} to={to} className={navLinkClass(active)}>
+                <Icon size={18} />
+                {label}
+              </NavLink>
+            );
+          })}
+        </nav>
+        <div className="border-t border-slate-200 p-3">
+          <a
+            href={landingPath("/")}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-500 hover:bg-slate-100"
+          >
+            <ExternalLink size={18} />
+            サービスサイトへ
+          </a>
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-500 hover:bg-slate-100"
+          >
+            <LogOut size={18} />
+            ログアウト
+          </button>
+          <p className="mt-2 truncate px-3 text-xs text-slate-400">
+            {demoMode ? "デモモード" : user?.email ?? ""}
+          </p>
+        </div>
+      </aside>
+
+      {menuOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <button type="button" className="absolute inset-0 bg-slate-900/40" onClick={() => setMenuOpen(false)} aria-label="閉じる" />
+          <div className="absolute bottom-0 left-0 right-0 max-h-[70vh] overflow-y-auto rounded-t-2xl bg-white p-4 shadow-xl">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-sm font-bold text-slate-900">メニュー</span>
+              <button type="button" onClick={() => setMenuOpen(false)} className="text-slate-400">
+                <X size={20} />
+              </button>
+            </div>
+            <nav className="space-y-1">
+              {nav.map(({ to, label, icon: Icon }) => {
+                const active = isNavItemActive(location.pathname, to);
+                return (
+                  <NavLink key={to} to={to} className={navLinkClass(active, true)}>
+                    <Icon size={18} />
+                    {label}
+                  </NavLink>
+                );
+              })}
+            </nav>
+          </div>
+        </div>
+      )}
+
+      <nav className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-slate-200 bg-white/95 backdrop-blur md:hidden">
+        {mobileNav.map(({ to, label, icon: Icon }) => {
+          const active = isNavItemActive(location.pathname, to);
+          return (
+            <NavLink
+              key={to}
+              to={to}
+              className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-semibold ${
+                active ? "text-primary-600" : "text-slate-500"
+              }`}
+            >
+              <Icon size={20} />
+              {label}
+            </NavLink>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => setMenuOpen(true)}
+          className="flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-semibold text-slate-500"
+        >
+          <Menu size={20} />
+          もっと見る
+        </button>
+      </nav>
+
+      <main className="flex-1 overflow-x-clip pb-16 md:pb-0">
+        <UsageNearLimitBanner />
+        {orgError && (
+          <div className="border-b border-danger-200 bg-danger-50 px-4 py-2 text-sm text-danger-700">{orgError}</div>
+        )}
+        {orgLoading ? (
+          <div className="flex h-40 items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary-200 border-t-primary-500" />
+          </div>
+        ) : (
+          <Outlet />
+        )}
+      </main>
+    </div>
+  );
+}

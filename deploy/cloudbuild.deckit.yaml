@@ -1,0 +1,36 @@
+# DeckIt → Artifact Registry（ローカル Docker 不要）
+substitutions:
+  _IMAGE: asia-northeast1-docker.pkg.dev/shigotoku-deckit-prod/deckit/deckit-app:latest
+  _MODE: firebase
+  _API_KEY: ''
+  _AUTH_DOMAIN: shigotoku-deckit-prod.firebaseapp.com
+  _PROJECT_ID: shigotoku-deckit-prod
+  _STORAGE_BUCKET: shigotoku-deckit-prod.firebasestorage.app
+  _MESSAGING_SENDER_ID: ''
+  _APP_ID: ''
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - Slide_Studio/Dockerfile
+      - -t
+      - ${_IMAGE}
+      - --build-arg
+      - NEXT_PUBLIC_DECKIT_DATA_MODE=${_MODE}
+      - --build-arg
+      - NEXT_PUBLIC_FIREBASE_API_KEY=${_API_KEY}
+      - --build-arg
+      - NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${_AUTH_DOMAIN}
+      - --build-arg
+      - NEXT_PUBLIC_FIREBASE_PROJECT_ID=${_PROJECT_ID}
+      - --build-arg
+      - NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${_STORAGE_BUCKET}
+      - --build-arg
+      - NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${_MESSAGING_SENDER_ID}
+      - --build-arg
+      - NEXT_PUBLIC_FIREBASE_APP_ID=${_APP_ID}
+      - .
+images:
+  - ${_IMAGE}

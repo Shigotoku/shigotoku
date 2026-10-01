@@ -268,20 +268,55 @@ oauthStates/{state}
 ### Phase 2 — LINE ブロードキャスト ✅
 ### Phase 3 — 承認キュー + Auto Mode ✅
 
-### Phase 4 — ボイスドラフト + GBP連携 🔵 着手中
+### Phase 4 — ボイスドラフト + GBP連携 ✅
 
-- アプリ内 MediaRecorder 録音 UI（実装）
-- `/v1/voice-draft` API（Gemini マルチモーダル、スケルトン）
-- GBP OAuth UI（実装、API はスケルトン）
-- 設定ページ刷新（GBP / HPB / セグメント追加）
+- アプリ内 MediaRecorder 録音 UI ✅
+- `/v1/voice-draft` API（Gemini マルチモーダル） ✅
+- GBP OAuth（`/v1/oauth/google/start` + `callback`） ✅
+- GBP 投稿 API（`publishGbpLocalPost`） ✅ — `GOOGLE_OAUTH_*` 必須
+- 設定ページ（GBP / HPB / セグメント） ✅
 
-### Phase 5 — HPB連携 + LINEセグメント高度化 ⚪ 計画
+### Phase 5 — HPB連携 + LINEセグメント高度化 ✅（UI 一部改善余地）
 
-### Phase 6 — MEOダッシュボード + クチコミ管理 ⚪ 計画
+- HPB 店舗URL + `hpbTrackingEnabled` ✅
+- HPB 専用 UTM + クリック時寄与集計 ✅
+- LINE CRM（タグ・流入・セグメント・ステップ・リッチメニュー） ✅
+- セグメント条件ビルダー UI ✅
+- 自動タグルール UI ✅
+- アンケート（postback）UI ✅
 
-### Phase 7 — 多店舗統合 / Enterprise ⚪ 構想
+### Phase 6 — MEOダッシュボード + クチコミ管理 ✅
 
-### Phase 8 — AIエージェント（Gemini Live） ⚪ 構想
+- `/meo` ページ（閲覧数・クチコミ・AI返信ドラフト） ✅
+- `/v1/gbp/insights` ✅
+
+### Phase 7 — 多店舗統合 / Enterprise 🔵 基盤
+
+- 店舗・メンバー・招待 ✅
+- 横断 KPI `/v1/enterprise/kpis` ✅
+- テンプレ一括配信 `/v1/enterprise/bulk-distribute` ✅
+- 改ざん検知（GBP スナップショット比較） ✅
+- SSO / SLA — ⚪ 未着手
+
+### Phase 8 — AIエージェント（Gemini Live） 🔵 スキャフォールド
+
+- `/agent` チャット UI ✅
+- `/v1/agent/chat`（Gemini + 店舗メトリクスコンテキスト） ✅
+- Gemini Live 音声対話 — ⚪ 未着手
+
+### 横断 — 決済・プラン制限
+
+- Free 月5投稿エンフォース ✅
+- 透かし（Free=あり / Starter以上=なし） ✅
+- Stripe Checkout + Webhook ✅ — `STRIPE_*` 必須
+- 紹介コード ✅
+- Enterprise 問い合わせフォーム ✅
+- Firestore Security Rules（店舗メンバー） ✅
+- SEO ブログ `/buzzit/blog/` ✅（3記事）
+- Lステップ CSV インポート `/v1/line/import/lstep` ✅
+- リッチメニュー セグメント別自動切替ワーカー ✅
+- スタートアップ割引 30%OFF（Stripe Checkout） ✅
+- Enterprise 横断ダッシュ `/enterprise` ✅
 
 ---
 

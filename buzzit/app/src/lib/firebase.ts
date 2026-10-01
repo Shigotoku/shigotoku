@@ -13,21 +13,51 @@ import {
   type UserCredential,
 } from 'firebase/auth';
 
+/** shigotoku-prod Web アプリ（公開設定。deploy/build.config.mjs と同一） */
+const PROD_FIREBASE = {
+  apiKey: 'AIzaSyAMxl7Co5d5Kj52qt_Gh716Tob80f3qUTE',
+  authDomain: 'shigotoku-prod.firebaseapp.com',
+  projectId: 'shigotoku-prod',
+  storageBucket: 'shigotoku-prod.firebasestorage.app',
+  messagingSenderId: '750163975008',
+  appId: '1:750163975008:web:d494d629951bfb05311c05',
+} as const;
+
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY ?? '',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ?? 'shigotoku-prod.firebaseapp.com',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID ?? 'shigotoku-prod',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET ?? 'shigotoku-prod.firebasestorage.app',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID ?? '750163975008',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID ?? '',
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || PROD_FIREBASE.apiKey,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || PROD_FIREBASE.authDomain,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || PROD_FIREBASE.projectId,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || PROD_FIREBASE.storageBucket,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || PROD_FIREBASE.messagingSenderId,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || PROD_FIREBASE.appId,
 };
 
 export const isFirebaseConfigured = Boolean(firebaseConfig.apiKey && firebaseConfig.appId);
 
-const app = getApps().length ? getApps()[0]! : initializeApp(firebaseConfig);
+let appInstance: ReturnType<typeof initializeApp> | undefined;
+let authInstance: ReturnType<typeof getAuth> | undefined;
+
+function getFirebaseApp() {
+  if (!isFirebaseConfigured) return undefined;
+  if (!appInstance) {
+    appInstance = getApps().length ? getApps()[0]! : initializeApp(firebaseConfig);
+  }
+  return appInstance;
+}
 
 /** getAuth は popup/redirect 用 resolver を含む。initializeAuth 単体だと auth/argument-error になる */
-export const auth = getAuth(app);
+export function getFirebaseAuth() {
+  const app = getFirebaseApp();
+  if (!app) {
+    throw new Error('Firebase Web アプリが未設定です');
+  }
+  if (!authInstance) {
+    authInstance = getAuth(app);
+  }
+  return authInstance;
+}
+
+export const auth = getFirebaseAuth();
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
@@ -85,6 +115,8 @@ export async function getIdToken(): Promise<string | null> {
   return user.getIdToken();
 }
 
+export type LoginHintSuggest = 'google';
+
 export function formatAuthError(err: unknown): string {
   const code = (err as { code?: string })?.code ?? '';
   switch (code) {
@@ -98,6 +130,8 @@ export function formatAuthError(err: unknown): string {
     case 'auth/wrong-password':
     case 'auth/user-not-found':
       return 'メールアドレスまたはパスワードが正しくありません。';
+    case 'auth/account-exists-with-different-credential':
+      return 'このメールアドレスはパスワードで登録されています。メールアドレスとパスワードでログインしてください。';
     case 'auth/email-already-in-use':
       return 'このメールアドレスは既に登録されています。';
     case 'auth/weak-password':
@@ -110,4 +144,35 @@ export function formatAuthError(err: unknown): string {
     default:
       return (err as Error)?.message ?? 'ログインに失敗しました';
   }
+}
+
+/** ログイン失敗時に API でプロバイダを確認し、案内メッセージを返す */
+export async function resolveAuthError(
+  err: unknown,
+  email: string,
+  fetchHint: (email: string) => Promise<{ suggest?: LoginHintSuggest }>,
+): Promise<{ message: string; hint?: LoginHintSuggest }> {
+  const code = (err as { code?: string })?.code ?? '';
+
+  if (
+    code === 'auth/invalid-credential' ||
+    code === 'auth/wrong-password' ||
+    code === 'auth/user-not-found' ||
+    code === 'auth/email-already-in-use'
+  ) {
+    try {
+      const hint = await fetchHint(email);
+      if (hint.suggest === 'google') {
+        const message =
+          code === 'auth/email-already-in-use'
+            ? 'このメールアドレスは既に Google で登録されています。「Google でログイン」をお試しください。'
+            : 'このメールアドレスは Google で登録されています。下の「Google でログイン」をお試しください。';
+        return { message, hint: 'google' };
+      }
+    } catch {
+      // API 未接続時は汎用メッセージにフォールバック
+    }
+  }
+
+  return { message: formatAuthError(err) };
 }

@@ -1,0 +1,68 @@
+---
+const faqs = [
+  {
+    question: '無料プランでは何ができますか？',
+    answer:
+      'AI台本生成（月5投稿）、SNSの健康診断、音声からの文章作成が利用できます。まず5分で体験し、必要に応じて有料プランへアップグレードできます。',
+  },
+  {
+    question: 'Lステップから乗り換えできますか？',
+    answer:
+      'はい。タグ付け・登録経路・絞り込み配信・あいさつメッセージ・画面下メニューなど、Lステップ相当の機能をBuzzIt内で利用できます。乗り換えキャンペーン（LINE管理ライト 初回3ヶ月 ¥500/月）もご用意しています。',
+  },
+  {
+    question: 'Instagramの自動投稿は安全ですか？',
+    answer:
+      'Meta（Instagram・Facebook）の公式APIを利用した連携です。アカウント連携は管理画面から行い、いつでも解除できます。',
+  },
+  {
+    question: '導入にどれくらい時間がかかりますか？',
+    answer:
+      'アカウント作成後、店舗情報の入力とSNS・LINEの連携で、おおむね30分〜1時間程度で運用を開始できます。無料プランからすぐ試せます。',
+  },
+  {
+    question: '複数店舗を管理できますか？',
+    answer:
+      'Proプランで最大2店舗、Growth OSで最大5店舗、Enterpriseで最大100店舗まで対応しています。2店舗目以降は基本料が20%OFFになります。',
+  },
+  {
+    question: 'LINEの配信料金は別途かかりますか？',
+    answer:
+      'はい。LINE公式アカウントの配信料金は、これまで通り各店舗へLINEから直接請求されます。BuzzItの料金は管理ツールの利用料です。',
+  },
+  {
+    question: 'スタッフを追加できますか？',
+    answer:
+      'プランごとにスタッフ人数の上限があります。Freeは1人、Starterは3人、Proは10人、Growth OSは無制限です。権限管理も可能です。',
+  },
+  {
+    question: '解約はいつでもできますか？',
+    answer:
+      'はい。月額プランはいつでも解約可能です。年払いの場合は契約期間の満了までとなります。詳細は利用規約をご確認ください。',
+  },
+];
+---
+
+<section id="faq" class="bg-[#f5f4f0] py-24 md:py-32">
+  <div class="mx-auto max-w-3xl px-5 md:px-8">
+    <div class="animate-on-scroll slide-up mb-10 text-center headline-fit-wrap">
+      <p class="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-neutral-500">よくある質問</p>
+      <h2 class="font-display text-3xl font-bold md:text-4xl" data-headline-fit>
+        気になることをまとめました
+      </h2>
+    </div>
+
+    <div class="animate-on-scroll slide-up delay-100 space-y-3">
+      {faqs.map((faq) => (
+        <details class="buzz-accordion border border-neutral-200 bg-white">
+          <summary class="buzz-accordion-summary px-5 py-4">
+            <span class="font-display text-sm font-bold text-neutral-900 md:text-base">{faq.question}</span>
+          </summary>
+          <div class="border-t border-neutral-100 px-5 py-4 text-sm leading-relaxed text-neutral-600">
+            {faq.answer}
+          </div>
+        </details>
+      ))}
+    </div>
+  </div>
+</section>

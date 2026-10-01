@@ -1,0 +1,48 @@
+---
+const pairs = [
+  {
+    before: '毎回ゼロからスライドを組み立て、元資料の要点を写すだけで時間が溶ける',
+    after: 'Drive の元資料から構成案を作り、生成まで一気通貫',
+  },
+  {
+    before: '「うちの資料らしさ」が人によってバラバラ、テンプレも更新されない',
+    after: 'Style と Reference で、会社・個人のノウハウを再利用',
+  },
+  {
+    before: 'AI 生成のたびに別物のデザインになり、修正が終わらない',
+    after: 'Design DNA とお手本から、使うほど馴染む出力へ',
+  },
+  {
+    before: '完成資料がクラウドの別サービスに閉じ込められ、共有が面倒',
+    after: 'Google Slides として Drive に保存。いつもの共有フローそのまま',
+  },
+];
+---
+
+<section id="problem" class="deckit-section border-b border-deck-line bg-deck-bg">
+  <div class="mx-auto max-w-4xl px-4 sm:px-6">
+    <div class="text-center">
+      <p class="text-xs font-semibold uppercase tracking-widest text-deck-accent sm:text-sm">課題と解決</p>
+      <h2 class="deckit-h2 mt-3 font-bold text-deck-text" data-jp-heading>
+        資料づくりの知恵は、すでに Drive にあります。
+      </h2>
+      <p class="deckit-lead mx-auto mt-3 max-w-xl text-deck-muted sm:mt-4" data-jp-wrap>
+        DeckIt は「汎用スライド生成」ではなく、<strong class="font-semibold text-deck-text">蓄積された資産を活かして速く仕上げる</strong>ためのスタジオです。
+      </p>
+    </div>
+    <div class="mt-8 space-y-3 sm:mt-10 sm:space-y-4">
+      {pairs.map((p) => (
+        <div class="grid overflow-hidden rounded-xl border border-deck-line sm:grid-cols-2">
+          <div class="flex gap-2.5 bg-deck-text/[0.04] px-4 py-3.5 sm:gap-3 sm:px-6 sm:py-5">
+            <span class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-deck-text/10 text-xs font-bold text-deck-muted">✕</span>
+            <p class="deckit-body text-deck-muted" data-jp-wrap>{p.before}</p>
+          </div>
+          <div class="flex gap-2.5 border-t border-deck-line bg-deck-panel px-4 py-3.5 sm:gap-3 sm:border-l sm:border-t-0 sm:px-6 sm:py-5">
+            <span class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-deck-accent/15 text-xs font-bold text-deck-accent">✓</span>
+            <p class="deckit-body font-medium text-deck-text" data-jp-wrap>{p.after}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>

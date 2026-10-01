@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BarChart3, Share2, MousePointerClick, Users, DollarSign, TrendingUp, FlaskConical, RefreshCw, Sparkles } from 'lucide-react';
+import { BarChart3, Share2, MousePointerClick, Users, DollarSign, TrendingUp, FlaskConical, RefreshCw, Sparkles, CalendarRange } from 'lucide-react';
 import { kpiLabels } from '../data/mockDashboard';
 import {
   fetchAnalytics,
@@ -11,11 +11,20 @@ import {
   createAbTest,
   evaluateAbTest,
   evaluateAllAbTests,
+  fetchWeeklyReport,
+  fetchInsightsSummary,
+  syncInsights,
   type AbTestRecord,
   type TrendTopic,
+  type WeeklyReport,
+  type InsightsSummary,
 } from '../lib/api';
+import EmptyState from '../components/EmptyState';
+import DemoDataBanner from '../components/DemoDataBanner';
+import { useSetupSignals } from '../hooks/useSetupSignals';
 
 export default function AnalyticsPage() {
+  const { isSample } = useSetupSignals();
   const [metrics, setMetrics] = useState({
     reach: 0,
     saveRate: 0,
@@ -33,19 +42,30 @@ export default function AnalyticsPage() {
   const [abPlatform, setAbPlatform] = useState('reels');
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [analyticsLoaded, setAnalyticsLoaded] = useState(false);
+  const [weekly, setWeekly] = useState<WeeklyReport | null>(null);
+  const [insights, setInsights] = useState<InsightsSummary | null>(null);
+  const [insightsSyncing, setInsightsSyncing] = useState(false);
 
   const loadAll = () => {
     fetchAnalytics()
       .then((data) => {
         setMetrics(data.metrics);
         if (data.topPosts.length) setTopPosts(data.topPosts);
+        setAnalyticsLoaded(true);
       })
-      .catch(() => {});
+      .catch(() => setAnalyticsLoaded(true));
+    fetchInsightsSummary()
+      .then((r) => setInsights(r.summary))
+      .catch(() => setInsights(null));
     fetchTrends()
       .then((r) => setTrends(r.trends))
       .catch(() => {});
     fetchAbTests()
       .then((r) => setAbTests(r.tests))
+      .catch(() => {});
+    fetchWeeklyReport()
+      .then((r) => setWeekly(r.report))
       .catch(() => {});
   };
 
@@ -112,12 +132,142 @@ export default function AnalyticsPage() {
 
   return (
     <div className="buzz-page">
-      <div>
-        <h2 className="mb-2 text-2xl font-bold">分析・売上</h2>
-        <p className="text-neutral-600">トレンド波乗り・A/B テスト・UTM/LINE 自動計測</p>
-      </div>
+      <DemoDataBanner isSample={isSample || (analyticsLoaded && topPosts.length === 0 && metrics.reach === 0)} />
 
       {message && <p className="buzz-alert buzz-alert-info">{message}</p>}
+
+      {insights && (
+        <div className="buzz-card-pad mb-4">
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-neutral-700" />
+            <h3 className="text-lg font-bold">SNSインプレッション（自動取得）</h3>
+            <button
+              type="button"
+              disabled={insightsSyncing || !insights.insightsEnabled}
+              className="ml-auto inline-flex items-center gap-1 text-xs underline-offset-2 hover:underline disabled:opacity-50"
+              onClick={async () => {
+                setInsightsSyncing(true);
+                try {
+                  const r = await syncInsights(true);
+                  setInsights(r.summary);
+                  setMessage('インサイトを同期しました');
+                } catch {
+                  setMessage('インサイト同期に失敗しました');
+                }
+                setInsightsSyncing(false);
+              }}
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${insightsSyncing ? 'animate-spin' : ''}`} />
+              {insightsSyncing ? '同期中…' : '今すぐ同期'}
+            </button>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-4">
+            <div className="border border-neutral-200 bg-neutral-50 p-3">
+              <p className="text-xs text-neutral-500">合計表示</p>
+              <p className="mt-1 text-xl font-bold tabular-nums">{insights.totalImpressions.toLocaleString()}</p>
+            </div>
+            <div className="border border-neutral-200 bg-neutral-50 p-3">
+              <p className="text-xs text-neutral-500">リーチ</p>
+              <p className="mt-1 text-xl font-bold tabular-nums">{insights.totalReach.toLocaleString()}</p>
+            </div>
+            <div className="border border-neutral-200 bg-neutral-50 p-3">
+              <p className="text-xs text-neutral-500">計測投稿</p>
+              <p className="mt-1 text-xl font-bold tabular-nums">{insights.postCount}</p>
+            </div>
+            <div className="border border-neutral-200 bg-neutral-50 p-3">
+              <p className="text-xs text-neutral-500">X取得</p>
+              <p className="mt-1 text-sm font-medium">
+                {insights.xInsightsEnabled ? 'オン' : 'オフ（費用ガード）'}
+              </p>
+            </div>
+          </div>
+          {insights.recent.length > 0 && (
+            <ul className="mt-4 divide-y divide-neutral-100 border border-neutral-200">
+              {insights.recent.slice(0, 8).map((row) => (
+                <li key={row.id} className="flex justify-between gap-3 px-3 py-2 text-sm">
+                  <span className="truncate text-neutral-700">
+                    [{row.platform}] {row.preview || row.externalId}
+                  </span>
+                  <span className="shrink-0 tabular-nums font-medium">
+                    {(row.impressions || 0).toLocaleString()}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-3 text-xs text-neutral-500">
+            <Link to="/settings?tab=sns" className="underline-offset-2 hover:underline">
+              SNS連携設定
+            </Link>
+            で Meta 再連携（insights 権限）と X 費用ガードを管理できます。
+          </p>
+        </div>
+      )}
+
+      {weekly && (
+        <div className="buzz-card-pad">
+          <div className="mb-4 flex items-center gap-2">
+            <CalendarRange className="h-5 w-5 text-neutral-700" />
+            <h3 className="text-lg font-bold">週次レポート</h3>
+            <span className="ml-auto text-xs text-neutral-500">{weekly.periodLabel}</span>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-4">
+            <div className="border border-neutral-200 bg-neutral-50 p-3">
+              <p className="text-xs text-neutral-500">健康スコア</p>
+              <p className="mt-1 text-xl font-bold">{weekly.healthScore}</p>
+            </div>
+            <div className="border border-neutral-200 bg-neutral-50 p-3">
+              <p className="text-xs text-neutral-500">リーチ</p>
+              <p className="mt-1 text-xl font-bold">{weekly.funnel.reach.toLocaleString()}</p>
+            </div>
+            <div className="border border-neutral-200 bg-neutral-50 p-3">
+              <p className="text-xs text-neutral-500">LINE追加</p>
+              <p className="mt-1 text-xl font-bold">{weekly.funnel.lineSignups}</p>
+            </div>
+            <div className="border border-neutral-200 bg-neutral-50 p-3">
+              <p className="text-xs text-neutral-500">失敗 / 承認待ち</p>
+              <p className="mt-1 text-xl font-bold">
+                {weekly.scheduled.failed} / {weekly.scheduled.pendingApproval}
+              </p>
+            </div>
+          </div>
+          {weekly.topTrend && (
+            <p className="mt-4 text-sm text-neutral-700">
+              注目トレンド: <span className="font-medium">{weekly.topTrend.topic}</span> — {weekly.topTrend.hook}
+            </p>
+          )}
+          {weekly.nextWeekActions && weekly.nextWeekActions.length > 0 && (
+            <div className="mt-4 border border-neutral-200 bg-neutral-50 p-3">
+              <p className="text-xs font-bold uppercase tracking-wider text-neutral-500">来週やる3こと</p>
+              <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm">
+                {weekly.nextWeekActions.map((a) => (
+                  <li key={a}>{a}</li>
+                ))}
+              </ol>
+            </div>
+          )}
+          <ul className="mt-3 space-y-1 text-sm text-neutral-600">
+            {weekly.recommendations.map((r) => (
+              <li key={r}>• {r}</li>
+            ))}
+          </ul>
+          <p className="mt-3 text-xs text-neutral-500">
+            Pro以上かつ Slack 連携時は、毎週月曜 8:00 に同内容が Slack へ届きます。
+          </p>
+        </div>
+      )}
+
+      {analyticsLoaded && topPosts.length === 0 && metrics.reach === 0 && (
+        <EmptyState
+          icon={BarChart3}
+          title="まだ分析できる投稿がありません"
+          description="Meta / LINE を連携し、マジック・クリエイターから最初の投稿を予約すると、ここにリーチや売上寄与が表示されます。"
+          primaryLabel="投稿を作る"
+          primaryTo="/magic-creator"
+          secondaryLabel="セットアップへ"
+          secondaryTo="/dashboard"
+        />
+      )}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {kpiCards.map((card) => (
@@ -150,7 +300,15 @@ export default function AnalyticsPage() {
           </button>
         </div>
         {trends.length === 0 ? (
-          <p className="text-sm text-neutral-500">トレンドがありません。「更新」で今週のネタを取得してください（Pro 以上）。</p>
+          <EmptyState
+            icon={TrendingUp}
+            title="トレンドネタがまだありません"
+            description="「更新」で今週の話題を取得できます（Pro以上）。取得したネタはワンタップでマジック・クリエイターに渡せます。"
+            primaryLabel="ダッシュボードへ"
+            primaryTo="/dashboard"
+            secondaryLabel="クリエイターで自作"
+            secondaryTo="/magic-creator"
+          />
         ) : (
           <div className="space-y-3">
             {trends.map((t) => (
@@ -279,22 +437,28 @@ export default function AnalyticsPage() {
           <h3 className="text-lg font-bold">投稿別 売上貢献度</h3>
         </div>
         <div className="space-y-4">
-          {topPosts.map((post) => (
-            <div
-              key={post.id}
-              className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border border-neutral-200 bg-neutral-50 p-4"
-            >
-              <div>
-                <p className="font-medium">{post.title}</p>
-                <p className="text-sm text-neutral-500">
-                  リーチ {post.reach.toLocaleString()}
-                  {(post.clicks ?? 0) > 0 && ` · クリック ${post.clicks}`}
-                  {(post.lineSignups ?? 0) > 0 && ` · LINE +${post.lineSignups}`}
-                </p>
+          {topPosts.length === 0 ? (
+            <p className="text-sm text-neutral-500">
+              投稿データがまだありません。クリエイターから予約投稿すると、ここに貢献度が並びます。
+            </p>
+          ) : (
+            topPosts.map((post) => (
+              <div
+                key={post.id}
+                className="flex flex-col gap-3 border border-neutral-200 bg-neutral-50 p-4 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div>
+                  <p className="font-medium">{post.title}</p>
+                  <p className="text-sm text-neutral-500">
+                    リーチ {post.reach.toLocaleString()}
+                    {(post.clicks ?? 0) > 0 && ` · クリック ${post.clicks}`}
+                    {(post.lineSignups ?? 0) > 0 && ` · LINE +${post.lineSignups}`}
+                  </p>
+                </div>
+                <p className="buzz-stat-value text-base">¥{post.revenue.toLocaleString()}</p>
               </div>
-              <p className="buzz-stat-value text-base">¥{post.revenue.toLocaleString()}</p>
-            </div>
-          ))}
+            ))
+          )}
         </div>
         <Link to="/magic-creator" className="mt-4 inline-block text-sm text-neutral-600 hover:text-neutral-900">
           マジック・クリエイターで新規投稿 →

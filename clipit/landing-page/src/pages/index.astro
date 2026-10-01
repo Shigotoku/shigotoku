@@ -1,0 +1,50 @@
+---
+import Layout from '../layouts/Layout.astro';
+import HeroSection from '../components/HeroSection.astro';
+import TrustBar from '../components/TrustBar.astro';
+import ProblemSection from '../components/ProblemSection.astro';
+import FeaturesSection from '../components/FeaturesSection.astro';
+import HowItWorksSection from '../components/HowItWorksSection.astro';
+import StepDetailSections from '../components/StepDetailSections.astro';
+import UseCasesSection from '../components/UseCasesSection.astro';
+import PricingPreviewSection from '../components/PricingPreviewSection.astro';
+import FaqSection from '../components/FaqSection.astro';
+import { appPath, sitePath } from '../lib/urls';
+
+const loginUrl = appPath('/login');
+const pricingUrl = sitePath('pricing');
+---
+
+<Layout title="クリッピット (ClipIt) - 操作するだけで、業務マニュアルが完成">
+  <HeroSection />
+  <TrustBar />
+  <ProblemSection />
+  <FeaturesSection />
+  <HowItWorksSection />
+  <StepDetailSections />
+  <UseCasesSection />
+  <PricingPreviewSection />
+  <FaqSection />
+
+  <section class="clipit-section--lg relative overflow-hidden bg-slate-950 py-14 text-center sm:py-20">
+    <div class="clipit-cta-glow pointer-events-none absolute inset-0" aria-hidden="true"></div>
+    <div class="relative mx-auto max-w-3xl px-4 sm:px-6">
+      <h2 class="clipit-h2 text-2xl font-bold tracking-tight text-white sm:text-3xl" data-jp-heading>まずは1本、作ってみてください。</h2>
+      <p class="clipit-lead mt-3 text-base text-slate-400 sm:text-lg" data-jp-wrap>Googleログインで登録。クレジットカード不要。最短10分で初回マニュアルが完成します。</p>
+      <div class="mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
+        <a href={loginUrl} class="inline-flex justify-center rounded-xl bg-primary-500 px-8 py-3.5 text-base font-bold text-white transition-all hover:bg-primary-400">
+          無料で始める
+        </a>
+        <a href={pricingUrl} class="inline-flex justify-center rounded-xl border border-white/20 px-8 py-3.5 text-base font-semibold text-slate-200 hover:border-white/40 hover:text-white">
+          料金プランの詳細
+        </a>
+      </div>
+    </div>
+  </section>
+</Layout>
+
+<style>
+  .clipit-cta-glow {
+    background: radial-gradient(ellipse 70% 60% at 50% 100%, rgba(249, 115, 22, 0.25), transparent);
+  }
+</style>

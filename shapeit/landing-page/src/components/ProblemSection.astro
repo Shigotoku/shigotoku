@@ -1,0 +1,48 @@
+---
+const pairs = [
+  {
+    before: 'バグや使いにくさの報告がチャット・口頭・メモに散らばり、誰も追えない',
+    after: '気づいた瞬間に投稿。スクショ・URL・環境情報は自動で揃う',
+  },
+  {
+    before: '「再現手順・優先度・担当」を毎回書かされ、報告する気がなくなる',
+    after: '書くのは内容だけ。分類・重複・優先度はAIが整理する',
+  },
+  {
+    before: '同じ問題が別チケットになり、何から直すか声の大きさで決まる',
+    after: '類似報告を1 Issueへ統合。報告数が優先度のシグナルに',
+  },
+  {
+    before: '直したあと投稿者に届かず、「あの件どうなった？」が消える',
+    after: 'Done後に確認が戻る Closed Loop。みんなで改善が続く',
+  },
+];
+---
+
+<section id="problem" class="shapeit-section border-b border-ink/10 bg-paper">
+  <div class="mx-auto max-w-4xl px-4 sm:px-6">
+    <div class="text-center">
+      <p class="text-xs font-semibold uppercase tracking-widest text-mint sm:text-sm">課題と解決</p>
+      <h2 class="shapeit-h2 font-display mt-3 font-bold tracking-tight text-ink" data-jp-heading>
+        気づきは、みんなの手元にあります。
+      </h2>
+      <p class="shapeit-lead mx-auto mt-3 max-w-xl text-ink/65 sm:mt-4" data-jp-wrap>
+        ShapeItは、報告の手間を削り、<strong class="font-semibold text-ink">チーム全員でサービスを良くする</strong>ための Product Feedback OS です。
+      </p>
+    </div>
+    <div class="mt-8 space-y-3 sm:mt-12 sm:space-y-4">
+      {pairs.map((p) => (
+        <div class="grid overflow-hidden rounded-2xl border border-ink/10 sm:grid-cols-2">
+          <div class="flex gap-2.5 bg-ink/[0.03] px-4 py-3.5 sm:gap-3 sm:px-6 sm:py-5">
+            <span class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-ink/10 text-xs font-bold text-ink/45">✕</span>
+            <p class="shapeit-body text-ink/60" data-jp-wrap>{p.before}</p>
+          </div>
+          <div class="flex gap-2.5 border-t border-ink/10 bg-white px-4 py-3.5 sm:gap-3 sm:border-l sm:border-t-0 sm:px-6 sm:py-5">
+            <span class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-mint/15 text-xs font-bold text-mint">✓</span>
+            <p class="shapeit-body font-medium text-ink" data-jp-wrap>{p.after}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
