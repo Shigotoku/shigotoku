@@ -1,0 +1,19 @@
+---
+const stats = [
+  { value: '4ステップ', label: '元資料から Slides まで' },
+  { value: 'Style', label: '会社・個人・用途別' },
+  { value: 'Drive', label: '資料はあなたの Drive' },
+  { value: '16:9', label: 'ライブプレビュー' },
+];
+---
+
+<section class="border-y border-deck-line bg-deck-panel py-6 sm:py-9">
+  <div class="deckit-grid-safe mx-auto grid max-w-6xl grid-cols-2 gap-4 px-4 sm:grid-cols-4 sm:gap-8 sm:px-6">
+    {stats.map((s) => (
+      <div class="min-w-0 px-1 text-center">
+        <p class="text-[clamp(1.125rem,0.85rem+1.2vw,1.75rem)] font-bold text-deck-accent" data-jp-wrap>{s.value}</p>
+        <p class="mt-1 text-[clamp(0.6875rem,0.6rem+0.3vw,0.875rem)] leading-snug text-deck-muted" data-jp-wrap>{s.label}</p>
+      </div>
+    ))}
+  </div>
+</section>

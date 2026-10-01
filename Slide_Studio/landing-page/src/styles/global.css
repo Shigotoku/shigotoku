@@ -1,0 +1,97 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Segoe UI", "Noto Sans JP", ui-sans-serif, system-ui, sans-serif;
+
+  --color-deck-side: #101419;
+  --color-deck-side-2: #191f25;
+  --color-deck-bg: #f7f9fa;
+  --color-deck-panel: #ffffff;
+  --color-deck-text: #1a2228;
+  --color-deck-muted: #5f6b73;
+  --color-deck-line: #e2e8ec;
+  --color-deck-accent: #0f6c78;
+  --color-deck-accent-2: #0b5963;
+  --color-deck-accent-soft: #edf7f8;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  text-wrap: pretty;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--color-deck-text);
+  background: var(--color-deck-bg);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
+}
+
+main {
+  overflow-x: clip;
+}
+
+.deckit-grid-safe > * {
+  min-width: 0;
+}
+
+.deckit-tap {
+  min-height: 44px;
+}
+
+:where(
+  [data-jp-wrap],
+  main p,
+  main li,
+  main dd,
+  main h1,
+  main h2,
+  main h3
+):not([data-jp-wrap-off]) {
+  word-break: keep-all;
+  line-break: strict;
+  overflow-wrap: anywhere;
+}
+
+:where(main h1, main h2, main h3, [data-jp-heading]) {
+  text-wrap: balance;
+  letter-spacing: -0.02em;
+}
+
+main .deckit-h1 {
+  font-size: clamp(2rem, 1.2rem + 3vw, 3.5rem);
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+}
+
+main .deckit-h2 {
+  font-size: clamp(1.5rem, 0.95rem + 2vw, 2.5rem);
+  line-height: 1.28;
+}
+
+main .deckit-h3 {
+  font-size: clamp(1.0625rem, 0.95rem + 0.5vw, 1.375rem);
+  line-height: 1.4;
+}
+
+main .deckit-lead {
+  font-size: clamp(0.9375rem, 0.82rem + 0.5vw, 1.1875rem);
+  line-height: 1.75;
+}
+
+main .deckit-body {
+  font-size: clamp(0.875rem, 0.82rem + 0.2vw, 1rem);
+  line-height: 1.7;
+}
+
+main .deckit-section {
+  padding-top: clamp(3rem, 2rem + 3vw, 5rem);
+  padding-bottom: clamp(3rem, 2rem + 3vw, 5rem);
+}
+
+main .deckit-section--lg {
+  padding-top: clamp(3.25rem, 2rem + 4vw, 6rem);
+  padding-bottom: clamp(3.25rem, 2rem + 4vw, 6rem);
+}
