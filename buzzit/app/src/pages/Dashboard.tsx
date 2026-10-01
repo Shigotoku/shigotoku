@@ -39,6 +39,7 @@ import EmptyState from '../components/EmptyState';
 import { useSetupSignals } from '../hooks/useSetupSignals';
 import GlossTooltip from '../components/GlossTooltip';
 import PersonaPublishConfirmModal from '../components/PersonaPublishConfirmModal';
+import DualApprovalSetupBanner from '../components/DualApprovalSetupBanner';
 import { usePersona } from '../store/personaContext';
 
 export default function Dashboard() {
@@ -439,6 +440,8 @@ export default function Dashboard() {
       </div>
 
       {approveMessage && <p className="buzz-alert buzz-alert-info text-sm">{approveMessage}</p>}
+
+      <DualApprovalSetupBanner compact />
 
       {pendingJobs.length > 0 ? (
         <div className="buzz-card-pad">

@@ -48,6 +48,7 @@ import { loadCalendarViewPref, loadDropHourPref, saveCalendarViewPref, saveDropH
 import EmptyState from '../components/EmptyState';
 import CloneStaggerModal from '../components/CloneStaggerModal';
 import PersonaPublishConfirmModal from '../components/PersonaPublishConfirmModal';
+import DualApprovalSetupBanner from '../components/DualApprovalSetupBanner';
 import { useStore } from '../store/storeContext';
 import { usePersona } from '../store/personaContext';
 import { canApprovePosts } from '../lib/permissions';
@@ -616,6 +617,8 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
       )}
 
       {!embedded && <FlowProgressBar current="schedule" className="buzz-fade-in" />}
+
+      {!embedded && <DualApprovalSetupBanner compact />}
 
       {activePersona && (
         <p className="text-xs text-neutral-600">

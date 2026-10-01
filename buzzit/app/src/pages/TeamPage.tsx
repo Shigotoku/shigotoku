@@ -27,6 +27,7 @@ import {
 } from '../lib/permissions';
 import { canAddStaff, staffLimitLabel } from '../lib/billing';
 import type { PlanTier } from '../types';
+import DualApprovalSetupBanner from '../components/DualApprovalSetupBanner';
 
 const ROLE_INFO: Record<Exclude<StoreRole, 'owner'>, { label: string; desc: string; icon: React.ElementType; color: string }> = {
   manager: { label: '管理者', desc: 'スタッフ招待・設定変更が可能', icon: Shield, color: 'text-blue-700 bg-blue-50' },
@@ -181,6 +182,8 @@ export default function TeamPage({ embedded }: TeamPageProps = {}) {
 
   return (
     <div className={embedded ? 'space-y-6' : 'buzz-page-narrow space-y-6'}>
+      <DualApprovalSetupBanner />
+
       <p className="text-sm text-neutral-600">
           店舗にスタッフを招待します。プランごとにスタッフ上限があります（現在: {staffLimitLabel(plan)}）。
           <Link to="/settings" className="ml-1 font-medium text-neutral-900 underline underline-offset-2">

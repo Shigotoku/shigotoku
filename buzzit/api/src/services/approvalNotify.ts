@@ -49,7 +49,9 @@ export async function notifyApprovalNeeded(uid: string, opts: ApprovalNotifyOpti
     opts.secondApproverNeeded
       ? '※ 1人目は承認済みです。*別の担当者*がもう一度承認してください（同じ人は不可）。'
       : '内容を確認し、カレンダーまたはコクピットで承認してください。',
-    `👉 https://app.buzzit.shigotoku.com/calendar`,
+    `👉 2人目承認: https://app.buzzit.shigotoku.com/dashboard`,
+    `👉 カレンダー: https://app.buzzit.shigotoku.com/calendar`,
+    `👉 スタッフ招待: https://app.buzzit.shigotoku.com/settings?tab=staff`,
     `ジョブID: ${opts.jobId}`,
   ];
 

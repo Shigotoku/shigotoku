@@ -8,6 +8,7 @@ import {
   type PersonaType,
 } from '../lib/api';
 import { usePersona } from '../store/personaContext';
+import DualApprovalSetupBanner from './DualApprovalSetupBanner';
 
 const TYPE_OPTIONS: { id: PersonaType; label: string; hint: string }[] = [
   { id: 'official', label: '公式アカウント', hint: '投稿前承認が推奨されます' },
@@ -101,6 +102,11 @@ export default function PersonaManagementSection() {
           <p className="mt-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-900">
             メディトク社内アカウント: 開発モードで全機能（Enterprise 相当）が利用できます。
           </p>
+        )}
+        {personas.some((p) => p.type === 'official') && (
+          <div className="mt-3">
+            <DualApprovalSetupBanner />
+          </div>
         )}
       </div>
 
