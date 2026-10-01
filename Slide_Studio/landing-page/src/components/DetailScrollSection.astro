@@ -28,9 +28,9 @@ const steps = [
 <section id="detail" class="deckit-section--lg border-t border-deck-line bg-deck-panel">
   <div class="mx-auto max-w-6xl px-6">
     <div class="max-w-2xl">
-      <p class="text-xs font-semibold uppercase tracking-widest text-deck-accent" data-reveal>About DeckIt</p>
+      <p class="text-sm font-semibold uppercase tracking-widest text-deck-accent" data-reveal>About DeckIt</p>
       <h2 class="deckit-h2 mt-3 font-bold text-deck-text" data-reveal data-reveal-delay="1" data-jp-heading>
-        単なる生成ツールではなく、資料づくりの OS。
+        単なる生成ツールではなく、資料づくりの <span class="deckit-em">OS</span>。
       </h2>
       <p class="deckit-lead mt-4 text-deck-muted" data-reveal data-reveal-delay="2" data-jp-wrap>
         元資料・Style・お手本をつなぎ、短時間で「自分／会社らしい」Google Slides を届けます。左でプロジェクト、中央で指示、右で 16:9 プレビュー——アプリと同じ流れです。
@@ -55,7 +55,7 @@ const steps = [
       <ol class="mt-8 grid gap-4 sm:grid-cols-3">
         {steps.map((s, i) => (
           <li class="rounded-xl border border-deck-line bg-deck-bg p-5" data-reveal data-reveal-delay={i + 1}>
-            <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-deck-accent text-sm font-bold text-white">
+            <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-deck-highlight text-sm font-bold text-deck-side">
               {s.n}
             </span>
             <p class="mt-3 font-semibold text-deck-text" data-jp-heading>{s.title}</p>

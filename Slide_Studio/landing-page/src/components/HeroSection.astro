@@ -1,33 +1,32 @@
 ---
-const taglineLines = [
-  'Google Drive にアイデア・資料・これまでのスライドを集め、自分好みの資料を素早くつくれます。相手に合わせた Style もすぐ切り替え。',
-  'AI がたたき台を用意し、手直しとひな形で仕上げ。完成資料はあなたの Drive に残り、つくるほどノウハウが資産になります。',
-];
----
 
 <section
   id="top"
-  class="relative flex min-h-[100svh] flex-col items-center justify-center gap-8 bg-deck-side px-6 pb-20 pt-[env(safe-area-inset-top)] text-center text-white"
+  class="relative flex min-h-[100svh] flex-col items-center justify-center gap-10 bg-deck-side px-6 pb-24 pt-[env(safe-area-inset-top)] text-center text-white"
   aria-label="DeckIt"
 >
-  <div class="space-y-2" data-reveal>
-    <h1 class="text-5xl font-bold tracking-tight sm:text-6xl">DeckIt</h1>
-    <p class="text-2xl font-medium text-deck-accent-soft sm:text-3xl">資料、できた。</p>
+  <div class="space-y-3" data-reveal>
+    <h1 class="text-6xl font-bold tracking-tight sm:text-7xl">DeckIt</h1>
+    <p class="text-3xl font-medium text-deck-accent-soft sm:text-4xl">資料、できた。</p>
   </div>
 
-  <div class="max-w-xl space-y-4" data-reveal data-reveal-delay="1">
-    {taglineLines.map((line) => (
-      <p class="text-base leading-relaxed text-[#c8d4dc] sm:text-lg" data-jp-wrap>{line}</p>
-    ))}
+  <div class="deckit-hero-copy max-w-2xl space-y-5" data-reveal data-reveal-delay="1">
+    <p class="leading-relaxed text-[#c8d4dc]" data-jp-wrap>
+      Drive の資料から、<span class="deckit-em-dark">自分らしいスライド</span>をすぐ。
+    </p>
+    <p class="leading-relaxed text-[#c8d4dc]" data-jp-wrap>
+      <span class="deckit-em-dark">Style</span> は相手に合わせて。<span class="deckit-em-dark">AI</span> がたたき台、あなたが仕上げて
+      <span class="deckit-em-dark">Drive</span> に残す。
+    </p>
   </div>
 
   <a
     href="#story"
-    class="deckit-scroll-hint absolute bottom-[max(1.5rem,env(safe-area-inset-bottom))] flex flex-col items-center gap-1 text-xs text-[#9fb0bc] transition-colors hover:text-deck-accent-soft"
+    class="deckit-scroll-hint absolute bottom-[max(1.5rem,env(safe-area-inset-bottom))] flex flex-col items-center gap-1.5 text-sm text-[#9fb0bc] transition-colors hover:text-deck-highlight"
     aria-label="下にスクロール"
   >
     <span>くわしく見る</span>
-    <svg class="h-5 w-5 animate-bounce" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+    <svg class="h-5 w-5 animate-bounce text-deck-highlight" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
       <path d="M12 5v14M6 13l6 6 6-6" stroke-linecap="round" stroke-linejoin="round" />
     </svg>
   </a>

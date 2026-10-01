@@ -1,15 +1,15 @@
 ---
 const beats = [
   {
-    title: 'Drive に、すでにあるものから始める',
+    titleHtml: '<span class="deckit-em">Drive</span> に、すでにあるものから始める',
     body: 'メモ・元資料・過去の Slides をプロジェクトにまとめる。ゼロから考える時間を減らし、伝える内容に集中できます。',
   },
   {
-    title: '相手と目的で、Style を変える',
+    titleHtml: '相手と目的で、<span class="deckit-em">Style</span> を変える',
     body: '営業・学会・経営会議など、プレゼンの相手に合わせた Style を選ぶだけ。毎回デザインを悩まず、トーンを揃えられます。',
   },
   {
-    title: 'AI のたたき台を、自分の手で仕上げる',
+    titleHtml: '<span class="deckit-em">AI</span> のたたき台を、自分の手で仕上げる',
     body: '構成と生成は AI が支援。仕上げは Google Slides でいつも通り。ひな形を使い回し、手直ししやすい流れです。',
   },
 ];
@@ -17,9 +17,9 @@ const beats = [
 
 <section id="story" class="deckit-section bg-deck-bg">
   <div class="mx-auto max-w-3xl px-6 text-center">
-    <p class="text-xs font-semibold uppercase tracking-widest text-deck-accent" data-reveal>Scroll</p>
+    <p class="text-sm font-semibold uppercase tracking-widest text-deck-accent" data-reveal>Scroll</p>
     <h2 class="deckit-h2 mt-3 font-bold text-deck-text" data-reveal data-reveal-delay="1" data-jp-heading>
-      資料づくりが、だんだん楽になる。
+      資料づくりが、だんだん<span class="deckit-em">楽</span>になる。
     </h2>
     <p class="deckit-lead mt-4 text-deck-muted" data-reveal data-reveal-delay="2" data-jp-wrap>
       下に進むほど、DeckIt がどう助けるかが見えてきます。
@@ -28,12 +28,12 @@ const beats = [
 
   <ol class="mx-auto mt-14 max-w-2xl space-y-16 px-6">
     {beats.map((b, i) => (
-      <li class="relative border-l-2 border-deck-accent/30 pl-8" data-reveal data-reveal-delay={(i % 3) + 1}>
+      <li class="relative border-l-2 border-deck-highlight/40 pl-8" data-reveal data-reveal-delay={(i % 3) + 1}>
         <span
-          class="absolute -left-[9px] top-0 flex h-4 w-4 items-center justify-center rounded-full bg-deck-accent ring-4 ring-deck-bg"
+          class="absolute -left-[9px] top-0 flex h-4 w-4 items-center justify-center rounded-full bg-deck-highlight ring-4 ring-deck-bg"
           aria-hidden="true"
         ></span>
-        <h3 class="deckit-h3 font-bold text-deck-text" data-jp-heading>{b.title}</h3>
+        <h3 class="deckit-h3 font-bold text-deck-text" data-jp-heading set:html={b.titleHtml} />
         <p class="deckit-body mt-2 text-deck-muted" data-jp-wrap>{b.body}</p>
       </li>
     ))}
