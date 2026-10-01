@@ -1,0 +1,23 @@
+---
+import { appPath } from '../lib/urls';
+
+const loginUrl = appPath('/login');
+---
+
+<section class="deckit-section bg-deck-side text-center text-white">
+  <div class="mx-auto max-w-xl px-6" data-reveal>
+    <h2 class="deckit-h2 font-bold" data-jp-heading>まずは、1本つくってみる。</h2>
+    <p class="deckit-lead mt-3 text-[#c8d4dc]" data-jp-wrap>
+      Google アカウントでログイン。元資料と Style を選ぶだけで、資料づくりが始まります。
+    </p>
+    <a
+      href={loginUrl}
+      class="deckit-tap mt-8 inline-flex rounded-lg bg-white px-8 py-3 text-base font-semibold text-deck-side shadow-md transition-colors hover:bg-deck-accent-soft"
+    >
+      Google でログイン
+    </a>
+  </div>
+  <p class="mt-16 text-xs text-[#9fb0bc]">
+    <a href="https://shigotoku.com/" class="hover:text-[#c8d4dc]">株式会社シゴトク</a>
+  </p>
+</section>

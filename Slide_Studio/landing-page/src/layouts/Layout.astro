@@ -6,7 +6,7 @@ import { deckitFaviconPath } from '../lib/urls';
 interface Props {
   title: string;
   description?: string;
-  /** ログイン画面と同様の1画面 LP（ヘッダー・フッターなし） */
+  /** ヘッダーなしのスクロール LP */
   minimal?: boolean;
 }
 
@@ -18,7 +18,7 @@ const {
 ---
 
 <!doctype html>
-<html lang="ja">
+<html lang="ja" class="scroll-smooth">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -34,17 +34,9 @@ const {
     <Analytics />
     <title>{title}</title>
   </head>
-  <body class:list={['min-h-screen antialiased', minimal && 'bg-deck-side']}>
-    {minimal ? (
-      <main class="min-h-[100svh]">
-        <slot />
-      </main>
-    ) : (
-      <>
-        <main>
-          <slot />
-        </main>
-      </>
-    )}
+  <body class="antialiased">
+    <main>
+      <slot />
+    </main>
   </body>
 </html>

@@ -1,12 +1,20 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import HeroSection from '../components/HeroSection.astro';
+import StoryScrollSection from '../components/StoryScrollSection.astro';
+import DetailScrollSection from '../components/DetailScrollSection.astro';
+import FinalCtaSection from '../components/FinalCtaSection.astro';
+import ScrollRevealScript from '../components/ScrollRevealScript.astro';
 ---
 
 <Layout
   minimal
   title="DeckIt — 資料、できた。"
-  description="元資料・Style から Google Slides を短時間で。Google アカウントでログインして始められます。"
+  description="Google Drive に資料を集め、Style と AI で自分らしい Slides を短時間で。DeckIt は資料づくりのノウハウを蓄積するスタジオです。"
 >
   <HeroSection />
+  <StoryScrollSection />
+  <DetailScrollSection />
+  <FinalCtaSection />
+  <ScrollRevealScript />
 </Layout>

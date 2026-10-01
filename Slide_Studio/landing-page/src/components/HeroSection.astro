@@ -1,36 +1,34 @@
 ---
-import { appPath } from '../lib/urls';
-
-const loginUrl = appPath('/login');
+const taglineLines = [
+  'Google Drive にアイデア・資料・これまでのスライドを集め、自分好みの資料を素早くつくれます。相手に合わせた Style もすぐ切り替え。',
+  'AI がたたき台を用意し、手直しとひな形で仕上げ。完成資料はあなたの Drive に残り、つくるほどノウハウが資産になります。',
+];
 ---
 
 <section
-  class="flex min-h-[100svh] flex-col items-center justify-center gap-6 bg-deck-side px-6 text-center text-white"
+  id="top"
+  class="relative flex min-h-[100svh] flex-col items-center justify-center gap-8 bg-deck-side px-6 pb-20 pt-[env(safe-area-inset-top)] text-center text-white"
   aria-label="DeckIt"
 >
-  <div class="space-y-2">
+  <div class="space-y-2" data-reveal>
     <h1 class="text-5xl font-bold tracking-tight sm:text-6xl">DeckIt</h1>
     <p class="text-2xl font-medium text-deck-accent-soft sm:text-3xl">資料、できた。</p>
   </div>
 
-  <p class="max-w-lg text-lg text-[#c8d4dc] sm:text-xl" data-jp-wrap>
-    Google アカウントでログインしてください。
-  </p>
+  <div class="max-w-xl space-y-4" data-reveal data-reveal-delay="1">
+    {taglineLines.map((line) => (
+      <p class="text-base leading-relaxed text-[#c8d4dc] sm:text-lg" data-jp-wrap>{line}</p>
+    ))}
+  </div>
 
   <a
-    href={loginUrl}
-    class="deckit-tap rounded-lg bg-white px-8 py-3 text-base font-semibold text-deck-side shadow-md transition-colors hover:bg-deck-accent-soft"
+    href="#story"
+    class="deckit-scroll-hint absolute bottom-[max(1.5rem,env(safe-area-inset-bottom))] flex flex-col items-center gap-1 text-xs text-[#9fb0bc] transition-colors hover:text-deck-accent-soft"
+    aria-label="下にスクロール"
   >
-    Google でログイン
+    <span>くわしく見る</span>
+    <svg class="h-5 w-5 animate-bounce" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      <path d="M12 5v14M6 13l6 6 6-6" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
   </a>
-
-  <p class="absolute bottom-[max(1.25rem,env(safe-area-inset-bottom))] text-xs text-[#9fb0bc]">
-    <a href="https://shigotoku.com/" class="hover:text-[#c8d4dc]">株式会社シゴトク</a>
-  </p>
 </section>
-
-<style>
-  section {
-    position: relative;
-  }
-</style>
