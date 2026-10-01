@@ -1,20 +1,18 @@
 ---
 import { assetPath } from '../lib/urls';
 
-const heroPhoto = assetPath('images/deckit-story-hero.jpg');
-const storyPhotos = [
+const osStoryBg = assetPath('images/deckit-os-story-bg.jpg');
+
+const storyBeats = [
   {
-    src: assetPath('images/deckit-story-create.jpg'),
     label: 'すぐつくる',
     caption: 'Drive の素材から、たたき台まで一気に。',
   },
   {
-    src: assetPath('images/deckit-story-edit.jpg'),
     label: 'すぐ直す',
     caption: 'Slides で手直し。Style も相手に合わせて。',
   },
   {
-    src: assetPath('images/deckit-story-present.jpg'),
     label: '伝わる',
     caption: 'プレゼン・資料づくりが、自信につながる。',
   },
@@ -46,63 +44,47 @@ const steps = [
 ];
 ---
 
-<section id="detail" class="deckit-section--lg border-t border-deck-line bg-deck-panel">
-  <div class="mx-auto max-w-6xl px-6">
-    <div
-      class="deckit-story-panel relative overflow-hidden rounded-2xl border border-deck-line shadow-lg shadow-deck-side/10"
-      data-reveal
-    >
-      <img
-        src={heroPhoto}
-        alt=""
-        class="deckit-story-panel__photo absolute inset-0 h-full w-full object-cover object-center"
-        width={2400}
-        height={1350}
-        loading="lazy"
-        decoding="async"
-      />
-      <div class="deckit-story-panel__veil absolute inset-0" aria-hidden="true"></div>
+<section id="detail" class="border-t border-deck-line bg-deck-panel">
+  <div class="deckit-os-bleed relative w-full overflow-hidden" data-reveal>
+    <img
+      src={osStoryBg}
+      alt=""
+      class="absolute inset-0 h-full w-full object-cover object-center"
+      width={1920}
+      height={1080}
+      loading="lazy"
+      decoding="async"
+    />
+    <div class="deckit-os-bleed__veil absolute inset-0" aria-hidden="true"></div>
 
-      <div class="relative z-10 grid gap-10 p-8 sm:p-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:items-end lg:gap-12 lg:p-12">
-        <div class="max-w-xl text-white">
-          <p class="text-sm font-semibold uppercase tracking-widest text-deck-highlight">About DeckIt</p>
-          <h2 class="deckit-h2 mt-3 font-bold" data-jp-heading>
-            単なる生成ツールではなく、資料づくりの <span class="deckit-em-dark">OS</span>。
-          </h2>
-          <p class="deckit-lead mt-4 text-[#d5dee6]" data-jp-wrap>
-            つくる。直す。伝える。——スライドづくりの流れ全体を、DeckIt と Google Drive で支えます。
-          </p>
-        </div>
-
-        <ul class="grid gap-3 sm:grid-cols-3">
-          {storyPhotos.map((item, i) => (
-            <li
-              class="deckit-story-card group overflow-hidden rounded-xl border border-white/15 bg-deck-side/40 backdrop-blur-sm"
-              data-reveal
-              data-reveal-delay={i + 1}
-            >
-              <div class="relative aspect-[4/3] overflow-hidden">
-                <img
-                  src={item.src}
-                  alt=""
-                  class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  loading="lazy"
-                  decoding="async"
-                />
-                <span
-                  class="absolute left-2 top-2 rounded-md bg-deck-highlight/95 px-2 py-0.5 text-xs font-bold text-deck-side"
-                >
-                  {item.label}
-                </span>
-              </div>
-              <p class="deckit-body px-3 py-2.5 text-[#e8eef2]" data-jp-wrap>{item.caption}</p>
-            </li>
-          ))}
-        </ul>
+    <div class="relative z-10 mx-auto flex min-h-[min(88vh,40rem)] max-w-6xl flex-col justify-between px-6 py-14 sm:px-8 sm:py-16 lg:py-20">
+      <div class="max-w-2xl text-white">
+        <p class="text-sm font-semibold uppercase tracking-widest text-deck-highlight">About DeckIt</p>
+        <h2 class="deckit-h2 mt-3 font-bold" data-jp-heading>
+          単なる生成ツールではなく、資料づくりの <span class="deckit-em-dark">OS</span>。
+        </h2>
+        <p class="deckit-lead mt-4 text-[#d5dee6]" data-jp-wrap>
+          つくる。直す。伝える。——スライドづくりの流れ全体を、DeckIt と Google Drive で支えます。
+        </p>
       </div>
-    </div>
 
-    <div class="mt-14 grid gap-5 sm:grid-cols-2">
+      <ul class="mt-12 grid gap-4 border-t border-white/15 pt-8 sm:grid-cols-3 sm:gap-6">
+        {storyBeats.map((item, i) => (
+          <li
+            class="rounded-xl border border-white/20 bg-deck-side/35 px-4 py-4 backdrop-blur-md sm:px-5 sm:py-5"
+            data-reveal
+            data-reveal-delay={i + 1}
+          >
+            <p class="text-lg font-bold text-deck-highlight sm:text-xl">{item.label}</p>
+            <p class="deckit-body mt-2 text-[#e8eef2]" data-jp-wrap>{item.caption}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </div>
+
+  <div class="deckit-section--lg mx-auto max-w-6xl px-6">
+    <div class="grid gap-5 sm:grid-cols-2">
       {pillars.map((p, i) => (
         <article
           class="rounded-xl border border-deck-line bg-deck-bg p-6 transition-shadow duration-300 hover:shadow-md hover:shadow-deck-accent/5"
@@ -133,23 +115,9 @@ const steps = [
 </section>
 
 <style>
-  .deckit-story-panel {
-    min-height: min(72vh, 36rem);
-  }
-
-  .deckit-story-panel__veil {
+  .deckit-os-bleed__veil {
     background:
-      linear-gradient(180deg, rgba(16, 20, 25, 0.55) 0%, rgba(16, 20, 25, 0.82) 55%, rgba(16, 20, 25, 0.92) 100%),
-      linear-gradient(105deg, rgba(16, 20, 25, 0.88) 0%, rgba(16, 20, 25, 0.45) 52%, rgba(15, 108, 120, 0.25) 100%);
-  }
-
-  @media (min-width: 64rem) {
-    .deckit-story-panel {
-      min-height: min(68vh, 34rem);
-    }
-
-    .deckit-story-panel__photo {
-      object-position: center 30%;
-    }
+      linear-gradient(180deg, rgba(16, 20, 25, 0.72) 0%, rgba(16, 20, 25, 0.55) 40%, rgba(16, 20, 25, 0.88) 100%),
+      linear-gradient(90deg, rgba(16, 20, 25, 0.82) 0%, rgba(16, 20, 25, 0.35) 55%, rgba(15, 108, 120, 0.2) 100%);
   }
 </style>
