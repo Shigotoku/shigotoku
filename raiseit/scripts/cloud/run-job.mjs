@@ -88,10 +88,12 @@ function steps(site) {
       ['fetch-ga4.mjs', ['--days', days]],
       ['fetch-ga4-sources.mjs', ['--days', days]],
       ['fetch-ga4-events.mjs', ['--days', days]],
+      ['fetch-ga4-conversions.mjs', ['--days', days]],
     );
   }
   if (new Date().getUTCDay() === 1 && process.env.PSI_API_KEY) list.push(['fetch-psi.mjs', []]);
   list.push(['analyze.mjs', []]);
+  list.push(['engine/build-summary.mjs', []]);
   return list.filter(([s]) => !(s === 'fetch-search-console.mjs' && !site.gscSite));
 }
 

@@ -13,14 +13,16 @@
     "fetch:psi": "node scripts/fetch-psi.mjs",
     "fetch:events": "node scripts/fetch-ga4-events.mjs",
     "check:ad": "node scripts/medical-ad-check.mjs",
-    "test": "node --test scripts/medical-ad-check.test.mjs",
+    "test": "node --test scripts/medical-ad-check.test.mjs scripts/engine/insights.test.mjs",
     "action:add": "node scripts/action-add.mjs",
     "ai:propose": "node scripts/ai/propose.mjs propose",
     "ai:review": "node scripts/ai/propose.mjs review",
     "report": "node scripts/analyze.mjs",
     "fetch:all": "node scripts/fetch-search-console.mjs && node scripts/fetch-ga4.mjs",
     "job:run": "node scripts/cloud/run-job.mjs",
-    "seed:tenant": "node scripts/cloud/seed-tenant.mjs"
+    "seed:tenant": "node scripts/cloud/seed-tenant.mjs",
+    "summary": "node scripts/engine/build-summary.mjs",
+    "fetch:conv": "node scripts/fetch-ga4-conversions.mjs"
   },
   "dependencies": {
     "firebase-admin": "^13.4.0",

@@ -49,6 +49,10 @@ export function applySite() {
     if (s.ga4PropertyId) process.env.GA4_PROPERTY_ID = String(s.ga4PropertyId);
     else delete process.env.GA4_PROPERTY_ID;
     process.env.SITE_INDUSTRY = s.industry ?? '';
+    // 北極星(成果)の定義。未指定なら generate_lead / lead_submit を成果、form_start をフォーム開始とみなす
+    process.env.SITE_CONVERSION_EVENTS = (s.conversionEvents ?? []).join(',');
+    process.env.SITE_PRIMARY_CONVERSION = s.primaryConversion ?? '';
+    process.env.SITE_FORM_START_EVENT = s.formStartEvent ?? '';
   } else {
     process.env.SITE_ID ||= 'default';
     process.env.SITE_NAME ||= process.env.SITE_ID;
