@@ -1,0 +1,9 @@
+node_modules/
+.env
+# 認証キー・取得データはリポジトリに入れない
+credentials/
+data/
+*.json.key
+reports/
+logs/
+config/sites.json

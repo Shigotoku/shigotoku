@@ -1,0 +1,9 @@
+# 集患ワークス 日次ジョブのイメージを Artifact Registry へ(ローカル Docker 不要)
+substitutions:
+  _IMAGE: asia-northeast1-docker.pkg.dev/shigotoku-raiseit-prod/raiseit/raiseit-job:latest
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: [build, -t, '${_IMAGE}', .]
+images:
+  - ${_IMAGE}
