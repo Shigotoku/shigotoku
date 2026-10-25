@@ -4,6 +4,8 @@
  * BuzzIt の機能導線と組み合わせた実践チェックリスト。
  */
 
+import { settingsPath } from '../lib/settingsUrls';
+
 export type RoadmapLink = {
   label: string;
   path: string;
@@ -142,7 +144,7 @@ export const journeyPhases: JourneyPhase[] = [
         title: 'BuzzIt で主戦場の媒体を接続',
         detail:
           '設定から、選んだ媒体に合わせて連携します（Meta / LINE / Ayrshare経由のX / GBP など）。投稿と配信の土台になります。',
-        link: { label: '設定へ', path: '/settings' },
+        link: { label: '設定へ', path: settingsPath({ tab: 'sns' }) },
         autoSignal: 'meta_or_line',
       },
       {
@@ -181,7 +183,7 @@ export const journeyPhases: JourneyPhase[] = [
         id: 'c4',
         title: 'BuzzItで自動投稿（予約）動線を通す',
         detail: 'Meta/LINE連携 → 投稿モード設定 → 予約 → コクピット承認。一度通すと翌週から楽になる。',
-        link: { label: '設定で連携', path: '/settings' },
+        link: { label: '設定で連携', path: settingsPath({ tab: 'sns' }) },
         autoSignal: 'meta_or_line',
       },
       {
@@ -218,7 +220,7 @@ export const journeyPhases: JourneyPhase[] = [
         id: 's4',
         title: 'ブランドセーフティと投稿モードを確認',
         detail: 'いきなり自動投稿せず、最初は承認フローで品質を担保。慣れたら Auto Mode へ。',
-        link: { label: '設定（投稿モード）', path: '/settings' },
+        link: { label: '設定（投稿モード）', path: settingsPath({ section: 'publish-mode' }) },
         autoSignal: 'publish_mode',
       },
       {
@@ -285,7 +287,7 @@ export const journeyPhases: JourneyPhase[] = [
         id: 'sc2',
         title: 'Googleビジネスプロフィール（GBP）を整備',
         detail: '地図検索からの来店は店舗の生命線。投稿・写真・口コミ返信を週次で回す。',
-        link: { label: '設定（GBP）', path: '/settings' },
+        link: { label: '設定（GBP）', path: settingsPath({ section: 'gbp' }) },
       },
       {
         id: 'sc3',
@@ -296,7 +298,7 @@ export const journeyPhases: JourneyPhase[] = [
         id: 'sc4',
         title: 'HPB / 予約トラッキングを有効化',
         detail: '投稿→予約の寄与が見えると改善が加速する。ファネルを経営コクピットで確認。',
-        link: { label: '設定（HPB）', path: '/settings' },
+        link: { label: '設定（HPB）', path: settingsPath({ section: 'hpb' }) },
       },
       {
         id: 'sc5',
@@ -479,7 +481,7 @@ export const platformGuides: PlatformGuide[] = [
     ],
     avoid: ['Facebookだけに全力投球（主戦場はIG/LINEになりやすい）'],
     buzzitHint: '設定の Meta 連携後、publishMode: meta で一括配信',
-    link: { label: 'Meta連携設定', path: '/settings' },
+    link: { label: 'Meta連携設定', path: settingsPath({ section: 'meta' }) },
   },
   {
     id: 'gbp',
@@ -504,7 +506,7 @@ export const platformGuides: PlatformGuide[] = [
     ],
     avoid: ['口コミ無視', '営業時間の放置（信頼を落とす）'],
     buzzitHint: '設定で GBP 連携 → クリエイターから gbp モードで投稿予約',
-    link: { label: 'GBP設定', path: '/settings' },
+    link: { label: 'GBP設定', path: settingsPath({ section: 'gbp' }) },
   },
 ];
 

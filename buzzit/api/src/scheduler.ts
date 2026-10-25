@@ -4,9 +4,11 @@ import { runAutoModeForAllUsers, sendStrategicNotifications } from './services/a
 import { refreshTrendsForAllUsers } from './services/trends';
 import { evaluateAbTestsForAllUsers } from './services/abTest';
 import { processDueScheduledJobs } from './services/schedulerWorker';
-import { processDueStepProgress } from './services/lineCrm';
+import { processDueStepProgress, processRichMenuSegmentSwitch } from './services/lineCrm';
 import { sendWeeklyReportsToSlack } from './services/weeklyReport';
 import { processXSeriesSchedules } from './services/xSeries';
+import { sendLowStockAlertsIfNeeded } from './services/xSeriesExtras';
+import { getUserSettings, getAllUsersWithSlack } from './services/firestore';
 import { syncInsightsForEligibleUsers } from './services/insightsSync';
 import { functionSecrets } from './config/secrets';
 
@@ -30,6 +32,16 @@ export const buzzitScheduler = onSchedule(
     if (slot === 'morning') {
       await refreshTrendsForAllUsers();
       await runAutoModeForAllUsers();
+      const users = await getAllUsersWithSlack();
+      for (const user of users) {
+        if (!['pro', 'team', 'growth', 'enterprise'].includes(user.plan)) continue;
+        try {
+          const settings = await getUserSettings(user.uid);
+          await sendLowStockAlertsIfNeeded(user.uid, settings);
+        } catch {
+          /* ignore per-user alert errors */
+        }
+      }
     }
     if (slot === 'evening') {
       await evaluateAbTestsForAllUsers();
@@ -67,7 +79,8 @@ export const buzzitLineStepWorker = onSchedule(
   },
   async () => {
     const result = await processDueStepProgress();
-    console.log('buzzitLineStepWorker:', result);
+    const richMenu = await processRichMenuSegmentSwitch();
+    console.log('buzzitLineStepWorker:', result, 'richMenu:', richMenu);
   },
 );
 

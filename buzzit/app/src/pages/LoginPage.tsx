@@ -22,6 +22,7 @@ export default function LoginPage() {
     signInGoogle,
     isConfigured,
     authError,
+    loginHint,
     clearAuthError,
   } = useAuth();
 
@@ -76,8 +77,8 @@ export default function LoginPage() {
     mode === 'signup' ? '新規登録' : mode === 'reset' ? 'パスワード再設定' : 'ログイン';
 
   return (
-    <div className="min-h-screen bg-[#f5f4f0] text-neutral-900">
-      <header className="border-b border-neutral-200 bg-[#f5f4f0]">
+    <div className="buzz-auth-page min-h-screen">
+      <header className="border-b border-neutral-200/80 bg-white/80 backdrop-blur-sm">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <Link to="/login" className="flex items-center gap-3">
             <BrandMark className="buzz-logo-mark" size={32} />
@@ -118,14 +119,14 @@ export default function LoginPage() {
           </ul>
         </div>
 
-        <div className="border border-neutral-200 bg-white p-8">
+        <div className="buzz-auth-card">
           <h2 className="text-xl font-bold">{title}</h2>
           <p className="mt-2 text-sm text-neutral-600">
             {mode === 'signup'
-              ? 'メールアドレスとパスワードでアカウントを作成します。'
+              ? 'メールアドレスとパスワードでアカウントを作成します。Google で登録した方は「Google でログイン」をご利用ください。'
               : mode === 'reset'
                 ? '登録メールアドレスに再設定リンクを送ります。'
-                : 'メールアドレスとパスワードでログインできます。'}
+                : 'メールアドレスとパスワードでログインできます。Google で登録した方は「Google でログイン」をご利用ください。'}
           </p>
 
           {!isConfigured && (
@@ -269,11 +270,20 @@ export default function LoginPage() {
                 type="button"
                 disabled={submitting}
                 onClick={() => signInGoogle().catch(() => {})}
-                className="buzz-btn-secondary w-full"
+                className={`buzz-btn-secondary w-full ${
+                  loginHint === 'google'
+                    ? 'ring-2 ring-violet-500 ring-offset-2'
+                    : ''
+                }`}
               >
                 <LogIn className="h-4 w-4" />
                 Google でログイン
               </button>
+              {loginHint === 'google' && (
+                <p className="mt-2 text-center text-xs text-violet-700">
+                  このアカウントは Google で登録されています
+                </p>
+              )}
             </>
           )}
 

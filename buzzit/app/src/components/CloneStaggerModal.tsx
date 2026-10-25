@@ -92,7 +92,7 @@ export default function CloneStaggerModal({ job, open, onClose, onDone, connecte
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/40 p-4" onClick={() => !busy && onClose()}>
+    <div className="buzz-modal-overlay" onClick={() => !busy && onClose()}>
       <div
         className="flex max-h-[90dvh] w-full max-w-md flex-col overflow-hidden border border-neutral-200 bg-white shadow-2xl"
         onClick={(e) => e.stopPropagation()}
@@ -161,7 +161,7 @@ export default function CloneStaggerModal({ job, open, onClose, onDone, connecte
 
           <div className="space-y-2">
             {CLONE_TARGETS.filter((t) => t.platform !== source.platform).map((t) => (
-              <label key={t.platform} className="flex items-center gap-2 border border-neutral-200 bg-[#f5f4f0] p-3 text-sm">
+              <label key={t.platform} className="flex items-center gap-2 border border-neutral-200 bg-neutral-50 p-3 text-sm">
                 <input
                   type="checkbox"
                   checked={!!selected[t.platform]}

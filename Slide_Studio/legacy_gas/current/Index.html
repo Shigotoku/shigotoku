@@ -1,0 +1,1413 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>MediToku Slide Studio</title>
+<style>
+    :root{
+      --bg:#f6f7f9;--panel:#ffffff;--line:#e2e7eb;--line-strong:#d3dbe2;--text:#17202a;--muted:#6d7883;
+      --accent:#0f6c78;--accent2:#0b5963;--accent-soft:#edf7f8;--soft:#f2f6f7;--side:#101419;--side2:#191f25;
+      --sideText:#d6dde3;--danger:#b42318;--ok:#067647;--warning:#b7791f;
+      --fs-base:clamp(13px,calc(9px + .28vw),15px);
+      --fs-sm:clamp(12px,calc(8px + .24vw),14px);
+      --fs-xs:clamp(11px,calc(8px + .18vw),12.5px);
+      --radius:8px;--control-h:40px;--sidebar-w:clamp(232px,13.2vw,264px);--preview-w:clamp(380px,25vw,500px);
+      font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI","Noto Sans JP",sans-serif
+    }
+    *{box-sizing:border-box} html,body{height:100%;margin:0;background:var(--bg);color:var(--text);overflow:hidden;font-size:var(--fs-base);-webkit-font-smoothing:antialiased}
+    button,input,select,textarea{font:inherit} button{cursor:pointer} button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid rgba(23,107,134,.42);outline-offset:2px}
+    .app{height:100vh;display:grid;grid-template-columns:var(--sidebar-w) minmax(0,1fr)}
+    .sidebar{background:var(--side);color:var(--sideText);display:flex;flex-direction:column;min-width:0}
+    .brand{height:clamp(54px,4.2vw,62px);display:flex;align-items:center;gap:10px;padding:0 clamp(12px,1vw,18px);border-bottom:1px solid #252b32;font-weight:700;font-size:1.02em}
+    .brandMark{width:27px;height:27px;border-radius:7px;background:#0f6c78;display:grid;place-items:center;font-size:12px;color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+    .sideScroll{flex:1;overflow:auto;padding:10px 9px;scrollbar-width:thin}
+    .primarySide{width:100%;min-height:var(--control-h);border:1px solid #31535b;background:#183238;color:#fff;border-radius:7px;padding:8px 10px;text-align:left;margin-bottom:13px;font-weight:680;box-shadow:0 1px 0 rgba(255,255,255,.03)}
+    .sideTitle{font-size:var(--fs-xs);color:#7f8a95;text-transform:uppercase;letter-spacing:.07em;margin:12px 8px 5px}
+    .treeItem{display:flex;align-items:center;gap:8px;min-height:34px;padding:6px 8px;border-radius:6px;color:#c9d1d8;text-decoration:none;font-size:var(--fs-sm);min-width:0;transition:background .12s ease,color .12s ease}
+    .treeItem:hover,.treeItem.active{background:var(--side2);color:#fff}
+    .treeItem .name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+    .treeItem .ext{color:#7f8a95;font-size:12px}
+    .treeIndent{padding-left:22px}
+    .sideFooter{border-top:1px solid #252b32;padding:10px}
+    .sideFooter button{width:100%;background:transparent;border:0;color:#aeb7c0;padding:8px;text-align:left;border-radius:6px}
+    .sideFooter button:hover{background:#1a1f25;color:#fff}
+
+    .shell{min-width:0;display:grid;grid-template-rows:clamp(54px,4.2vw,62px) minmax(0,1fr) 32px}
+    .topbar{background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;padding:0 clamp(12px,1.2vw,20px)}
+    .crumb{font-size:var(--fs-sm);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+    .crumb b{color:var(--text)}
+    .topAction{min-height:36px;border:1px solid var(--line);background:#fff;color:#34404a;border-radius:7px;padding:7px 10px;white-space:nowrap;font-size:var(--fs-sm);box-shadow:0 1px 1px rgba(16,24,40,.02)}
+    .topAction:hover{background:#f8fafb}
+    .content{min-height:0;display:grid;grid-template-columns:minmax(620px,1fr) var(--preview-w);gap:0;position:relative}
+    .mainPane{min-width:0;overflow:hidden;padding:clamp(10px,1vw,16px);display:flex;flex-direction:column;min-height:0}
+    .previewPane{min-width:0;border-left:1px solid var(--line);background:#fff;display:flex;flex-direction:column}
+    .previewHead{min-height:44px;display:flex;align-items:center;padding:0 10px 0 12px;border-bottom:1px solid var(--line);font-weight:650;font-size:var(--fs-sm);gap:6px}
+    .previewBody{min-height:0;flex:1;display:grid;grid-template-columns:clamp(78px,6.2vw,104px) minmax(0,1fr);grid-template-rows:minmax(220px,1fr) clamp(126px,18vh,180px)}
+    .previewFrameWrap{background:#eef1f4;display:flex;align-items:center;justify-content:center;padding:clamp(8px,.8vw,12px);min-height:0;overflow:hidden}
+    .previewFrame{width:100%;aspect-ratio:16/9;object-fit:contain;border:0;border-radius:6px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+    .previewEmpty{color:#8b96a0;text-align:center;font-size:var(--fs-sm);line-height:1.55}
+    .recent{grid-column:1 / -1;border-top:1px solid var(--line);overflow:auto;padding:8px;background:#fff}
+    .recentItem{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:6px;font-size:var(--fs-xs)}
+    .recentItem:hover{background:#f4f7f8}
+    .recentItem .riName{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .recentItem button{border:0;background:transparent;color:var(--accent);padding:4px 6px}
+
+    .hero{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;min-height:40px}
+    .hero h1{font-size:clamp(18px,calc(13px + .42vw),22px);margin:0 0 2px;line-height:1.2;letter-spacing:-.015em}.hero p{margin:0;color:var(--muted);font-size:var(--fs-xs)}
+    .statusChip{font-size:var(--fs-xs);border:1px solid #cce4e7;background:#f4fbfb;color:var(--accent2);border-radius:999px;padding:5px 9px;white-space:nowrap}
+
+    .composer{background:var(--panel);border:1px solid var(--line);border-radius:9px;overflow:hidden;box-shadow:0 2px 8px rgba(16,24,40,.035)}
+    .composerGrid{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(340px,.92fr)}
+    .block{padding:clamp(12px,1vw,16px);border-right:1px solid var(--line)}
+    .block:last-child{border-right:0}
+    .blockTitle{font-size:var(--fs-sm);font-weight:720;margin-bottom:9px;color:#34414d}
+    .fieldRow{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 10px}
+    label{display:block;font-size:var(--fs-xs);color:#4f5d69;margin-bottom:4px}
+    input,select,textarea{width:100%;min-height:var(--control-h);border:1px solid #cfd8df;background:#fff;color:var(--text);border-radius:7px;padding:8px 10px;outline:none}
+    input:focus,select:focus,textarea:focus{border-color:#6da5b7;box-shadow:0 0 0 2px rgba(23,107,134,.08)}
+    textarea{resize:vertical;min-height:64px;max-height:130px}
+    .sourceDrop{border:1px dashed #b8c7cf;background:#fbfcfd;border-radius:8px;padding:12px 10px;text-align:center;color:#667580;font-size:var(--fs-xs);transition:.15s ease}
+    .sourceDrop input{margin-top:7px;padding:6px;background:#fff;min-height:36px}
+    .sourceList{margin-top:7px;max-height:clamp(104px,15vh,150px);overflow:auto;scrollbar-width:thin}
+    .sourceRow{display:flex;align-items:center;gap:7px;padding:6px 4px;border-bottom:1px solid #edf1f3;font-size:var(--fs-xs)}
+    .sourceRow .sourceName{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .sourceRow button{border:0;background:var(--soft);color:var(--accent);padding:4px 7px;border-radius:5px}
+
+    .actionBar{display:flex;align-items:center;gap:8px;border-top:1px solid var(--line);padding:10px clamp(12px,1vw,16px);background:#fbfcfd;min-height:58px}
+    .primary{min-height:40px;border:0;background:var(--accent);color:#fff;border-radius:7px;padding:9px 15px;font-weight:720;white-space:nowrap;box-shadow:0 1px 2px rgba(15,108,120,.18)}
+    .primary:hover{background:var(--accent2)} .primary:disabled{opacity:.55;cursor:default}
+    .secondary{min-height:38px;border:1px solid var(--line);background:#fff;color:#37424c;border-radius:7px;padding:8px 11px;white-space:nowrap}
+    .linkBtn{border:0;background:transparent;color:var(--accent);padding:6px 7px;font-size:var(--fs-xs)}
+    .actionHint{font-size:var(--fs-xs);color:var(--muted);flex:1;min-width:140px}
+
+    .steps{display:flex;gap:0;margin:8px 0 10px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff}
+    .step{flex:1;padding:8px 11px;font-size:var(--fs-xs);color:#74808a;border-right:1px solid var(--line);min-width:0;position:relative}
+    .step:last-child{border-right:0}.step strong{display:block;color:#2b3742;font-size:var(--fs-sm);margin-bottom:1px}
+    .step.active{background:var(--accent-soft);box-shadow:inset 0 -2px 0 var(--accent)}.step.done{background:#f8faf9;color:#5e756b}
+
+    .progressBox{display:none;margin-top:8px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px}
+    .progressBox.show{display:block}.progressTop{display:flex;justify-content:space-between;gap:10px;font-size:12px;margin-bottom:7px}
+    .bar{height:6px;border-radius:999px;background:#edf1f3;overflow:hidden}.bar>div{height:100%;width:0;background:var(--accent);transition:width .35s ease}
+    .progressSub{font-size:11px;color:var(--muted);margin-top:6px}
+
+    .statusbar{background:#fff;border-top:1px solid var(--line);display:flex;align-items:center;gap:8px;padding:0 12px;font-size:var(--fs-xs);color:#6b7782}
+    .dot{width:7px;height:7px;border-radius:50%;background:#9aa5ae}.dot.busy{background:#d99b24}.dot.ok{background:#18865d}.dot.bad{background:#c93a32}
+
+    .modal{position:fixed;inset:0;background:rgba(10,15,20,.45);display:none;align-items:center;justify-content:center;z-index:50}
+    .modal.show{display:flex}.modalCard{width:min(780px,92vw);max-height:min(88vh,900px);background:#fff;border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,.25);display:flex;flex-direction:column}
+    .modalHead{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line);font-weight:700}
+    .modalBody{padding:16px;overflow:auto}.modalFoot{display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid var(--line)}
+    .jsonArea{min-height:300px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+    .refItem{display:flex;gap:8px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #edf1f3;font-size:12px}
+    .refItem input{width:auto;margin-top:3px}.refInfo{flex:1}.refInfo b{display:block;margin-bottom:2px}
+    .notice{font-size:12px;color:var(--muted);background:#f8fafb;border:1px solid var(--line);border-radius:7px;padding:9px 10px}
+    .slideThumbs{background:#f6f8fa;border-right:1px solid var(--line);overflow:auto;padding:7px}
+    .slideThumb{display:block;width:100%;border:2px solid transparent;background:#fff;border-radius:5px;padding:3px;margin-bottom:7px;cursor:pointer}
+    .slideThumb.active{border-color:var(--accent)}
+    .slideThumb img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;background:#e9edf0;border-radius:2px}
+    .slideThumb span{display:block;font-size:10px;color:#6d7882;margin-top:2px;text-align:center}
+    .step{cursor:pointer;user-select:none}
+    .step:hover{background:#f5f9fb}
+    .composer{display:flex;flex-direction:column;min-height:0;flex:1}
+    .composerGrid{flex:1;min-height:0}
+    .block{min-height:0;overflow:auto}
+    .hero{margin-bottom:10px}
+    .steps{margin:10px 0 10px}
+    .error{color:var(--danger)} .success{color:var(--ok)}
+    .heroMeta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+    .miniChip{font-size:var(--fs-xs);border:1px solid var(--line);background:#fff;color:#55626e;border-radius:999px;padding:5px 8px;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .sourceDrop.drag{border-color:var(--accent);background:#f0f8fa;box-shadow:inset 0 0 0 1px rgba(23,107,134,.12)}
+    .emptyPreviewCard{max-width:280px;text-align:left;background:#fff;border:1px solid var(--line);border-radius:9px;padding:14px;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+    .emptyPreviewCard b{display:block;margin-bottom:6px;color:#394652}.emptyPreviewCard ol{margin:6px 0 0 18px;padding:0;color:#78848e;font-size:var(--fs-xs);line-height:1.65}
+    .previewToggle{display:none}
+    .step.disabled{opacity:.55;cursor:not-allowed}.step.disabled:hover{background:#fff}
+    .composer.dimmed .block,.composer.dimmed .actionBar{opacity:.72}
+    .composer.dimmed .primary,.composer.dimmed .secondary{pointer-events:none}
+    .sectionEyebrow{font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:#97a1aa;font-weight:750;margin-bottom:4px}
+    .blockTitle{display:flex;align-items:center;gap:7px}
+    .blockTitle::before{content:'';width:6px;height:6px;border-radius:50%;background:#9db1b8;flex:0 0 auto}
+    .block:first-child .blockTitle::before{background:var(--accent)}
+    .actionBar{position:relative}
+    .actionBar::before{content:'';position:absolute;left:0;right:0;top:0;height:1px;background:linear-gradient(90deg,transparent,var(--line),transparent)}
+    .actionHint strong{color:#34404a}
+    .topAction.primaryTop{background:#12272c;color:#fff;border-color:#12272c}
+    .sideFooter{background:#0e1216}
+    .sideFooter button{display:flex;align-items:center;gap:8px}
+    .sideFooter button::before{display:inline-block;width:16px;color:#7f909c}
+    #guideBtn::before{content:'?'}
+    #stylesBtn::before{content:'◈'}
+    #referencesBtn::before{content:'□'}
+    #settingsBtn::before{content:'⚙'}
+
+    .recentItem{border:1px solid transparent}
+    .recentItem:hover{border-color:var(--line);background:#fbfcfd}
+    .previewHead{background:#fbfcfd}
+    .previewFrameWrap{background:#f1f3f5}
+    .slideThumb.active{box-shadow:0 0 0 1px rgba(15,108,120,.12)}
+    .modalCard{border:1px solid rgba(255,255,255,.14)}
+    .modalHead{background:#fbfcfd}
+    .modalFoot{background:#fbfcfd}
+    .quiet{color:#9aa4ad}
+    .kbd{font-size:10px;border:1px solid var(--line-strong);background:#fff;border-bottom-width:2px;border-radius:4px;padding:1px 5px;color:#7a858f}
+    .actionGroup{display:flex;align-items:center;gap:8px}
+    .sourceDrop b{color:#35414b}
+    .sourceDrop small{display:block;margin-top:2px;color:#909ba4}
+    @media(min-width:1800px){
+      :root{--sidebar-w:270px;--preview-w:500px}
+      .mainPane{padding:16px 18px}.composerGrid{grid-template-columns:minmax(0,1.12fr) minmax(380px,.88fr)}
+    }
+    @media(max-width:1440px){
+      :root{--sidebar-w:224px;--preview-w:360px}
+      .brand{padding:0 12px}.content{grid-template-columns:minmax(570px,1fr) var(--preview-w)}
+      .composerGrid{grid-template-columns:minmax(0,1fr) minmax(330px,.9fr)}
+    }
+    @media(max-width:1240px){
+      :root{--sidebar-w:210px}
+      .previewToggle{display:inline-flex}
+      .content{grid-template-columns:minmax(0,1fr)}
+      .previewPane{position:fixed;top:54px;right:0;bottom:32px;width:min(440px,46vw);z-index:35;box-shadow:-12px 0 36px rgba(15,25,35,.14);transform:translateX(102%);transition:transform .2s ease}
+      .app.preview-open .previewPane{transform:translateX(0)}
+      .composerGrid{grid-template-columns:minmax(0,1fr) minmax(320px,.9fr)}
+    }
+    @media(max-width:980px){
+      :root{--sidebar-w:190px}
+      .composerGrid{grid-template-columns:1fr}.block{border-right:0;border-bottom:1px solid var(--line)}
+      .block:last-child{border-bottom:0}.mainPane{overflow:auto}.composer{flex:none}.previewPane{width:min(520px,62vw)}
+      .hero p{display:none}.statusChip{display:none}
+    }
+  </style>
+</head>
+<body>
+<div class="app" id="appRoot">
+  <aside class="sidebar">
+    <div class="brand"><div class="brandMark">M</div><div>MediToku Slide Studio</div></div>
+    <div class="sideScroll">
+      <button class="primarySide" id="newProjectBtn" type="button" onclick="document.getElementById('newProjectModal').classList.add('show')">＋ 新しい資料</button>
+      <div class="sideTitle">Google Drive</div>
+      <div id="workspaceTree"><?!= initialWorkspaceHtml ?></div>
+      <div class="sideTitle">スタイル</div>
+      <div id="styleTree"><?!= initialStyleHtml ?></div>
+      <button class="treeItem" id="newStyleBtn" style="width:100%;background:transparent;border:0"><span>＋</span><span class="name">新しいスタイル</span></button>
+      <div class="sideTitle">最近のプロジェクト</div>
+      <div id="projectTree"><?!= initialProjectHtml ?></div>
+    </div>
+    <div class="sideFooter">
+      <button id="guideBtn" type="button" onclick="document.getElementById('guideModal').classList.add('show')">使い方ガイド</button>
+      <button id="stylesBtn" type="button" onclick="document.getElementById('styleModal').classList.add('show')">スタイルを管理</button>
+      <button id="referencesBtn" type="button" onclick="document.getElementById('referencesModal').classList.add('show')">共通お手本</button>
+      <button id="settingsBtn" type="button" onclick="document.getElementById('settingsModal').classList.add('show')">設定</button>
+    </div>
+  </aside>
+
+  <section class="shell">
+    <header class="topbar">
+      <div class="crumb" id="breadcrumb"><b>Slide Studio</b> / プロジェクト未選択</div>
+      <button class="topAction previewToggle" id="previewToggle" type="button">プレビュー</button>
+      <button class="topAction" id="openProjectDrive" disabled>Driveで開く</button>
+      <button class="topAction primaryTop" id="openLatestSlide" disabled>Google Slidesで開く</button>
+    </header>
+
+    <div class="content">
+      <main class="mainPane">
+        <div class="hero">
+          <div><div class="sectionEyebrow">Create presentation</div><h1>スライドを作成</h1><p>元資料とスタイルを選ぶだけ。構成からGoogle Slidesまで一つの画面で進めます。</p></div>
+          <div class="heroMeta"><div class="miniChip" id="styleChip">スタイル未選択</div><div class="statusChip" id="projectChip">プロジェクト未選択</div></div>
+        </div>
+
+        <div class="steps">
+          <div class="step active" id="step1" title="クリックして元資料へ"><strong>1. 元資料</strong>資料を追加</div>
+          <div class="step" id="step2" title="クリックして構成作成へ"><strong>2. 構成</strong>AIで構成</div>
+          <div class="step" id="step3" title="クリックして生成へ"><strong>3. 生成</strong>Slides作成</div>
+          <div class="step" id="step4" title="クリックしてGoogle Slidesで編集"><strong>4. 編集</strong>最終調整</div>
+        </div>
+
+        <div class="composer">
+          <div class="composerGrid">
+            <div class="block">
+              <div class="blockTitle">元資料と保存先</div>
+              <div class="fieldRow">
+                <div>
+                  <label>プロジェクト</label>
+                  <select id="projectSelect"><?!= initialProjectOptions ?></select>
+                </div>
+                <div>
+                  <label>ひな形</label>
+                  <select id="templateSelect"><option value="">現在のひな形を使用</option></select>
+                </div>
+              </div>
+              <div class="sourceDrop" id="sourceDrop">
+                <div><b>元資料をここに追加</b></div><small>PDF / TXT は自動解析 · 画像は素材として保存</small>
+                <input id="sourceUpload" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.gif,.txt">
+                <div style="margin-top:8px"><button class="secondary" id="uploadBtn">追加する</button></div>
+              </div>
+              <div class="sourceList" id="sourceList"><div class="notice">プロジェクトを選ぶと元資料が表示されます。</div></div>
+            </div>
+
+            <div class="block">
+              <div class="blockTitle">スタイルと作成条件</div>
+              <div style="margin-bottom:10px">
+                <label>スタイル</label>
+                <select id="styleSelect"><?!= initialStyleOptions ?></select>
+                <div class="muted" id="styleHint" style="margin-top:5px">会社・個人・用途別の作り方を選べます。</div>
+              </div>
+              <div class="fieldRow">
+                <div><label>枚数</label><input id="slideCount" type="number" min="1" max="40" value="8"></div>
+                <div><label>用途</label><select id="purpose"><option value="sales">営業提案</option><option value="report">事業報告</option><option value="product">サービス紹介</option><option value="internal">社内会議</option><option value="training">研修</option><option value="custom">その他</option></select></div>
+                <div><label>対象読者</label><input id="audience" value="医療機関の経営者"></div>
+                <div><label>アニメーション</label><select id="animation"><option value="none">なし</option><option value="subtle" selected>控えめ</option><option value="rich">しっかり</option></select></div>
+              </div>
+              <label style="margin-top:10px">今回の目的・補足</label>
+              <textarea id="brief" placeholder="例：院長向け営業提案。費用対効果と導入手順を重視。"></textarea>
+              <div style="margin-top:8px"><button class="linkBtn" id="advancedBtn">詳細設定</button> <button class="linkBtn" id="referencePickBtn">お手本を選ぶ <span id="refCount"></span></button></div>
+            </div>
+          </div>
+
+          <div class="actionBar">
+            <div class="actionHint" id="actionHint">新しい資料を作るか、既存プロジェクトを選択してください。</div>
+            <div class="actionGroup"><button class="secondary" id="makeStructureBtn" title="Ctrl / ⌘ + Enter">構成を作る</button><button class="primary" id="generateBtn">JSONを貼って生成</button></div>
+          </div>
+        </div>
+
+        <div class="progressBox" id="progressBox">
+          <div class="progressTop"><b id="progressTitle">処理中</b><span id="progressTime">0秒</span></div>
+          <div class="bar"><div id="progressBar"></div></div>
+          <div class="progressSub" id="progressSub">準備しています…</div>
+        </div>
+      </main>
+
+      <aside class="previewPane">
+        <div class="previewHead" style="justify-content:space-between"><span>プレビュー / 過去のスライド</span><button class="linkBtn" id="addLatestToStyle" disabled>このスタイルのお手本に追加</button></div>
+        <div class="previewBody">
+          <div class="slideThumbs" id="slideThumbs"><div class="previewEmpty" style="font-size:11px;padding:10px 2px">スライド</div></div>
+          <div class="previewFrameWrap" id="previewWrap"><div class="emptyPreviewCard"><b>ここに完成スライドを表示します</b><ol><li>プロジェクトを作成</li><li>元資料をAI分析</li><li>Geminiで構成</li><li>Slidesを生成</li></ol></div></div>
+          <div class="recent" id="recentSlides"></div>
+        </div>
+      </aside>
+    </div>
+
+    <footer class="statusbar">
+      <span class="dot" id="statusDot"></span>
+      <span id="statusText">画面を表示しました。Drive情報を読み込んでいます…</span>
+      <button id="retryBootBtn" type="button" style="display:none;margin-left:auto;border:0;background:transparent;color:var(--accent);font-size:inherit;cursor:pointer">再読み込み</button>
+    </footer>
+  </section>
+</div>
+
+<!-- JSON modal -->
+<div class="modal" id="jsonModal">
+  <div class="modalCard">
+    <div class="modalHead"><span>Geminiの構成JSON</span><button class="linkBtn" type="button" onclick="this.closest('.modal').classList.remove('show')">閉じる</button></div>
+    <div class="modalBody">
+      <div class="notice" id="jsonGuide">Geminiで作成したJSONをここに貼り付けてください。</div>
+      <textarea class="jsonArea" id="jsonInput" placeholder='{"title":"提案資料","slides":[...]}'></textarea>
+      <div id="jsonStatus" style="font-size:12px;margin-top:8px"></div>
+    </div>
+    <div class="modalFoot"><button class="secondary" id="validateJsonBtn">確認</button><button class="primary" id="generateFromModalBtn">JSONを貼って生成</button></div>
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div class="modal" id="settingsModal">
+  <div class="modalCard">
+    <div class="modalHead"><span>詳細設定</span><button class="linkBtn" type="button" onclick="this.closest('.modal').classList.remove('show')">閉じる</button></div>
+    <div class="modalBody">
+      <div class="fieldRow">
+        <div><label>文章量</label><select id="density"><option value="minimal">少なめ</option><option value="standard" selected>標準</option><option value="detailed">多め</option></select></div>
+        <div><label>文体</label><select id="tone"><option value="factual" selected>事実中心</option><option value="formal">フォーマル</option><option value="friendly">わかりやすい</option></select></div>
+        <div><label>出典</label><select id="evidence"><option value="strict" selected>全数値に出典</option><option value="standard">重要事項に出典</option></select></div>
+        <div><label>画像</label><select id="visuals"><option value="source_only" selected>元資料のみ</option><option value="source_preferred">元資料を優先</option><option value="text_only">画像なし</option></select></div>
+      </div>
+      <div class="fieldRow" style="margin-top:10px">
+        <label><input id="includeCover" type="checkbox" checked style="width:auto"> 表紙を含める</label>
+        <label><input id="includeClosing" type="checkbox" checked style="width:auto"> 最後に次のアクション</label>
+      </div>
+      <label>必ず入れる内容</label><textarea id="mustInclude"></textarea>
+      <label>入れない内容</label><textarea id="mustExclude"></textarea>
+      <label>その他の指定</label><textarea id="extra"></textarea>
+      <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
+      <div class="notice">通常は変更不要です。会社のひな形やDrive構成は既存設定を引き継ぎます。</div>
+
+      <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <div>
+          <b style="font-size:13px">Google環境・互換性</b>
+          <div class="muted">契約名ではなく、現在利用できる機能で動作を判断します。</div>
+        </div>
+        <button class="secondary" id="capabilityRefreshBtn" type="button">確認する</button>
+      </div>
+      <div id="capabilityResult" style="margin-top:8px"></div>
+      <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <div><b style="font-size:13px">システム診断</b><div class="muted">Drive・ひな形・スタイルの基本状態を確認します。</div></div>
+        <button class="secondary" id="healthCheckBtn" type="button">診断する</button>
+      </div>
+      <div id="healthCheckResult" style="margin-top:8px"></div>
+
+    </div>
+  </div>
+</div>
+
+<!-- References modal -->
+<div class="modal" id="referencesModal">
+  <div class="modalCard">
+    <div class="modalHead"><span>お手本ライブラリ</span><button class="linkBtn" type="button" onclick="this.closest('.modal').classList.remove('show')">閉じる</button></div>
+    <div class="modalBody">
+      <div class="row" style="display:flex;gap:8px;margin-bottom:10px">
+        <button class="secondary" id="openRefDrive">Driveで開く</button>
+        <button class="secondary" id="refreshRefs">更新</button>
+      </div>
+      <div class="notice">今回参考にするお手本は最大3件。人間が最終修正して良いと思った資料だけを登録してください。</div>
+      <div id="referenceList" style="margin-top:10px"></div>
+      <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
+      <label>完成したGoogle Slidesをお手本に登録</label>
+      <input id="refUrl" placeholder="Google Slides URL">
+      <input id="refReason" placeholder="気に入った理由（余白、文章の短さ、図表配置など）" style="margin-top:6px">
+      <div class="fieldRow" style="margin-top:8px">
+        <label><input class="refKind" type="checkbox" value="design" checked style="width:auto"> デザイン</label>
+        <label><input class="refKind" type="checkbox" value="writing" checked style="width:auto"> 文章</label>
+        <label><input class="refKind" type="checkbox" value="structure" checked style="width:auto"> 構成</label>
+        <label><input class="refKind" type="checkbox" value="charts" style="width:auto"> 図表</label>
+      </div>
+      <button class="primary" id="registerRefBtn" style="margin-top:10px">お手本へ登録</button>
+    </div>
+  </div>
+</div>
+
+<!-- Style modal -->
+<div class="modal" id="styleModal">
+  <div class="modalCard">
+    <div class="modalHead"><span>スタイル</span><button class="linkBtn" type="button" onclick="this.closest('.modal').classList.remove('show')">閉じる</button></div>
+    <div class="modalBody">
+      <div class="notice">会社公式・自分用・VC向けなど、用途ごとに「テンプレート + お手本 + ルール」を保存できます。各スタイルのDriveフォルダへ完成Slidesを入れるだけでも育ちます。</div>
+      <div class="fieldRow" style="margin-top:12px">
+        <div><label>スタイル名</label><input id="styleName" placeholder="例：VC・投資家向け"></div>
+        <div><label>種類</label><select id="styleKind"><option value="company">会社</option><option value="personal">個人</option><option value="usecase">用途別</option></select></div>
+        <div><label>ベースにするスタイル</label><select id="styleBase"><option value="">なし</option></select></div>
+        <div><label>アニメーション</label><select id="styleAnimation"><option value="none">なし</option><option value="subtle" selected>控えめ</option><option value="rich">しっかり</option></select></div>
+      </div>
+      <label>説明</label><input id="styleDescription" placeholder="例：市場、KPI、競争優位を重視する投資家向け資料">
+      <div class="fieldRow" style="margin-top:8px">
+        <div><label>用途</label><select id="stylePurpose"><option value="sales">営業提案</option><option value="report">事業報告</option><option value="product">サービス紹介</option><option value="internal">社内会議</option><option value="training">研修</option><option value="custom">その他</option></select></div>
+        <div><label>対象読者</label><input id="styleAudience" placeholder="例：VC・投資家"></div>
+      </div>
+      <label>使用するひな形</label><select id="styleTemplate"><option value="">共通設定 / ベーススタイルに従う</option></select>
+      <label>このスタイルのルール（1行1ルール）</label><textarea id="styleRules" placeholder="例：1枚1メッセージ
+数値には必ず出典
+実画面を優先"></textarea>
+      <div class="row" style="display:flex;gap:8px;margin-top:10px">
+        <button class="secondary" id="openStyleFolder">スタイルフォルダをDriveで開く</button>
+        <button class="secondary" id="openStyleRefFolder">お手本フォルダを開く</button>
+        <button class="secondary" id="syncStyleRefs">お手本を更新</button>
+      </div>
+      <div id="styleRefList" style="margin-top:10px"></div>
+    </div>
+    <div class="modalFoot"><button class="secondary" id="createStyleFromModal">新規作成</button><button class="primary" id="saveStyleBtn">保存</button></div>
+  </div>
+</div>
+
+
+<!-- Guide modal -->
+<div class="modal" id="guideModal">
+  <div class="modalCard" style="width:min(760px,92vw)">
+    <div class="modalHead"><span>使い方ガイド</span><button class="linkBtn" type="button" onclick="this.closest('.modal').classList.remove('show')">閉じる</button></div>
+    <div class="modalBody">
+      <div class="notice">基本は4ステップだけです。Driveや詳細設定は必要なときだけ使えば大丈夫です。</div>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px">
+        <div class="notice"><b>1. 元資料</b><br>新しい資料を作成し、PDFや画像を元資料へ追加。PDF/TXTは保存後に自動解析されます。</div>
+        <div class="notice"><b>2. 構成</b><br>「構成を作る」でプロンプトをコピー。GeminiのJSONを貼り付けます。</div>
+        <div class="notice"><b>3. 生成</b><br>JSON確認後「Google Slidesを生成」。処理中は進捗を表示します。</div>
+        <div class="notice"><b>4. 編集</b><br>右側で確認し「Google Slidesで開く」から仕上げ。良ければスタイルのお手本に追加します。</div>
+      </div>
+      <h3 style="font-size:14px;margin:16px 0 8px">スタイル</h3>
+      <p class="muted">会社公式・自分用・VC向けなど、用途ごとにテンプレート・ルール・お手本を分けられます。左の「スタイルを管理」から編集できます。</p>
+      <h3 style="font-size:14px;margin:16px 0 8px">Google Drive</h3>
+      <p class="muted">資料本体はユーザー自身のGoogle Driveに保存されます。左サイドバーの各フォルダ名から直接Driveを開けます。</p>
+    </div>
+  </div>
+</div>
+
+<!-- New project modal -->
+<div class="modal" id="newProjectModal">
+  <div class="modalCard" style="width:min(520px,92vw)">
+    <div class="modalHead"><span>新しい資料</span><button class="linkBtn" type="button" onclick="this.closest('.modal').classList.remove('show')">閉じる</button></div>
+    <div class="modalBody">
+      <label>プロジェクト名</label>
+      <input id="newProjectName" placeholder="例：医療機関向け営業資料">
+    </div>
+    <div class="modalFoot"><button class="primary" id="createProjectBtn">作成</button></div>
+  </div>
+</div>
+
+<script>
+
+(function(){
+  'use strict';
+
+  function el(id){ return document.getElementById(id); }
+
+  function setBootStatus(text, bad){
+    var s=el('statusText');
+    var d=el('statusDot');
+    if(s) s.textContent=text;
+    if(d) d.className=bad ? 'dot bad' : 'dot busy';
+    var r=el('retryBootBtn');
+    if(r) r.style.display=bad ? 'inline-block' : 'none';
+  }
+
+  function openModalSafe(id){
+    var m=el(id);
+    if(m) m.classList.add('show');
+  }
+
+  function closeModalSafe(id){
+    var m=el(id);
+    if(m) m.classList.remove('show');
+  }
+
+  // These controls must work even if the main application script fails later.
+  var emergencyMap={
+    advancedBtn:'settingsModal',
+    referencePickBtn:'referencesModal'
+  };
+
+  Object.keys(emergencyMap).forEach(function(buttonId){
+    var b=el(buttonId);
+    if(b){
+      b.addEventListener('click',function(){
+        openModalSafe(emergencyMap[buttonId]);
+        if((buttonId==='stylesBtn'||buttonId==='newStyleBtn') && !window.__MT_MAIN_READY){
+          var list=el('styleRefList');
+          if(list) list.innerHTML='<div class="notice">アプリ本体の読み込み後にスタイル情報を表示します。</div>';
+        }
+      });
+    }
+  });
+
+  document.querySelectorAll('[data-close]').forEach(function(b){
+    b.addEventListener('click',function(){
+      closeModalSafe(b.getAttribute('data-close'));
+    });
+  });
+
+  var retry=el('retryBootBtn');
+  if(retry) retry.addEventListener('click',function(){ location.reload(); });
+
+  setBootStatus('起動中…',false);
+
+  window.__MT_MAIN_STARTED=false;
+  window.__MT_MAIN_READY=false;
+
+  window.addEventListener('error',function(e){
+    // Do not let unrelated browser-extension errors make the app look broken.
+    var file=String(e.filename||'');
+    if(file.indexOf('chrome-extension://')===0 || file.indexOf('moz-extension://')===0){
+      return;
+    }
+
+    var msg=String(e.message||'不明なエラー');
+    var where='';
+    if(e.lineno) where='（行 '+e.lineno+(e.colno?':'+e.colno:'')+'）';
+
+    setBootStatus('一部の拡張機能でエラー: '+msg+where,true);
+    try{ console.error('MediToku boot error:',e.error||e.message,e.filename,e.lineno,e.colno); }catch(_){}
+  });
+
+  window.addEventListener('unhandledrejection',function(e){
+    var reason=e && e.reason ? (e.reason.message||String(e.reason)) : '不明なPromiseエラー';
+    setBootStatus('通信エラー: '+reason,true);
+    try{ console.error('MediToku unhandled rejection:',e.reason); }catch(_){}
+  });
+
+  // If the main script never starts, say so explicitly.
+  window.setTimeout(function(){
+    if(!window.__MT_MAIN_STARTED){
+      setBootStatus('基本UIは利用できますが、データ読込処理を開始できませんでした。',true);
+    }
+  },1500);
+})();
+
+(function(){
+'use strict';
+
+window.__MT_MAIN_STARTED=true;
+var __mtRetry=document.getElementById('retryBootBtn');
+if(__mtRetry) __mtRetry.style.display='none';
+
+const $ = id => document.getElementById(id);
+const state = {
+  nav:null, projects:[], active:null, sources:[], slides:[], refs:[], selectedRefs:[],
+  styles:[], activeStyle:null, styleRoot:null, editingStyle:null, slidePages:[], activeSlidePage:0,
+  sourceDocs:[], latest:null, templateId:'', busy:false, progressTimer:null, progressStart:0, capabilities:null, appVersion:''
+};
+function call(method,...args){
+  return new Promise((resolve,reject)=>{
+    try{
+      if(!window.google || !google.script || !google.script.run){
+        reject(new Error('Google Apps Scriptとの接続を初期化できませんでした。'));
+        return;
+      }
+      const runner=google.script.run.withSuccessHandler(resolve).withFailureHandler(reject);
+      const fn=runner[method];
+      if(typeof fn!=='function'){
+        reject(new Error('サーバー関数を呼び出せません: '+method));
+        return;
+      }
+      fn(...args);
+    }catch(e){
+      reject(e);
+    }
+  });
+}
+function openModal(id){
+  const el=$(id);
+  if(!el){setStatus('画面部品を読み込めませんでした：'+id,'bad');return;}
+  el.classList.add('show');
+}
+function closeModal(id){
+  const el=$(id);
+  if(el)el.classList.remove('show');
+}
+document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>closeModal(b.dataset.close));
+function setStatus(text,type=''){ $('statusText').textContent=text; $('statusDot').className='dot '+(type||''); }
+function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+function friendlyError(err){
+  const m=String(err&&err.message||err||'エラーが発生しました。');
+  if(/too many|quota|limit exceeded|rate|service invoked too many/i.test(m)) return 'Google側の利用上限に近づいています。少し待ってから再実行してください。';
+  if(/internal error|backend error|temporar|service unavailable/i.test(m)) return 'Google側で一時的なエラーが発生しました。数秒後にもう一度お試しください。';
+  if(/authorization|permission|access denied|insufficient/i.test(m)) return 'Google Drive / Slidesへの権限を確認してください。';
+  if(/maximum execution|exceeded maximum execution time/i.test(m)) return '処理時間の上限に達しました。資料を分けるか、再実行してください。';
+  return m;
+}
+function requestId(prefix){return (prefix||'req')+'_'+Date.now()+'_'+Math.random().toString(36).slice(2,11)}
+
+
+
+async function ensurePdfJs(){
+  if(window.pdfjsLib){
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    return window.pdfjsLib;
+  }
+
+  const sources=[
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
+    'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js'
+  ];
+
+  for(const src of sources){
+    try{
+      await new Promise((resolve,reject)=>{
+        const s=document.createElement('script');
+        s.src=src;
+        s.async=true;
+        s.onload=resolve;
+        s.onerror=()=>reject(new Error('PDFライブラリを読み込めませんでした。'));
+        document.head.appendChild(s);
+      });
+      if(window.pdfjsLib){
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        return window.pdfjsLib;
+      }
+    }catch(e){}
+  }
+
+  throw new Error('PDF解析ライブラリを読み込めませんでした。PDF以外の操作はそのまま利用できます。ネットワーク環境を確認してからPDF解析を再実行してください。');
+}
+
+function fmtDate(iso){
+  try{return new Intl.DateTimeFormat('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(iso))}
+  catch(e){return''}
+}
+
+function getOptions(){
+  const n=Number($('slideCount').value);
+  if(!Number.isInteger(n)||n<1||n>40)throw Error('枚数は1〜40で指定してください。');
+  return {
+    slideCount:n,purpose:$('purpose').value,audience:$('audience').value,
+    density:$('density').value,tone:$('tone').value,evidence:$('evidence').value,visuals:$('visuals').value,
+    includeCover:$('includeCover').checked,includeClosing:$('includeClosing').checked,
+    mustInclude:$('mustInclude').value,mustExclude:$('mustExclude').value,extra:$('extra').value
+  };
+}
+
+async function init(){
+  setStatus('Drive情報を読み込んでいます…','busy');
+
+  let boot=null;
+
+  try{
+    boot=await call('mt5Bootstrap');
+  }catch(e){
+    // Backward-compatible fallback if a deployment is partially updated.
+    setStatus('互換モードで読み込んでいます…','busy');
+    const results=await Promise.allSettled([
+      call('mt42GetSidebarData'),call('getAppConfig'),call('mt33ListTemplates'),
+      call('mt33GetPrefs'),call('mt33ListReferences')
+    ]);
+    boot={
+      version:'compat',
+      capabilities:null,
+      sidebar:results[0].status==='fulfilled'?results[0].value:null,
+      config:results[1].status==='fulfilled'?results[1].value:{templateId:''},
+      templates:results[2].status==='fulfilled'?results[2].value:[],
+      prefs:results[3].status==='fulfilled'?results[3].value:{animation:'subtle'},
+      references:results[4].status==='fulfilled'?results[4].value:[],
+      warnings:results.filter(x=>x.status==='rejected').map(x=>({message:friendlyError(x.reason)}))
+    };
+  }
+
+  const sidebar=boot.sidebar;
+  const cfg=boot.config||{templateId:''};
+  const templates=boot.templates||[];
+  const prefs=boot.prefs||{animation:'subtle'};
+  const refs=boot.references||[];
+
+  state.capabilities=boot.capabilities||null;
+  state.appVersion=boot.version||'';
+  state.templateId=cfg.templateId||'';
+  state.refs=refs;
+  $('animation').value=(prefs&&prefs.animation)||'subtle';
+
+  if(sidebar){
+    state.nav={
+      workspace:sidebar.workspace,
+      projectRoot:sidebar.projectRoot,
+      templateRoot:sidebar.templateRoot,
+      assetRoot:sidebar.assetRoot,
+      referenceRoot:sidebar.referenceRoot
+    };
+    state.projects=sidebar.projects||[];
+    state.styles=sidebar.styles||[];
+    state.styleRoot=sidebar.styleRoot||null;
+    state.activeStyle=sidebar.activeStyle||null;
+  }else{
+    state.nav=null;state.projects=[];state.styles=[];
+  }
+
+  if(sidebar) renderSidebar();
+  renderProjects();renderTemplates(templates);renderRefs();renderStyles();
+  renderCapabilities();
+
+  if(state.activeStyle){
+    $('styleSelect').value=state.activeStyle.id;
+    applyStyleToForm(state.activeStyle,false);
+  }
+
+  if(sidebar&&sidebar.activeProject){
+    $('projectSelect').value=sidebar.activeProject.id;
+    await selectProject(sidebar.activeProject.id);
+  }else{
+    updateComposerState();
+  }
+
+  const warnings=(boot.warnings||[]).map(x=>x.message).filter(Boolean);
+  if(warnings.length){
+    setStatus('一部機能は縮退モードです：'+warnings.join(' / '),'bad');
+    window.__MT_MAIN_READY=true;
+  }else{
+    setStatus('準備完了'+(state.appVersion?'  ·  v'+state.appVersion:''),'ok');
+    window.__MT_MAIN_READY=true;
+  }
+}
+
+
+function renderCapabilities(){
+  const box=$('capabilityResult');
+  if(!box)return;
+  const c=state.capabilities;
+  if(!c){
+    box.innerHTML='<div class="notice">現在のデプロイでは能力判定情報を取得できません。</div>';
+    return;
+  }
+
+  const f=c.capabilities||{};
+  const rows=[
+    ['Google Drive',f.driveCore&&f.driveCore.available,'現在はApps Script経由'],
+    ['Google Slides',f.slidesCore&&f.slidesCore.available,'現在はApps Script経由'],
+    ['Google Picker',f.googlePicker&&f.googlePicker.available,'商用SaaS版で導入予定'],
+    ['最小Drive権限 (drive.file)',f.driveFileScope&&f.driveFileScope.available,'商用SaaS版で導入予定'],
+    ['AI生成エンジン',true,(f.geminiGeneration&&f.geminiGeneration.mode)==='manual_handoff'?'Geminiへ手動受け渡し':'利用可能'],
+    ['Cloud Run',f.cloudRunEngine&&f.cloudRunEngine.available,'商用SaaS移行で有効化予定']
+  ];
+
+  box.innerHTML=
+    '<div class="notice" style="margin-bottom:8px">Google AI Pro / Workspaceの契約SKUは公開APIから確実に判定できないため、プラン名ではなく利用可能機能で切り替えます。</div>'+
+    rows.map(r=>`<div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid #edf1f3;font-size:12px"><b style="min-width:180px;color:${r[1]?'#067647':'#687684'}">${r[1]?'✓':'○'} ${esc(r[0])}</b><span style="color:#687684">${esc(r[2])}</span></div>`).join('');
+}
+
+function renderSidebar(){
+  const driveBox=$('workspaceTree');
+  const styleBox=$('styleTree');
+  const projectBox=$('projectTree');
+
+  if(state.nav && state.nav.workspace){
+    const n=state.nav;
+    const folders=[];
+    if(n.projectRoot) folders.push(['01_プロジェクト',n.projectRoot]);
+    if(n.templateRoot) folders.push(['02_共通テンプレート',n.templateRoot]);
+    if(n.assetRoot) folders.push(['03_共通素材',n.assetRoot]);
+    if(n.referenceRoot) folders.push(['04_お手本スライド',n.referenceRoot]);
+    if(state.styleRoot) folders.push(['05_スタイル',state.styleRoot]);
+
+    driveBox.innerHTML =
+      `<a class="treeItem" href="${esc(n.workspace.url)}" target="_blank"><span>▾</span><span class="name">${esc(n.workspace.name)}</span><span class="ext">↗</span></a>`+
+      folders.map(([name,f])=>`<a class="treeItem treeIndent" href="${esc(f.url)}" target="_blank"><span>▸</span><span class="name">${esc(name)}</span><span class="ext">↗</span></a>`).join('');
+  }else{
+    driveBox.innerHTML='<div class="treeItem"><span class="name">Drive情報を再読み込みしてください</span></div>';
+  }
+
+  styleBox.innerHTML=(state.styles||[]).map(s=>
+    `<div class="treeItem ${state.activeStyle&&state.activeStyle.id===s.id?'active':''}" data-style="${esc(s.id)}"><span>${s.kind==='company'?'◆':s.kind==='usecase'?'▹':'●'}</span><span class="name">${esc(s.name)}</span><a class="ext" href="${esc(s.url)}" target="_blank" onclick="event.stopPropagation()">↗</a></div>`
+  ).join('') || `<div class="treeItem"><span class="name">スタイルを読み込み中 / 未作成</span></div>`;
+
+  document.querySelectorAll('[data-style]').forEach(x=>x.onclick=()=>selectStyle(x.dataset.style));
+
+  projectBox.innerHTML=(state.projects||[]).slice(0,14).map(p=>
+    `<div class="treeItem ${state.active&&state.active.id===p.id?'active':''}" data-project="${esc(p.id)}"><span>▸</span><span class="name">${esc(p.name)}</span><a class="ext" href="${esc(p.url)}" target="_blank" onclick="event.stopPropagation()">↗</a></div>`
+  ).join('') || `<div class="treeItem"><span class="name">まだありません</span></div>`;
+
+  document.querySelectorAll('[data-project]').forEach(x=>x.onclick=()=>selectProject(x.dataset.project));
+
+  if($('openRefDrive') && state.nav && state.nav.referenceRoot){
+    $('openRefDrive').onclick=()=>window.open(state.nav.referenceRoot.url,'_blank');
+  }
+}
+function renderProjects(){
+  const s=$('projectSelect');s.replaceChildren(new Option('選択してください',''));
+  state.projects.forEach(p=>s.add(new Option(p.name,p.id)));
+}
+function renderTemplates(list){
+  const s=$('templateSelect');s.replaceChildren(new Option('現在のひな形を使用',''));
+  list.forEach(x=>s.add(new Option(x.name,x.id)));
+  if(list.some(x=>x.id===state.templateId))s.value=state.templateId;
+}
+function renderStyles(){
+  const s=$('styleSelect');s.replaceChildren(new Option('スタイルを選択',''));
+  state.styles.forEach(x=>s.add(new Option(x.name,x.id)));
+  if(state.activeStyle&&state.styles.some(x=>x.id===state.activeStyle.id))s.value=state.activeStyle.id;
+  fillStyleBaseOptions();
+}
+function fillStyleBaseOptions(){
+  const s=$('styleBase');if(!s)return;
+  const current=state.editingStyle&&state.editingStyle.id;
+  s.replaceChildren(new Option('なし',''));
+  state.styles.filter(x=>x.id!==current).forEach(x=>s.add(new Option(x.name,x.id)));
+}
+function applyStyleToForm(style, overwrite=true){
+  if(!style)return;
+  state.activeStyle=style;
+  $('styleSelect').value=style.id;
+  if(overwrite||!$('audience').value)$('audience').value=style.audience||$('audience').value;
+  if(style.purpose)$('purpose').value=style.purpose;
+  if(style.animation)$('animation').value=style.animation;
+  $('styleHint').textContent=(style.chain&&style.chain.length?style.chain.map(x=>x.name).join(' + '):style.name)+(style.description?' — '+style.description:'');
+  if($('styleChip')) $('styleChip').textContent=style.name||'スタイル';
+  renderSidebar();
+}
+async function selectStyle(id){
+  if(!id){state.activeStyle=null;await call('mt41SetActiveStyle','');$('styleHint').textContent='会社・個人・用途別の作り方を選べます。';if($('styleChip'))$('styleChip').textContent='スタイル未選択';renderSidebar();return;}
+  setStatus('スタイルを読み込んでいます…','busy');
+  try{
+    const style=await call('mt41SetActiveStyle',id);applyStyleToForm(style,true);setStatus('スタイル「'+style.name+'」を適用しました','ok');
+  }catch(e){setStatus(friendlyError(e),'bad')}
+}
+$('styleSelect').onchange=()=>selectStyle($('styleSelect').value);
+
+async function openStyleManager(id, createNew=false){
+  let style=null;
+  if(createNew){
+    style=null;
+  }else if(id){
+    style=await call('mt41SetActiveStyle',id);
+    state.activeStyle=style;
+  }else{
+    style=state.activeStyle;
+  }
+  state.editingStyle=style||null;
+  fillStyleBaseOptions();
+  $('styleName').value=style?style.name:'';
+  $('styleKind').value=style?style.kind:'personal';
+  $('styleBase').value=style?style.baseStyleId:'';
+  $('styleDescription').value=style?style.description:'';
+  $('stylePurpose').value=style?style.purpose:'sales';
+  $('styleAudience').value=style?style.audience:'';
+  $('styleAnimation').value=style?style.animation:'subtle';
+  $('styleRules').value=style?(style.rules||[]).join('\n'):'';
+  await loadStyleTemplates(style&&style.id,style&&style.templateId);
+  renderStyleFolderButtons(style);
+  await loadStyleRefs(style&&style.id);
+  openModal('styleModal');
+}
+async function loadStyleTemplates(styleId,selected){
+  const sel=$('styleTemplate');sel.replaceChildren(new Option('共通設定 / ベーススタイルに従う',''));
+  let list=[];
+  if(styleId) list=await call('mt41ListStyleTemplates',styleId);
+  else list=await call('mt33ListTemplates');
+  list.forEach(x=>sel.add(new Option((x.source==='style'?'このスタイル: ':'共通: ')+x.name,x.id)));
+  if(selected&&list.some(x=>x.id===selected))sel.value=selected;
+}
+function renderStyleFolderButtons(style){
+  $('openStyleFolder').disabled=!style;$('openStyleRefFolder').disabled=!style;$('syncStyleRefs').disabled=!style;
+  $('openStyleFolder').onclick=()=>style&&window.open(style.url,'_blank');
+  $('openStyleRefFolder').onclick=()=>style&&window.open(style.referenceFolderUrl,'_blank');
+}
+async function loadStyleRefs(styleId){
+  const box=$('styleRefList');box.replaceChildren();
+  if(!styleId){box.innerHTML='<div class="notice">スタイルを作成すると、専用のお手本フォルダができます。</div>';return}
+  box.innerHTML='<div class="notice">お手本を確認しています…</div>';
+  try{
+    const refs=await call('mt41ListStyleReferences',styleId);box.replaceChildren();
+    if(!refs.length){box.innerHTML='<div class="notice">「02_お手本」に良い完成Slidesを入れると、次回からこのスタイルの参考になります。</div>';return}
+    refs.forEach(r=>{const row=document.createElement('div');row.className='refItem';row.innerHTML='<div class="refInfo"><b>'+esc(r.name)+'</b><span style="color:#7d8993">'+esc(r.reason||'')+'</span></div><button class="linkBtn">開く</button>';row.querySelector('button').onclick=()=>window.open(r.url,'_blank');box.append(row);});
+  }catch(e){box.innerHTML='<div class="error">'+esc(e.message)+'</div>'}
+}
+
+$('syncStyleRefs').onclick=()=>state.editingStyle&&loadStyleRefs(state.editingStyle.id);
+$('createStyleFromModal').onclick=async()=>{
+  try{
+    const s=await call('mt41CreateStyle',$('styleName').value,$('styleBase').value);state.styles=await call('mt41ListStyles');state.editingStyle=s;state.activeStyle=s;renderStyles();applyStyleToForm(s,true);await openStyleManager(s.id);setStatus('新しいスタイルを作成しました','ok');
+  }catch(e){setStatus(friendlyError(e),'bad')}
+};
+$('saveStyleBtn').onclick=async()=>{
+  try{
+    if(!state.editingStyle)throw Error('先に「新規作成」でスタイルを作成してください。');
+    const payload={id:state.editingStyle.id,name:$('styleName').value,kind:$('styleKind').value,baseStyleId:$('styleBase').value,description:$('styleDescription').value,purpose:$('stylePurpose').value,audience:$('styleAudience').value,animation:$('styleAnimation').value,templateId:$('styleTemplate').value,rules:$('styleRules').value};
+    const s=await call('mt41SaveStyle',payload);state.styles=await call('mt41ListStyles');state.editingStyle=s;state.activeStyle=s;renderStyles();applyStyleToForm(s,true);renderStyleFolderButtons(s);setStatus('スタイルを保存しました','ok');
+  }catch(e){setStatus(friendlyError(e),'bad')}
+};
+
+async function selectProject(id){
+  if(!id){
+    state.active=null;state.sources=[];state.slides=[];state.latest=null;state.sourceDocs=[];
+    await call('mt33SetActiveProject','');
+    $('breadcrumb').innerHTML='<b>Slide Studio</b> / プロジェクト未選択';
+    $('projectChip').textContent='プロジェクト未選択';
+    $('openProjectDrive').disabled=true;
+    $('openLatestSlide').disabled=true;
+    $('addLatestToStyle').disabled=true;
+    renderSourceList();renderRecent();updateComposerState();renderSidebar();
+    setStatus('プロジェクト未選択','ok');
+    return;
+  }
+  setStatus('プロジェクトを読み込んでいます…','busy');
+  try{
+    const data=await call('mt40GetProjectState',id);
+    await call('mt33SetActiveProject',id);
+    state.active=data.project;state.sources=data.sources||[];state.slides=data.slides||[];
+    $('projectSelect').value=id;
+    $('breadcrumb').innerHTML=`<b>Slide Studio</b> / ${esc(state.active.name)}`;
+    $('projectChip').textContent=state.active.name;
+    $('openProjectDrive').disabled=false;$('openProjectDrive').onclick=()=>window.open(state.active.url,'_blank');
+    renderSourceList();renderRecent();renderSidebar();updateComposerState();
+    setStatus('プロジェクトを読み込みました','ok');
+  }catch(e){setStatus(friendlyError(e),'bad');}
+}
+$('projectSelect').onchange=()=>selectProject($('projectSelect').value);
+
+function renderSourceList(){
+  const box=$('sourceList');box.replaceChildren();
+  if(!state.active){box.innerHTML='<div class="notice">プロジェクトを選択してください。</div>';return}
+  if(!state.sources.length){box.innerHTML='<div class="notice">元資料はまだありません。上から追加してください。</div>';return}
+  state.sources.forEach(f=>{
+    const row=document.createElement('div');row.className='sourceRow';
+    const name=document.createElement('div');name.className='sourceName';name.textContent=f.name;
+    const open=document.createElement('button');open.textContent='開く';open.onclick=()=>window.open(f.url,'_blank');
+    row.append(name,open);
+    const analyzed=state.sourceDocs.some(x=>x.id===f.id);
+    if(f.mime==='application/pdf'||f.mime==='text/plain'){
+      if(analyzed){
+        const tag=document.createElement('span');tag.style.cssText='font-size:11px;color:#067647;font-weight:650';tag.textContent='✓ 解析済み';row.append(tag);
+      }else{
+        const load=document.createElement('button');load.textContent='解析する';load.onclick=()=>f.mime==='application/pdf'?readPdfSource(f):readTextSource(f);row.append(load);
+      }
+    }else if(/^image\//.test(f.mime)){
+      const tag=document.createElement('span');tag.style.cssText='font-size:11px;color:#7c8994';tag.textContent='画像素材';row.append(tag);
+    }
+    box.append(row);
+  });
+}
+function renderRecent(){
+  const box=$('recentSlides');box.replaceChildren();
+  if(!state.slides.length){
+    box.innerHTML='<div class="previewEmpty" style="padding:18px">このプロジェクトにはまだ<br>完成スライドがありません。</div>';
+    $('slideThumbs').innerHTML='<div class="previewEmpty" style="font-size:11px;padding:10px 2px">スライド</div>';
+    $('previewWrap').innerHTML='<div class="emptyPreviewCard"><b>まだ完成スライドはありません</b><ol><li>元資料をAI分析</li><li>Geminiで構成JSONを作成</li><li>Google Slidesを生成</li></ol></div>';
+    $('openLatestSlide').disabled=true;
+    $('addLatestToStyle').disabled=true;
+    return;
+  }
+
+  state.slides.forEach((s,i)=>{
+    const row=document.createElement('div');row.className='recentItem';
+    row.innerHTML=`<div class="riName">${esc(s.name)}<div style="color:#8a96a0;margin-top:2px">${fmtDate(s.updatedAt)}</div></div>`;
+    const pv=document.createElement('button');pv.textContent='表示';pv.onclick=()=>previewSlide(s);
+    const op=document.createElement('button');op.textContent='編集';op.onclick=()=>window.open(s.url,'_blank');
+    row.append(pv,op);box.append(row);
+  });
+
+  previewSlide(state.slides[0]);
+}
+
+async function previewSlide(s){
+  state.latest=s;
+  $('openLatestSlide').disabled=false;
+  $('openLatestSlide').onclick=()=>window.open(s.url,'_blank');
+  $('addLatestToStyle').disabled=!state.activeStyle;
+
+  $('previewWrap').innerHTML='<div class="previewEmpty">プレビューを読み込んでいます…</div>';
+  $('slideThumbs').innerHTML='<div class="previewEmpty" style="font-size:11px;padding:10px 2px">読込中…</div>';
+
+  try{
+    const pages=await call('mt42GetPresentationSlides',s.id,60);
+    state.slidePages=pages||[];
+    state.activeSlidePage=0;
+    renderSlideThumbs(s);
+    showSlidePage(s,0);
+  }catch(e){
+    state.slidePages=[];
+    $('slideThumbs').innerHTML='<div class="previewEmpty" style="font-size:10px;padding:10px 2px">サムネイルを取得できません</div>';
+    $('previewWrap').innerHTML=`<iframe class="previewFrame" src="${esc(s.previewUrl)}" allowfullscreen></iframe>`;
+  }
+}
+
+function renderSlideThumbs(deck){
+  const box=$('slideThumbs');box.replaceChildren();
+  state.slidePages.forEach((p,i)=>{
+    const b=document.createElement('button');
+    b.type='button';
+    b.className='slideThumb'+(i===state.activeSlidePage?' active':'');
+    b.innerHTML=`<img src="${esc(p.thumbnailUrl)}" alt="${i+1}枚目"><span>${i+1}</span>`;
+    b.onclick=()=>showSlidePage(deck,i);
+    box.appendChild(b);
+  });
+}
+
+function showSlidePage(deck,index){
+  if(!state.slidePages.length)return;
+  state.activeSlidePage=Math.max(0,Math.min(index,state.slidePages.length-1));
+  const p=state.slidePages[state.activeSlidePage];
+  $('previewWrap').innerHTML=`<img class="previewFrame" id="activePreviewImage" src="${esc(p.thumbnailUrl)}" alt="${state.activeSlidePage+1}枚目">`;
+  const img=$('activePreviewImage');
+  if(img){
+    img.onerror=()=>{
+      $('previewWrap').innerHTML=`<iframe class="previewFrame" src="${esc(deck.previewUrl)}" allowfullscreen></iframe>`;
+    };
+  }
+  Array.from($('slideThumbs').querySelectorAll('.slideThumb')).forEach((x,i)=>x.classList.toggle('active',i===state.activeSlidePage));
+}
+function updateComposerState(){
+  const hasProject=!!state.active;
+  const hasFiles=state.sources.length>0;
+  const hasAnalyzed=state.sourceDocs.length>0;
+  const hasSlides=state.slides.length>0;
+
+  if(!hasProject){
+    $('actionHint').textContent='左上の「＋ 新しい資料」から始めるか、既存プロジェクトを選択してください。';
+  }else if(!hasFiles){
+    $('actionHint').textContent='PDF/TXT/画像を追加してください。PDF/TXTは自動で解析します。';
+  }else if(!hasAnalyzed){
+    $('actionHint').textContent='未解析のPDF/TXTがあります。解析が終わると構成作成へ進めます。';
+  }else{
+    $('actionHint').textContent='準備完了です。「構成を作る」から次へ進めます。';
+  }
+
+  $('uploadBtn').disabled=!hasProject||state.busy;
+  $('makeStructureBtn').disabled=!hasAnalyzed||state.busy;
+  $('generateBtn').disabled=!hasProject||state.busy;
+
+  $('step1').className='step '+(hasAnalyzed?'done':'active')+(!hasProject?' disabled':'');
+  $('step2').className='step '+(hasAnalyzed?'active':'')+(!hasAnalyzed?' disabled':'');
+  $('step3').className='step '+(hasAnalyzed?'':' disabled');
+  $('step4').className='step '+(hasSlides?'':' disabled');
+
+  const composer=document.querySelector('.composer');
+  if(composer) composer.classList.toggle('dimmed',!hasProject);
+}
+
+$('newProjectBtn').onclick=()=>openModal('newProjectModal');
+$('createProjectBtn').onclick=async()=>{
+  const name=$('newProjectName').value.trim();if(!name)return;
+  startProgress('プロジェクトを作成','Driveに専用フォルダを準備しています…',25);
+  try{
+    const p=await call('mt5CreateProject',name,requestId('project'));
+    state.projects=await call('mt33ListProjects');renderProjects();
+    $('newProjectName').value='';closeModal('newProjectModal');await selectProject(p.id);
+    stopProgress('プロジェクトを作成しました');
+  }catch(e){failProgress(friendlyError(e))}
+};
+
+$('templateSelect').onchange=async()=>{
+  const id=$('templateSelect').value;if(!id)return;
+  try{const r=await call('mt33SelectTemplate',id);state.templateId=r.id;setStatus('ひな形を変更しました','ok')}
+  catch(e){setStatus(friendlyError(e),'bad')}
+};
+
+$('uploadBtn').onclick=async()=>{
+  if(!state.active)return setStatus('先にプロジェクトを選択してください','bad');
+  const fs=Array.from($('sourceUpload').files||[]);if(!fs.length)return setStatus('ファイルを選択してください','bad');
+  const auto=[];
+  setBusy(true);startProgress('元資料を登録',`0 / ${fs.length}件`,10);
+  try{
+    for(let i=0;i<fs.length;i++){
+      const f=fs[i]; if(f.size>8*1024*1024)throw Error(f.name+' は8MBを超えています。');
+      updateProgress(Math.round((i/fs.length)*78),`${i+1} / ${fs.length}件を登録中：${f.name}`);
+      const b64=await new Promise((ok,ng)=>{const r=new FileReader();r.onload=()=>ok(String(r.result).split(',')[1]);r.onerror=ng;r.readAsDataURL(f)});
+      const saved=await call('mt33UploadSource',state.active.id,f.name,f.type||'text/plain',b64);
+      if(f.type==='application/pdf'||f.type==='text/plain')auto.push({id:saved.id,name:saved.name,url:saved.url,mime:f.type});
+    }
+    $('sourceUpload').value='';
+    const data=await call('mt40GetProjectState',state.active.id);state.sources=data.sources||[];renderSourceList();
+    stopProgress(auto.length?'元資料を保存しました。続けてAI分析します':'元資料の登録が完了しました');
+  }catch(e){failProgress(friendlyError(e));setBusy(false);return}
+  setBusy(false);
+
+  // PDF/TXT は追加後すぐに解析。ユーザーが次のボタンを探す必要をなくす。
+  for(const f of auto){
+    if(f.mime==='application/pdf') await readPdfSource(f);
+    else await readTextSource(f);
+  }
+  renderSourceList();updateComposerState();
+};
+
+async function readPdfSource(f){
+  if(!state.active)return;
+  setBusy(true);startProgress('PDFを解析',f.name,2);
+  try{
+    const r=await call('mt33ReadPdf',state.active.id,f.id);
+    updateProgress(8,'PDFを読み込みました。ページを解析しています…');
+    const raw=atob(r.base64),data=Uint8Array.from(raw,c=>c.charCodeAt(0));
+    const pdfjs=await ensurePdfJs();
+    const doc=await pdfjs.getDocument({data}).promise,parts=[];
+    for(let i=1;i<=Math.min(doc.numPages,50);i++){
+      updateProgress(8+Math.round((i/doc.numPages)*86),`${i} / ${doc.numPages}ページ解析中`);
+      const pg=await doc.getPage(i),tc=await pg.getTextContent();
+      parts.push('【'+r.name+' p.'+i+'】\n'+tc.items.map(x=>x.str).join(' '));
+    }
+    const existing=state.sourceDocs.findIndex(x=>x.id===f.id);
+    const entry={id:f.id,name:r.name,text:parts.join('\n').slice(0,160000)};
+    if(existing>=0)state.sourceDocs[existing]=entry;else state.sourceDocs.push(entry);
+    stopProgress('AI分析用の読み込みが完了しました');
+    $('actionHint').textContent='PDFを読み込みました。「Geminiで構成を作る」を押してください。';
+    updateComposerState();
+  }catch(e){failProgress(friendlyError(e))}finally{setBusy(false)}
+}
+
+
+async function readTextSource(f){
+  if(!state.active)return;
+  setBusy(true);startProgress('TXTを解析',f.name,15);
+  try{
+    const r=await call('mt43ReadTextSource',state.active.id,f.id);
+    const existing=state.sourceDocs.findIndex(x=>x.id===f.id);
+    const entry={id:f.id,name:r.name,text:'【'+r.name+'】\n'+r.text};
+    if(existing>=0)state.sourceDocs[existing]=entry;else state.sourceDocs.push(entry);
+    stopProgress('AI分析用の読み込みが完了しました');
+    $('actionHint').textContent='元資料を読み込みました。「Geminiで構成を作る」を押してください。';
+    updateComposerState();
+  }catch(e){failProgress(friendlyError(e))}finally{setBusy(false)}
+}
+
+$('makeStructureBtn').onclick=async()=>{
+  try{
+    if(!state.active)throw Error('プロジェクトを選択してください。');
+    if(!state.sourceDocs.length)throw Error('PDFまたはTXTの「AI分析に読み込む」を押してください。');
+    const prompt=await buildPrompt();
+    await navigator.clipboard.writeText(prompt).catch(()=>{});
+    openModal('jsonModal');
+    $('jsonGuide').innerHTML='プロンプトをコピーしました。Geminiを開いて貼り付け、返ってきたJSONを下に貼ってください。 <button class="linkBtn" id="openGeminiInline">Geminiを開く</button>';
+    setTimeout(()=>{const b=$('openGeminiInline');if(b)b.onclick=()=>window.open('https://gemini.google.com/','_blank')},0);
+    $('step2').className='step active';
+    setStatus('Gemini用プロンプトをコピーしました','ok');
+  }catch(e){setStatus(friendlyError(e),'bad')}
+};
+
+async function buildPrompt(){
+  const o=getOptions();
+  const profile=await call('getDesignProfile').catch(()=>null);
+  const ctx=await call('mt33BuildPromptContext',state.selectedRefs,$('animation').value);
+  const styleCtx=state.activeStyle?await call('mt41BuildStyleContext',state.activeStyle.id):{prefix:''};
+  const text=state.sourceDocs.map(x=>x.text).join('\n\n').slice(0,180000);
+  const profileText=profile?JSON.stringify({font:profile.font,textColor:profile.textColor,medianTitleLength:profile.medianTitleLength,medianBodyLength:profile.medianBodyLength,rules:profile.rules}):'未登録';
+  return `${styleCtx.prefix}
+
+${ctx.prefix}
+
+あなたは企業の資料編集者です。以下の条件でGoogle Slides差し込み用JSONだけを出力してください。Markdownコードフェンスは禁止。
+元資料にない数字・実績・引用・図表を捏造しない。広告調・AI特有の大げさな表現を避ける。1枚1メッセージ。
+layoutは cover / statement / evidence / two_column / closing のいずれか。
+各ページは title, subtitle, message, body, left, right, source, images を必要に応じて持つ。imagesは空オブジェクト。
+トップレベルは {"title":"...","slides":[...]}。
+
+【個人Design DNA】
+${profileText}
+
+【作成条件】
+${JSON.stringify(o,null,2)}
+厳密に${o.slideCount}枚。表紙・締めも枚数に含める。
+表紙=${o.includeCover?'1枚目をcover':'必須ではない'}。締め=${o.includeClosing?'最終ページをclosing':'必須ではない'}。
+
+【目的・補足】
+${$('brief').value||'特記事項なし'}
+
+【元資料】
+${text}`;
+}
+
+function parseDeck(){
+  const raw=$('jsonInput').value.trim().replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'');
+  if(!raw)throw Error('GeminiのJSONを貼り付けてください。');
+  const v=JSON.parse(raw),o=getOptions();
+  if(!Array.isArray(v.slides)||v.slides.length!==o.slideCount)throw Error(`指定は${o.slideCount}枚ですが、JSONは${(v.slides||[]).length}枚です。`);
+  if(o.includeCover&&v.slides[0].layout!=='cover')throw Error('1枚目はcoverにしてください。');
+  if(o.includeClosing&&v.slides[v.slides.length-1].layout!=='closing')throw Error('最終ページはclosingにしてください。');
+  return v;
+}
+$('validateJsonBtn').onclick=()=>{try{const v=parseDeck();$('jsonStatus').textContent=`確認OK：${v.slides.length}枚`;$('jsonStatus').className='success'}catch(e){$('jsonStatus').textContent=e.message;$('jsonStatus').className='error'}};
+$('generateBtn').onclick=()=>openModal('jsonModal');
+$('generateFromModalBtn').onclick=generateDeck;
+
+async function generateDeck(){
+  let deck;
+  try{deck=parseDeck()}
+  catch(e){$('jsonStatus').textContent=e.message;$('jsonStatus').className='error';return}
+
+  if(!state.active){
+    $('jsonStatus').textContent='プロジェクトを選択してください。';
+    return;
+  }
+
+  setBusy(true);
+  closeModal('jsonModal');
+
+  const jobId='deck_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);
+  startProgress('Google Slidesを生成','処理を開始しています…',2);
+
+  let polling=true;
+  const poll=async()=>{
+    while(polling){
+      try{
+        const p=await call('mt33GetProgress',jobId);
+        if(p && p.message){
+          updateProgress(p.percent||2,p.message);
+        }
+      }catch(e){}
+      await new Promise(r=>setTimeout(r,900));
+    }
+  };
+  poll();
+
+  try{
+    const res=await call('mt5CreateDeck',{
+      deck:deck,
+      options:getOptions(),
+      styleId:state.activeStyle?state.activeStyle.id:'',
+      projectId:state.active.id,
+      templateId:$('templateSelect').value||'',
+      jobId:jobId,
+      requestId:requestId('deck')
+    });
+
+    polling=false;
+    updateProgress(98,'完成したSlidesを一覧へ反映しています…');
+
+    state.latest={
+      id:res.id,
+      name:deck.title||'資料',
+      url:res.url,
+      previewUrl:'https://docs.google.com/presentation/d/'+res.id+'/embed?start=false&loop=false&delayms=3000',
+      updatedAt:new Date().toISOString()
+    };
+
+    const data=await call('mt40GetProjectState',state.active.id);
+    state.slides=data.slides||[];
+    renderRecent();
+
+    stopProgress('Google Slidesが完成しました');
+    $('step1').className='step done';
+    $('step2').className='step done';
+    $('step3').className='step done';
+    $('step4').className='step active';
+    setStatus('完成しました。右側で確認し、必要ならGoogle Slidesで仕上げてください。','ok');
+    previewSlide(state.slides[0]||state.latest);
+  }catch(e){
+    polling=false;
+    failProgress(friendlyError(e));
+  }finally{
+    setBusy(false);
+  }
+}
+
+$('openProjectDrive').onclick=()=>state.active&&window.open(state.active.url,'_blank');
+$('advancedBtn').onclick=()=>openModal('settingsModal');
+$('referencePickBtn').onclick=()=>openModal('referencesModal');
+$('refreshRefs').onclick=loadRefs;
+$('registerRefBtn').onclick=registerRef;
+$('animation').onchange=()=>call('mt33SavePrefs',{animation:$('animation').value}).catch(()=>{});
+
+async function loadRefs(){
+  state.refs=await call('mt33ListReferences');renderRefs();setStatus('お手本一覧を更新しました','ok');
+}
+function renderRefs(){
+  const box=$('referenceList');box.replaceChildren();
+  if(!state.refs.length){box.innerHTML='<div class="notice">まだお手本がありません。</div>';return}
+  state.refs.forEach(r=>{
+    const row=document.createElement('label');row.className='refItem';
+    const c=document.createElement('input');c.type='checkbox';c.checked=state.selectedRefs.includes(r.id);
+    c.onchange=()=>{
+      if(c.checked&&state.selectedRefs.length>=3){c.checked=false;setStatus('お手本は最大3件です','bad');return}
+      state.selectedRefs=c.checked?[...state.selectedRefs,r.id]:state.selectedRefs.filter(x=>x!==r.id);
+      $('refCount').textContent=state.selectedRefs.length?'('+state.selectedRefs.length+')':'';
+    };
+    const inf=document.createElement('div');inf.className='refInfo';inf.innerHTML=`<b>${esc(r.name)}</b><span style="color:#7d8993">${esc((r.kinds||[]).join('・'))}${r.reason?' / '+esc(r.reason):''}</span>`;
+    const op=document.createElement('button');op.type='button';op.className='linkBtn';op.textContent='開く';op.onclick=e=>{e.preventDefault();window.open(r.url,'_blank')};
+    row.append(c,inf,op);box.append(row);
+  });
+}
+async function registerRef(){
+  const url=$('refUrl').value.trim()||(state.latest&&state.latest.url);if(!url)return setStatus('Google Slides URLを入力してください','bad');
+  const kinds=Array.from(document.querySelectorAll('.refKind:checked')).map(x=>x.value);
+  setBusy(true);startProgress('お手本を登録','完成版をお手本ライブラリへコピーしています…',15);
+  try{
+    await call('mt33RegisterReference',url,$('refReason').value,kinds,true);
+    $('refUrl').value='';$('refReason').value='';await loadRefs();stopProgress('お手本に登録しました');
+  }catch(e){failProgress(friendlyError(e))}finally{setBusy(false)}
+}
+
+$('addLatestToStyle').onclick=async()=>{
+  if(!state.latest)return setStatus('先に完成スライドを選択してください','bad');
+  if(!state.activeStyle)return setStatus('先にスタイルを選択してください','bad');
+  const reason=prompt('この資料のどこをお手本にしますか？（任意）','');
+  setBusy(true);startProgress('お手本へ追加','選択中のスタイルへ完成版をコピーしています…',18);
+  try{await call('mt41AddReference',state.activeStyle.id,state.latest.url,reason||'');stopProgress('このスタイルのお手本に追加しました');}
+  catch(e){failProgress(friendlyError(e))}finally{setBusy(false)}
+};
+
+function setBusy(v){
+  state.busy=v;
+  ['uploadBtn','makeStructureBtn','generateBtn','generateFromModalBtn','createProjectBtn',
+     'projectSelect','styleSelect','templateSelect'].forEach(id=>{const x=$(id);if(x)x.disabled=v});
+}
+function startProgress(title,sub,pct=3){
+  state.progressStart=Date.now();$('progressBox').classList.add('show');$('progressTitle').textContent=title;$('progressSub').textContent=sub;$('progressBar').style.width=pct+'%';
+  clearInterval(state.progressTimer);state.progressTimer=setInterval(()=>{$('progressTime').textContent=Math.floor((Date.now()-state.progressStart)/1000)+'秒経過'},1000);
+  setStatus(title+'…','busy');
+}
+function updateProgress(pct,sub){$('progressBar').style.width=Math.max(0,Math.min(96,pct))+'%';$('progressSub').textContent=sub}
+function stopProgress(msg){clearInterval(state.progressTimer);$('progressBar').style.width='100%';$('progressSub').textContent=msg;$('progressTime').textContent=Math.floor((Date.now()-state.progressStart)/1000)+'秒';setTimeout(()=>$('progressBox').classList.remove('show'),1800);setStatus(msg,'ok')}
+function failProgress(msg){clearInterval(state.progressTimer);$('progressSub').textContent=msg;$('progressTime').textContent='エラー';setStatus(msg,'bad')}
+
+
+// v4.2: サイドバー・ステップを確実に操作できるようにする。
+$('guideBtn').onclick=()=>{
+  openModal('guideModal');
+};
+
+$('step1').onclick=()=>{
+  if(!$('projectSelect').value){ setStatus('まずプロジェクトを選択してください。','bad'); $('projectSelect').focus(); return; }
+  $('sourceUpload').focus();
+  setStatus('元資料を追加してください。PDF/TXTは保存後に自動解析されます。','ok');
+};
+
+$('step2').onclick=()=>{ if($('step2').classList.contains('disabled')){setStatus('先に元資料をAI分析に読み込んでください。','bad');return;} $('makeStructureBtn').click(); };
+
+$('step3').onclick=()=>{ if($('step3').classList.contains('disabled')){setStatus('先に元資料をAI分析し、Geminiで構成を作成してください。','bad');return;} openModal('jsonModal'); setStatus('Geminiの構成JSONを貼り付け、確認後にGoogle Slidesを生成してください。','ok'); };
+
+$('step4').onclick=()=>{ if($('step4').classList.contains('disabled')){setStatus('まだ完成スライドがありません。先に生成してください。','bad');return;} if(state.latest&&state.latest.url)window.open(state.latest.url,'_blank'); };
+
+// 画面下の管理ボタンは、ロード状態に関係なく必ず反応する。
+$('stylesBtn').onclick=()=>{
+  openModal('styleModal');
+  openStyleManager(state.activeStyle&&state.activeStyle.id).catch(e=>setStatus(friendlyError(e),'bad'));
+};
+$('referencesBtn').onclick=()=>openModal('referencesModal');
+$('settingsBtn').onclick=()=>openModal('settingsModal');
+$('newStyleBtn').onclick=()=>openStyleManager('',true).catch(e=>setStatus(friendlyError(e),'bad'));
+
+
+
+$('capabilityRefreshBtn').onclick=async()=>{
+  const box=$('capabilityResult');
+  box.innerHTML='<div class="notice">確認しています…</div>';
+  try{
+    state.capabilities=await call('mt5GetCapabilities');
+    renderCapabilities();
+  }catch(e){
+    box.innerHTML='<div class="error">'+esc(friendlyError(e))+'</div>';
+  }
+};
+
+$('healthCheckBtn').onclick=async()=>{
+  const box=$('healthCheckResult');
+  box.innerHTML='<div class="notice">確認しています…</div>';
+  try{
+    const r=await call('mt5HealthCheck');
+    box.innerHTML=(r.checks||[]).map(x=>
+      `<div style="padding:6px 0;border-bottom:1px solid #edf1f3;font-size:12px">
+        <b style="color:${x.ok?'#067647':'#b42318'}">${x.ok?'✓':'!'} ${esc(x.name)}</b>
+        <span style="color:#687684"> — ${esc(x.detail)}</span>
+      </div>`
+    ).join('');
+  }catch(e){
+    box.innerHTML='<div class="error">'+esc(friendlyError(e))+'</div>';
+  }
+};
+
+
+// v4.4: responsive UX helpers
+(function(){
+  const app=$('appRoot');
+  const toggle=$('previewToggle');
+  if(toggle){
+    toggle.onclick=()=>app.classList.toggle('preview-open');
+  }
+  const drop=$('sourceDrop');
+  const input=$('sourceUpload');
+  if(drop&&input){
+    ['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('drag')}));
+    ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('drag')}));
+    drop.addEventListener('drop',e=>{
+      if(!e.dataTransfer||!e.dataTransfer.files||!e.dataTransfer.files.length)return;
+      try{input.files=e.dataTransfer.files;}catch(err){}
+      if(input.files&&input.files.length&&state.active)$('uploadBtn').click();
+      else if(!state.active)setStatus('先にプロジェクトを選択してください。','bad');
+    });
+  }
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape')document.querySelectorAll('.modal.show').forEach(x=>x.classList.remove('show'));
+  });
+  if(window.innerWidth<1240 && app) app.classList.remove('preview-open');
+})();
+
+
+document.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){
+    const openModalNow=document.querySelector('.modal.show');
+    if(openModalNow) return;
+    if(!$('makeStructureBtn').disabled){
+      e.preventDefault();
+      $('makeStructureBtn').click();
+    }
+  }
+});
+
+$('openLatestSlide').onclick=()=>state.latest&&window.open(state.latest.url,'_blank');
+
+
+async function startApp(){
+  try{
+    await init();
+  }catch(e){
+    console.error(e);
+    setStatus('起動時エラー：'+friendlyError(e),'bad');
+    console.error('MediToku startApp error:',e);
+  }
+}
+startApp();
+
+})();
+
+</script>
+</body>
+</html>

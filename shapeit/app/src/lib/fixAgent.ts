@@ -1,6 +1,6 @@
 import type { FixPack } from "./fixPacks";
+import { buildScreenshotUrlList, collectPackScreenshots } from "./packScreenshots";
 import type { Feedback, Issue } from "./types";
-
 export function buildFixPackPrompt(pack: FixPack, opts?: { clusterLabel?: string }) {
   const lines = [
     `# Fix Pack: ${pack.label}`,
@@ -13,8 +13,12 @@ export function buildFixPackPrompt(pack: FixPack, opts?: { clusterLabel?: string
         `${i + 1}. [${item.issue.severity}] ${item.issue.title}\n   ${item.issue.summary}\n   報告: ${item.feedbacks[0]?.rawText ?? ""}`,
     ),
     "",
-    "Human Review 必須。機微情報は残さないこと。",
   ];
+  const shots = collectPackScreenshots(pack);
+  if (shots.length) {
+    lines.push("## Screenshots", buildScreenshotUrlList(shots), "");
+  }
+  lines.push("Human Review 必須。機微情報は残さないこと。");
   return lines.filter(Boolean).join("\n");
 }
 

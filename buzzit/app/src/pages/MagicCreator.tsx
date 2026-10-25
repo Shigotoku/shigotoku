@@ -17,6 +17,7 @@ import {
   Inbox,
 } from 'lucide-react';
 import MediaDropzone from '../components/MediaDropzone';
+import FlowProgressBar from '../components/FlowProgressBar';
 import BulkScheduleModal from '../components/BulkScheduleModal';
 import { WATERMARK } from '../constants/brand';
 import {
@@ -383,6 +384,7 @@ export default function MagicCreator() {
 
   return (
     <div className="buzz-page">
+      <FlowProgressBar current="create" className="buzz-fade-in" />
       {plan === 'starter' && (
         <p className="text-sm text-neutral-600">
           Starterプランでは透かし「{WATERMARK}」が付与されます。
@@ -496,7 +498,7 @@ export default function MagicCreator() {
                 type="button"
                 onClick={handleGenerate}
                 disabled={isGenerating || !canGenerate}
-                className="buzz-btn-primary w-full disabled:cursor-not-allowed"
+                className="buzz-btn-accent w-full disabled:cursor-not-allowed"
               >
                 {isGenerating ? (
                   <span className="flex items-center gap-2">

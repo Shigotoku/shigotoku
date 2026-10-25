@@ -10,6 +10,7 @@ import {
   Clock,
   RefreshCw,
 } from 'lucide-react';
+import { settingsPath } from '../lib/settingsUrls';
 import {
   fetchXSeries,
   createXSeries,
@@ -215,7 +216,10 @@ export default function XSeriesPage() {
             : ' （未接続時は通知モード推奨）'}
         </p>
         <div className="flex flex-wrap gap-2">
-          <Link to="/settings" className="min-h-[44px] border border-neutral-300 px-3 py-2 text-xs">
+          <Link
+            to={settingsPath({ section: 'x' })}
+            className="min-h-[44px] border border-neutral-300 px-3 py-2 text-xs"
+          >
             X API 設定
           </Link>
           <button
@@ -257,7 +261,7 @@ export default function XSeriesPage() {
                 title="シリーズがありません"
                 description="右上の「医療テンプレを作成」か、上の入力欄でシリーズ名を追加してください。"
                 primaryLabel="設定で X API を連携"
-                primaryTo="/settings"
+                primaryTo={settingsPath({ section: 'x' })}
               />
             ) : (
               <div className="space-y-2">

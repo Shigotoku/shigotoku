@@ -28,6 +28,7 @@ import {
   weeklyRhythm,
   type ConnectionSnapshot,
 } from '../data/growthRoadmap';
+import { settingsPath } from '../lib/settingsUrls';
 import {
   INDUSTRY_STORAGE_KEY,
   getIndustryTemplate,
@@ -285,13 +286,13 @@ export default function RoadmapPage() {
   };
 
   const connectionChips: Array<{ label: string; ok: boolean; path: string }> = [
-    { label: 'Meta', ok: snapshot.metaConnected, path: '/settings' },
-    { label: 'LINE', ok: snapshot.lineConnected, path: '/settings' },
-    { label: '投稿モード', ok: snapshot.publishModeReady, path: '/settings' },
-    { label: '予約URL', ok: snapshot.hasDestinationUrl, path: '/settings' },
+    { label: 'Meta', ok: snapshot.metaConnected, path: settingsPath({ section: 'meta' }) },
+    { label: 'LINE', ok: snapshot.lineConnected, path: settingsPath({ section: 'line' }) },
+    { label: '投稿モード', ok: snapshot.publishModeReady, path: settingsPath({ section: 'publish-mode' }) },
+    { label: '予約URL', ok: snapshot.hasDestinationUrl, path: settingsPath({ tab: 'business' }) },
     { label: 'スタッフ', ok: snapshot.hasTeam, path: '/team' },
     { label: 'LINEステップ', ok: snapshot.hasLineStep, path: '/line-crm' },
-    { label: 'Slack', ok: snapshot.slackConnected, path: '/settings' },
+    { label: 'Slack', ok: snapshot.slackConnected, path: settingsPath({ section: 'slack' }) },
   ];
 
   const playbookHooks = industryId === 'general' ? hookPatterns : industry.hooks;
@@ -580,7 +581,7 @@ export default function RoadmapPage() {
                 <button type="button" className="buzz-btn-secondary" onClick={() => openCompanion()}>
                   SNS伴走ガイドへ
                 </button>
-                <Link to="/settings" className="buzz-btn-secondary">
+                <Link to={settingsPath({ tab: 'sns' })} className="buzz-btn-secondary">
                   設定で連携
                 </Link>
                 <Link to="/magic-creator" className="buzz-btn-primary">
@@ -1002,7 +1003,7 @@ export default function RoadmapPage() {
               ))}
             </ol>
             <div className="mt-6 flex flex-wrap gap-3">
-              <Link to="/settings" className="buzz-btn-secondary">
+              <Link to={settingsPath({ tab: 'sns' })} className="buzz-btn-secondary">
                 設定を開く
               </Link>
               <Link to="/magic-creator" className="buzz-btn-primary">

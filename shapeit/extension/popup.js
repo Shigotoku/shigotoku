@@ -9,6 +9,7 @@ const instantBtnEl = document.getElementById("instantBtn");
 const commentBtnEl = document.getElementById("commentBtn");
 const annotateBtnEl = document.getElementById("annotateBtn");
 const openNoteEditorEl = document.getElementById("openNoteEditor");
+const fabToggleEl = document.getElementById("fabToggle");
 
 let activeTabId;
 let activeWindowId;
@@ -73,8 +74,15 @@ async function submitQuickNote() {
   }
 }
 
+function updateFabToggleLabel(hidden) {
+  if (!fabToggleEl) return;
+  fabToggleEl.textContent = hidden ? "右下ボタンを表示" : "右下ボタンを非表示";
+}
+
 async function init() {
   statusEl.textContent = "接続情報を更新中…";
+  const fabStored = await chrome.storage.sync.get("shapeitFabHidden");
+  updateFabToggleLabel(Boolean(fabStored.shapeitFabHidden));
   const stored = await chrome.storage.local.get(["shapeitIdToken", "shapeitEmail"]);
   if (stored.shapeitIdToken) {
     authEl.textContent = stored.shapeitEmail ? `${stored.shapeitEmail} で投稿します` : "ShapeIt に接続済み";
@@ -130,6 +138,14 @@ openNoteEditorEl.addEventListener("click", async () => {
 loginEl.addEventListener("click", async () => {
   const base = await getAppBase();
   await chrome.tabs.create({ url: `${base}/login?ext=1` });
+});
+
+fabToggleEl?.addEventListener("click", async () => {
+  const stored = await chrome.storage.sync.get("shapeitFabHidden");
+  const hidden = !stored.shapeitFabHidden;
+  await chrome.storage.sync.set({ shapeitFabHidden: hidden });
+  updateFabToggleLabel(hidden);
+  statusEl.textContent = hidden ? "右下ボタンを非表示にしました" : "右下ボタンを表示しました";
 });
 
 quickNoteEl.addEventListener("keydown", (e) => {

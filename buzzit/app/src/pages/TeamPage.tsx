@@ -27,6 +27,7 @@ import {
 } from '../lib/permissions';
 import { canAddStaff, staffLimitLabel } from '../lib/billing';
 import type { PlanTier } from '../types';
+import DualApprovalSetupBanner from '../components/DualApprovalSetupBanner';
 
 const ROLE_INFO: Record<Exclude<StoreRole, 'owner'>, { label: string; desc: string; icon: React.ElementType; color: string }> = {
   manager: { label: '管理者', desc: 'スタッフ招待・設定変更が可能', icon: Shield, color: 'text-blue-700 bg-blue-50' },
@@ -181,6 +182,8 @@ export default function TeamPage({ embedded }: TeamPageProps = {}) {
 
   return (
     <div className={embedded ? 'space-y-6' : 'buzz-page-narrow space-y-6'}>
+      <DualApprovalSetupBanner />
+
       <p className="text-sm text-neutral-600">
           店舗にスタッフを招待します。プランごとにスタッフ上限があります（現在: {staffLimitLabel(plan)}）。
           <Link to="/settings" className="ml-1 font-medium text-neutral-900 underline underline-offset-2">
@@ -351,7 +354,7 @@ export default function TeamPage({ embedded }: TeamPageProps = {}) {
       )}
 
       {removeTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/40 p-4">
+        <div className="buzz-modal-overlay">
           <div className="w-full max-w-md border border-neutral-200 bg-white p-6">
             <h3 className="text-lg font-bold">メンバーを削除</h3>
             <p className="mt-2 text-sm text-neutral-600">
@@ -368,7 +371,7 @@ export default function TeamPage({ embedded }: TeamPageProps = {}) {
       )}
 
       {transferTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/40 p-4">
+        <div className="buzz-modal-overlay">
           <div className="w-full max-w-md border border-neutral-200 bg-white p-6">
             <button type="button" onClick={() => setTransferTarget(null)} className="absolute right-4 top-4 text-neutral-400">
               <X className="h-5 w-5" />

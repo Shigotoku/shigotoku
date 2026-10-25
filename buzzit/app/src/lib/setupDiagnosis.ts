@@ -1,4 +1,5 @@
 import { loadOnboarding } from './onboarding';
+import { settingsPath } from './settingsUrls';
 
 export type SetupSignals = {
   metaConnected: boolean;
@@ -48,7 +49,7 @@ export function buildSetupItems(signals: SetupSignals): SetupItem[] {
       detail: 'リール・投稿の予約に必要です',
       done: signals.metaConnected,
       ctaLabel: '設定で連携',
-      ctaPath: '/settings?tab=sns',
+      ctaPath: settingsPath({ section: 'meta' }),
     },
     {
       id: 'x',
@@ -56,7 +57,7 @@ export function buildSetupItems(signals: SetupSignals): SetupItem[] {
       detail: '自分の開発者キーで自動投稿できます',
       done: !!signals.xConnected,
       ctaLabel: 'X BYOK を設定',
-      ctaPath: '/settings?tab=sns',
+      ctaPath: settingsPath({ section: 'x' }),
     },
     {
       id: 'line',
@@ -64,7 +65,7 @@ export function buildSetupItems(signals: SetupSignals): SetupItem[] {
       detail: '友だち追加・ステップ配信・リピートに必要です',
       done: signals.lineConnected,
       ctaLabel: '設定で連携',
-      ctaPath: '/settings?tab=sns',
+      ctaPath: settingsPath({ section: 'line' }),
     },
     {
       id: 'destination',

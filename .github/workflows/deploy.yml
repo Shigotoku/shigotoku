@@ -28,6 +28,7 @@ jobs:
             buzzit/app/package-lock.json
             buzzit/api/package-lock.json
             clipit/landing-page/package-lock.json
+            Slide_Studio/landing-page/package-lock.json
             clipit/app/package-lock.json
             clipit/api/package-lock.json
             deploy/package-lock.json
@@ -41,6 +42,7 @@ jobs:
           npm ci --prefix buzzit/app
           npm ci --prefix buzzit/api
           npm ci --prefix clipit/landing-page
+          npm ci --prefix Slide_Studio/landing-page
           npm ci --prefix clipit/app
           npm ci --prefix clipit/api
           npm ci --prefix deploy

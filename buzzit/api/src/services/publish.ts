@@ -14,6 +14,7 @@ import {
   postTweetWithXApi,
   X_FREE_MONTHLY_SOFT_LIMIT,
 } from './xApi';
+import { publishGbpLocalPost } from './gbp';
 
 export interface PublishOutcome {
   status: 'published' | 'notified' | 'failed';
@@ -133,16 +134,24 @@ export async function executePublish(
       if (!settings.gbpConnected) {
         return {
           status: 'failed',
-          message: 'GBP未連携です。設定でロケーション名を保存するか、通知モードで手動投稿してください',
+          message: 'GBP未連携です。設定で OAuth 連携を行ってください',
         };
       }
-      // APIキー未設定環境では通知にフォールバック（本番OAuth後に差替え）
-      const gbpText = contents.map((c) => `【GBP】${c.label}\n${c.content.slice(0, 600)}`).join('\n\n');
+      const gbpContent = contents.find((c) => c.platform === 'gbp') ?? contents[0];
+      const mediaUrl = mediaUrls?.[0];
+      const result = await publishGbpLocalPost(settings, gbpContent.content, mediaUrl);
+      if (result.success) {
+        return {
+          status: 'published',
+          message: result.message,
+          results: [{ platform: 'gbp', success: true, message: result.message, externalId: result.postId }],
+        };
+      }
       const notified = await notifyUser(settings, contents, scheduledAt);
       return {
         status: notified.status === 'notified' ? 'notified' : 'failed',
-        message: `GBP投稿ドラフトを通知しました（${settings.gbpLocationName ?? '店舗'}）。${notified.message}`,
-        results: [{ platform: 'gbp', success: true, message: gbpText.slice(0, 120) }],
+        message: `${result.message}。通知にフォールバック: ${notified.message}`,
+        results: [{ platform: 'gbp', success: false, message: result.message }],
       };
     }
 
@@ -152,9 +161,16 @@ export async function executePublish(
 }
 
 function resolveAutoMode(settings: UserSettings): PublishMode {
-  if (settings.metaAccessToken && settings.metaIgUserId) return 'meta';
+  const goal = settings.autoModeGoal ?? 'reach';
+  if (goal === 'cv') {
+    if (settings.lineChannelAccessToken) return 'line';
+    if (settings.metaAccessToken && settings.metaIgUserId) return 'meta';
+  } else {
+    if (settings.gbpConnected && settings.gbpAccessToken) return 'gbp';
+    if (settings.metaAccessToken && settings.metaIgUserId) return 'meta';
+    if (settings.lineChannelAccessToken) return 'line';
+  }
   if (credentialsFromSettings(settings)) return 'x_free';
-  if (settings.lineChannelAccessToken) return 'line';
   if (process.env.AYRSHARE_API_KEY && settings.ayrshareProfileKey) return 'ayrshare';
   return 'notify';
 }

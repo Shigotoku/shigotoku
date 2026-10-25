@@ -38,9 +38,13 @@ import DemoDataBanner from '../components/DemoDataBanner';
 import EmptyState from '../components/EmptyState';
 import { useSetupSignals } from '../hooks/useSetupSignals';
 import GlossTooltip from '../components/GlossTooltip';
+import PersonaPublishConfirmModal from '../components/PersonaPublishConfirmModal';
+import DualApprovalSetupBanner from '../components/DualApprovalSetupBanner';
+import { usePersona } from '../store/personaContext';
 
 export default function Dashboard() {
   const { signals, isSample } = useSetupSignals();
+  const { activePersonaId, activePersona } = usePersona();
   const [metrics, setMetrics] = useState(mockMetrics);
   const [mission, setMission] = useState(mockMission);
   const [loading, setLoading] = useState(true);
@@ -56,6 +60,15 @@ export default function Dashboard() {
   const [regional, setRegional] = useState<Array<{ topic: string; hook: string; score: number }>>([]);
   const [weekly, setWeekly] = useState<WeeklyReport | null>(null);
   const [insights, setInsights] = useState<InsightsSummary | null>(null);
+  const [approveConfirmJob, setApproveConfirmJob] = useState<ScheduledJob | null>(null);
+  const [approveMessage, setApproveMessage] = useState<string | null>(null);
+
+  const loadPending = () => {
+    if (!activePersonaId) return;
+    fetchScheduledJobs('pending_approval', activePersonaId)
+      .then((r) => setPendingJobs(r.jobs))
+      .catch(() => setPendingJobs([]));
+  };
 
   useEffect(() => {
     fetchInsightsSummary()
@@ -85,9 +98,7 @@ export default function Dashboard() {
     fetchTrends()
       .then((r) => setTrends(r.trends.slice(0, 3)))
       .catch(() => {});
-    fetchScheduledJobs('pending_approval')
-      .then((r) => setPendingJobs(r.jobs))
-      .catch(() => {});
+    loadPending();
     fetchScheduledJobs('failed')
       .then((r) => setFailedCount(r.jobs.length))
       .catch(() => {});
@@ -109,18 +120,34 @@ export default function Dashboard() {
     fetchWeeklyReport()
       .then((r) => setWeekly(r.report))
       .catch(() => {});
-  }, []);
+  }, [activePersonaId]);
+
+  useEffect(() => {
+    const onPersona = () => loadPending();
+    window.addEventListener('buzzit-persona-changed', onPersona);
+    return () => window.removeEventListener('buzzit-persona-changed', onPersona);
+  }, [activePersonaId]);
 
   const handleApproveJob = async (jobId: string) => {
     setApprovingId(jobId);
+    setApproveMessage(null);
     try {
-      await approveScheduledJob(jobId);
-      setPendingJobs((prev) => prev.filter((j) => j.id !== jobId));
+      const res = await approveScheduledJob(jobId);
+      if (res.needsSecondApproval) {
+        setApproveMessage(res.message ?? '1人目を承認しました。別の担当者の2人目承認が必要です。');
+        loadPending();
+      } else {
+        setPendingJobs((prev) => prev.filter((j) => j.id !== jobId));
+        setApproveMessage(res.message ?? '承認しました。');
+      }
     } catch {
-      /* ignore */
+      setApproveMessage('承認に失敗しました。別キャラの予約の可能性があります。');
     }
     setApprovingId(null);
+    setApproveConfirmJob(null);
   };
+
+  const xHandle = activePersona?.xUsername?.trim().replace(/^@/, '');
 
   const handleUseTrendAsMission = async (trendId: string) => {
     setUsingTrendId(trendId);
@@ -141,8 +168,8 @@ export default function Dashboard() {
 
       <DemoDataBanner isSample={isSample} />
 
-      <section className="border border-neutral-200 bg-white p-4 sm:p-5">
-        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">はじめての流れ</p>
+      <section className="buzz-card-pad !p-4 sm:!p-5">
+        <p className="buzz-section-label">はじめての流れ</p>
         <ol className="mt-3 grid gap-2 sm:grid-cols-4">
           {[
             { step: '1', label: 'ネタを溜める', to: '/inbox', hint: 'ネタInbox' },
@@ -153,9 +180,9 @@ export default function Dashboard() {
             <Link
               key={item.step}
               to={item.to}
-              className="border border-neutral-200 bg-[#f5f4f0] p-3 transition-colors hover:border-neutral-900"
+              className="rounded-xl border border-neutral-200/80 bg-neutral-50 p-3 transition-colors hover:border-violet-200 hover:bg-violet-50/50"
             >
-              <p className="text-[10px] font-bold text-neutral-400">STEP {item.step}</p>
+              <p className="text-[10px] font-semibold text-violet-600">{item.step}</p>
               <p className="mt-1 text-sm font-semibold text-neutral-900">{item.label}</p>
               <p className="mt-0.5 text-xs text-neutral-500">{item.hint}</p>
             </Link>
@@ -173,10 +200,10 @@ export default function Dashboard() {
       <SetupDiagnosisCard signals={signals} />
 
       {insights && (
-        <section className="border border-neutral-200 bg-white p-4 sm:p-5">
+        <section className="buzz-card-pad !p-4 sm:!p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+              <p className="buzz-section-label">
                 SNSインプレッション（自動取得）
               </p>
               <p className="mt-1 text-sm text-neutral-600">
@@ -216,10 +243,10 @@ export default function Dashboard() {
       )}
 
       {weekly && (
-        <section className="border border-neutral-200 bg-white p-4 sm:p-5">
+        <section className="buzz-card-pad !p-4 sm:!p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">週次レポート</p>
+              <p className="buzz-section-label">週次レポート</p>
               <p className="mt-1 text-sm text-neutral-600">{weekly.periodLabel}</p>
             </div>
             <Link to="/analytics" className="text-xs underline-offset-2 hover:underline">
@@ -257,7 +284,7 @@ export default function Dashboard() {
       )}
 
       {healthScore != null && (
-        <div className="border border-neutral-200 bg-white p-4 text-sm">
+        <div className="buzz-card-pad !p-4 text-sm">
           <p className="font-medium">
             接続ヘルス {healthScore}%（
             <GlossTooltip term="Webhook" /> / <GlossTooltip term="Meta" /> / 予約URL）
@@ -275,13 +302,13 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="border border-neutral-200 bg-white p-6 md:p-7">
-        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-neutral-500">
-          <Sun className="h-3.5 w-3.5" />
+      <div className="buzz-card-pad">
+        <div className="flex items-center gap-2 text-sm font-medium text-neutral-600">
+          <Sun className="h-4 w-4 text-amber-500" />
           毎朝5分ルーティン
         </div>
         <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-4">
-          <div className="border-l-2 border-neutral-900 pl-3">
+          <div className="border-l-2 border-violet-500 pl-3">
             <p className="text-xs text-neutral-500">1. 健康診断</p>
             <p className="mt-1 text-lg font-bold">スコア {metrics.healthScore}</p>
           </div>
@@ -305,7 +332,7 @@ export default function Dashboard() {
       {failedCount > 0 && (
         <Link
           to="/calendar"
-          className="flex items-center gap-3 border border-red-200 bg-red-50 p-4 text-sm text-red-900 hover:border-red-400"
+          className="flex items-center gap-3 rounded-xl border border-red-200/80 bg-red-50/80 p-4 text-sm text-red-900 transition-colors hover:border-red-300"
         >
           <AlertTriangle className="h-5 w-5 shrink-0" />
           <span>
@@ -318,14 +345,14 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="buzz-card lg:col-span-2">
           <div className="border-b border-neutral-200 bg-neutral-50 p-6 md:p-8">
-            <p className="buzz-section-label mb-3">Today&apos;s Mission</p>
+            <p className="buzz-section-label mb-3">今日のミッション</p>
             <h2 className="text-2xl font-bold md:text-3xl" data-headline-max="28">{mission.title}</h2>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-neutral-600 md:text-base">
               {mission.description}
             </p>
             {topTrend && (
               <div className="mt-4 border border-amber-200 bg-amber-50 p-3">
-                <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-amber-800">
+                <p className="flex items-center gap-1.5 text-xs font-semibold text-amber-800">
                   <Flame className="h-3.5 w-3.5" />
                   今日のトレンド枠
                 </p>
@@ -346,10 +373,7 @@ export default function Dashboard() {
                 内容を確認・承認する
                 <ArrowRight className="h-4 w-4" />
               </Link>
-              <Link
-                to="/calendar"
-                className="inline-flex items-center gap-2 border border-neutral-300 bg-white px-4 py-2 text-sm hover:border-neutral-900"
-              >
+              <Link to="/calendar" className="buzz-btn-secondary !px-4 !py-2.5 text-sm">
                 カレンダーを見る
               </Link>
             </div>
@@ -389,14 +413,14 @@ export default function Dashboard() {
 
         <div className="grid grid-cols-1 gap-px overflow-hidden border border-neutral-200 bg-neutral-200 md:grid-cols-3">
           <div className="bg-white p-6">
-            <div className="mb-4 flex h-10 w-10 items-center justify-center border border-neutral-200 bg-neutral-50 text-neutral-700">
+            <div className="buzz-icon-box mb-4">
               <Users className="h-5 w-5" />
             </div>
             <div className="mb-1 text-sm text-neutral-500">総リーチ数</div>
             <div className="buzz-stat-value text-2xl">{metrics.reach.toLocaleString()}</div>
           </div>
           <div className="bg-white p-6">
-            <div className="mb-4 flex h-10 w-10 items-center justify-center border border-neutral-200 bg-neutral-50 text-neutral-700">
+            <div className="buzz-icon-box mb-4">
               <CheckCircle2 className="h-5 w-5" />
             </div>
             <div className="mb-1 text-sm text-neutral-500">{kpiLabels.leads}</div>
@@ -406,7 +430,7 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="bg-white p-6">
-            <div className="mb-4 flex h-10 w-10 items-center justify-center border border-neutral-200 bg-neutral-50 text-neutral-700">
+            <div className="buzz-icon-box mb-4">
               <DollarSign className="h-5 w-5" />
             </div>
             <div className="mb-1 text-sm text-neutral-500">{kpiLabels.revenue}</div>
@@ -415,15 +439,36 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {approveMessage && <p className="buzz-alert buzz-alert-info text-sm">{approveMessage}</p>}
+
+      <DualApprovalSetupBanner compact />
+
       {pendingJobs.length > 0 ? (
         <div className="buzz-card-pad">
           <div className="mb-4 flex items-center gap-2">
             <Clock className="h-5 w-5 text-neutral-700" />
             <h2 className="text-lg font-bold">承認待ちの投稿（{pendingJobs.length}件）</h2>
           </div>
+          <p className="mb-3 text-xs text-neutral-600">
+            表示中のキャラ: <strong>{activePersona?.name ?? '—'}</strong>
+            {xHandle ? ` · X @${xHandle}` : ''}
+            {activePersona?.type === 'official' ? ' · 公式は2人の別担当者承認が必要です' : ''}
+          </p>
           <div className="space-y-3">
             {pendingJobs.map((job) => (
-              <div key={job.id} className="border border-neutral-200 bg-neutral-50 p-4">
+              <div key={job.id} className="buzz-surface border-l-4 border-violet-500 p-4">
+                <div className="mb-2 rounded-lg bg-violet-50 px-3 py-2">
+                  <p className="text-[10px] font-semibold uppercase text-violet-700">配信キャラ</p>
+                  <p className="text-base font-bold text-violet-950">{job.personaName ?? activePersona?.name ?? '配信キャラ'}</p>
+                  {xHandle && (
+                    <p className="mt-1 text-sm font-semibold text-neutral-900">X 投稿先: @{xHandle}</p>
+                  )}
+                  {job.dualApprovalRequired && (
+                    <p className="mt-1 text-xs text-amber-800">
+                      {job.firstApprovedBy ? '2人目の承認待ち（別担当者が承認してください）' : '公式・2人体制（1人目の承認）'}
+                    </p>
+                  )}
+                </div>
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                   <span className="text-sm font-medium">
                     {new Date(job.scheduledAt).toLocaleString('ja-JP')} · {job.publishMode}
@@ -431,10 +476,10 @@ export default function Dashboard() {
                   <button
                     type="button"
                     disabled={approvingId === job.id}
-                    onClick={() => handleApproveJob(job.id)}
-                    className="buzz-btn-primary px-4 py-2 text-sm disabled:opacity-60"
+                    onClick={() => setApproveConfirmJob(job)}
+                    className="buzz-btn-accent !px-4 !py-2 text-sm disabled:opacity-60"
                   >
-                    {approvingId === job.id ? '承認中...' : '承認して予約'}
+                    {approvingId === job.id ? '承認中...' : job.firstApprovedBy ? '2人目を承認' : '承認して予約'}
                   </button>
                 </div>
                 <p className="line-clamp-2 text-sm text-neutral-600">
@@ -530,6 +575,15 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      <PersonaPublishConfirmModal
+        open={!!approveConfirmJob}
+        action="approve"
+        publishMode={approveConfirmJob?.publishMode}
+        contentLabels={approveConfirmJob?.contents.map((c) => c.label) ?? []}
+        onCancel={() => setApproveConfirmJob(null)}
+        onConfirm={() => approveConfirmJob && void handleApproveJob(approveConfirmJob.id)}
+      />
     </div>
   );
 }

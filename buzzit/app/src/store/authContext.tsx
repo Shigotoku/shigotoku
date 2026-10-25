@@ -19,8 +19,10 @@ import {
   resolveGoogleRedirect,
   isFirebaseConfigured,
   formatAuthError,
+  resolveAuthError,
+  type LoginHintSuggest,
 } from '../lib/firebase';
-import { bootstrapAuth, setAuthTokenGetter } from '../lib/api';
+import { bootstrapAuth, fetchLoginHint, setAuthTokenGetter } from '../lib/api';
 
 interface AuthContextValue {
   user: User | null;
@@ -28,6 +30,7 @@ interface AuthContextValue {
   submitting: boolean;
   isConfigured: boolean;
   authError: string | null;
+  loginHint: LoginHintSuggest | null;
   clearAuthError: () => void;
   signInEmail: (email: string, password: string) => Promise<void>;
   signUpEmail: (email: string, password: string, displayName?: string) => Promise<void>;
@@ -50,6 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [initializing, setInitializing] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [loginHint, setLoginHint] = useState<LoginHintSuggest | null>(null);
 
   useEffect(() => {
     setAuthTokenGetter(getIdToken);
@@ -66,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(u);
       if (u) {
         setAuthError(null);
+        setLoginHint(null);
         syncUserProfile(u);
       }
       setInitializing(false);
@@ -88,6 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const runAuthAction = useCallback(async (action: () => Promise<void>) => {
     setAuthError(null);
+    setLoginHint(null);
     setSubmitting(true);
     try {
       await action();
@@ -99,27 +105,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const signInEmail = useCallback(
-    async (email: string, password: string) => {
-      await runAuthAction(async () => {
-        const cred = await signInWithEmailPassword(email, password);
-        setUser(cred.user);
-        syncUserProfile(cred.user);
-      });
-    },
-    [runAuthAction],
-  );
+  const signInEmail = useCallback(async (email: string, password: string) => {
+    setAuthError(null);
+    setLoginHint(null);
+    setSubmitting(true);
+    try {
+      const cred = await signInWithEmailPassword(email, password);
+      setUser(cred.user);
+      syncUserProfile(cred.user);
+    } catch (err) {
+      const resolved = await resolveAuthError(err, email, fetchLoginHint);
+      setAuthError(resolved.message);
+      setLoginHint(resolved.hint ?? null);
+      throw err;
+    } finally {
+      setSubmitting(false);
+    }
+  }, []);
 
-  const signUpEmail = useCallback(
-    async (email: string, password: string, displayName?: string) => {
-      await runAuthAction(async () => {
-        const cred = await signUpWithEmailPassword(email, password, displayName);
-        setUser(cred.user);
-        syncUserProfile(cred.user);
-      });
-    },
-    [runAuthAction],
-  );
+  const signUpEmail = useCallback(async (email: string, password: string, displayName?: string) => {
+    setAuthError(null);
+    setLoginHint(null);
+    setSubmitting(true);
+    try {
+      const cred = await signUpWithEmailPassword(email, password, displayName);
+      setUser(cred.user);
+      syncUserProfile(cred.user);
+    } catch (err) {
+      const resolved = await resolveAuthError(err, email, fetchLoginHint);
+      setAuthError(resolved.message);
+      setLoginHint(resolved.hint ?? null);
+      throw err;
+    } finally {
+      setSubmitting(false);
+    }
+  }, []);
 
   const resetPassword = useCallback(
     async (email: string) => {
@@ -153,7 +173,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
-  const clearAuthError = useCallback(() => setAuthError(null), []);
+  const clearAuthError = useCallback(() => {
+    setAuthError(null);
+    setLoginHint(null);
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -162,6 +185,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       submitting,
       isConfigured: isFirebaseConfigured,
       authError,
+      loginHint,
       clearAuthError,
       signInEmail,
       signUpEmail,
@@ -175,6 +199,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       initializing,
       submitting,
       authError,
+      loginHint,
       clearAuthError,
       signInEmail,
       signUpEmail,

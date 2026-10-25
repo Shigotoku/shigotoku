@@ -2,18 +2,20 @@
  * 投稿インサイト同期（予約ジョブの publishResults.externalId を起点）
  */
 import {
-  getUserSettings,
   getScheduledJobs,
   upsertPostInsight,
   listPostInsights,
   getPostInsight,
-  updateUserSettings,
   type UserSettings,
   type PostInsightDoc,
 } from './firestore';
+import { getEffectiveSettings } from './personaSettings';
+import { updatePersona } from './personas';
 import {
   fetchInstagramMediaInsights,
   fetchXTweetMetrics,
+  fetchFacebookPostInsights,
+  fetchThreadsPostInsights,
   normalizeInsightPlatform,
   type FetchedInsight,
 } from './insights';
@@ -56,7 +58,7 @@ export async function syncInsightsForUser(
   uid: string,
   options: { force?: boolean } = {},
 ): Promise<SyncInsightsResult> {
-  const settings = await getUserSettings(uid);
+  const settings = await getEffectiveSettings(uid);
   const insightsOn = settings.insightsEnabled !== false;
   const xOn = settings.xInsightsEnabled === true;
 
@@ -85,7 +87,6 @@ export async function syncInsightsForUser(
       if (!pr.success || !pr.externalId) continue;
       const platform = normalizeInsightPlatform(pr.platform);
       if (!platform) continue;
-      if (platform !== 'instagram' && platform !== 'x') continue;
 
       result.scanned += 1;
       const id = insightDocId(job.id, platform, pr.externalId);
@@ -115,6 +116,22 @@ export async function syncInsightsForUser(
           continue;
         }
         fetched = await fetchInstagramMediaInsights(pr.externalId, meta);
+      } else if (platform === 'facebook') {
+        const pageToken = meta?.pageAccessToken ?? meta?.accessToken;
+        if (!pageToken) {
+          result.errors += 1;
+          result.messages.push('Meta Page 未連携のため Facebook をスキップ');
+          continue;
+        }
+        fetched = await fetchFacebookPostInsights(pr.externalId, pageToken);
+      } else if (platform === 'threads') {
+        const token = meta?.pageAccessToken ?? meta?.accessToken;
+        if (!token) {
+          result.errors += 1;
+          result.messages.push('Meta 未連携のため Threads をスキップ');
+          continue;
+        }
+        fetched = await fetchThreadsPostInsights(pr.externalId, token);
       } else {
         if (!xCreds) {
           result.errors += 1;
@@ -136,6 +153,7 @@ export async function syncInsightsForUser(
           lastError: fetched.error,
           scheduledAt: job.scheduledAt,
           preview: previewFromJob(job.contents),
+          personaId: job.personaId,
         });
         continue;
       }
@@ -159,14 +177,15 @@ export async function syncInsightsForUser(
         lastError: '',
         scheduledAt: job.scheduledAt,
         preview: previewFromJob(job.contents),
+        personaId: job.personaId,
       });
       result.fetched += 1;
     }
   }
 
-  await updateUserSettings(uid, {
+  await updatePersona(settings.activePersonaId, uid, {
     insightsLastSyncedAt: new Date().toISOString(),
-  } as Partial<UserSettings>);
+  });
 
   if (result.xSkippedCostGate > 0) {
     result.messages.push(
@@ -208,7 +227,7 @@ export async function syncInsightsForEligibleUsers(): Promise<{
 
   for (const uid of uids) {
     try {
-      const settings = await getUserSettings(uid);
+      const settings = await getEffectiveSettings(uid);
       if (settings.insightsEnabled === false) continue;
       const r = await syncInsightsForUser(uid, { force: false });
       users += 1;
@@ -243,7 +262,7 @@ export async function buildInsightsSummary(
   uid: string,
   platform?: string,
 ): Promise<InsightsSummary> {
-  const settings = await getUserSettings(uid);
+  const settings = await getEffectiveSettings(uid);
   const all = await listPostInsights(uid, { limit: 200 });
   const filtered = platform
     ? all.filter((p) => {

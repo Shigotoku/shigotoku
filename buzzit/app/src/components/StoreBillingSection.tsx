@@ -16,6 +16,7 @@ import {
   formatYen,
 } from '../lib/billing';
 import { canManageBilling } from '../lib/permissions';
+import PersonaQuickGuide from './PersonaQuickGuide';
 
 export default function StoreBillingSection() {
   const { plan, setPlan } = useApp();
@@ -77,7 +78,7 @@ export default function StoreBillingSection() {
     try {
       await updateSettings({ extraSnsAccounts: clamped });
       load();
-      setMessage('追加SNSアカウント枠を更新しました');
+      setMessage('追加ペルソナ枠を更新しました');
     } catch {
       setMessage('追加枠の保存に失敗しました');
     } finally {
@@ -92,11 +93,15 @@ export default function StoreBillingSection() {
         <h3 className="text-lg font-bold">店舗・請求</h3>
       </div>
 
+      <div className="mb-4">
+        <PersonaQuickGuide />
+      </div>
+
       <p className="mb-4 text-sm text-neutral-600">
         料金は<strong className="font-semibold text-neutral-800">店舗単位</strong>で請求されます。
         1店舗目はプラン基本料、2店舗目以降は基本料の{Math.round(ADDITIONAL_STORE_DISCOUNT * 100)}%OFF（
-        {formatYen(addStorePrice)}/月）です。各SNSの1アカウント目はプランに含み、2アカウント目以降は追加枠（
-        {formatYen(EXTRA_SNS_ACCOUNT_MONTHLY)}/月・枠）です。
+        {formatYen(addStorePrice)}/月）です。配信キャラはプランに1体込み、2体目以降は
+        {formatYen(EXTRA_SNS_ACCOUNT_MONTHLY)}/月/体（下の追加枠）です。
       </p>
 
       {loading && !billing ? (
@@ -156,7 +161,7 @@ export default function StoreBillingSection() {
               </p>
               {billing.extraSnsAccounts > 0 && (
                 <p className="mt-1 text-xs text-neutral-300">
-                  SNS追加枠 {billing.extraSnsAccounts} × {formatYen(billing.extraSnsAccountPrice)}
+                  追加ペルソナ枠 {billing.extraSnsAccounts} × {formatYen(billing.extraSnsAccountPrice)}
                 </p>
               )}
             </div>
@@ -165,10 +170,10 @@ export default function StoreBillingSection() {
       )}
 
       <div className="mb-5 border border-neutral-200 bg-white p-4">
-        <p className="text-sm font-semibold text-neutral-900">追加SNSアカウント枠</p>
+        <p className="text-sm font-semibold text-neutral-900">追加ペルソナ枠</p>
         <p className="mt-1 text-xs leading-relaxed text-neutral-500">
-          Instagram公式と採用用など、同じ媒体で2つ目以降のアカウントを扱う場合に追加します（1枠 ={' '}
-          {formatYen(EXTRA_SNS_ACCOUNT_MONTHLY)}/月）。
+          追加の配信キャラ枠数です（1枠 = {formatYen(EXTRA_SNS_ACCOUNT_MONTHLY)}/月）。
+          キャラの登録自体は<strong className="font-medium text-neutral-700">設定 → 配信キャラ</strong>タブで行います。
         </p>
         <div className="mt-3 flex items-center gap-3">
           <button

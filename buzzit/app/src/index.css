@@ -6,7 +6,11 @@
   --color-buzz-ink: #111111;
   --color-buzz-paper: #f5f4f0;
   --color-buzz-muted: #6b6b6b;
-  --color-buzz-title: #6b4a3a;
+  --color-buzz-title: #171717;
+  --color-buzz-accent: #7c3aed;
+  --color-buzz-accent-soft: #ede9fe;
+  --color-buzz-sidebar: #0a0a0a;
+  --color-buzz-sidebar-border: #262626;
 }
 
 @layer base {
@@ -26,73 +30,41 @@
     padding-right: env(safe-area-inset-right);
   }
 
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
+  h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
     letter-spacing: -0.02em;
   }
 
-  h1,
-  h2 {
-    color: var(--color-buzz-title);
-  }
-
-  h3,
-  h4,
-  h5,
-  h6 {
-    color: var(--color-buzz-ink);
-  }
+  h1, h2 { color: var(--color-buzz-title); }
+  h3, h4, h5, h6 { color: var(--color-buzz-ink); }
 }
 
 @layer components {
-  .buzz-page {
-    @apply mx-auto max-w-6xl space-y-8;
-  }
+  .buzz-page { @apply mx-auto max-w-6xl space-y-6; }
+  .buzz-page-narrow { @apply mx-auto max-w-4xl space-y-6; }
+  .buzz-section-label { @apply text-xs font-medium text-neutral-500; }
 
-  .buzz-page-narrow {
-    @apply mx-auto max-w-4xl space-y-8;
-  }
-
-  .buzz-section-label {
-    @apply text-[11px] font-semibold uppercase tracking-[0.22em] text-neutral-500;
-  }
-
-  .buzz-card {
-    @apply border border-neutral-200 bg-white;
-  }
-
-  .buzz-card-pad {
-    @apply border border-neutral-200 bg-white p-6 md:p-8;
-  }
-
-  .buzz-card-muted {
-    @apply border border-neutral-200 bg-neutral-50;
-  }
+  .buzz-card { @apply rounded-xl border border-neutral-200/80 bg-white shadow-sm; }
+  .buzz-card-pad { @apply rounded-xl border border-neutral-200/80 bg-white p-6 shadow-sm md:p-8; }
+  .buzz-card-muted { @apply rounded-xl border border-neutral-200/80 bg-neutral-50; }
 
   .buzz-btn-primary {
-    @apply inline-flex items-center justify-center gap-2 bg-neutral-900 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-60;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-neutral-900 px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-neutral-700 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60;
   }
-
+  .buzz-btn-accent {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-violet-600 px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-violet-700 hover:shadow-md hover:shadow-violet-200 disabled:cursor-not-allowed disabled:opacity-60;
+  }
   .buzz-btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 border border-neutral-300 bg-white px-6 py-3 text-sm font-semibold text-neutral-800 transition-colors hover:border-neutral-900;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-neutral-200 bg-white px-6 py-3 text-sm font-semibold text-neutral-800 transition-all hover:border-neutral-400 hover:shadow-sm;
   }
-
   .buzz-btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-neutral-600 transition-colors hover:text-neutral-900;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900;
   }
 
   .buzz-input {
-    @apply w-full border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-900;
+    @apply w-full rounded-lg border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-100;
   }
-
-  .buzz-label {
-    @apply mb-1.5 block text-xs font-medium text-neutral-500;
-  }
+  .buzz-label { @apply mb-1.5 block text-xs font-medium text-neutral-500; }
 
   .buzz-stat-value {
     font-family: "Noto Sans", "Noto Sans JP", system-ui, sans-serif;
@@ -101,71 +73,110 @@
     @apply font-bold tracking-tight text-neutral-900;
   }
 
-  .buzz-nav-link {
-    @apply flex items-center gap-2 rounded-sm px-2.5 py-1.5 text-[13px] leading-snug transition-colors;
+  .buzz-nav-link { @apply flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px] leading-snug transition-colors; }
+  .buzz-nav-link-active { @apply border border-neutral-300 bg-white font-medium text-neutral-900; }
+  .buzz-nav-link-inactive { @apply border border-transparent text-neutral-600 hover:bg-white/70 hover:text-neutral-900; }
+  .buzz-nav-group-btn { @apply flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px] font-medium leading-snug text-neutral-700 transition-colors hover:bg-white/70 hover:text-neutral-900; }
+  .buzz-nav-divider { @apply px-2.5 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-neutral-400; }
+
+  .buzz-sidebar {
+    background-color: var(--color-buzz-sidebar);
+    border-color: var(--color-buzz-sidebar-border);
+    color: #fafafa;
+  }
+  .buzz-sidebar .buzz-nav-link-active { @apply border-white/15 bg-white/10 font-medium text-white; }
+  .buzz-sidebar .buzz-nav-link-inactive { @apply border-transparent text-neutral-400 hover:bg-white/10 hover:text-white; }
+  .buzz-sidebar .buzz-nav-group-btn { @apply text-neutral-300 hover:bg-white/10 hover:text-white; }
+  .buzz-sidebar .buzz-nav-divider { @apply text-neutral-500; }
+  .buzz-sidebar .buzz-nav-platform-dot { @apply h-2 w-2 shrink-0 rounded-full; }
+
+  .buzz-alert { @apply rounded-xl border p-3 text-sm; }
+  .buzz-alert-success { @apply border-emerald-200 bg-emerald-50 text-emerald-900; }
+  .buzz-alert-error { @apply border-rose-200 bg-rose-50 text-rose-900; }
+  .buzz-alert-warning { @apply border-amber-200 bg-amber-50 text-amber-950; }
+  .buzz-alert-info { @apply border-neutral-200 bg-neutral-50 text-neutral-700; }
+
+  .buzz-logo-mark { @apply inline-block h-8 w-8 shrink-0 object-contain; }
+  .buzz-flow-bar { @apply rounded-xl border border-neutral-200/60 bg-white/90 px-2 py-1 shadow-sm; }
+  .buzz-flow-bar-compact { @apply hidden lg:block; }
+  .buzz-platform-header { @apply overflow-hidden rounded-xl border border-neutral-200/80 bg-white shadow-sm; }
+  .buzz-job-chip { @apply rounded-lg border border-neutral-200/80 bg-white transition-all hover:shadow-sm; border-left-width: 3px; }
+  .buzz-fade-in { animation: buzzFadeIn 0.3s ease-out; }
+  .buzz-pulse-ai { animation: buzzPulseAi 2s ease-in-out infinite; }
+
+  .buzz-modal-overlay { @apply fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/50 p-4 backdrop-blur-sm; }
+  .buzz-modal { @apply flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-2xl border border-neutral-200/80 bg-white shadow-2xl; }
+  .buzz-modal-header { @apply flex shrink-0 items-center justify-between gap-3 border-b border-neutral-100 px-5 py-4; }
+  .buzz-modal-body { @apply min-h-0 flex-1 overflow-y-auto px-5 py-4; }
+  .buzz-modal-footer { @apply flex shrink-0 flex-wrap gap-2 border-t border-neutral-100 px-5 py-4; }
+
+  .buzz-chip { @apply inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-2.5 py-1.5 text-xs font-medium text-neutral-700 transition-all hover:border-neutral-300; }
+  .buzz-chip-active { @apply border-violet-600 bg-violet-600 text-white hover:border-violet-700 hover:bg-violet-700; }
+  .buzz-segment { @apply rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-sm font-medium text-neutral-700 transition-all hover:border-neutral-300; }
+  .buzz-segment-active { @apply border-violet-600 bg-violet-600 text-white hover:border-violet-700 hover:bg-violet-700; }
+  .buzz-surface { @apply rounded-xl bg-neutral-50; }
+  .buzz-list-item { @apply rounded-xl border border-neutral-200/80 bg-white p-4 shadow-sm transition-shadow hover:shadow-md; }
+  .buzz-table-wrap { @apply overflow-hidden rounded-xl border border-neutral-200/80 bg-white shadow-sm; }
+  .buzz-progress { @apply h-2 overflow-hidden rounded-full bg-neutral-200/80; }
+  .buzz-progress-bar { @apply h-full rounded-full bg-violet-600 transition-all duration-500; }
+  .buzz-auth-page { @apply min-h-dvh bg-[var(--color-buzz-paper)] text-neutral-900; }
+  .buzz-auth-card { @apply rounded-2xl border border-neutral-200/80 bg-white p-6 shadow-sm md:p-8; }
+  .buzz-banner { @apply rounded-xl border px-4 py-3 text-sm; }
+  .buzz-banner-info { @apply border-emerald-200 bg-emerald-50/90 text-emerald-900; }
+  .buzz-banner-warning { @apply border-amber-200 bg-amber-50 text-amber-950; }
+  .buzz-icon-box { @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-neutral-100 text-neutral-600; }
+  .buzz-icon-box-accent { @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700; }
+
+  /* 未移行のフラットカードを自動で角丸化 */
+  main :is(section, div).border.border-neutral-200.bg-white:not([class*="rounded"]) {
+    border-radius: 0.75rem;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   }
 
-  .buzz-nav-link-active {
-    @apply border border-neutral-300 bg-white font-medium text-neutral-900;
+  /* 旧UIの角丸・色を main 内で自動整える（目に優しく統一） */
+  main :is(button, label)[class*="border"]:not([class*="rounded"]):not([class*="buzz-"]) {
+    border-radius: 0.5rem;
   }
-
-  .buzz-nav-link-inactive {
-    @apply border border-transparent text-neutral-600 hover:bg-white/70 hover:text-neutral-900;
+  main :is(input, textarea, select).border:not(.buzz-input):not([class*="rounded"]) {
+    border-radius: 0.5rem;
   }
-
-  .buzz-nav-group-btn {
-    @apply flex w-full items-center gap-2 rounded-sm px-2.5 py-1.5 text-[13px] font-medium leading-snug text-neutral-700 transition-colors hover:bg-white/70 hover:text-neutral-900;
+  main button.border-neutral-900.bg-neutral-900.text-white:not([class*="buzz-"]) {
+    border-color: rgb(124 58 237);
+    background-color: rgb(124 58 237);
+    border-radius: 0.5rem;
   }
-
-  .buzz-nav-divider {
-    @apply px-2.5 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-neutral-400;
+  main button.border-neutral-900.bg-neutral-900.text-white:not([class*="buzz-"]):hover {
+    border-color: rgb(109 40 217);
+    background-color: rgb(109 40 217);
   }
-
-  .buzz-alert {
-    @apply border p-3 text-sm;
-  }
-
-  .buzz-alert-success {
-    @apply border-emerald-200 bg-emerald-50 text-emerald-900;
-  }
-
-  .buzz-alert-error {
-    @apply border-rose-200 bg-rose-50 text-rose-900;
-  }
-
-  .buzz-alert-warning {
-    @apply border-amber-200 bg-amber-50 text-amber-950;
-  }
-
-  .buzz-alert-info {
-    @apply border-neutral-200 bg-neutral-50 text-neutral-700;
-  }
-
-  .buzz-logo-mark {
-    @apply inline-block h-8 w-8 shrink-0 object-contain;
+  main a.border.border-neutral-200:not([class*="rounded"]):not([class*="buzz-"]) {
+    border-radius: 0.75rem;
   }
 }
 
-.headline-fit-wrap {
-  container-type: inline-size;
-  width: 100%;
+@keyframes buzzFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .buzz-fade-in,
+  .buzz-pulse-ai {
+    animation: none !important;
+  }
+}
+@keyframes buzzPulseAi {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.3); }
+  50% { box-shadow: 0 0 0 8px rgba(124, 58, 237, 0); }
+}
+
+.headline-fit-wrap { container-type: inline-size; width: 100%; }
 @media (max-width: 767px) {
   [data-headline-fit] {
-    display: block;
-    width: 100%;
-    max-width: 100%;
-    white-space: nowrap;
-    font-size: clamp(0.875rem, 6.2cqi, 1.875rem);
-    letter-spacing: -0.02em;
-    line-height: 1.15;
+    display: block; width: 100%; max-width: 100%; white-space: nowrap;
+    font-size: clamp(0.875rem, 6.2cqi, 1.875rem); letter-spacing: -0.02em; line-height: 1.15;
   }
 }
-
-:where([data-jp-wrap], main p, main li, footer p, footer li):not([data-headline-fit]):not([data-jp-wrap-off]) {
-  word-break: keep-all;
-  line-break: strict;
-  overflow-wrap: break-word;
-  text-wrap: pretty;
+:where([data-jp-wrap], main p, main li):not([data-headline-fit]):not([data-jp-wrap-off]) {
+  word-break: keep-all; line-break: strict; overflow-wrap: break-word; text-wrap: pretty;
 }

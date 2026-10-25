@@ -37,21 +37,26 @@ export default function PwaInstallBanner() {
   if (!visible) return null;
 
   return (
-    <div className="fixed bottom-3 left-3 right-3 z-[60] border border-neutral-300 bg-white p-3 shadow-lg sm:left-auto sm:right-4 sm:max-w-sm">
+    <div
+      className="fixed bottom-[4.75rem] left-3 right-3 z-[45] rounded-xl border border-neutral-200/80 bg-white p-3 shadow-lg lg:bottom-4 lg:left-auto lg:right-4 lg:max-w-sm"
+      style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
+    >
       <div className="flex items-start gap-3">
-        <Download className="mt-0.5 h-5 w-5 shrink-0 text-neutral-700" />
+        <div className="buzz-icon-box !h-9 !w-9 shrink-0">
+          <Download className="h-4 w-4" />
+        </div>
         <div className="min-w-0 flex-1 text-sm">
-          <p className="font-medium">ホーム画面に追加</p>
-          <p className="mt-1 text-xs text-neutral-600">
+          <p className="font-medium text-neutral-900">ホーム画面に追加</p>
+          <p className="mt-1 text-xs leading-relaxed text-neutral-600">
             {iosHint
-              ? 'Safariの共有ボタン →「ホーム画面に追加」で、店長スマホから親指承認しやすくなります。'
+              ? 'Safariの共有 →「ホーム画面に追加」で、スマホから素早く開けます。'
               : 'アプリのように開いて、朝の承認を速くできます。'}
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
             {deferred && (
               <button
                 type="button"
-                className="buzz-btn-primary px-3 py-1.5 text-xs"
+                className="buzz-btn-primary !px-3 !py-1.5 text-xs"
                 onClick={async () => {
                   await deferred.prompt();
                   setVisible(false);
@@ -62,7 +67,7 @@ export default function PwaInstallBanner() {
             )}
             <button
               type="button"
-              className="border border-neutral-300 px-3 py-1.5 text-xs"
+              className="buzz-btn-secondary !px-3 !py-1.5 text-xs"
               onClick={() => {
                 localStorage.setItem(DISMISS_KEY, '1');
                 setVisible(false);
@@ -74,7 +79,7 @@ export default function PwaInstallBanner() {
         </div>
         <button
           type="button"
-          className="min-h-[44px] min-w-[44px] text-neutral-500"
+          className="buzz-btn-ghost !min-h-[36px] !min-w-[36px] shrink-0 text-neutral-400"
           aria-label="閉じる"
           onClick={() => {
             localStorage.setItem(DISMISS_KEY, '1');

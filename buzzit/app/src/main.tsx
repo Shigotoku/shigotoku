@@ -8,7 +8,6 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker
       .register('/sw.js')
       .then((reg) => {
-        // 新しい SW があれば即時有効化を促す
         reg.update().catch(() => {})
         if (reg.waiting) {
           reg.waiting.postMessage({ type: 'SKIP_WAITING' })

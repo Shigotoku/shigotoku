@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { encodePackId } from "../lib/pageKey";
 import { listIssuesRemote, listOrgFeedbackRemote, listPackMetaRemote } from "../lib/cloudStore";
 import { buildFixPacks, splitPackIntoClusters, type FixPack } from "../lib/fixPacks";
+import { encodePackId } from "../lib/pageKey";
 import type { FixPackMeta } from "../lib/packMeta";
 import type { Feedback, Issue } from "../lib/types";
 import { t } from "../lib/i18n";
@@ -43,7 +44,7 @@ export default function FixPacksPage() {
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">{t("nav_fix_packs")}</p>
         <h1 className="font-display mt-1 text-3xl font-bold">{t("nav_fix_packs")}</h1>
         <p className="mt-2 max-w-2xl text-sm text-ink/60">
-          同じ画面（URL）に溜まった問題を1まとまりにします。カテゴリが混ざる場合は自動でサブパックに分けます。
+          同じ画面（URL）に溜まった問題を1まとまりにします。受信箱の未処理投稿もここに含まれます。カテゴリが混ざる場合は自動でサブパックに分けます。
         </p>
       </div>
 
@@ -69,7 +70,7 @@ export default function FixPacksPage() {
         <p className="text-sm text-ink/50">集約中…</p>
       ) : packs.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-ink/15 bg-white px-6 py-10 text-sm text-ink/55">
-          URL 付きのオープン Issue がまだありません。投稿 → 受信箱で Issue 化すると、ここに画面単位で並びます。
+          URL 付きの投稿がまだありません。投稿 → 受信箱、または拡張機能から送ると、ここに画面単位で並びます。
           <div className="mt-3 flex gap-3">
             <Link to="/capture" className="text-mint hover:underline">
               投稿する

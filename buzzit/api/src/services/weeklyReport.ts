@@ -1,6 +1,7 @@
 import { getMetrics, getPosts, getScheduledJobs, getUserSettings } from './firestore';
 import { getTrends } from './trends';
 import { postToSlackWebhook } from './slack';
+import { getXSeriesWeeklyStats } from './xSeriesExtras';
 
 export interface WeeklyReport {
   periodLabel: string;
@@ -20,6 +21,11 @@ export interface WeeklyReport {
   };
   topPosts: Array<{ title: string; reach: number; revenue: number }>;
   topTrend: { topic: string; hook: string; score: number } | null;
+  xSeries: {
+    publishedThisWeek: number;
+    failedThisWeek: number;
+    approvedStockTotal: number;
+  };
   recommendations: string[];
   nextWeekActions: string[];
 }
@@ -33,11 +39,16 @@ function weekBounds(now = new Date()) {
 
 export async function buildWeeklyReport(uid: string): Promise<WeeklyReport> {
   const { start, end } = weekBounds();
-  const [metrics, posts, jobs, trends] = await Promise.all([
+  const [metrics, posts, jobs, trends, xSeries] = await Promise.all([
     getMetrics(uid),
     getPosts(uid),
     getScheduledJobs(uid),
     getTrends(uid).catch(() => []),
+    getXSeriesWeeklyStats(uid).catch(() => ({
+      publishedThisWeek: 0,
+      failedThisWeek: 0,
+      approvedStockTotal: 0,
+    })),
   ]);
 
   const inWeek = (iso: string) => {
@@ -66,6 +77,12 @@ export async function buildWeeklyReport(uid: string): Promise<WeeklyReport> {
   const recommendations: string[] = [];
   if (scheduled.failed > 0) {
     recommendations.push(`失敗した投稿が ${scheduled.failed} 件あります。カレンダーから再試行してください。`);
+  }
+  if (xSeries.failedThisWeek > 0) {
+    recommendations.push(`Xシリーズの投稿失敗が ${xSeries.failedThisWeek} 件。リスト画面で再試行できます。`);
+  }
+  if (xSeries.approvedStockTotal < 7) {
+    recommendations.push(`Xシリーズ在庫が ${xSeries.approvedStockTotal} 本です。AI一括生成で補充しましょう。`);
   }
   if (scheduled.pendingApproval > 0) {
     recommendations.push(`承認待ちが ${scheduled.pendingApproval} 件。コクピットで承認すると運用が回り続けます。`);
@@ -102,6 +119,7 @@ export async function buildWeeklyReport(uid: string): Promise<WeeklyReport> {
     scheduled,
     topPosts,
     topTrend,
+    xSeries,
     recommendations: [...nextWeekActions.map((a) => `来週: ${a}`), ...recommendations].slice(0, 6),
     nextWeekActions,
   };
@@ -120,6 +138,7 @@ export function formatWeeklyReportSlack(report: WeeklyReport): string {
     `健康スコア: ${report.healthScore}`,
     `リーチ ${report.funnel.reach.toLocaleString()} / LINE追加 ${report.funnel.lineSignups} / 推計売上 ¥${report.funnel.revenue.toLocaleString()}`,
     `投稿結果: 公開 ${report.scheduled.published} / 通知 ${report.scheduled.notified} / 失敗 ${report.scheduled.failed}`,
+    `Xシリーズ: 今週 ${report.xSeries.publishedThisWeek} 本投稿 / 在庫 ${report.xSeries.approvedStockTotal} 本`,
     top,
     trend,
     '',

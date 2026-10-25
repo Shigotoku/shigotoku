@@ -10,11 +10,13 @@ const toc = [
   { id: 'overview', label: '1. BuzzItとは・何ができるか' },
   { id: 'start', label: '2. はじめての使い方' },
   { id: 'screens', label: '3. 画面の見方（サイドバー）' },
+  { id: 'persona', label: '配信キャラの切り替え・管理' },
   { id: 'dashboard', label: '4. 経営コクピット' },
   { id: 'roadmap', label: '5. 成長ロードマップ' },
   { id: 'inbox', label: '6. ネタInbox' },
   { id: 'magic', label: '7. マジック・クリエイター' },
   { id: 'calendar', label: '8. 投稿カレンダー' },
+  { id: 'x-scheduling', label: 'X予約投稿ガイド（場面別）' },
   { id: 'content-calendar', label: '9. 30本カレンダー' },
   { id: 'funnel', label: '10. 導線ビルダー' },
   { id: 'line', label: '11. LINE CRM' },
@@ -29,8 +31,8 @@ const toc = [
 ---
 
 <Layout
-  title="BuzzIt 使い方説明書 | 店舗SNS・LINE運用の操作ガイド"
-  description="BuzzIt（バジット）の使い方説明書。ログインから投稿、LINE CRM、設定まで、ユーザー目線で全機能をわかりやすく解説します。"
+  title="BuzzIt 使い方ガイド | 店舗SNS・LINE運用の操作ガイド"
+  description="BuzzIt（バジット）の使い方ガイド。ログインから投稿、LINE CRM、設定まで、ユーザー目線で全機能をわかりやすく解説します。"
   preloadHero={false}
 >
   <header class="sticky top-0 z-40 border-b border-neutral-200/80 bg-[#f5f4f0]/95 backdrop-blur-md">
@@ -38,7 +40,7 @@ const toc = [
       <a href={homeUrl} class="flex min-h-[44px] items-center gap-2.5">
         <img src={iconSrc} alt="" width="28" height="28" class="h-7 w-7 object-contain" />
         <span class="font-display text-base font-bold tracking-tight text-neutral-900">BuzzIt</span>
-        <span class="hidden text-sm text-neutral-500 sm:inline">使い方説明書</span>
+        <span class="hidden text-sm text-neutral-500 sm:inline">使い方ガイド</span>
       </a>
       <div class="flex items-center gap-2 sm:gap-3">
         <a href={homeUrl} class="text-sm text-neutral-600 hover:text-neutral-900">サービスサイト</a>
@@ -58,11 +60,12 @@ const toc = [
     <div class="mb-10 max-w-3xl">
       <p class="mb-3 text-xs font-semibold tracking-wider text-[#6b4a3a] uppercase">User Guide</p>
       <h1 class="font-display text-3xl font-bold tracking-tight text-[var(--color-buzz-title)] sm:text-4xl">
-        BuzzIt 使い方説明書
+        BuzzIt 使い方ガイド
       </h1>
       <p class="mt-4 text-base leading-relaxed text-neutral-600" data-jp-wrap>
+        1本のネタから複数SNSへ展開し、<strong>一括で投稿予約</strong>できるのがBuzzItの強みです。
         「何から手を付ければいいか分からない」方向けに、アプリでできることと実際の操作手順をまとめました。
-        目次から気になる項目へジャンプできます。いつでも左サイドバーの「使い方説明書」から開けます。
+        目次から気になる項目へジャンプできます。いつでも左サイドバー上部の「使い方ガイド」から開けます。
       </p>
     </div>
 
@@ -89,10 +92,12 @@ const toc = [
           <p>
             BuzzIt（バジット）は、美容室・飲食店・クリニックなどの<strong>来店型・サービス業</strong>向けに、
             SNS投稿・LINE運用・集客導線・売上の見える化をひとつにまとめたクラウドサービスです。
+            来店型の集客支援が強みですが、<strong>SNS運用の効率化・投稿予約の一元管理だけ</strong>の使い方にも向いています。
           </p>
           <h3>一言でいうと</h3>
           <ul>
-            <li>「今日何を投稿するか」をAIが提案する</li>
+            <li>複数SNSへの投稿を<strong>一括で予約</strong>できる</li>
+            <li>「なにを投稿するか」をAIが提案する</li>
             <li>1本のネタから Instagram / LINE / X など向けの文章に展開する</li>
             <li>予約投稿・承認・カレンダーで運用を回す</li>
             <li>LINE友だちへのタグ・配信・クーポンでリピートにつなげる</li>
@@ -163,23 +168,61 @@ const toc = [
                 </tr>
               </thead>
               <tbody>
-                <tr><td>経営コクピット</td><td>今日のミッション・健康スコア・承認待ち</td><td>全員</td></tr>
-                <tr><td>成長ロードマップ</td><td>SNS立ち上げの順番・伴走ガイド</td><td>全員</td></tr>
-                <tr><td>ネタInbox</td><td>スタッフが写真・ネタを投稿 → 店長が採用</td><td>全員</td></tr>
-                <tr><td>マジック・クリエイター</td><td>AI台本・音声・予約作成</td><td>全員</td></tr>
+                <tr><td>ダッシュボード</td><td>今日のミッション・健康スコア・承認待ち</td><td>全員</td></tr>
+                <tr><td>ネタ作成（Inbox / クリエイター）</td><td>スタッフのネタ収集とAI台本・予約作成</td><td>全員</td></tr>
+                <tr><td>SNS（各媒体）</td><td>Instagram / LINE / X など媒体別の運用ハブ</td><td>全員</td></tr>
                 <tr><td>投稿カレンダー</td><td>予約一覧・承認・再試行</td><td>全員</td></tr>
-                <tr><td>30本カレンダー</td><td>最初の30日分のネタ計画</td><td>全員</td></tr>
                 <tr><td>導線ビルダー</td><td>プロフィール文・URL・QR</td><td>店長以上</td></tr>
                 <tr><td>LINE CRM</td><td>友だち・タグ・配信・ステップ</td><td>店長以上</td></tr>
+                <tr><td>設定</td><td>プラン・連携・請求・スタッフ招待</td><td>店長以上</td></tr>
+                <tr><td>成長ロードマップ</td><td>SNS立ち上げの順番・伴走ガイド</td><td>全員</td></tr>
+                <tr><td>30本カレンダー</td><td>最初の30日分のネタ計画</td><td>全員</td></tr>
+                <tr><td>Xシリーズ</td><td>連続ツイートの計画・予約</td><td>全員</td></tr>
                 <tr><td>分析・売上</td><td>週次レポート・KPI</td><td>店長以上</td></tr>
-                <tr><td>スタッフ</td><td>招待・権限</td><td>店長以上</td></tr>
-                <tr><td>設定</td><td>プラン・連携・請求</td><td>店長以上</td></tr>
               </tbody>
             </table>
           </div>
           <p>
-            サイドバー最下部の<strong>「使い方説明書」</strong>を押すと、このページが別タブで開きます。
+            サイドバー上部の<strong>「使い方ガイド」</strong>を押すと、このページが別タブで開きます。
           </p>
+          <p>
+            画面右上には<strong>配信キャラ切り替え</strong>（公式・院長・キャラなど）があります。1社で複数の発信者を運用する場合は、まずここで「誰として投稿するか」を選んでから作業してください。
+          </p>
+        </section>
+
+        <!-- persona -->
+        <section id="persona" class="scroll-mt-24">
+          <h2>配信キャラの切り替え・管理</h2>
+          <p>
+            BuzzIt では、1つのログインアカウントの中で<strong>複数の配信キャラ</strong>（公式・個人・キャラなど）を切り替えて運用できます。
+            例：メディトク株式会社では「メディトク公式」「院長」「メディトくん」などを分けて管理します。
+          </p>
+          <h3>キャラを切り替える手順</h3>
+          <ol>
+            <li>画面<strong>右上</strong>の配信キャラ名（色付きボタン）をクリック</li>
+            <li>一覧から切り替えたいキャラを選択</li>
+            <li>ヘッダーの表示名と、設定の黄色バナー（「現在の配信キャラ：…」）が同じ名前になれば成功</li>
+          </ol>
+          <p class="guide-tip">
+            切り替えに失敗した場合は、赤いエラーメッセージが表示されます。ページを再読み込みしてからもう一度お試しください。
+          </p>
+          <h3>キャラごとに分かれるもの</h3>
+          <ul>
+            <li><strong>SNS連携</strong>（X API・Meta・LINE など）— 設定 → SNS連携タブで、選択中キャラ専用に保存されます</li>
+            <li><strong>ブランドトーン</strong>（brandProfile）— AI生成の口調がキャラごとに変わります</li>
+            <li><strong>予約投稿・Xシリーズ</strong>— 選択中キャラに紐づきます</li>
+          </ul>
+          <h3>キャラの追加・名前変更</h3>
+          <ol>
+            <li>右上メニュー下部の「<strong>＋ キャラを追加・管理</strong>」をクリック（または 設定 → 配信キャラ タブ）</li>
+            <li>名前・種別（公式／個人／キャラ）を入力して追加</li>
+            <li>2体目以降はプランの追加ペルソナ枠（¥980/月/体）が必要な場合があります</li>
+          </ol>
+          <h3>よくあるつまずき</h3>
+          <ul>
+            <li><strong>キャラを変えたのに X の連携が同じ</strong> → 各キャラで設定 → SNS連携を開き、切り替え後に改めて API キーを保存してください</li>
+            <li><strong>公式キャラの投稿が承認待ちになる</strong> → 公式タイプは安全のため承認フローがデフォルトです。投稿カレンダーで承認してください</li>
+          </ul>
         </section>
 
         <!-- 4 -->
@@ -279,6 +322,80 @@ const toc = [
             <li>下書きに戻して文案を直す</li>
             <li>連携（Meta / LINE など）を設定で確認する</li>
           </ol>
+        </section>
+
+        <!-- x-scheduling -->
+        <section id="x-scheduling" class="scroll-mt-24">
+          <h2>X予約投稿ガイド（場面別）</h2>
+          <p>
+            X（旧Twitter）への投稿は、<strong>目的と運用スタイル</strong>によって使う機能が異なります。
+            まず右上で<strong>配信キャラ</strong>を選び、続いて<strong>設定 → SNS連携</strong>でそのキャラ用の X API を接続してください。
+          </p>
+
+          <h3>事前準備（すべての場面で共通）</h3>
+          <ol>
+            <li>右上で投稿したい<strong>配信キャラ</strong>を選択</li>
+            <li><strong>設定 → SNS連携</strong>で X API（Key / Secret / Access Token / Secret）を入力し「接続テストして保存」</li>
+            <li>接続済み（✓）になったら予約投稿が可能です</li>
+          </ol>
+          <p class="guide-tip">
+            X API は月500件程度の無料枠があります。設定画面に「今月 N / 500」が表示されます。上限に近づいたら Xシリーズのペースを見直してください。
+          </p>
+
+          <h3>場面A：1本だけ、決まった日時に投稿したい（単発予約）</h3>
+          <p><strong>向いている例：</strong>キャンペーン告知、イベント前日のリマインド、ニュース1本だけ</p>
+          <ol>
+            <li><strong>マジック・クリエイター</strong>を開く（サイドバー「原稿ビルダー」または SNS → X）</li>
+            <li>ネタを入力して「生成」→ X 向け文案を確認・編集</li>
+            <li>予約ボタンから<strong>日時</strong>を指定</li>
+            <li>投稿モードで<strong>「X API 自動投稿（BYOK）」</strong>を選択して予約</li>
+            <li><strong>投稿カレンダー</strong>で「予約済み」として確認（公式キャラは承認待ちの場合あり）</li>
+          </ol>
+
+          <h3>場面B：毎週決まった曜日に、ストックから自動投稿したい（Xシリーズ）</h3>
+          <p><strong>向いている例：</strong>医療コラム、論文紹介、定番ネタの継続発信（旧スプレッドシート＋GAS運用の代替）</p>
+          <ol>
+            <li>サイドバー<strong>「Xシリーズ」</strong>を開く（設定の SNS連携画面からリンクもあります）</li>
+            <li>シリーズを作成（「医療テンプレを作成」で A〜D シリーズを一括作成も可）</li>
+            <li>ツイートを<strong>一括追加</strong>（AI一括生成・テキスト貼り付け・CSV）で在庫を入れる</li>
+            <li>各行の<strong>「投稿OK」</strong>にチェック（承認済みの在庫だけが消化されます）</li>
+            <li><strong>スケジュールルール</strong>で曜日・時刻・1回の件数を設定 → 自動投稿開始</li>
+          </ol>
+          <p>在庫が少なくなるとパネルに「週N本ペース・約M週分」と表示されます。切れる前に補充してください。</p>
+
+          <h3>場面C：今すぐ1本だけ投稿したい（即時投稿）</h3>
+          <ol>
+            <li><strong>Xシリーズ</strong>で在庫を選び「今すぐ投稿」</li>
+            <li>またはマジック・クリエイターで生成後、日時を「今」に近い未来に設定して予約</li>
+          </ol>
+
+          <h3>場面D：文案だけ作り、手動で X アプリに貼る（連携なし）</h3>
+          <ol>
+            <li>マジック・クリエイターで X 文案を生成</li>
+            <li>投稿モードを<strong>「通知」</strong>にする（Slack/LINE に文案が届く運用も可）</li>
+            <li>表示された文案をコピーし、X 公式アプリで手動投稿</li>
+          </ol>
+          <p>外部サービス <strong>Ayrshare</strong> を使う場合は、設定でプロファイルキーを登録し投稿モード「Ayrshare」を選びます（X API とは別ルートです）。</p>
+
+          <h3>どの方法を選ぶ？（早見表）</h3>
+          <div class="not-prose overflow-x-auto">
+            <table class="guide-table">
+              <thead>
+                <tr>
+                  <th>やりたいこと</th>
+                  <th>使う機能</th>
+                  <th>必要な連携</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>1本だけ日時指定</td><td>マジック・クリエイター → 投稿カレンダー</td><td>X API（BYOK）</td></tr>
+                <tr><td>毎週自動で連投</td><td>Xシリーズ ＋ スケジュールルール</td><td>X API（BYOK）</td></tr>
+                <tr><td>今すぐ1本</td><td>Xシリーズ「今すぐ投稿」</td><td>X API（BYOK）</td></tr>
+                <tr><td>手動コピー運用</td><td>マジック・クリエイター（通知モード）</td><td>不要</td></tr>
+                <tr><td>複数キャラで別アカウント</td><td>配信キャラ切替 → 各キャラで SNS連携</td><td>キャラごとに X API</td></tr>
+              </tbody>
+            </table>
+          </div>
         </section>
 
         <!-- 9 -->
@@ -457,6 +574,12 @@ const toc = [
           <h3>Q. Ayrshareとは？ Xは自動投稿できる？</h3>
           <p>
             Ayrshareは投稿予約の仲介サービスです。プロファイルキーを設定し投稿モードで指定すると、X向けの予約投稿ができます。未設定でもコピー運用が可能です。
+            自社の X API キーをお持ちの場合は、設定の X API 連携 ＋ 投稿モード「X API 自動投稿」または Xシリーズがおすすめです。詳しくは上の<strong>X予約投稿ガイド（場面別）</strong>をご覧ください。
+          </p>
+          <h3>Q. 配信キャラを切り替えられない</h3>
+          <p>
+            右上の配信キャラ名をクリックし、一覧から別キャラを選びます。エラーが出る場合はページを再読み込みしてください。
+            切り替え後は設定の黄色バナーとヘッダー表示が同じ名前になることを確認し、SNS連携はキャラごとに設定が必要です。
           </p>
           <h3>Q. ログイン画面が真っ白</h3>
           <p>ブラウザのスーパーリロード（Ctrl+Shift+R）やキャッシュ削除を試してください。改善しない場合はサポートへご連絡ください。</p>

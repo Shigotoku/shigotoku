@@ -208,8 +208,8 @@ Enterprise（要見積）
 | LP LINE CRM Lite / Pro 訴求 | ✅ v2.0 |
 | App 配信コスト試算（L vs BuzzIt + LINE内訳） | ✅ |
 | App 設定プラン（LINE CRM 含む） | ✅ v2.0 |
-| 決済連携（Stripe 等） | ⚪ 未実装 |
-| Enterprise 問い合わせフォーム | ⚪ 未実装 |
+| 決済連携（Stripe 等） | ✅ Checkout + Webhook |
+| Enterprise 問い合わせフォーム | ✅ `/v1/enterprise/inquiry` |
 | Lステップデータ移行 | ⚪ Phase 6 |
 
 ---

@@ -689,6 +689,58 @@ export async function createRichMenuWithImage(
   };
 }
 
+/** セグメント別リッチメニュー自動切替（5分ワーカー） */
+export async function processRichMenuSegmentSwitch(): Promise<{ processed: number; errors: number }> {
+  const db = getFirestore();
+  const usersSnap = await db.collection('users').where('lineChannelAccessToken', '!=', null).get();
+  let processed = 0;
+  let errors = 0;
+
+  for (const userDoc of usersSnap.docs) {
+    const uid = userDoc.id;
+    const settings = await getUserSettings(uid);
+    if (!settings.lineChannelAccessToken) continue;
+
+    const menusSnap = await db.collection(`users/${uid}/lineRichMenus`).get().catch(() => null);
+    if (!menusSnap || menusSnap.empty) continue;
+
+    for (const menuDoc of menusSnap.docs) {
+      const data = menuDoc.data() as {
+        segmentId?: string;
+        lineRichMenuId?: string;
+        conditions?: SegmentCondition[];
+      };
+      if (!data.lineRichMenuId || (!data.segmentId && !data.conditions?.length)) continue;
+
+      let conditions = data.conditions ?? [];
+      if (data.segmentId) {
+        const seg = await db.doc(`users/${uid}/lineSegments/${data.segmentId}`).get();
+        if (seg.exists) conditions = (seg.data()?.conditions ?? []) as SegmentCondition[];
+      }
+      if (!conditions.length) continue;
+
+      const friends = await queryFriendsBySegment(uid, conditions);
+      const { linkRichMenuToUser } = await import('./lineMessaging');
+
+      for (const friend of friends.slice(0, 100)) {
+        try {
+          const result = await linkRichMenuToUser(
+            settings.lineChannelAccessToken!,
+            friend.lineUserId,
+            data.lineRichMenuId,
+          );
+          if (result.success) processed++;
+          else errors++;
+        } catch {
+          errors++;
+        }
+      }
+    }
+  }
+
+  return { processed, errors };
+}
+
 export async function touchFriendMessage(uid: string, lineUserId: string): Promise<void> {
   const ref = friendsCol(uid).doc(lineUserId);
   if ((await ref.get()).exists) {

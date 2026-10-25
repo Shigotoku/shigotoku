@@ -10,6 +10,8 @@ export interface StoreRecord {
   id: string;
   name: string;
   ownerId: string;
+  /** 課金主体アカウント */
+  accountId?: string;
   industry?: string;
   createdAt: string;
 }
@@ -62,11 +64,13 @@ export async function ensureDefaultStore(
     }
   }
 
+  const accountId = data.accountId as string | undefined;
   const storeRef = storesCol().doc();
   const storeName = displayName ? `${displayName}の店舗` : 'マイ店舗';
   const store: Omit<StoreRecord, 'id'> = {
     name: storeName,
     ownerId: uid,
+    ...(accountId ? { accountId } : {}),
     industry: 'salon',
     createdAt: new Date().toISOString(),
   };
@@ -147,6 +151,7 @@ export async function createStore(
   const store: Omit<StoreRecord, 'id'> = {
     name,
     ownerId: uid,
+    ...(settings.accountId ? { accountId: settings.accountId } : {}),
     industry: industry ?? settings.industry ?? 'salon',
     createdAt: new Date().toISOString(),
   };

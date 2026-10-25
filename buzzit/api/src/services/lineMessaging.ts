@@ -254,6 +254,26 @@ export async function uploadRichMenuImage(
   return { success: true, message: 'リッチメニュー画像をアップロードしました' };
 }
 
+export async function linkRichMenuToUser(
+  channelAccessToken: string,
+  lineUserId: string,
+  richMenuId: string,
+): Promise<{ success: boolean; message: string }> {
+  if (!channelAccessToken) return { success: false, message: 'LINE Channel Access Token 未設定' };
+  const res = await fetch(
+    `https://api.line.me/v2/bot/user/${encodeURIComponent(lineUserId)}/richmenu/${richMenuId}`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${channelAccessToken}` },
+    },
+  );
+  if (!res.ok) {
+    const err = await res.text();
+    return { success: false, message: `link richmenu failed: ${err.slice(0, 200)}` };
+  }
+  return { success: true, message: 'リッチメニューを割り当てました' };
+}
+
 export async function setDefaultRichMenu(
   channelAccessToken: string,
   richMenuId: string,

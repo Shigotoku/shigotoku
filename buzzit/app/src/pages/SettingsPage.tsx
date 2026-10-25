@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { isSettingsSection, sectionTab, type SettingsTab } from '../lib/settingsUrls';
 import { Check, Link2, MessageSquare, Zap, Save, BarChart3, Share2, MapPin, Sparkles, Users } from 'lucide-react';
 import { WATERMARK } from '../constants/brand';
 import {
@@ -28,6 +29,9 @@ import {
 } from '../lib/api';
 import LineCostComparison from '../components/LineCostComparison';
 import StoreBillingSection from '../components/StoreBillingSection';
+import PersonaManagementSection from '../components/PersonaManagementSection';
+import PersonaQuickGuide from '../components/PersonaQuickGuide';
+import { usePersona } from '../store/personaContext';
 import { useApp } from '../store/appContext';
 import type { PlanTier } from '../types';
 import TeamPage from './TeamPage';
@@ -133,57 +137,79 @@ export default function SettingsPage() {
   const [insightsLastSyncedAt, setInsightsLastSyncedAt] = useState('');
   const [insightsSyncing, setInsightsSyncing] = useState(false);
 
-  type SettingsTab = 'business' | 'sns' | 'staff' | 'plan' | 'advanced';
+  const { activePersona } = usePersona();
+
   const SETTINGS_TABS: { id: SettingsTab; label: string }[] = [
+    { id: 'personas', label: '配信キャラ' },
     { id: 'business', label: '事業所' },
     { id: 'sns', label: 'SNS連携' },
     { id: 'staff', label: 'スタッフ' },
     { id: 'plan', label: 'プラン' },
     { id: 'advanced', label: '高度な設定' },
   ];
+  const sectionParam = searchParams.get('section');
+  const section = isSettingsSection(sectionParam) ? sectionParam : null;
   const tabParam = searchParams.get('tab');
-  const activeTab: SettingsTab = SETTINGS_TABS.some((t) => t.id === tabParam)
-    ? (tabParam as SettingsTab)
-    : 'business';
+  const activeTab: SettingsTab =
+    (section ? sectionTab(section) : null) ??
+    (SETTINGS_TABS.some((t) => t.id === tabParam) ? (tabParam as SettingsTab) : 'personas');
+  const scrolledSectionRef = useRef<string | null>(null);
   const setTab = (id: SettingsTab) => {
     const next = new URLSearchParams(searchParams);
     next.set('tab', id);
     next.delete('meta');
+    next.delete('section');
     setSearchParams(next, { replace: true });
   };
 
   useEffect(() => {
-    fetchSettings()
-      .then((s) => {
-        setPlan(s.plan as PlanTier);
-        setSlackWebhookUrl(s.slackWebhookUrl ?? '');
-        setAyrshareProfileKey(s.ayrshareProfileKey ?? '');
-        setSlackTeamId(s.slackTeamId ?? '');
-        setAutoModeEnabled(!!s.autoModeEnabled);
-        setLineChannelSecret(s.lineChannelSecret ?? '');
-        setLineChannelAccessToken(s.lineChannelAccessToken ?? '');
-        setLineDestinationId(s.lineDestinationId ?? '');
-        setDefaultDestinationUrl(s.defaultDestinationUrl ?? '');
-        setDefaultPublishMode(s.defaultPublishMode ?? 'notify');
-        setMetaConnected(!!s.metaConnected);
-        setMetaTokenExpiresAt(s.metaTokenExpiresAt ?? '');
-        setLineWebhookUrl(s.lineWebhookUrl ?? '');
-        setSnsConnections(s.snsConnections);
-        setHpbStoreUrl(s.hpbStoreUrl ?? '');
-        setGbpConnected(!!s.gbpConnected);
-        setGbpLocationName(s.gbpLocationName ?? '');
-        setNotifyEmail(s.notifyEmail ?? '');
-        setXConnected(!!s.xConnected);
-        setXUsername(s.xUsername ?? '');
-        setXApiPostsThisMonth(s.xApiPostsThisMonth ?? 0);
-        setXApiMonthlyLimit(s.xApiMonthlyLimit ?? 500);
-        setBrandProfile(s.brandProfile ?? '');
-        setIndustry(s.industry ?? '');
-        setInsightsEnabled(s.insightsEnabled !== false);
-        setXInsightsEnabled(s.xInsightsEnabled === true);
-        setInsightsLastSyncedAt(s.insightsLastSyncedAt ?? '');
-      })
-      .catch(() => {});
+    if (!section || activeTab !== 'sns') return;
+    if (scrolledSectionRef.current === section) return;
+    const el = document.getElementById(`settings-${section}`);
+    if (!el) return;
+    scrolledSectionRef.current = section;
+    const scroll = () => el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    requestAnimationFrame(() => requestAnimationFrame(scroll));
+  }, [section, activeTab]);
+
+  useEffect(() => {
+    const loadSettingsFromApi = () => {
+      fetchSettings()
+        .then((s) => {
+          setPlan((s.devFullAccess ? 'enterprise' : s.plan) as PlanTier);
+          setSlackWebhookUrl(s.slackWebhookUrl ?? '');
+          setAyrshareProfileKey(s.ayrshareProfileKey ?? '');
+          setSlackTeamId(s.slackTeamId ?? '');
+          setAutoModeEnabled(!!s.autoModeEnabled);
+          setLineChannelSecret(s.lineChannelSecret ?? '');
+          setLineChannelAccessToken(s.lineChannelAccessToken ?? '');
+          setLineDestinationId(s.lineDestinationId ?? '');
+          setDefaultDestinationUrl(s.defaultDestinationUrl ?? '');
+          setDefaultPublishMode(s.defaultPublishMode ?? 'notify');
+          setMetaConnected(!!s.metaConnected);
+          setMetaTokenExpiresAt(s.metaTokenExpiresAt ?? '');
+          setLineWebhookUrl(s.lineWebhookUrl ?? '');
+          setSnsConnections(s.snsConnections);
+          setHpbStoreUrl(s.hpbStoreUrl ?? '');
+          setGbpConnected(!!s.gbpConnected);
+          setGbpLocationName(s.gbpLocationName ?? '');
+          setNotifyEmail(s.notifyEmail ?? '');
+          setXConnected(!!s.xConnected);
+          setXUsername(s.xUsername ?? '');
+          setXApiPostsThisMonth(s.xApiPostsThisMonth ?? 0);
+          setXApiMonthlyLimit(s.xApiMonthlyLimit ?? 500);
+          setBrandProfile(s.brandProfile ?? '');
+          setIndustry(s.industry ?? '');
+          setInsightsEnabled(s.insightsEnabled !== false);
+          setXInsightsEnabled(s.xInsightsEnabled === true);
+          setInsightsLastSyncedAt(s.insightsLastSyncedAt ?? '');
+        })
+        .catch(() => {});
+    };
+
+    loadSettingsFromApi();
+    const onPersonaChanged = () => loadSettingsFromApi();
+    window.addEventListener('buzzit-persona-changed', onPersonaChanged);
 
     // Ayrshare / LINE 系は初期表示後に遅延取得（店舗・請求カードをブロックしない）
     const idle =
@@ -225,6 +251,8 @@ export default function SettingsPage() {
       setMessage('Meta 連携の有効期限が切れました。再度お試しください');
       setSearchParams({ tab: 'sns' }, { replace: true });
     }
+
+    return () => window.removeEventListener('buzzit-persona-changed', onPersonaChanged);
   }, [setPlan, searchParams, setSearchParams]);
 
   const handleSave = async () => {
@@ -359,6 +387,12 @@ export default function SettingsPage() {
 
       {activeTab === 'staff' && <TeamPage embedded />}
 
+      {activeTab === 'personas' && (
+        <section className="buzz-card-pad space-y-4">
+          <PersonaManagementSection />
+        </section>
+      )}
+
       {activeTab === 'business' && (
         <>
           <StoreBillingSection />
@@ -400,6 +434,10 @@ export default function SettingsPage() {
       )}
 
       {activeTab === 'plan' && (
+      <>
+      <section className="buzz-card-pad pb-0">
+        <PersonaQuickGuide />
+      </section>
       <section className="buzz-card-pad">
         <h3 className="mb-2 text-lg font-bold">LINE CRM プラン（Lステップ代替）</h3>
         <p className="mb-4 text-sm text-neutral-600">
@@ -480,12 +518,19 @@ export default function SettingsPage() {
           ))}
         </div>
       </section>
-
+      </>
       )}
 
       {activeTab === 'sns' && (
         <>
-      <section className="buzz-card-pad space-y-4">
+      {activePersona && (
+        <div className="buzz-card-pad border-l-4 border-l-amber-400 bg-amber-50/80 text-sm text-amber-900">
+          現在の配信キャラ: <strong>{activePersona.name}</strong>
+          （{activePersona.type === 'official' ? '公式' : activePersona.type === 'personal' ? '個人' : 'キャラ'}）
+          — ここで連携する SNS はこのキャラ専用です。
+        </div>
+      )}
+      <section id="settings-meta" className="buzz-card-pad scroll-mt-24 space-y-4">
         <h3 className="flex items-center gap-2 text-lg font-bold">
           <Share2 className="h-5 w-5 text-neutral-700" />
           Meta 連携（Instagram / Facebook / Threads）
@@ -513,7 +558,7 @@ export default function SettingsPage() {
         </button>
       </section>
 
-      <section className="buzz-card-pad space-y-4">
+      <section id="settings-x" className="buzz-card-pad scroll-mt-24 space-y-4">
         <h3 className="flex items-center gap-2 text-lg font-bold">
           <Share2 className="h-5 w-5 text-neutral-700" />
           X（旧Twitter）API 連携
@@ -609,7 +654,7 @@ export default function SettingsPage() {
         </Link>
       </section>
 
-      <section className="buzz-card-pad space-y-4">
+      <section id="settings-insights" className="buzz-card-pad scroll-mt-24 space-y-4">
         <h3 className="flex items-center gap-2 text-lg font-bold">
           <BarChart3 className="h-5 w-5 text-neutral-700" />
           インプレッション自動取得
@@ -673,7 +718,7 @@ export default function SettingsPage() {
         </button>
       </section>
 
-      <section className="buzz-card-pad space-y-4">
+      <section id="settings-publish-mode" className="buzz-card-pad scroll-mt-24 space-y-4">
         <h3 className="flex items-center gap-2 text-lg font-bold">
           <Link2 className="h-5 w-5 text-neutral-700" />
           投稿モード（デフォルト）
@@ -694,7 +739,7 @@ export default function SettingsPage() {
         </select>
       </section>
 
-      <section className="buzz-card-pad space-y-4">
+      <section id="settings-ayrshare" className="buzz-card-pad scroll-mt-24 space-y-4">
         <h3 className="flex items-center gap-2 text-lg font-bold">
           <Link2 className="h-5 w-5 text-neutral-700" />
           Ayrshare（オプション）
@@ -731,7 +776,7 @@ export default function SettingsPage() {
         />
       </section>
 
-      <section className="buzz-card-pad space-y-4">
+      <section id="settings-slack" className="buzz-card-pad scroll-mt-24 space-y-4">
         <h3 className="flex items-center gap-2 text-lg font-bold">
           <MessageSquare className="h-5 w-5 text-neutral-700" />
           Slack 連携（Team 以上）
@@ -794,7 +839,7 @@ export default function SettingsPage() {
         )}
       </section>
 
-      <section className="buzz-card-pad space-y-4">
+      <section id="settings-line" className="buzz-card-pad scroll-mt-24 space-y-4">
         <h3 className="flex items-center gap-2 text-lg font-bold">
           <BarChart3 className="h-5 w-5 text-neutral-700" />
           売上トラッキング（UTM / LINE）
@@ -842,7 +887,7 @@ export default function SettingsPage() {
         )}
       </section>
 
-      <section className="buzz-card-pad space-y-4">
+      <section id="settings-gbp" className="buzz-card-pad scroll-mt-24 space-y-4">
         <h3 className="flex items-center gap-2 text-lg font-bold">
           <MapPin className="h-5 w-5 text-neutral-700" />
           Google Business Profile（GBP / Googleマップ）
@@ -891,7 +936,7 @@ export default function SettingsPage() {
         {gbpReply && <pre className="whitespace-pre-wrap border border-neutral-200 bg-neutral-50 p-3 text-sm">{gbpReply}</pre>}
       </section>
 
-      <section className="buzz-card-pad space-y-4">
+      <section id="settings-hpb" className="buzz-card-pad scroll-mt-24 space-y-4">
         <h3 className="flex items-center gap-2 text-lg font-bold">
           <Sparkles className="h-5 w-5 text-neutral-700" />
           ホットペッパービューティー（HPB）トラッキング

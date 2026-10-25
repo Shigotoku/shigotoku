@@ -19,7 +19,12 @@ document.getElementById("done")?.addEventListener("click", async () => {
 
 document.getElementById("hideFab")?.addEventListener("click", async () => {
   await chrome.storage.sync.set({ shapeitFabHidden: true });
-  alert("フローティングボタンを非表示にしました。再表示は拡張のオプションから行えます。");
+  alert("フローティングボタンを非表示にしました。拡張アイコン →「右下ボタンを表示」で戻せます。");
+});
+
+document.getElementById("showFab")?.addEventListener("click", async () => {
+  await chrome.storage.sync.set({ shapeitFabHidden: false });
+  alert("フローティングボタンを表示しました。");
 });
 
 chrome.storage.sync.get("shapeitSlackWebhook").then((s) => {

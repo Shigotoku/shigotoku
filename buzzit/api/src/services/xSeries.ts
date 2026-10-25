@@ -7,7 +7,8 @@
 import { createHash } from 'node:crypto';
 import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import type { PublishMode } from '../types/schedule';
-import { createScheduledJob, getUserSettings, type UserSettings } from './firestore';
+import { createScheduledJob, type UserSettings } from './firestore';
+import { getEffectiveSettings } from './personaSettings';
 import {
   credentialsFromSettings,
   postTweetWithXApi,
@@ -32,6 +33,7 @@ export interface XSeries {
   name: string;
   description?: string;
   enabled: boolean;
+  personaId?: string;
   createdAt: string;
   pendingCount?: number;
   approvedCount?: number;
@@ -73,9 +75,9 @@ function tsToIso(value: unknown): string {
   return new Date().toISOString();
 }
 
-export async function listXSeries(uid: string): Promise<XSeries[]> {
+export async function listXSeries(uid: string, personaId?: string): Promise<XSeries[]> {
   const snap = await col(uid, 'xSeries').orderBy('createdAt', 'desc').limit(40).get();
-  const series = await Promise.all(
+  let series = await Promise.all(
     snap.docs.map(async (d) => {
       const data = d.data();
       const items = await col(uid, 'xSeries')
@@ -93,18 +95,22 @@ export async function listXSeries(uid: string): Promise<XSeries[]> {
         name: String(data.name ?? ''),
         description: data.description as string | undefined,
         enabled: data.enabled !== false,
+        personaId: data.personaId as string | undefined,
         createdAt: tsToIso(data.createdAt),
         pendingCount: items.size,
         approvedCount,
       } satisfies XSeries;
     }),
   );
+  if (personaId) {
+    series = series.filter((s) => !s.personaId || s.personaId === personaId);
+  }
   return series;
 }
 
 export async function createXSeries(
   uid: string,
-  input: { name: string; description?: string },
+  input: { name: string; description?: string; personaId?: string },
 ): Promise<XSeries> {
   const name = input.name.trim();
   if (!name) throw new Error('シリーズ名が必要です');
@@ -112,6 +118,7 @@ export async function createXSeries(
     name,
     description: input.description?.trim() ?? '',
     enabled: true,
+    ...(input.personaId ? { personaId: input.personaId } : {}),
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   });
@@ -156,7 +163,7 @@ export async function deleteXSeries(uid: string, seriesId: string): Promise<bool
   return true;
 }
 
-function composeTweetText(item: {
+export function composeTweetText(item: {
   text: string;
   tags?: string;
   title?: string;
@@ -300,6 +307,38 @@ export async function deleteXSeriesItem(uid: string, seriesId: string, itemId: s
   if (!(await ref.get()).exists) return false;
   await ref.delete();
   return true;
+}
+
+/** 未承認の pending をまとめて投稿OK */
+export async function approveAllPendingItems(uid: string, seriesId: string): Promise<number> {
+  const snap = await col(uid, 'xSeries')
+    .doc(seriesId)
+    .collection('items')
+    .where('status', '==', 'pending')
+    .limit(400)
+    .get();
+  const batch = db().batch();
+  let count = 0;
+  for (const doc of snap.docs) {
+    if (doc.data().approved === true) continue;
+    batch.update(doc.ref, { approved: true, updatedAt: FieldValue.serverTimestamp() });
+    count++;
+  }
+  if (count) await batch.commit();
+  return count;
+}
+
+/** 空行または --- で区切ったテキストを複数投稿に分割 */
+export function parseBulkPasteText(raw: string): Array<{ text: string }> {
+  const normalized = raw.replace(/\r\n/g, '\n').trim();
+  if (!normalized) return [];
+  const blocks = normalized.includes('\n---\n')
+    ? normalized.split(/\n---\n/)
+    : normalized.split(/\n{2,}/);
+  return blocks
+    .map((b) => b.trim())
+    .filter(Boolean)
+    .map((text) => ({ text }));
 }
 
 export async function listXScheduleRules(uid: string): Promise<XScheduleRule[]> {
@@ -496,6 +535,7 @@ async function publishSeriesItem(
     linkUrl: data.linkUrl as string | undefined,
   });
   const mediaUrls = data.imageUrl ? [String(data.imageUrl)] : undefined;
+  const mediaAltTexts = data.imageAlt?.trim() ? [String(data.imageAlt).trim()] : undefined;
   const itemRef = col(uid, 'xSeries').doc(seriesId).collection('items').doc(itemId);
 
   if (mode === 'notify') {
@@ -535,7 +575,7 @@ async function publishSeriesItem(
     return { ok: false, message: '月次上限' };
   }
 
-  const result = await postTweetWithXApi(creds, text, mediaUrls);
+  const result = await postTweetWithXApi(creds, text, mediaUrls, mediaAltTexts);
   if (result.success) {
     await incrementXApiPostCount(uid);
     await itemRef.update({
@@ -625,7 +665,6 @@ export async function processXSeriesSchedules(opts?: {
   const jst = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
 
   for (const [uid, rules] of byUid) {
-    const settings = await getUserSettings(uid);
     for (const rule of rules) {
       if (!opts?.force && !shouldRunRuleNow(jst, rule)) continue;
       const slotKey = opts?.force
@@ -636,6 +675,8 @@ export async function processXSeriesSchedules(opts?: {
 
       const seriesSnap = await col(uid, 'xSeries').doc(rule.seriesId).get();
       if (!seriesSnap.exists || seriesSnap.data()?.enabled === false) continue;
+      const seriesPersonaId = seriesSnap.data()?.personaId as string | undefined;
+      const settings = await getEffectiveSettings(uid, seriesPersonaId);
 
       fired++;
       await recoverStuckPublishing(uid, rule.seriesId);
@@ -738,7 +779,9 @@ export async function publishSeriesNow(
   take = 1,
   mode: 'x_free' | 'notify' = 'x_free',
 ): Promise<{ posted: number; errors: number; messages: string[] }> {
-  const settings = await getUserSettings(uid);
+  const seriesSnap = await col(uid, 'xSeries').doc(seriesId).get();
+  const seriesPersonaId = seriesSnap.data()?.personaId as string | undefined;
+  const settings = await getEffectiveSettings(uid, seriesPersonaId);
   const claimed = await claimPendingItems(uid, seriesId, take);
   const messages: string[] = [];
   let posted = 0;

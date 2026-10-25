@@ -3,6 +3,8 @@
  * 公式登録サイトへの誘導 → 初投稿 → BuzzIt自動投稿 → バズ / フォロワー増
  */
 
+import { settingsPath } from '../lib/settingsUrls';
+
 export type CompanionStep = {
   id: string;
   title: string;
@@ -163,7 +165,7 @@ export const platformCompanions: PlatformCompanion[] = [
             id: 'ig-a1',
             title: '設定でMeta（Instagram）を連携',
             detail: 'OAuthでIGビジネスアカウントとFacebookページを接続。連携バッジが付くまで完了。',
-            appPath: '/settings',
+            appPath: settingsPath({ section: 'meta' }),
             appLabel: '設定でMeta連携',
           },
           {
@@ -171,7 +173,7 @@ export const platformCompanions: PlatformCompanion[] = [
             title: '投稿モードを「承認後」または「Meta」に',
             detail:
               '最初の2週間は「承認後」推奨。慣れたら Meta 直接 / Auto Mode。ブランドセーフティも確認。',
-            appPath: '/settings',
+            appPath: settingsPath({ section: 'publish-mode' }),
             appLabel: '投稿モードを設定',
           },
           {
@@ -401,7 +403,7 @@ export const platformCompanions: PlatformCompanion[] = [
             id: 'ln-r3',
             title: 'BuzzItの設定にトークンを保存',
             detail: 'Channel Access Token / Secret を貼り付け保存。Webhook URLをコピーしてDevelopersへ。',
-            appPath: '/settings',
+            appPath: settingsPath({ section: 'line' }),
             appLabel: '設定でLINE連携',
           },
         ],
@@ -723,7 +725,7 @@ export const platformCompanions: PlatformCompanion[] = [
             id: 'fb-r3',
             title: 'BuzzItでMeta OAuth',
             detail: 'Page / IG / Threads をまとめて連携。',
-            appPath: '/settings',
+            appPath: settingsPath({ section: 'meta' }),
             appLabel: 'Meta連携設定',
           },
         ],
@@ -819,7 +821,7 @@ export const platformCompanions: PlatformCompanion[] = [
             id: 'gb-p1',
             title: '最新情報を週1投稿',
             detail: 'BuzzItのGBP投稿モード（対応プラン）や管理画面から。',
-            appPath: '/settings',
+            appPath: settingsPath({ section: 'gbp' }),
             appLabel: 'GBP設定',
           },
           {
@@ -839,7 +841,7 @@ export const platformCompanions: PlatformCompanion[] = [
             id: 'gb-g1',
             title: '予約URLをプロフィールと投稿に',
             detail: 'Instagramと同じ予約先に揃えると取りこぼしが減る。',
-            appPath: '/settings',
+            appPath: settingsPath({ tab: 'business' }),
             appLabel: '予約URLを設定',
           },
         ],

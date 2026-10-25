@@ -6,6 +6,10 @@ export type PlanTier = 'free' | 'line_lite' | 'line_pro' | 'starter' | 'pro' | '
 export interface UserSettings {
   uid: string;
   plan: PlanTier;
+  /** 所属アカウント（課金主体） */
+  accountId?: string;
+  accountType?: 'individual' | 'business';
+  accountSetupComplete?: boolean;
   email?: string;
   displayName?: string;
   slackWebhookUrl?: string;
@@ -46,12 +50,34 @@ export interface UserSettings {
   storeIds?: string[];
   /** 現在操作中の店舗ID */
   activeStoreId?: string;
+  /** 所属ペルソナ（配信キャラ）ID一覧 */
+  personaIds?: string[];
+  /** 現在操作中のペルソナID */
+  activePersonaId?: string;
   /** HPB / 予約サイトURL */
   hpbStoreUrl?: string;
+  /** HPB 予約トラッキングを有効化 */
+  hpbTrackingEnabled?: boolean;
+  /** Free プラン月間投稿カウント */
+  postsMonthKey?: string;
+  postsThisMonth?: number;
+  /** Auto Mode 最適化目標 */
+  autoModeGoal?: 'reach' | 'cv';
+  /** 紹介コード */
+  referralCode?: string;
+  referredBy?: string;
+  /** Stripe */
+  stripeCustomerId?: string;
+  billingInterval?: 'monthly' | 'annual';
   /** Googleビジネスプロフィール */
   gbpConnected?: boolean;
   gbpLocationName?: string;
   gbpAccessToken?: string;
+  gbpRefreshToken?: string;
+  gbpTokenExpiresAt?: string;
+  gbpAccountName?: string;
+  gbpLocationId?: string;
+  gbpLocationResourceName?: string;
   /** 店長通知用メール（将来拡張・現状はSlack/LINE優先） */
   notifyEmail?: string;
   /**
@@ -89,6 +115,7 @@ export interface PostInsightDoc {
   lastError?: string;
   scheduledAt?: string;
   preview?: string;
+  personaId?: string;
 }
 
 export interface MetricsSummary {
@@ -176,11 +203,14 @@ export async function ensureUser(uid: string, email?: string, displayName?: stri
   const snap = await ref.get();
 
   if (!snap.exists) {
+    const { randomBytes } = await import('crypto');
+    const referralCode = `BZ${randomBytes(4).toString('hex').toUpperCase()}`;
     const settings: UserSettings = {
       uid,
       plan: 'starter',
       autoModeEnabled: false,
       industry: 'salon',
+      referralCode,
       ...(email ? { email } : {}),
       ...(displayName ? { displayName } : {}),
     };
@@ -409,12 +439,30 @@ export async function recordTrackingClick(uid: string, token: string, postId?: s
   const utmCampaign = linkSnap.data()?.utmCampaign as string;
   const platform = linkSnap.data()?.platform as string | undefined;
 
-  const { appendUtmParams } = await import('./tracking');
-  return appendUtmParams(destinationUrl, {
+  const settings = await getUserSettings(uid);
+  const { appendUtmParams, isHpbUrl } = await import('./tracking');
+  const redirectUrl = appendUtmParams(destinationUrl, {
     campaign: utmCampaign,
     medium: platform ?? 'social',
     content: postId,
+    hpbTracking: settings.hpbTrackingEnabled || isHpbUrl(destinationUrl),
   });
+
+  if (postId && (settings.hpbTrackingEnabled || isHpbUrl(destinationUrl))) {
+    const { upsertHpbConversion } = await import('./productExtras');
+    const postSnap = await db().collection('users').doc(uid).collection('posts').doc(postId).get();
+    const title = (postSnap.data()?.title as string) ?? '投稿';
+    const prev = await db().collection(`users/${uid}/hpbConversions`).doc(postId).get();
+    const reservations = (prev.data()?.reservations as number) ?? 0;
+    await upsertHpbConversion(uid, {
+      postId,
+      title,
+      reservations: reservations + 1,
+      estimatedRevenue: (reservations + 1) * 8000,
+    });
+  }
+
+  return redirectUrl;
 }
 
 export async function findUserByLineDestination(destination: string): Promise<string | null> {
@@ -448,6 +496,8 @@ export interface CreateScheduledJobInput {
   destinationUrl?: string;
   trackingLinks?: Array<{ platform: string; trackingUrl: string; postId: string }>;
   ayrshareResponse?: unknown;
+  personaId?: string;
+  dualApprovalRequired?: boolean;
 }
 
 export async function createScheduledJob(uid: string, input: CreateScheduledJobInput): Promise<string> {
@@ -464,6 +514,8 @@ export async function createScheduledJob(uid: string, input: CreateScheduledJobI
     destinationUrl: input.destinationUrl ?? null,
     trackingLinks: input.trackingLinks ?? [],
     ayrshareResponse: input.ayrshareResponse ?? null,
+    ...(input.personaId ? { personaId: input.personaId } : {}),
+    ...(input.dualApprovalRequired ? { dualApprovalRequired: true } : {}),
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   });
@@ -473,6 +525,10 @@ export async function createScheduledJob(uid: string, input: CreateScheduledJobI
 export interface ScheduledJobDoc {
   id: string;
   uid: string;
+  personaId?: string;
+  dualApprovalRequired?: boolean;
+  firstApprovedBy?: string;
+  firstApprovedAt?: string;
   contents: ScheduleContentItem[];
   scheduledAt: string;
   publishMode: PublishMode;
@@ -493,6 +549,10 @@ function mapScheduledDoc(uid: string, id: string, data: FirebaseFirestore.Docume
   return {
     id,
     uid,
+    personaId: data.personaId as string | undefined,
+    dualApprovalRequired: data.dualApprovalRequired as boolean | undefined,
+    firstApprovedBy: data.firstApprovedBy as string | undefined,
+    firstApprovedAt: data.firstApprovedAt as string | undefined,
     contents: data.contents as ScheduleContentItem[],
     scheduledAt: data.scheduledAt as string,
     publishMode: (data.publishMode as PublishMode) ?? 'notify',
@@ -507,9 +567,17 @@ function mapScheduledDoc(uid: string, id: string, data: FirebaseFirestore.Docume
   };
 }
 
+export async function getScheduledJob(uid: string, jobId: string): Promise<ScheduledJobDoc | null> {
+  const ref = db().collection('users').doc(uid).collection('scheduled').doc(jobId);
+  const snap = await ref.get();
+  if (!snap.exists) return null;
+  return mapScheduledDoc(uid, jobId, snap.data()!);
+}
+
 export async function getScheduledJobs(
   uid: string,
   status?: ScheduledJobStatus | ScheduledJobStatus[],
+  personaId?: string,
 ): Promise<ScheduledJobDoc[]> {
   let query: FirebaseFirestore.Query = db()
     .collection('users')
@@ -530,15 +598,42 @@ export async function getScheduledJobs(
   if (status && Array.isArray(status) && status.length > 1) {
     docs = docs.filter((d) => status.includes(d.status));
   }
+  if (personaId) {
+    docs = docs.filter((d) => !d.personaId || d.personaId === personaId);
+  }
   return docs;
 }
 
-export async function approveScheduledJob(uid: string, jobId: string): Promise<ScheduledJobDoc | null> {
+export type ApproveScheduledJobResult =
+  | { kind: 'approved'; job: ScheduledJobDoc }
+  | { kind: 'first_approval'; job: ScheduledJobDoc }
+  | { kind: 'error'; code: 'not_found' | 'invalid_status' | 'same_approver' };
+
+export async function approveScheduledJob(
+  uid: string,
+  jobId: string,
+  approverUid: string,
+): Promise<ApproveScheduledJobResult> {
   const ref = db().collection('users').doc(uid).collection('scheduled').doc(jobId);
   const snap = await ref.get();
-  if (!snap.exists) return null;
+  if (!snap.exists) return { kind: 'error', code: 'not_found' };
   const data = snap.data()!;
-  if (data.status !== 'pending_approval') return null;
+  if (data.status !== 'pending_approval') return { kind: 'error', code: 'invalid_status' };
+
+  if (data.dualApprovalRequired) {
+    if (!data.firstApprovedBy) {
+      await ref.update({
+        firstApprovedBy: approverUid,
+        firstApprovedAt: new Date().toISOString(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      const updated = await ref.get();
+      return { kind: 'first_approval', job: mapScheduledDoc(uid, jobId, updated.data()!) };
+    }
+    if (data.firstApprovedBy === approverUid) {
+      return { kind: 'error', code: 'same_approver' };
+    }
+  }
 
   await ref.update({
     status: 'pending',
@@ -547,7 +642,7 @@ export async function approveScheduledJob(uid: string, jobId: string): Promise<S
   });
 
   const updated = await ref.get();
-  return mapScheduledDoc(uid, jobId, updated.data()!);
+  return { kind: 'approved', job: mapScheduledDoc(uid, jobId, updated.data()!) };
 }
 
 export async function updateScheduledJobStatus(
@@ -834,4 +929,87 @@ export async function listPostInsights(
     .limit(limit)
     .get();
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<PostInsightDoc, 'id'>) }));
+}
+
+/** 日次インサイトスナップショット（長期推移グラフ用） */
+export interface InsightsDailySnapshot {
+  date: string;
+  impressions: number;
+  reach: number;
+  engagements: number;
+  postCount: number;
+  byPlatform: Record<string, { impressions: number; reach: number; engagements: number; postCount: number }>;
+  lineFollowers?: number | null;
+  savedAt: string;
+}
+
+export async function upsertInsightsDailySnapshot(
+  uid: string,
+  snapshot: InsightsDailySnapshot,
+): Promise<void> {
+  await db()
+    .collection('users')
+    .doc(uid)
+    .collection('insightsDaily')
+    .doc(snapshot.date)
+    .set(
+      {
+        ...snapshot,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+}
+
+export async function listInsightsDailySnapshots(
+  uid: string,
+  days = 90,
+): Promise<InsightsDailySnapshot[]> {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  const cutoffKey = cutoff.toISOString().slice(0, 10);
+  const snap = await db()
+    .collection('users')
+    .doc(uid)
+    .collection('insightsDaily')
+    .where('date', '>=', cutoffKey)
+    .orderBy('date', 'asc')
+    .limit(days)
+    .get();
+  return snap.docs.map((d) => d.data() as InsightsDailySnapshot);
+}
+
+/** 共有レポート（URL閲覧用・30日有効） */
+export interface SharedInsightsReportDoc {
+  token: string;
+  uid: string;
+  html: string;
+  businessName?: string;
+  platform: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
+export async function createSharedInsightsReport(
+  uid: string,
+  doc: Omit<SharedInsightsReportDoc, 'token' | 'uid' | 'createdAt'> & { token: string },
+): Promise<string> {
+  const createdAt = new Date().toISOString();
+  await db()
+    .collection('sharedInsightsReports')
+    .doc(doc.token)
+    .set({
+      ...doc,
+      uid,
+      createdAt,
+    });
+  return doc.token;
+}
+
+export async function getSharedInsightsReport(token: string): Promise<SharedInsightsReportDoc | null> {
+  const snap = await db().collection('sharedInsightsReports').doc(token).get();
+  if (!snap.exists) return null;
+  const data = snap.data() as SharedInsightsReportDoc;
+  if (new Date(data.expiresAt).getTime() < Date.now()) return null;
+  return data;
 }

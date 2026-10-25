@@ -10,6 +10,7 @@ BuzzIt とランウィズを **別 Firebase プロジェクト** で運用しま
 | `shigotoku-runwith-prod` | ランウィズ アプリ専用 | `shigotoku-runwith-app` |
 | `shigotoku-clipit-prod-ad9ee` | クリッピット アプリ専用 | `shigotoku-clipit-app-ad9ee` |
 | `shigotoku-shapeit-prod` | ShapeIt アプリ専用 | `shigotoku-shapeit-app` |
+| `shigotoku-deckit-prod`（予定） | **DeckIt** 専用（Next.js → Cloud Run + Firestore） | TBD |
 
 | URL | プロジェクト |
 |-----|-------------|
@@ -20,7 +21,9 @@ BuzzIt とランウィズを **別 Firebase プロジェクト** で運用しま
 | https://app.runwith.shigotoku.com/ | **shigotoku-runwith-prod** |
 | https://app.clipit.shigotoku.com/ | **shigotoku-clipit-prod-ad9ee** |
 | https://app.shapeit.shigotoku.com/ | **shigotoku-shapeit-prod** |
+| https://app.deckit.shigotoku.com/（目標） | **shigotoku-deckit-prod**（予定） |
 
+> DeckIt 初回セットアップ: [FIREBASE-DECKIT-SETUP.md](./FIREBASE-DECKIT-SETUP.md)  
 > クリッピット初回セットアップ: [FIREBASE-CLIPIT-SETUP.md](./FIREBASE-CLIPIT-SETUP.md)  
 > ShapeIt 初回セットアップ: [FIREBASE-SHAPEIT-SETUP.md](./FIREBASE-SHAPEIT-SETUP.md)
 

@@ -4,6 +4,7 @@ import { findDuplicateCandidates } from "../duplicates";
 import { maskPii } from "../privacy";
 import { buildFixPackPrompt, buildFixWithAiPrompt } from "../fixAgent";
 import { buildFixPacks, splitPackIntoClusters } from "../fixPacks";
+import { collectPackScreenshots } from "../packScreenshots";
 import { canonicalizePageKey } from "../pageKey";
 import { computeDigestFromData } from "../digest";
 import { detectLanguage } from "../i18nText";
@@ -92,6 +93,8 @@ describe("fixPacks", () => {
     expect(canonicalizePageKey("https://app.example.com/settings?utm_source=x")).toBe(
       "https://app.example.com/settings",
     );
+    expect(canonicalizePageKey("http://www.example.com/path/")).toBe("https://example.com/path");
+    expect(canonicalizePageKey("https://WWW.Example.COM/path")).toBe("https://example.com/path");
 
     const issues: Issue[] = [
       {
@@ -172,6 +175,96 @@ describe("fixPacks", () => {
     const clusters = splitPackIntoClusters(settings!);
     expect(clusters.length).toBeGreaterThanOrEqual(2);
     expect(clusters.map((c) => c.label).join(" ")).toMatch(/使いやすさ|文言/);
+  });
+
+  it("includes pending inbox feedback in the same URL pack", () => {
+    const feedback: Feedback[] = [
+      {
+        id: "f1",
+        rawText: "保存ボタンが分からない",
+        pageUrl: "https://app.example.com/settings",
+        createdAt: "",
+        authorName: "A",
+        triageStatus: "accepted",
+      },
+      {
+        id: "f2",
+        rawText: "タイトルが読みにくい",
+        pageUrl: "https://www.app.example.com/settings/",
+        createdAt: "",
+        authorName: "B",
+        triageStatus: "pending",
+      },
+      {
+        id: "f3",
+        rawText: "色がおかしい",
+        pageUrl: "http://app.example.com/settings",
+        createdAt: "",
+        authorName: "C",
+        triageStatus: "pending",
+      },
+    ];
+    const issues: Issue[] = [
+      {
+        id: "a",
+        title: "保存が不明",
+        summary: "save unclear",
+        category: "UX",
+        severity: "S2",
+        priorityScore: 40,
+        status: "todo",
+        productArea: "Settings",
+        feedbackIds: ["f1"],
+        createdAt: "",
+        updatedAt: "",
+      },
+    ];
+    const packs = buildFixPacks(issues, feedback);
+    expect(packs).toHaveLength(1);
+    expect(packs[0]?.openIssueCount).toBe(3);
+    expect(packs[0]?.items.filter((i) => i.isPending)).toHaveLength(2);
+  });
+
+  it("collects screenshots from pack items", () => {
+    const feedback: Feedback[] = [
+      {
+        id: "f1",
+        rawText: "a",
+        pageUrl: "https://app.example.com/settings",
+        screenshotDataUrl: "data:image/png;base64,abc",
+        createdAt: "",
+        authorName: "A",
+        triageStatus: "accepted",
+      },
+      {
+        id: "f2",
+        rawText: "b",
+        pageUrl: "https://app.example.com/settings",
+        createdAt: "",
+        authorName: "B",
+        triageStatus: "pending",
+      },
+    ];
+    const issues: Issue[] = [
+      {
+        id: "a",
+        title: "保存が不明",
+        summary: "save unclear",
+        category: "UX",
+        severity: "S2",
+        priorityScore: 40,
+        status: "todo",
+        productArea: "Settings",
+        feedbackIds: ["f1"],
+        createdAt: "",
+        updatedAt: "",
+      },
+    ];
+    const pack = buildFixPacks(issues, feedback)[0]!;
+    expect(collectPackScreenshots(pack)).toHaveLength(1);
+    const prompt = buildFixPackPrompt(pack);
+    expect(prompt).toContain("## Screenshots");
+    expect(prompt).toContain("data:image/png;base64,abc");
   });
 });
 
