@@ -3,6 +3,7 @@
 // テナントは環境変数 TENANT_ID 固定(現在はメディトクのみ)。クライアントから Firestore/GCS へは直接触れない。
 import express from 'express';
 import { existsSync } from 'node:fs';
+import { randomBytes } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { initializeApp } from 'firebase-admin/app';
@@ -113,6 +114,48 @@ api.post('/compliance/check', (req, res) => {
   const text = String(req.body?.text || '').slice(0, 20000);
   if (!text.trim()) return res.status(400).json({ error: 'text required' });
   res.json(checkText(text));
+});
+
+// ---- メンバー管理(owner / admin のみ)。招待 = アカウント作成 + パスワード設定リンクの発行 ----
+const ROLES = ['owner', 'admin', 'editor', 'viewer'];
+const isAdmin = (req, res, next) => (['owner', 'admin'].includes(req.user.role) ? next() : res.status(403).json({ error: 'forbidden' }));
+
+api.get('/members', isAdmin, async (_req, res) => {
+  const s = await org.collection('members').get();
+  res.json(s.docs.map((d) => ({ uid: d.id, email: d.data().email, role: d.data().role, active: d.data().active !== false })));
+});
+
+api.post('/members', isAdmin, async (req, res) => {
+  const email = String(req.body?.email || '').trim().toLowerCase();
+  const role = String(req.body?.role || 'viewer');
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || !ROLES.includes(role)) return res.status(400).json({ error: 'bad request' });
+  if (role === 'owner' && req.user.role !== 'owner') return res.status(403).json({ error: 'forbidden' });
+  let user;
+  try {
+    user = await getAuth().getUserByEmail(email);
+  } catch {
+    user = await getAuth().createUser({ email, emailVerified: true, password: randomBytes(18).toString('base64url') });
+  }
+  await org.collection('members').doc(user.uid).set({ email, role, active: true, invitedBy: req.user.email, createdAt: FieldValue.serverTimestamp() }, { merge: true });
+  await org.collection('auditLogs').add({ at: FieldValue.serverTimestamp(), by: req.user.email, type: 'member.upsert', email, role });
+  const link = await getAuth().generatePasswordResetLink(email);
+  res.json({ ok: true, uid: user.uid, setPasswordLink: link });
+});
+
+api.patch('/members/:uid', isAdmin, async (req, res) => {
+  const ref = org.collection('members').doc(req.params.uid);
+  const snap = await ref.get();
+  if (!snap.exists) return res.status(404).json({ error: 'not found' });
+  const upd = {};
+  if (req.body?.role !== undefined) {
+    if (!ROLES.includes(req.body.role) || (req.user.role !== 'owner' && (req.body.role === 'owner' || snap.data().role === 'owner'))) return res.status(403).json({ error: 'forbidden' });
+    upd.role = req.body.role;
+  }
+  if (req.body?.active !== undefined) upd.active = !!req.body.active;
+  if (req.params.uid === req.user.uid && (upd.active === false || (upd.role && upd.role !== req.user.role))) return res.status(400).json({ error: '自分自身は変更できません' });
+  await ref.set(upd, { merge: true });
+  await org.collection('auditLogs').add({ at: FieldValue.serverTimestamp(), by: req.user.email, type: 'member.update', uid: req.params.uid, ...upd });
+  res.json({ ok: true });
 });
 
 api.get('/runs', async (_req, res) => {

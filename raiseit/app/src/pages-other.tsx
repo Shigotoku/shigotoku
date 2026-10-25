@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { signOut } from "firebase/auth";
 import { api, auth, type Finding } from "./lib";
 import { Card, Delta, useData } from "./ui";
@@ -101,6 +101,69 @@ export function CompliancePage() {
   );
 }
 
+type Member = { uid: string; email: string; role: string; active: boolean };
+const ROLE_LABEL: Record<string, string> = { owner: "オーナー", admin: "管理者", editor: "編集者(承認できる)", viewer: "閲覧のみ" };
+
+function Members() {
+  const [list, setList] = useState<Member[]>([]);
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState("viewer");
+  const [link, setLink] = useState("");
+  const [err, setErr] = useState("");
+  const load = async () => setList(await api<Member[]>("/members"));
+  useEffect(() => { void load(); }, []);
+  const invite = async () => {
+    setErr("");
+    setLink("");
+    try {
+      const r = await api<{ setPasswordLink: string }>("/members", { method: "POST", body: { email, role } });
+      setLink(r.setPasswordLink);
+      setEmail("");
+      await load();
+    } catch {
+      setErr("追加できませんでした(メール形式・権限を確認してください)。");
+    }
+  };
+  const patch = async (uid: string, body: object) => {
+    setErr("");
+    try {
+      await api(`/members/${uid}`, { method: "PATCH", body });
+      await load();
+    } catch {
+      setErr("変更できませんでした。");
+    }
+  };
+  return (
+    <Card className="space-y-3">
+      <h2 className="font-bold text-sm">メンバー</h2>
+      <ul className="divide-y text-sm">
+        {list.map((m) => (
+          <li key={m.uid} className="py-2 flex items-center gap-2 flex-wrap">
+            <span className={`flex-1 min-w-40 truncate ${m.active ? "" : "line-through text-slate-400"}`}>{m.email}</span>
+            <select className="border rounded p-1 text-xs" value={m.role} onChange={(e) => patch(m.uid, { role: e.target.value })}>
+              {Object.entries(ROLE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+            <button className="text-xs underline" onClick={() => patch(m.uid, { active: !m.active })}>{m.active ? "無効にする" : "有効にする"}</button>
+          </li>
+        ))}
+      </ul>
+      <div className="flex gap-2 flex-wrap">
+        <input className="flex-1 min-w-48 border rounded-lg p-2" type="email" placeholder="追加するメールアドレス" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <select className="border rounded-lg p-2 text-sm" value={role} onChange={(e) => setRole(e.target.value)}>
+          {Object.entries(ROLE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        </select>
+        <button onClick={invite} disabled={!email} className="rounded-lg bg-ink text-white px-4 py-2 text-sm disabled:opacity-40">追加</button>
+      </div>
+      {link && (
+        <div className="text-xs bg-amber-50 border border-amber-200 rounded p-2 break-all">
+          パスワード設定リンク(本人にだけ共有してください。このメッセージを閉じると再表示できません):<br />{link}
+        </div>
+      )}
+      {err && <p className="text-xs text-rose-600">{err}</p>}
+    </Card>
+  );
+}
+
 export function SettingsPage() {
   const { summary: s, email, role, reload } = useData();
   return (
@@ -115,6 +178,7 @@ export function SettingsPage() {
           <button onClick={() => signOut(auth)} className="rounded-lg border px-4 py-2 text-sm">ログアウト</button>
         </div>
       </Card>
+      {["owner", "admin"].includes(role) && <Members />}
       <Card>
         <h2 className="font-bold text-sm mb-1">このアプリの限界(正直な説明)</h2>
         <ul className="list-disc pl-5 text-sm space-y-1">
