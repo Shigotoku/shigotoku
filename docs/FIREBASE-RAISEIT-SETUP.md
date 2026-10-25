@@ -77,3 +77,9 @@ Firestore の `raiseit_organizations/{tenant}/sites/{siteId}` に `gscSite` / `g
 
 - 2026-10-25 旧 meditoku-attract-works(meditoku.com 側)で試作 → 他アプリと同じ命名の shigotoku-raiseit-prod へ移行。データ(GCS)はコピー済み。
 - 課金先の紐付け上限(5件)のため、ClipIt(shigotoku-clipit-prod-ad9ee)の課金を外した。ClipIt の API は課金なしでは動かない可能性がある。上限引き上げ申請の承認後に紐付け直す。
+
+## アプリ(Cloud Run service raiseit-app)
+
+- 構成: raiseit/server(Express + Firebase ID トークン認証) + raiseit/app(Vite React)。デプロイは deploy で npm run deploy:raiseit-app。
+- 認証: Identity Platform のメール/パスワード。初回オーナー(OWNER_EMAILS)は初回ログイン時に members へ自動登録。Google ログインは OAuth クライアント作成が必要なため未設定。
+- 公開 URL: https://raiseit-app-faaccunfca-an.a.run.app(allUsers invoker は meditoku.jp@gmail.com で付与。認可はアプリ側 members で実施)。
