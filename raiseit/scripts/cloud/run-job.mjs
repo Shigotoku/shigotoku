@@ -11,13 +11,14 @@
 //          JOB_DAYS(既定 7) / JOB_SKIP_FIRESTORE=1(ローカル検証用)
 // ローカル検証: node scripts/cloud/run-job.mjs --dry-run  (同期と実行をせず対象だけ表示)
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative, sep } from 'node:path';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { ROOT, readSites } from '../lib.mjs';
+import { buildDigest, sendDigest } from '../engine/digest.mjs';
 
 const dryRun = process.argv.includes('--dry-run');
 const tenant = process.env.TENANT_ID || 'meditoku';
@@ -128,6 +129,22 @@ for (const site of sites) {
     (await upload(join(process.env.DATA_ROOT, site.id), `${base}/data/`, siteStart)) +
     (await upload(join(process.env.REPORT_ROOT, site.id), `${base}/reports/`, siteStart));
   console.log(`${site.id}: アップロード ${up} 件`);
+  // 週次ダイジェスト(月曜 JST。RESEND_API_KEY 未設定なら送らない。DIGEST_FORCE=1 で即送信)
+  const jstDow = new Date(Date.now() + 9 * 3600e3).getUTCDay();
+  if (db && process.env.RESEND_API_KEY && (jstDow === 1 || process.env.DIGEST_FORCE === '1')) {
+    try {
+      const sumFile = join(process.env.REPORT_ROOT, site.id, 'summary.json');
+      const ms = await db.collection(`raiseit_organizations/${tenant}/members`).get();
+      const to = ms.docs.map((d) => d.data()).filter((m) => m.active !== false && m.email).map((m) => m.email);
+      if (existsSync(sumFile) && to.length) {
+        const d = buildDigest(JSON.parse(readFileSync(sumFile, 'utf8')), { appUrl: process.env.APP_URL || '' });
+        for (const addr of to) await sendDigest({ to: [addr], ...d, apiKey: process.env.RESEND_API_KEY, from: process.env.DIGEST_FROM || 'RaiseIt <notify@raiseit.shigotoku.com>' });
+        console.log(`${site.id}: ダイジェスト送信 ${to.length} 件`);
+      }
+    } catch (e) {
+      console.error('ダイジェスト送信失敗(ジョブ自体は継続):', e.message);
+    }
+  }
   if (db) {
     await db.doc(`raiseit_organizations/${tenant}/runs/${new Date().toISOString().slice(0, 10)}_${site.id}`).set({
       tenantId: tenant,

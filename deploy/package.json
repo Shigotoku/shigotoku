@@ -45,7 +45,8 @@
     "deploy:raiseit-job": "node scripts/deploy-raiseit-job.mjs",
     "deploy:raiseit-rules": "node scripts/deploy-raiseit-rules.mjs",
     "deploy:raiseit": "npm run deploy:raiseit-job && npm run deploy:raiseit-rules",
-    "deploy:raiseit-app": "node scripts/deploy-raiseit-app.mjs"
+    "deploy:raiseit-app": "node scripts/deploy-raiseit-app.mjs",
+    "setup:raiseit-mail": "node scripts/setup-raiseit-mail.mjs"
   },
   "devDependencies": {
     "firebase-tools": "^14.0.0"
