@@ -32,6 +32,7 @@ const summary = buildSummary({
   ga4conv: readDir('ga4conv'),
   psi: readDir('psi'),
   actions: readDir('actions'),
+  audit: readDir('audit'),
 });
 const out = ensureDir(reportDir());
 writeFileSync(join(out, 'summary.json'), JSON.stringify(summary, null, 2));

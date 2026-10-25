@@ -22,7 +22,8 @@
     "job:run": "node scripts/cloud/run-job.mjs",
     "seed:tenant": "node scripts/cloud/seed-tenant.mjs",
     "summary": "node scripts/engine/build-summary.mjs",
-    "fetch:conv": "node scripts/fetch-ga4-conversions.mjs"
+    "fetch:conv": "node scripts/fetch-ga4-conversions.mjs",
+    "fetch:audit": "node scripts/fetch-site-audit.mjs"
   },
   "dependencies": {
     "express": "^5.3.0",

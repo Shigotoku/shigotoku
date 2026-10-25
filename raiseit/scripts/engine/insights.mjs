@@ -50,7 +50,7 @@ export function pickConversion(site, events) {
 const confLabel = (c) => (c >= 0.7 ? '高' : c >= 0.45 ? '中' : '低');
 
 /**
- * @param input {{site, today, gscPage, gscQuery, ga4src, ga4ev, ga4conv, psi, actions}}
+ * @param input {{site, today, gscPage, gscQuery, ga4src, ga4ev, ga4conv, psi, actions, audit}}
  * @param opts  {{days?: number}}
  */
 export function buildSummary(input, opts = {}) {
@@ -341,13 +341,81 @@ export function buildSummary(input, opts = {}) {
     }
   }
 
+  // 公開ページ監査(読み取り専用クロールの結果)。件数には換算せず「品質・安全」として扱う
+  const auditAll = input.audit ?? [];
+  const auditDate = auditAll.length ? auditAll.reduce((m, r) => (r.date > m ? r.date : m), '') : null;
+  const audit = auditDate ? auditAll.filter((r) => r.date === auditDate) : [];
+  const lst = (rows) => rows.slice(0, 5).map((r) => pathOf(r.page)).join('、') + (rows.length > 5 ? ` ほか${rows.length - 5}件` : '');
+  if (audit.length) {
+    const live = audit.filter((r) => r.blocks?.length);
+    if (live.length) {
+      push({
+        id: 'aud-compliance', rule: 'audit.compliance', category: '医療広告',
+        title: `公開中の${live.length}ページに、医療広告で問題になりうる表現が見つかりました`,
+        why: live.slice(0, 5).map((r) => `${pathOf(r.page)}: ${r.blocks.map((b) => `「${b.match}」(${b.label})`).join('、')}`),
+        how: ['該当箇所を確認し、体験談・効果の断定・最上級表現などは削除または客観的な表現に直す。', '修正文案は「文案チェック」で再確認し、最終判断は人(必要なら医師・専門家)が行う。', 'ルールベースの検出のため誤検知もあります。文脈を見て判断してください。'],
+        impact: { kind: 'quality', basis: '行政指導・信頼低下のリスク低減(件数には換算しない)' },
+        value: 4, confidence: 0.6, effortMin: 30, risk: 'high',
+      });
+    }
+    const bad = audit.filter((r) => r.status !== 200);
+    if (bad.length) {
+      push({
+        id: 'aud-http', rule: 'audit.http', category: '技術',
+        title: `流入のある${bad.length}ページが正常に表示されていません`,
+        why: [`取得結果が200以外: ${lst(bad)}`, '検索から来た人が見られない状態の可能性があります(一時的な取得失敗の場合もあります)。'],
+        how: ['実際にブラウザで開いて確認する。', 'URLを変えた場合は 301 リダイレクトを設定する。'],
+        impact: { kind: 'quality', basis: '流入ページの表示不可は機会損失に直結(件数には換算しない)' },
+        value: 3, confidence: 0.7, effortMin: 30, risk: 'low',
+      });
+    }
+    const noidx = audit.filter((r) => /noindex/i.test(`${r.robots ?? ''} ${r.xRobots ?? ''}`));
+    if (noidx.length) {
+      push({
+        id: 'aud-noindex', rule: 'audit.noindex', category: '技術',
+        title: `noindex が付いた流入ページが${noidx.length}件あります`,
+        why: [lst(noidx), 'noindex は検索結果から外す指示です。意図しない設定なら流入が失われます。'],
+        how: ['意図した設定か確認し、意図しない場合は meta robots / X-Robots-Tag を外す。'],
+        impact: { kind: 'quality', basis: '検索結果からの除外を防ぐ(件数には換算しない)' },
+        value: 3, confidence: 0.8, effortMin: 20, risk: 'mid',
+      });
+    }
+    const html = audit.filter((r) => r.status === 200 && r.title !== undefined);
+    const noDesc = html.filter((r) => !r.desc);
+    const noH1 = html.filter((r) => r.h1Count !== 1);
+    const noCanon = html.filter((r) => !r.canonical);
+    const titles = new Map();
+    for (const r of html) if (r.title) titles.set(r.title, [...(titles.get(r.title) ?? []), r]);
+    const dup = [...titles.values()].filter((v) => v.length > 1).flat();
+    const meta = [['説明文(meta description)がない', noDesc], ['h1 が1つではない', noH1], ['canonical がない', noCanon], ['タイトルが他ページと重複', dup]].filter(([, v]) => v.length);
+    if (meta.length) {
+      push({
+        id: 'aud-meta', rule: 'audit.meta', category: '技術',
+        title: `ページの基本設定に ${meta.reduce((n, [, v]) => n + v.length, 0)} 件の不備があります`,
+        why: meta.map(([l, v]) => `${l}: ${lst(v)}`),
+        how: ['各ページのタイトル・説明文・見出し構造・canonical を修正する(テンプレート側で直せる場合が多い)。', '修正後、数週間で表示回数・CTR の変化を確認する。'],
+        impact: { kind: 'quality', basis: '検索結果での見え方の改善。効果は小さく不確実(件数には換算しない)' },
+        value: 1, confidence: 0.5, effortMin: 60, risk: 'low',
+      });
+    }
+    if (site.industry === 'clinic' && !html.some((r) => (r.jsonldTypes ?? []).some((t) => /MedicalClinic|Physician|MedicalOrganization|LocalBusiness|Hospital/.test(t)))) {
+      push({
+        id: 'aud-schema-clinic', rule: 'audit.schema', category: 'MEO',
+        title: 'クリニックの構造化データ(MedicalClinic)を追加する',
+        why: ['監査したページに、医療機関向けの構造化データが見つかりませんでした。', '住所・診療時間・診療科を機械可読にすると、検索・地図・AI検索で正しく扱われやすくなります。'],
+        how: ['トップページ等に JSON-LD(MedicalClinic: 名称・住所・電話・診療時間・診療科)を追加する。', 'リッチリザルトテストで検証する。内容は院内の正式情報と一致させる。'],
+        impact: { kind: 'quality', basis: '情報の正確な伝達(件数には換算しない)' },
+        value: 1.5, confidence: 0.5, effortMin: 60, risk: 'mid',
+      });
+    }
+  }
   // 優先度 = 期待成果 × 確度 ÷ (1 + 工数時間)。リスク高は承認区分を付与
   for (const a of actions) {
     a.approval = a.approval === 'none' ? 'none' : approvalFor(a.risk);
     a.confidenceLabel = confLabel(a.confidence);
     a.priority = round((a.value * a.confidence) / (1 + a.effortMin / 60), 3);
     a.impact.label =
-      a.impact.kind === 'leads' ? `月 +${a.impact.low}〜${a.impact.high}件(中央 ${a.impact.mid})` : a.impact.kind === 'foundation' ? '計測の土台(件数の直接増加なし)' : '可視性(件数に換算しない)';
+      a.impact.kind === 'leads' ? `月 +${a.impact.low}〜${a.impact.high}件(中央 ${a.impact.mid})` : a.impact.kind === 'foundation' ? '計測の土台(件数の直接増加なし)' : a.impact.kind === 'quality' ? '品質・安全の改善(件数に換算しない)' : '可視性(件数に換算しない)';
   }
   actions.sort((a, b) => b.priority - a.priority);
   const thisWeek = actions.filter((a) => a.confidence >= 0.3).slice(0, 3).map((a) => a.id);
@@ -388,6 +456,7 @@ export function buildSummary(input, opts = {}) {
     fresh('ga4ev', '成果イベント(GA4)', ga4ev, '日次', '前日までのデータ'),
     fresh('ga4conv', 'チャネル別の成果(GA4)', ga4conv, '日次', '前日までのデータ'),
     fresh('psi', '表示速度(PageSpeed)', psi, '週次', 'APIキー未設定の場合は取得されません'),
+    fresh('audit', '公開ページ監査', auditAll, '日次', '流入上位ページを読み取り専用で確認'),
   ];
 
   const limits = [
@@ -404,6 +473,7 @@ export function buildSummary(input, opts = {}) {
     site: { id: site.id, name: site.name, industry: site.industry || '' },
     period: { latest, from: curFrom, to: latest, days: N, prevFrom, prevTo },
     northStar, funnel, channels, ai, seo, conversion, landing,
+    audit: { date: auditDate, checked: audit.length, clean: audit.length ? audit.filter((r) => r.status === 200 && !r.blocks?.length).length : 0 },
     actions, thisWeek, skipList, effects, freshness, limits,
     pagesTop: [...pagesCur.values()].sort((a, b) => b.impressions - a.impressions).slice(0, 15).map((a) => ({ path: a.path, clicks: a.clicks, impressions: a.impressions, ctrPct: round(a.ctr * 100, 2), position: round(a.position, 1), prevClicks: pagesPrev.get(a.path)?.clicks ?? 0 })),
   };

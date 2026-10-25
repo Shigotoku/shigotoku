@@ -43,3 +43,17 @@ test('データが空でも落ちない', () => {
   assert.equal(s.northStar.cur, 0);
   assert.ok(Array.isArray(s.actions));
 });
+
+test('公開ページ監査: 医療広告の疑い・noindex・不備が改善候補になる', () => {
+  const inp = base();
+  inp.audit = [
+    { date: today, page: 'https://x.example/a/', status: 200, title: 'T', desc: '', h1Count: 1, canonical: 'https://x.example/a/', robots: '', blocks: [{ label: '体験談', match: '体験談', advice: '' }] },
+    { date: today, page: 'https://x.example/b/', status: 200, title: 'T', desc: 'd', h1Count: 2, canonical: '', robots: 'noindex', blocks: [] },
+    { date: today, page: 'https://x.example/c/', status: 404, blocks: [] },
+  ];
+  const s = buildSummary(inp);
+  const ids = s.actions.map((a) => a.id);
+  for (const id of ['aud-compliance', 'aud-noindex', 'aud-meta', 'aud-http']) assert.ok(ids.includes(id), id);
+  assert.equal(s.actions.find((a) => a.id === 'aud-compliance').risk, 'high');
+  assert.equal(s.audit.checked, 3);
+});
