@@ -1,4 +1,6 @@
 import type { ChangelogEntry, Feedback, Issue } from "./types";
+import { buildFixPacks } from "./fixPacks";
+import { encodePackId } from "./pageKey";
 
 export interface WeeklyCompletedItem {
   id: string;
@@ -23,6 +25,14 @@ export interface WeeklyPersonalItem {
   verification?: string;
 }
 
+export interface WeeklyFixPackItem {
+  label: string;
+  pageKey: string;
+  urgencyScore: number;
+  openIssueCount: number;
+  reportCount: number;
+}
+
 export interface WeeklyResponseDigest {
   weekKey: string;
   weekLabel: string;
@@ -35,6 +45,7 @@ export interface WeeklyResponseDigest {
   completedItems: WeeklyCompletedItem[];
   inProgressItems: WeeklyInProgressItem[];
   personalItems: WeeklyPersonalItem[];
+  fixPackTop3: WeeklyFixPackItem[];
 }
 
 const WEEK_MS = 7 * 86_400_000;
@@ -110,6 +121,17 @@ export function computeWeeklyResponseDigest(input: {
 
   const newFeedbackCount = input.feedback.filter((f) => inWeek(f.createdAt)).length;
 
+  const fixPackTop3 = buildFixPacks(input.issues, input.feedback)
+    .sort((a, b) => b.urgencyScore - a.urgencyScore)
+    .slice(0, 3)
+    .map((p) => ({
+      label: p.label,
+      pageKey: p.pageKey,
+      urgencyScore: p.urgencyScore,
+      openIssueCount: p.openIssueCount,
+      reportCount: p.reportCount,
+    }));
+
   let personalItems: WeeklyPersonalItem[] = [];
   if (input.currentUid) {
     personalItems = input.feedback
@@ -141,6 +163,7 @@ export function computeWeeklyResponseDigest(input: {
     completedItems,
     inProgressItems,
     personalItems,
+    fixPackTop3,
   };
 }
 
@@ -186,6 +209,13 @@ export function generateWeeklyResponseSummaryText(d: WeeklyResponseDigest): stri
     }
   }
 
+  if (d.fixPackTop3.length > 0) {
+    lines.push("", "## 修正パック Top3（緊急度順）", "");
+    for (const [i, p] of d.fixPackTop3.entries()) {
+      lines.push(`${i + 1}. ${p.label} — 報告 ${p.reportCount}件 · Issue ${p.openIssueCount}件`);
+    }
+  }
+
   return lines.join("\n");
 }
 
@@ -198,6 +228,14 @@ export function generateSlackWeeklyBlocks(d: WeeklyResponseDigest, appUrl: strin
     d.completedItems.length === 0
       ? ["今週の完了はまだありません"]
       : d.completedItems.slice(0, 8).map((c) => `• ${c.title}`);
+
+  const fixPackLines =
+    d.fixPackTop3.length === 0
+      ? []
+      : d.fixPackTop3.map(
+          (p, i) =>
+            `${i + 1}. *${p.label}* — 報告 ${p.reportCount}件 · Issue ${p.openIssueCount}件（緊急度 ${p.urgencyScore}）`,
+        );
 
   const blocks: unknown[] = [
     {
@@ -216,22 +254,36 @@ export function generateSlackWeeklyBlocks(d: WeeklyResponseDigest, appUrl: strin
       type: "section",
       text: { type: "mrkdwn", text: "*チームで直したこと*\n" + completedLines.join("\n") },
     },
-    {
-      type: "actions",
-      elements: [
-        {
-          type: "button",
-          text: { type: "plain_text", text: "Digest を開く", emoji: true },
-          url: `${appUrl.replace(/\/$/, "")}/digest`,
-        },
-        {
-          type: "button",
-          text: { type: "plain_text", text: "Changelog", emoji: true },
-          url: `${appUrl.replace(/\/$/, "")}/changelog`,
-        },
-      ],
-    },
   ];
+
+  if (fixPackLines.length > 0) {
+    blocks.push({
+      type: "section",
+      text: { type: "mrkdwn", text: "*修正パック Top3*\n" + fixPackLines.join("\n") },
+    });
+    const packButtons = d.fixPackTop3.slice(0, 3).map((p) => ({
+      type: "button",
+      text: { type: "plain_text", text: p.label.slice(0, 20), emoji: true },
+      url: `${appUrl.replace(/\/$/, "")}/fix-packs/${encodePackId(p.pageKey)}`,
+    }));
+    blocks.push({ type: "actions", elements: packButtons });
+  }
+
+  blocks.push({
+    type: "actions",
+    elements: [
+      {
+        type: "button",
+        text: { type: "plain_text", text: "Digest を開く", emoji: true },
+        url: `${appUrl.replace(/\/$/, "")}/digest`,
+      },
+      {
+        type: "button",
+        text: { type: "plain_text", text: "Changelog", emoji: true },
+        url: `${appUrl.replace(/\/$/, "")}/changelog`,
+      },
+    ],
+  });
 
   return { text, blocks };
 }

@@ -20,6 +20,7 @@ import {
   generateWeeklyResponseSummaryText,
   type WeeklyResponseDigest,
 } from "../lib/weeklyDigest";
+import { encodePackId } from "../lib/pageKey";
 import { fetchWeeklyResponseDigest, publishWeeklyDigestRemote } from "../lib/weeklyDigestRunner";
 import { useAuth } from "../components/AuthProvider";
 
@@ -183,6 +184,27 @@ export default function DigestPage() {
                         : p.verification === "unsolved"
                           ? "未解決"
                           : p.issueTitle ?? p.triageStatus}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {weekly.fixPackTop3.length > 0 && (
+            <section className="rounded-2xl border border-amber-200/60 bg-amber-50/40 p-5">
+              <h2 className="text-sm font-semibold">修正パック Top3（緊急度順）</h2>
+              <ul className="mt-3 space-y-2">
+                {weekly.fixPackTop3.map((p, i) => (
+                  <li key={p.pageKey} className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
+                    <Link
+                      to={`/fix-packs/${encodePackId(p.pageKey)}`}
+                      className="font-medium text-mint hover:underline"
+                    >
+                      {i + 1}. {p.label}
+                    </Link>
+                    <span className="text-xs text-ink/50">
+                      報告 {p.reportCount}件 · Issue {p.openIssueCount}件 · 緊急度 {p.urgencyScore}
                     </span>
                   </li>
                 ))}

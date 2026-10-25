@@ -39,6 +39,7 @@ import {
 } from "../lib/members";
 import { setLocale, t } from "../lib/i18n";
 import { ExtensionGuidePanel } from "../components/ExtensionGuidePanel";
+import { EXTENSION_VERSION } from "../lib/extensionShortcuts";
 import { useLocale } from "../lib/useLocale";
 import {
   fetchMyMemberProfile,
@@ -437,7 +438,10 @@ export default function SettingsPage() {
 
         {tab === "notify" && (
         <Section title={locale === "ja" ? "自動トリアージ" : "Auto triage"}>
-          <p className="text-[10px] text-ink/45">S0 / SECURITY は常に対象外</p>
+          <p className="text-[10px] text-ink/45">
+            S0 / SECURITY は常に対象外。有効時は同一URLの統合、類似マージ（75%+）、FEATURE→アイデア、高優先度BUG→ボード、低シグナルは48h
+            Snooze、受信箱表示時に SLA 超過を通知します。
+          </p>
           <label className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -759,7 +763,7 @@ export default function SettingsPage() {
               {t("ext_resync", locale)}
             </button>
             <a
-              href={`${LANDING_URL}guide/#account-basics`}
+              href={`${LANDING_URL}/guide/#account-basics`}
               target="_blank"
               rel="noreferrer"
               className="text-[11px] text-mint hover:underline"
@@ -780,7 +784,7 @@ export default function SettingsPage() {
           </Link>
         </Section>
 
-        <Section title={locale === "ja" ? "拡張の使い方（v0.4.1）" : "Extension guide (v0.4.1)"} className="xl:col-span-2">
+        <Section title={locale === "ja" ? `キーボードショートカット（拡張 v${EXTENSION_VERSION}）` : `Extension shortcuts (v${EXTENSION_VERSION})`} className="xl:col-span-2">
           <ExtensionGuidePanel showInstall={false} />
         </Section>
 

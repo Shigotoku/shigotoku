@@ -1,0 +1,77 @@
+---
+import { EXTENSION_SHORTCUTS, EXTENSION_VERSION } from '../lib/extensionShortcuts';
+---
+
+<div class="extension-shortcuts">
+  <h3 class="extension-shortcuts__title">キーボードショートカット（v{EXTENSION_VERSION}）</h3>
+  <p class="extension-shortcuts__lead">
+    Chrome では <kbd>Alt</kbd>+文字だけだとブラウザのメニューと競合します（例: Alt+E）。<kbd>Shift</kbd> を挟むと安全に使えます。
+    変更は <code>chrome://extensions/shortcuts</code> から可能です。
+  </p>
+  <div class="extension-shortcuts__table-wrap">
+    <table class="extension-shortcuts__table">
+      <thead>
+        <tr>
+          <th>キー</th>
+          <th>モード</th>
+          <th>動き</th>
+        </tr>
+      </thead>
+      <tbody>
+        {EXTENSION_SHORTCUTS.map((row) => (
+          <tr>
+            <td>
+              <kbd class="setup-kbd">{row.keys}</kbd>
+            </td>
+            <td><strong>{row.label}</strong></td>
+            <td>{row.hint}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<style>
+  .extension-shortcuts {
+    margin-top: 1.25rem;
+    padding: 1.25rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(31, 157, 138, 0.35);
+    background: linear-gradient(180deg, rgba(31, 157, 138, 0.08), rgba(31, 157, 138, 0.03));
+  }
+  .extension-shortcuts__title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--ink, #0b1320);
+  }
+  .extension-shortcuts__lead {
+    margin: 0.5rem 0 0;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: rgba(11, 19, 32, 0.65);
+  }
+  .extension-shortcuts__table-wrap {
+    margin-top: 0.75rem;
+    overflow-x: auto;
+  }
+  .extension-shortcuts__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+  .extension-shortcuts__table th,
+  .extension-shortcuts__table td {
+    padding: 0.55rem 0.65rem;
+    border-bottom: 1px solid rgba(11, 19, 32, 0.08);
+    text-align: left;
+    vertical-align: top;
+  }
+  .extension-shortcuts__table th {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba(11, 19, 32, 0.5);
+  }
+</style>

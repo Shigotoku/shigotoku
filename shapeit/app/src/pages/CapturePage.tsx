@@ -38,6 +38,7 @@ import {
   consumeShareIntake,
   extractImageFromClipboardEvent,
   fileToDataUrl,
+  readClipboardImage,
 } from "../lib/shareIntake";
 
 export default function CapturePage() {
@@ -106,6 +107,8 @@ export default function CapturePage() {
 
     const fromExt = params.get("ext") === "1";
     const fromShare = params.get("share") === "1";
+    const fromPaste = params.get("paste") === "1";
+    const fromVoice = params.get("voice") === "1";
     const qpUrl = params.get("pageUrl");
     const qpTitle = params.get("pageTitle");
 
@@ -120,12 +123,38 @@ export default function CapturePage() {
         if (shared.title) setPageTitle((prev) => prev || shared.title || "");
         if (shared.url) setPageUrl((prev) => prev || shared.url || "");
         setCaptureSource("SHARE_TARGET");
-        setInfo("共有されたスクショを取り込みました。内容を書いて送信してください。");
+        setInfo("共有されたスクショを取り込みました。話すか書いて送信してください。");
+        window.setTimeout(() => {
+          document.getElementById("capture-voice")?.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 400);
       });
     }
 
+    if (fromPaste && !fromShare) {
+      void readClipboardImage().then((url) => {
+        if (url) {
+          setScreenshotDataUrl(url);
+          setCaptureSource("SHARE_TARGET");
+          setInfo("共有された画像を取り込みました。話すか書いて送信してください。");
+        } else {
+          setInfo("画像を貼り付けるか、アルバムから選ってください。");
+        }
+        window.setTimeout(() => {
+          document.getElementById("capture-voice")?.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 400);
+      });
+    }
+
+    if (fromVoice && !fromShare && !fromPaste) {
+      setInfo("音声だけでも送信できます。話す・録音するか、文字を入力して送信してください。");
+      window.setTimeout(() => {
+        document.getElementById("capture-voice")?.scrollIntoView({ behavior: "smooth", block: "center" });
+        textareaRef.current?.focus();
+      }, 300);
+    }
+
     if (!fromExt) {
-      if (!fromShare) {
+      if (!fromShare && !fromPaste) {
         setPageUrl(qpUrl || (mobile ? "" : window.location.href));
         setPageTitle(qpTitle || (mobile ? "" : document.title));
       }

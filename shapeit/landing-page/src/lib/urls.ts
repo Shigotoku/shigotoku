@@ -15,4 +15,4 @@ export function assetPath(path: string) {
   return `${import.meta.env.BASE_URL}${normalized}`;
 }
 
-export const shapeitIconPath = `${import.meta.env.BASE_URL}icon.png?v=2`;
+export const shapeitIconPath = `${import.meta.env.BASE_URL}icon.png?v=4`;

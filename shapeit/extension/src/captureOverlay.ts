@@ -35,8 +35,8 @@ function selectRegion(): Promise<RegionRect | null> {
       "style",
       [
         "position:absolute",
-        "border:2px solid #1f9d8a",
-        "background:rgba(31,157,138,0.12)",
+        "border:2px dashed #fff",
+        "background:transparent",
         "box-shadow:0 0 0 9999px rgba(11,19,32,0.45)",
         "display:none",
         "pointer-events:none",
@@ -72,7 +72,8 @@ function selectRegion(): Promise<RegionRect | null> {
     const cleanup = (result: RegionRect | null) => {
       document.removeEventListener("keydown", onKey, true);
       overlay.remove();
-      resolve(result);
+      const finish = () => resolve(result);
+      requestAnimationFrame(() => requestAnimationFrame(finish));
     };
 
     const onKey = (e: KeyboardEvent) => {

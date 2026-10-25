@@ -80,6 +80,19 @@ const jobs = [
         join(root, 'clipit/landing-page/public/icon.png'),
       ),
   },
+  {
+    label: 'shapeit icon from corporate products',
+    run: () => {
+      const src = join(assetsRoot, 'corporate/products/shapeit-icon.png');
+      for (const dest of [
+        join(root, 'shapeit/app/public/icon.png'),
+        join(root, 'shapeit/extension/public/icon.png'),
+        join(root, 'shapeit/landing-page/public/icon.png'),
+      ]) {
+        copyFile(src, dest);
+      }
+    },
+  },
 ];
 
 for (const job of jobs) {

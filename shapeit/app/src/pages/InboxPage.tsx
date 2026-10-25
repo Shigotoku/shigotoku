@@ -1,7 +1,8 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ChevronDown } from "lucide-react";
 import {
   acceptAsIssueRemote,
+  deleteFeedbackRemote,
   listIssuesRemote,
   listMyFeedbackRemote,
   listPendingFeedbackRemote,
@@ -12,10 +13,14 @@ import {
 } from "../lib/cloudStore";
 import { findDuplicateCandidates } from "../lib/duplicates";
 import { extractFeedbackTitle } from "../lib/feedbackTitle";
+import { feedbackDeviceLabel, matchesDeviceFilter, type FeedbackDeviceFilter } from "../lib/feedbackSource";
+import { canonicalizePageKey, encodePackId } from "../lib/pageKey";
 import { formatInTz, loadSettings } from "../lib/demoStore";
+import { runBatchAutoTriageForPending, checkSlaBreachesAndNotify } from "../lib/autoTriage";
 import { canTriage } from "../lib/roles";
 import type { Feedback, Issue } from "../lib/types";
 import { useEffect, useMemo, useState, type KeyboardEvent, type MouseEvent } from "react";
+import { useAuth } from "../components/AuthProvider";
 import { getLocale, t } from "../lib/i18n";
 
 type SortKey = "date" | "priority" | "severity" | "confidence";
@@ -47,6 +52,8 @@ function useLocale() {
 }
 
 function InboxInner({ locale }: { locale: ReturnType<typeof getLocale> }) {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [pending, setPending] = useState<Feedback[]>([]);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [allFeedback, setAllFeedback] = useState<Feedback[]>([]);
@@ -55,6 +62,7 @@ function InboxInner({ locale }: { locale: ReturnType<typeof getLocale> }) {
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [sort, setSort] = useState<SortKey>("priority");
+  const [deviceFilter, setDeviceFilter] = useState<FeedbackDeviceFilter>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [mergeTarget, setMergeTarget] = useState<Record<string, string>>({});
   const slaHours = loadSettings().triageSlaHours;
@@ -72,6 +80,18 @@ function InboxInner({ locale }: { locale: ReturnType<typeof getLocale> }) {
       setIssues(i);
       setAllFeedback(all);
       setSelected(new Set());
+      await checkSlaBreachesAndNotify(p);
+      const triaged = await runBatchAutoTriageForPending();
+      if (triaged > 0) {
+        const [p2, i2, all2] = await Promise.all([
+          listPendingFeedbackRemote(),
+          listIssuesRemote(),
+          listMyFeedbackRemote(),
+        ]);
+        setPending(p2);
+        setIssues(i2);
+        setAllFeedback(all2);
+      }
     } catch (err) {
       console.error("inbox refresh", err);
       setError(t("inbox_load_error", locale));
@@ -86,7 +106,8 @@ function InboxInner({ locale }: { locale: ReturnType<typeof getLocale> }) {
 
   const sorted = useMemo(() => {
     const sev = { S0: 0, S1: 1, S2: 2, S3: 3 };
-    return [...pending].sort((a, b) => {
+    const filtered = pending.filter((f) => matchesDeviceFilter(f.source, deviceFilter));
+    return [...filtered].sort((a, b) => {
       if (sort === "date") return b.createdAt.localeCompare(a.createdAt);
       if (sort === "priority")
         return (b.analysis?.priorityScore ?? 0) - (a.analysis?.priorityScore ?? 0);
@@ -94,7 +115,7 @@ function InboxInner({ locale }: { locale: ReturnType<typeof getLocale> }) {
         return (sev[a.analysis?.severity ?? "S3"] ?? 9) - (sev[b.analysis?.severity ?? "S3"] ?? 9);
       return (b.analysis?.confidence ?? 0) - (a.analysis?.confidence ?? 0);
     });
-  }, [pending, sort]);
+  }, [pending, sort, deviceFilter]);
 
   const toggle = (id: string) => {
     setSelected((prev) => {
@@ -123,8 +144,21 @@ function InboxInner({ locale }: { locale: ReturnType<typeof getLocale> }) {
           <p className="mt-2 text-sm text-ink/60">
             {t("inbox_pending_count", locale)} {pending.length} {t("inbox_items", locale)} · {t("inbox_sla", locale)} {slaHours}h
           </p>
+          <p className="mt-2 max-w-3xl rounded-lg bg-mint/10 px-3 py-2 text-xs leading-relaxed text-ink/75">
+            {t("inbox_help", locale)}
+          </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <select
+            className="rounded-lg border border-ink/15 bg-white px-2 py-2 text-xs"
+            value={deviceFilter}
+            onChange={(e) => setDeviceFilter(e.target.value as FeedbackDeviceFilter)}
+            aria-label="端末で絞り込み"
+          >
+            <option value="all">すべての端末</option>
+            <option value="pc">PC</option>
+            <option value="mobile">携帯</option>
+          </select>
           <select
             className="rounded-lg border border-ink/15 bg-white px-2 py-2 text-xs"
             value={sort}
@@ -155,13 +189,13 @@ function InboxInner({ locale }: { locale: ReturnType<typeof getLocale> }) {
         <div className="flex flex-wrap gap-2 rounded-xl border border-mint/30 bg-sand px-3 py-2 text-xs">
           <span className="font-semibold">{selected.size} 件選択</span>
           <button type="button" className="rounded-lg bg-ink px-2 py-1 text-paper" onClick={() => void bulk("todo")}>
-            一括 Todo
+            {t("inbox_bulk_board", locale)}
           </button>
           <button type="button" className="rounded-lg border border-ink/15 px-2 py-1" onClick={() => void bulk("snooze")}>
-            一括 Snooze
+            {t("inbox_bulk_snooze", locale)}
           </button>
           <button type="button" className="rounded-lg border border-ink/15 px-2 py-1" onClick={() => void bulk("reject")}>
-            一括却下
+            {t("inbox_bulk_reject", locale)}
           </button>
         </div>
       )}
@@ -180,6 +214,7 @@ function InboxInner({ locale }: { locale: ReturnType<typeof getLocale> }) {
               key={fb.id}
               fb={fb}
               locale={locale}
+              currentUid={user?.uid}
               slaHours={slaHours}
               selected={selected.has(fb.id)}
               onToggleSelect={() => toggle(fb.id)}
@@ -195,6 +230,7 @@ function InboxInner({ locale }: { locale: ReturnType<typeof getLocale> }) {
                 setRejectReason("");
               }}
               onRefresh={refresh}
+              onNavigate={navigate}
             />
           ))}
         </ul>
@@ -206,6 +242,7 @@ function InboxInner({ locale }: { locale: ReturnType<typeof getLocale> }) {
 function InboxFeedbackCard({
   fb,
   locale,
+  currentUid,
   slaHours,
   selected,
   onToggleSelect,
@@ -218,9 +255,11 @@ function InboxFeedbackCard({
   onRejectReasonChange,
   onStartReject,
   onRefresh,
+  onNavigate,
 }: {
   fb: Feedback;
   locale: ReturnType<typeof getLocale>;
+  currentUid?: string;
   slaHours: number;
   selected: boolean;
   onToggleSelect: () => void;
@@ -233,6 +272,7 @@ function InboxFeedbackCard({
   onRejectReasonChange: (v: string) => void;
   onStartReject: () => void;
   onRefresh: () => Promise<void>;
+  onNavigate: (path: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
@@ -244,6 +284,8 @@ function InboxFeedbackCard({
   const topIssueDup = dups.find((d) => d.kind === "issue");
   const overdue = Date.now() - new Date(fb.createdAt).getTime() > slaHours * 3600_000;
   const cardTitle = extractFeedbackTitle(fb.rawText, fb.analysis?.title);
+  const pageKey = canonicalizePageKey(fb.pageUrl);
+  const fixPackPath = pageKey ? `/fix-packs/${encodePackId(pageKey)}` : null;
 
   const toggleOpen = (e: MouseEvent | KeyboardEvent) => {
     const target = e.target as HTMLElement;
@@ -316,11 +358,8 @@ function InboxFeedbackCard({
               <span className="font-medium text-ink/60">{authorLabel(fb)}</span>
               {" · "}
               {formatInTz(fb.createdAt)}
-              {fb.source === "CHROME_EXTENSION"
-                ? " · 拡張"
-                : fb.source
-                  ? ` · ${fb.source}`
-                  : ""}
+              {" · "}
+              {feedbackDeviceLabel(fb.source)}
               {overdue && <span className="ml-1 text-amber-800">SLA超過</span>}
             </p>
           </div>
@@ -375,6 +414,28 @@ function InboxFeedbackCard({
           )}
 
           <div className="mt-2 flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              className="rounded-md bg-ink px-3 py-1.5 text-[11px] font-semibold text-paper"
+              onClick={async () => {
+                const issue = await acceptAsIssueRemote(fb.id);
+                await onRefresh();
+                onNavigate(`/issues/${issue.id}`);
+              }}
+            >
+              {t("inbox_add_board", locale)}
+            </button>
+            <button
+              type="button"
+              className="rounded-md border border-mint/40 bg-mint/10 px-3 py-1.5 text-[11px] font-semibold text-mint"
+              onClick={async () => {
+                await acceptAsIssueRemote(fb.id, { forceCategory: "FEATURE" });
+                await onRefresh();
+                onNavigate("/ideas");
+              }}
+            >
+              {t("inbox_add_idea", locale)}
+            </button>
             {topIssueDup && (
               <button
                 type="button"
@@ -384,87 +445,112 @@ function InboxFeedbackCard({
                   await onRefresh();
                 }}
               >
-                類似Issueへ統合
+                {t("inbox_merge_dup", locale)}
               </button>
             )}
-            <button
-              type="button"
-              className="rounded-md border border-mint/30 bg-mint/5 px-2.5 py-1.5 text-[11px] font-semibold text-mint"
-              onClick={async () => {
-                await reanalyzeFeedbackRemote(fb.id);
-                await onRefresh();
-              }}
-            >
-              AI 再分析
-            </button>
-            <button
-              type="button"
-              className="rounded-md bg-ink px-2.5 py-1.5 text-[11px] font-semibold text-paper"
-              onClick={async () => {
-                await acceptAsIssueRemote(fb.id);
-                await onRefresh();
-              }}
-            >
-              Todoへ
-            </button>
-            <select
-              className="rounded-md border border-ink/15 px-2 py-1.5 text-[11px]"
-              value={mergeTarget}
-              onChange={(e) => onMergeTargetChange(e.target.value)}
-            >
-              <option value="">統合先を選択…</option>
-              {issues
-                .filter((i) => i.status !== "archived")
-                .map((i) => (
-                  <option key={i.id} value={i.id}>
-                    {i.title}
-                  </option>
-                ))}
-            </select>
-            <button
-              type="button"
-              disabled={!mergeTarget}
-              className="rounded-md border border-ink/15 px-2.5 py-1.5 text-[11px] font-semibold disabled:opacity-40"
-              onClick={async () => {
-                await mergeIntoIssueRemote(fb.id, mergeTarget);
-                await onRefresh();
-              }}
-            >
-              選択Issueへ統合
-            </button>
-            <button
-              type="button"
-              className="rounded-md border border-ink/15 px-2.5 py-1.5 text-[11px] font-semibold"
-              onClick={async () => {
-                await snoozeFeedbackRemote(fb.id, 24);
-                await onRefresh();
-              }}
-            >
-              24h Snooze
-            </button>
-            <button
-              type="button"
-              className="rounded-md border border-ink/15 px-2.5 py-1.5 text-[11px] font-semibold"
-              onClick={async () => {
-                const v = window.prompt(
-                  "再表示日時 (YYYY-MM-DDTHH:mm)",
-                  new Date(Date.now() + 86400_000).toISOString().slice(0, 16),
-                );
-                if (!v) return;
-                await snoozeFeedbackRemote(fb.id, 24, new Date(v).toISOString());
-                await onRefresh();
-              }}
-            >
-              日時指定 Snooze
-            </button>
+            {fixPackPath && (
+              <Link
+                to={fixPackPath}
+                className="rounded-md border border-mint/30 px-2.5 py-1.5 text-[11px] font-semibold text-mint"
+              >
+                {t("inbox_to_fixpack", locale)}
+              </Link>
+            )}
             <button
               type="button"
               className="rounded-md border border-ink/15 px-2.5 py-1.5 text-[11px] font-semibold text-ink/60"
               onClick={onStartReject}
             >
-              却下
+              {t("inbox_reject", locale)}
             </button>
+            {currentUid && fb.uid === currentUid && (
+              <button
+                type="button"
+                className="rounded-md border border-red-200 px-2.5 py-1.5 text-[11px] font-semibold text-red-700"
+                onClick={async () => {
+                  if (!window.confirm("自分の投稿を削除しますか？元に戻せません。")) return;
+                  try {
+                    await deleteFeedbackRemote(fb.id);
+                    await onRefresh();
+                  } catch (err) {
+                    window.alert(err instanceof Error ? err.message : "削除できませんでした");
+                  }
+                }}
+              >
+                削除
+              </button>
+            )}
           </div>
+
+          <details className="mt-2 rounded-md border border-ink/10 bg-paper/50 px-2 py-1.5 text-[11px]">
+            <summary className="cursor-pointer font-semibold text-ink/70">{t("inbox_more_actions", locale)}</summary>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                className="rounded-md border border-mint/30 bg-mint/5 px-2.5 py-1.5 font-semibold text-mint"
+                onClick={async () => {
+                  await reanalyzeFeedbackRemote(fb.id);
+                  await onRefresh();
+                }}
+              >
+                {t("inbox_reanalyze", locale)}
+              </button>
+              <select
+                className="rounded-md border border-ink/15 px-2 py-1.5"
+                value={mergeTarget}
+                onChange={(e) => onMergeTargetChange(e.target.value)}
+                aria-label={t("inbox_merge_existing", locale)}
+              >
+                <option value="">{t("inbox_merge_select", locale)}</option>
+                {issues
+                  .filter((i) => i.status !== "archived")
+                  .map((i) => (
+                    <option key={i.id} value={i.id}>
+                      {i.title}
+                    </option>
+                  ))}
+              </select>
+              <button
+                type="button"
+                disabled={!mergeTarget}
+                className="rounded-md border border-ink/15 px-2.5 py-1.5 font-semibold disabled:opacity-40"
+                onClick={async () => {
+                  await mergeIntoIssueRemote(fb.id, mergeTarget);
+                  await onRefresh();
+                }}
+              >
+                {t("inbox_merge_do", locale)}
+              </button>
+              <button
+                type="button"
+                className="rounded-md border border-ink/15 px-2.5 py-1.5 font-semibold"
+                onClick={async () => {
+                  await snoozeFeedbackRemote(fb.id, 24);
+                  await onRefresh();
+                }}
+              >
+                {t("inbox_snooze_24h", locale)}
+              </button>
+              <button
+                type="button"
+                className="rounded-md border border-ink/15 px-2.5 py-1.5 font-semibold"
+                onClick={async () => {
+                  const v = window.prompt(
+                    t("inbox_snooze_prompt", locale),
+                    new Date(Date.now() + 86400_000).toISOString().slice(0, 16),
+                  );
+                  if (!v) return;
+                  await snoozeFeedbackRemote(fb.id, 24, new Date(v).toISOString());
+                  await onRefresh();
+                }}
+              >
+                {t("inbox_snooze_custom", locale)}
+              </button>
+            </div>
+            <p className="mt-2 text-[10px] leading-relaxed text-ink/50">
+              「まとめる」= 同じ作業カードに投稿を追加。「あとで見る」= 受信箱から一時的に非表示（期限後に再表示）。
+            </p>
+          </details>
 
           {rejecting && (
             <div className="mt-2 flex flex-wrap gap-2 rounded-md bg-paper p-2">

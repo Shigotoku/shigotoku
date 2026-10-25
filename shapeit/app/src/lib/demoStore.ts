@@ -1,4 +1,7 @@
-import type { ChangelogEntry, Effort, Feedback, FeedbackSource, Issue, IssueStatus } from "./types";
+import type { ChangelogEntry, Effort, Feedback, FeedbackSource, Issue, IssueCategory, IssueStatus } from "./types";
+import { localTriage } from "./triage";
+import { applyIssueTemplate } from "./issueTemplates";
+import { findOpenIssueByPageKey } from "./issueLookup";
 
 const DEMO_FLAG = "shapeit:demo:v1";
 const SETTINGS_KEY = "shapeit:settings:v1";
@@ -233,6 +236,7 @@ export function createFeedback(input: {
   pageUrl?: string;
   source?: FeedbackSource;
 }): Feedback {
+  const analysis = localTriage(input.rawText, input.pageUrl);
   const fb: Feedback = {
     id: crypto.randomUUID(),
     uid: "demo",
@@ -242,10 +246,91 @@ export function createFeedback(input: {
     authorName: loadSettings().displayName || "デモユーザー",
     source: input.source ?? "APP_WIDGET",
     triageStatus: "pending",
+    analysis,
     createdAt: nowIso(),
   };
   write(FB_KEY, [fb, ...listMyFeedback()]);
   return fb;
+}
+
+export function acceptFeedbackAsIssueDemo(
+  feedbackId: string,
+  opts?: { forceCategory?: Issue["category"] },
+): Issue {
+  const fb = listMyFeedback().find((f) => f.id === feedbackId);
+  if (!fb) throw new Error("投稿が見つかりません");
+  if (fb.pageUrl) {
+    const issues = listIssues();
+    const fbMap = new Map(listMyFeedback().map((f) => [f.id, f]));
+    const existing = findOpenIssueByPageKey(issues, fbMap, fb.pageUrl);
+    if (existing) {
+      mergeFeedbackIntoIssueDemo(feedbackId, existing.id);
+      return existing;
+    }
+  }
+  const now = nowIso();
+  const category = (opts?.forceCategory ?? fb.analysis?.category ?? "OTHER") as IssueCategory;
+  const templated = applyIssueTemplate(category, {
+    priorityScore: fb.analysis?.priorityScore ?? 40,
+    severity: fb.analysis?.severity || "S3",
+  });
+  const suggested = suggestAssignees(fb.analysis?.productArea || "");
+  const issue: Issue = {
+    id: crypto.randomUUID(),
+    organizationId: "demo",
+    title: fb.analysis?.title || fb.rawText.slice(0, 80),
+    summary: fb.analysis?.summary || fb.rawText.slice(0, 200),
+    category,
+    severity: templated.severity,
+    priorityScore: templated.priorityScore,
+    status: "todo",
+    productArea: fb.analysis?.productArea || "",
+    assignee: templated.assignee ?? suggested[0] ?? null,
+    feedbackIds: [fb.id],
+    createdAt: now,
+    updatedAt: now,
+  };
+  write(ISSUE_KEY, [issue, ...listIssues()]);
+  write(
+    FB_KEY,
+    listMyFeedback().map((f) =>
+      f.id === feedbackId ? { ...f, triageStatus: "accepted" as const, issueId: issue.id } : f,
+    ),
+  );
+  return issue;
+}
+
+export function mergeFeedbackIntoIssueDemo(feedbackId: string, issueId: string) {
+  const issue = listIssues().find((i) => i.id === issueId);
+  if (!issue) throw new Error("Issue が見つかりません");
+  const ids = Array.from(new Set([...issue.feedbackIds, feedbackId]));
+  write(
+    ISSUE_KEY,
+    listIssues().map((i) => (i.id === issueId ? { ...i, feedbackIds: ids, updatedAt: nowIso() } : i)),
+  );
+  write(
+    FB_KEY,
+    listMyFeedback().map((f) =>
+      f.id === feedbackId ? { ...f, triageStatus: "merged" as const, issueId } : f,
+    ),
+  );
+}
+
+export function snoozeFeedbackDemo(feedbackId: string, _hours: number, untilIso?: string) {
+  const until = untilIso || new Date(Date.now() + _hours * 3600_000).toISOString();
+  write(
+    FB_KEY,
+    listMyFeedback().map((f) =>
+      f.id === feedbackId ? { ...f, triageStatus: "snoozed" as const, snoozeUntil: until } : f,
+    ),
+  );
+}
+
+export function markFeedbackAutoTriagedDemo(feedbackId: string) {
+  write(
+    FB_KEY,
+    listMyFeedback().map((f) => (f.id === feedbackId ? { ...f, autoTriaged: true, updatedAt: nowIso() } : f)),
+  );
 }
 
 export function updateFeedbackAnalysisDemo(
@@ -292,6 +377,13 @@ export function deleteAllMyData() {
   write(FB_KEY, []);
   write(ISSUE_KEY, []);
   write(CL_KEY, []);
+}
+
+export function deleteFeedbackDemo(feedbackId: string) {
+  write(
+    FB_KEY,
+    listMyFeedback().filter((f) => f.id !== feedbackId),
+  );
 }
 
 export function formatInTz(iso?: string) {

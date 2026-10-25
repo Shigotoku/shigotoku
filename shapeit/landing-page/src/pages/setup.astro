@@ -2,6 +2,7 @@
 import Layout from '../layouts/Layout.astro';
 import SetupToc from '../components/SetupToc.astro';
 import GuideCallout from '../components/GuideCallout.astro';
+import ExtensionShortcuts from '../components/ExtensionShortcuts.astro';
 import { appPath, sitePath } from '../lib/urls';
 
 const homeUrl = import.meta.env.BASE_URL;
@@ -10,8 +11,11 @@ const setupUrl = sitePath('setup');
 const loginUrl = appPath('/login?ext=1');
 const signupUrl = appPath('/signup?ext=1');
 const captureUrl = appPath('/capture');
+const capturePasteUrl = appPath('/capture?paste=1');
+const captureVoiceUrl = appPath('/capture?voice=1');
 const settingsUrl = appPath('/settings');
-const extensionZipUrl = appPath('/downloads/shapeit-chrome-extension.zip');
+const extensionZipUrl = sitePath('downloads/shapeit-chrome-extension.zip');
+const extensionZipAppUrl = appPath('/downloads/shapeit-chrome-extension.zip');
 const extensionInstallUrl = appPath('/extension');
 ---
 
@@ -25,7 +29,7 @@ const extensionInstallUrl = appPath('/extension');
       <span aria-hidden="true">·</span>
       <a href={setupUrl} class="is-active">ログイン・拡張の設定</a>
       <span aria-hidden="true">·</span>
-      <a href={guideUrl}>使い方ガイド</a>
+      <a href={guideUrl} target="_blank" rel="noopener noreferrer">使い方ガイド</a>
       <span aria-hidden="true">·</span>
       <a href={loginUrl}>アプリでログイン</a>
     </div>
@@ -61,10 +65,10 @@ const extensionInstallUrl = appPath('/extension');
         </article>
       </div>
 
-      <GuideCallout variant="important" title="開発者モードについて">
+      <GuideCallout variant="important" title="まず覚える4つのキー">
         <p>
-          現在は Chrome ウェブストアでの限定公開ではなく、<strong>開発者モードでの導入</strong>で運用しています。
-          拡張に更新が入ったときは、同じ手順で zip を入れ直すか、拡張の「更新」ボタンで反映してください。
+          拡張を入れたら <strong>Alt+Shift+G / Alt+Shift+R / Alt+Shift+N / Alt+Shift+A</strong> を覚えてください。
+          詳しい表は下の「日常の使い方」にあります。
         </p>
       </GuideCallout>
     </div>
@@ -168,11 +172,17 @@ const extensionInstallUrl = appPath('/extension');
           <h3>1. zip をダウンロード</h3>
           <p class="guide-lead">次のいずれかから最新版を入手してください。</p>
           <div class="setup-action-card">
-            <a class="setup-action-card__btn" href={extensionZipUrl} download>
+            <a
+              class="setup-action-card__btn"
+              href={extensionZipUrl}
+              download="shapeit-chrome-extension.zip"
+            >
               拡張 zip をダウンロード
             </a>
             <p class="setup-action-card__hint">
-              または <a href={extensionInstallUrl}>アプリ内の拡張インストールページ</a> からもダウンロードできます。
+              うまくいかない場合は
+              <a href={extensionZipAppUrl} target="_blank" rel="noopener noreferrer">アプリから直接ダウンロード</a>
+              、または <a href={extensionInstallUrl} target="_blank" rel="noopener noreferrer">アプリ内の拡張インストールページ</a> からも入手できます。
             </p>
           </div>
           <ol class="guide-steps">
@@ -220,6 +230,15 @@ const extensionInstallUrl = appPath('/extension');
               拡張の入れ直しは不要です。Web アプリを再読み込みすれば十分な場合があります。
             </li>
           </ul>
+          <GuideCallout variant="note" title="開発者モードについて">
+            <p>
+              現在は Chrome ウェブストアでの限定公開ではなく、<strong>開発者モードでの導入</strong>で運用しています。
+            </p>
+          </GuideCallout>
+        </div>
+
+        <div class="guide-section" id="ext-shortcuts-ref">
+          <ExtensionShortcuts />
         </div>
       </section>
 
@@ -264,8 +283,111 @@ const extensionInstallUrl = appPath('/extension');
         </div>
       </section>
 
+      <section class="guide-chapter" id="mobile">
+        <h2>スマホで投稿する（スクショ共有）</h2>
+        <p class="guide-lead" data-jp-wrap>
+          スマホでは Chrome 拡張は使えません。代わりに<strong>スクショ → 共有ボタン → ShapeIt</strong>の流れを使います。
+          Android はアプリをホームに追加すると共有シートに ShapeIt が出ます。iPhone は<strong>ショートカット</strong>を共有シートに登録します（初回5分）。
+        </p>
+
+        <GuideCallout variant="important">
+          <p>
+            事前に ShapeIt を<strong>ホーム画面に追加</strong>し、Google でログイン済みであることを確認してください。
+          </p>
+        </GuideCallout>
+
+        <div class="guide-section" id="mobile-android">
+          <h3>Android：共有シートから送る</h3>
+          <ol class="guide-steps">
+            <li>
+              <strong>Chrome でホーム画面に追加</strong>
+              <p>メニュー →「アプリをインストール」または「ホーム画面に追加」。</p>
+            </li>
+            <li>
+              <strong>スクショを撮る</strong>
+              <p>気づいた SaaS 画面で電源＋音量下など。</p>
+            </li>
+            <li>
+              <strong>共有 → ShapeIt</strong>
+              <p>共有シートに <strong>ShapeIt</strong> を選ぶと投稿画面が開き、画像が自動で入ります。</p>
+            </li>
+            <li>
+              <strong>話す or 書く → 送信</strong>
+              <p>大きな「話す」ボタン、またはキーボードの🎤で一言を足して送信。</p>
+            </li>
+          </ol>
+        </div>
+
+        <div class="guide-section" id="mobile-ios">
+          <h3>iPhone：共有シートに「ShapeItに投稿」を出す</h3>
+          <p class="guide-lead">
+            iOS の Safari では PWA が共有先に直接出ないため、<strong>ショートカットアプリ</strong>を共有シートに登録します。
+            一度作れば、以降は Instagram などと同じ「共有 → ShapeItに投稿」で使えます。
+          </p>
+          <ol class="guide-steps">
+            <li>
+              <strong>ショートカットアプリを開く</strong>
+              <p>「＋」で新規ショートカットを作成。</p>
+            </li>
+            <li>
+              <strong>共有シートに表示をオン</strong>
+              <p>右上の「…」→ 詳細 →「共有シートで表示」をオン。受け取る項目は<strong>画像</strong>のみにすると迷いません。</p>
+            </li>
+            <li>
+              <strong>アクションを2つ追加</strong>
+              <ul>
+                <li>「クリップボードにコピー」（共有された画像をコピー）</li>
+                <li>
+                  「URLを開く」→
+                  <code class="setup-inline-code">{capturePasteUrl}</code>
+                </li>
+              </ul>
+            </li>
+            <li>
+              <strong>名前を「ShapeItに投稿」にして完了</strong>
+              <p>スクショのプレビュー画面 → 共有 → <strong>ShapeItに投稿</strong> を選ぶと ShapeIt が開きます。</p>
+            </li>
+            <li>
+              <strong>話す or 書く → 送信</strong>
+              <p>画像は自動で入ります。キーボードの🎤が最も確実です（iPhone 向け）。</p>
+            </li>
+          </ol>
+          <GuideCallout variant="tip">
+            <p>
+              音声だけ送りたいときは、ホーム画面の ShapeIt を開くか、別ショートカットで
+              <a href={captureVoiceUrl}>音声投稿画面</a>を開いてください。
+            </p>
+          </GuideCallout>
+        </div>
+
+        <div class="guide-section" id="mobile-voice">
+          <h3>音声だけ送る（スクショ不要）</h3>
+          <ol class="guide-steps">
+            <li>
+              <strong>ShapeIt を開く</strong>
+              <p>
+                ホーム画面アイコン、または
+                <a href={captureVoiceUrl}>音声投稿用リンク</a>
+                （ショートカットの「URLを開く」にも使えます）。
+              </p>
+            </li>
+            <li>
+              <strong>「話す」または「音声のまま添付」</strong>
+              <p>文字起こしできない環境でも、録音だけで送信できます。</p>
+            </li>
+            <li>
+              <strong>送信</strong>
+            </li>
+          </ol>
+        </div>
+      </section>
+
       <section class="guide-chapter" id="daily">
         <h2>日常の使い方</h2>
+
+        <div class="guide-section" id="daily-shortcut">
+          <ExtensionShortcuts />
+        </div>
 
         <div class="guide-section" id="daily-report">
           <h3>画面から報告する</h3>
@@ -286,14 +408,6 @@ const extensionInstallUrl = appPath('/extension');
           <GuideCallout variant="tip">
             <p><code>chrome://</code> や Chrome ウェブストアなど、一部の特殊ページではキャプチャできません。</p>
           </GuideCallout>
-        </div>
-
-        <div class="guide-section" id="daily-shortcut">
-          <h3>ショートカット</h3>
-          <p class="guide-lead">
-            <kbd class="setup-kbd">Alt</kbd> + <kbd class="setup-kbd">Shift</kbd> + <kbd class="setup-kbd">F</kbd>
-            で、範囲選択キャプチャと報告画面を素早く開けます（Windows）。Mac でも同じキー割り当てです。
-          </p>
         </div>
       </section>
 
@@ -326,6 +440,17 @@ const extensionInstallUrl = appPath('/extension');
               <tr>
                 <td>別プロファイルで未接続</td>
                 <td>ShapeIt にログインしたプロファイルと同じ Chrome で拡張を使う。</td>
+              </tr>
+              <tr>
+                <td>iPhone で共有に ShapeIt が出ない</td>
+                <td>
+                  ショートカット「ShapeItに投稿」を作成（
+                  <a href="https://shigotoku.com/shapeit/setup/#mobile-ios">手順</a>）。PWA は iOS 共有先に直接出ません。
+                </td>
+              </tr>
+              <tr>
+                <td>Android で共有に ShapeIt が出ない</td>
+                <td>Chrome でホーム画面に追加してから再度共有シートを確認。</td>
               </tr>
               <tr>
                 <td>鈴・通知が届かない</td>

@@ -50,29 +50,31 @@ export const guideToc: GuideTocChapter[] = [
     items: [
       { id: 'capture-app', label: '8. アプリから投稿する' },
       { id: 'capture-extension', label: '9. Chrome 拡張から投稿する' },
-      { id: 'capture-mobile', label: '10. スマートフォンから投稿する' },
+      { id: 'capture-mobile-android', label: '10. Android（共有シート）' },
+      { id: 'capture-mobile-ios', label: '11. iPhone（共有シート）' },
+      { id: 'capture-mobile-voice', label: '12. 音声だけ送る' },
     ],
   },
   {
     id: 'inbox',
     title: '受信箱で整理する',
     items: [
-      { id: 'inbox-review', label: '11. AI の整理結果を確認する' },
-      { id: 'inbox-triage', label: '12. Issue にする・統合する' },
+      { id: 'inbox-review', label: '13. AI の整理結果を確認する' },
+      { id: 'inbox-triage', label: '14. Issue にする・統合する' },
     ],
   },
   {
     id: 'board',
     title: 'ボードで直す',
     items: [
-      { id: 'board-flow', label: '13. 状態を進める' },
-      { id: 'board-packs', label: '14. 修正パックでまとめて直す' },
+      { id: 'board-flow', label: '15. 状態を進める' },
+      { id: 'board-packs', label: '16. 修正パックでまとめて直す' },
     ],
   },
   {
     id: 'closed-loop',
     title: '直したら確認する',
-    items: [{ id: 'closed-loop-verify', label: '15. 投稿者へ確認が届く' }],
+    items: [{ id: 'closed-loop-verify', label: '17. 投稿者へ確認が届く' }],
   },
   { id: 'faq', title: 'よくある質問' },
   { id: 'troubleshoot', title: '困ったときは' },

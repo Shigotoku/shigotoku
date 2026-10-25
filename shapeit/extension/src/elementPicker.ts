@@ -29,7 +29,7 @@ function pickElement(): Promise<ElementRect | null> {
     const highlight = document.createElement("div");
     highlight.setAttribute(
       "style",
-      "position:fixed;border:2px solid #1f9d8a;background:rgba(31,157,138,0.15);pointer-events:none;display:none;z-index:2147483647;",
+      "position:fixed;border:2px dashed #fff;background:transparent;pointer-events:none;display:none;z-index:2147483647;",
     );
 
     const hint = document.createElement("div");
@@ -48,7 +48,8 @@ function pickElement(): Promise<ElementRect | null> {
       document.removeEventListener("keydown", onKey, true);
       overlay.remove();
       highlight.remove();
-      resolve(result);
+      const finish = () => resolve(result);
+      requestAnimationFrame(() => requestAnimationFrame(finish));
     };
 
     const onKey = (e: KeyboardEvent) => {

@@ -17,6 +17,14 @@ export interface WeeklyInProgressItem {
   status: string;
 }
 
+export interface WeeklyFixPackItem {
+  label: string;
+  pageKey: string;
+  urgencyScore: number;
+  openIssueCount: number;
+  reportCount: number;
+}
+
 export interface WeeklyResponseDigest {
   weekKey: string;
   weekLabel: string;
@@ -28,6 +36,61 @@ export interface WeeklyResponseDigest {
   inProgressCount: number;
   completedItems: WeeklyCompletedItem[];
   inProgressItems: WeeklyInProgressItem[];
+  fixPackTop3: WeeklyFixPackItem[];
+}
+
+const SEV: Record<string, number> = { S0: 4, S1: 3, S2: 2, S3: 1 };
+
+function canonicalizePageKey(url?: string | null): string {
+  if (!url) return "";
+  try {
+    const u = new URL(String(url));
+    return `${u.origin}${u.pathname.replace(/\/$/, "") || "/"}`;
+  } catch {
+    return String(url).split("?")[0] ?? "";
+  }
+}
+
+function encodePackId(key: string) {
+  return Buffer.from(key, "utf8")
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
+function buildFixPackTop3(
+  issues: Array<Record<string, unknown> & { id: string }>,
+  feedback: Array<Record<string, unknown> & { id: string }>,
+): WeeklyFixPackItem[] {
+  const byId = new Map(feedback.map((f) => [f.id, f]));
+  const groups = new Map<string, { issues: typeof issues; reportCount: number; maxSeverity: string }>();
+
+  for (const issue of issues) {
+    if (issue.status === "done" || issue.status === "archived") continue;
+    const ids = Array.isArray(issue.feedbackIds) ? (issue.feedbackIds as string[]) : [];
+    const linked = ids.map((id) => byId.get(id)).filter(Boolean) as typeof feedback;
+    const url = linked.find((f) => f.pageUrl)?.pageUrl;
+    const key = canonicalizePageKey(url ? String(url) : "");
+    if (!key) continue;
+    const entry = groups.get(key) ?? { issues: [], reportCount: 0, maxSeverity: "S3" };
+    entry.issues.push(issue);
+    entry.reportCount += linked.length || 1;
+    const sev = String(issue.severity ?? "S3");
+    if ((SEV[sev] ?? 1) > (SEV[entry.maxSeverity] ?? 1)) entry.maxSeverity = sev;
+    groups.set(key, entry);
+  }
+
+  return Array.from(groups.entries())
+    .map(([pageKey, g]) => ({
+      label: pageKey.replace(/^https?:\/\//, ""),
+      pageKey,
+      urgencyScore: g.reportCount * (SEV[g.maxSeverity] || 1),
+      openIssueCount: g.issues.length,
+      reportCount: g.reportCount,
+    }))
+    .sort((a, b) => b.urgencyScore - a.urgencyScore)
+    .slice(0, 3);
 }
 
 function getWeekKey(date = new Date()): string {
@@ -113,6 +176,7 @@ export async function buildWeeklyResponseDigest(orgId: string): Promise<WeeklyRe
     }));
 
   const newFeedbackCount = feedback.filter((f) => inWeek(isoOf(f.createdAtIso ?? f.createdAt))).length;
+  const fixPackTop3 = buildFixPackTop3(issues, feedback);
 
   return {
     weekKey,
@@ -125,6 +189,7 @@ export async function buildWeeklyResponseDigest(orgId: string): Promise<WeeklyRe
     inProgressCount: inProgressItems.length,
     completedItems,
     inProgressItems,
+    fixPackTop3,
   };
 }
 
@@ -137,41 +202,67 @@ export async function postSlackWeeklyDigest(
       ? ["今週の完了はまだありません"]
       : digest.completedItems.slice(0, 8).map((c) => `• ${c.title}`);
 
-  const payload = {
-    text: `今週の改善サマリー: 完了 ${digest.completedCount}件 · 新規 ${digest.newFeedbackCount}件`,
-    blocks: [
+  const fixPackLines =
+    digest.fixPackTop3.length === 0
+      ? []
+      : digest.fixPackTop3.map(
+          (p, i) =>
+            `${i + 1}. *${p.label}* — 報告 ${p.reportCount}件 · Issue ${p.openIssueCount}件（緊急度 ${p.urgencyScore}）`,
+        );
+
+  const blocks: unknown[] = [
+    {
+      type: "header",
+      text: { type: "plain_text", text: "📬 今週の改善サマリー", emoji: true },
+    },
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `*期間:* ${digest.periodLabel}\n*新規:* ${digest.newFeedbackCount}件 · *完了:* ${digest.completedCount}件 · *対応中:* ${digest.inProgressCount}件`,
+      },
+    },
+    { type: "divider" },
+    {
+      type: "section",
+      text: { type: "mrkdwn", text: "*チームで直したこと*\n" + completedLines.join("\n") },
+    },
+  ];
+
+  if (fixPackLines.length > 0) {
+    blocks.push({
+      type: "section",
+      text: { type: "mrkdwn", text: "*修正パック Top3*\n" + fixPackLines.join("\n") },
+    });
+    blocks.push({
+      type: "actions",
+      elements: digest.fixPackTop3.slice(0, 3).map((p) => ({
+        type: "button",
+        text: { type: "plain_text", text: p.label.slice(0, 20), emoji: true },
+        url: `${APP_URL}/fix-packs/${encodePackId(p.pageKey)}`,
+      })),
+    });
+  }
+
+  blocks.push({
+    type: "actions",
+    elements: [
       {
-        type: "header",
-        text: { type: "plain_text", text: "📬 今週の改善サマリー", emoji: true },
+        type: "button",
+        text: { type: "plain_text", text: "Digest を開く", emoji: true },
+        url: `${APP_URL}/digest`,
       },
       {
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: `*期間:* ${digest.periodLabel}\n*新規:* ${digest.newFeedbackCount}件 · *完了:* ${digest.completedCount}件 · *対応中:* ${digest.inProgressCount}件`,
-        },
-      },
-      { type: "divider" },
-      {
-        type: "section",
-        text: { type: "mrkdwn", text: "*チームで直したこと*\n" + completedLines.join("\n") },
-      },
-      {
-        type: "actions",
-        elements: [
-          {
-            type: "button",
-            text: { type: "plain_text", text: "Digest を開く", emoji: true },
-            url: `${APP_URL}/digest`,
-          },
-          {
-            type: "button",
-            text: { type: "plain_text", text: "Changelog", emoji: true },
-            url: `${APP_URL}/changelog`,
-          },
-        ],
+        type: "button",
+        text: { type: "plain_text", text: "Changelog", emoji: true },
+        url: `${APP_URL}/changelog`,
       },
     ],
+  });
+
+  const payload = {
+    text: `今週の改善サマリー: 完了 ${digest.completedCount}件 · 新規 ${digest.newFeedbackCount}件`,
+    blocks,
   };
 
   try {

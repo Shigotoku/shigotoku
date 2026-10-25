@@ -32,6 +32,7 @@ export const setupToc: SetupTocChapter[] = [
       { id: 'ext-download', label: 'zip をダウンロード' },
       { id: 'ext-install', label: 'Chrome に読み込む' },
       { id: 'ext-update', label: '更新があったとき' },
+      { id: 'ext-shortcuts-ref', label: 'ショートカット一覧' },
     ],
   },
   {
@@ -43,11 +44,20 @@ export const setupToc: SetupTocChapter[] = [
     ],
   },
   {
+    id: 'mobile',
+    title: 'スマホで投稿する',
+    items: [
+      { id: 'mobile-android', label: 'Android（共有シート）' },
+      { id: 'mobile-ios', label: 'iPhone（共有シート）' },
+      { id: 'mobile-voice', label: '音声だけ送る' },
+    ],
+  },
+  {
     id: 'daily',
     title: '日常の使い方',
     items: [
+      { id: 'daily-shortcut', label: 'ショートカット（重要）' },
       { id: 'daily-report', label: '画面から報告する' },
-      { id: 'daily-shortcut', label: 'ショートカット' },
     ],
   },
   { id: 'troubleshoot', title: '困ったとき' },

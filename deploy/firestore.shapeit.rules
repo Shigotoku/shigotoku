@@ -80,7 +80,10 @@ service cloud.firestore {
       allow create: if request.auth != null
         && request.resource.data.uid == request.auth.uid
         && canAccessOrgData(request.resource.data.organizationId);
-      allow read, update, delete: if request.auth != null
+      allow read, update: if request.auth != null
+        && canAccessOrgData(resource.data.organizationId);
+      allow delete: if request.auth != null
+        && resource.data.uid == request.auth.uid
         && canAccessOrgData(resource.data.organizationId);
     }
 

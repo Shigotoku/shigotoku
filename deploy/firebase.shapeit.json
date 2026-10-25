@@ -17,6 +17,13 @@
       ],
       "headers": [
         {
+          "source": "/downloads/**",
+          "headers": [
+            { "key": "Content-Disposition", "value": "attachment" },
+            { "key": "Cache-Control", "value": "public, max-age=300" }
+          ]
+        },
+        {
           "source": "**",
           "headers": [
             { "key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains; preload" },

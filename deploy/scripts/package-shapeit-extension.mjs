@@ -2,7 +2,7 @@
  * ShapeIt Chrome 拡張をビルドし zip 化。shapeit-app の downloads/ に配置。
  */
 import { execSync } from "node:child_process";
-import { mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync, cpSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { platform } from "node:os";
@@ -52,5 +52,11 @@ writeFileSync(
   JSON.stringify({ version: manifest.version, builtAt: new Date().toISOString() }, null, 2),
 );
 
+const lpDownloads = join(root, "shapeit", "landing-page", "public", "downloads");
+mkdirSync(lpDownloads, { recursive: true });
+cpSync(zipPath, join(lpDownloads, "shapeit-chrome-extension.zip"));
+cpSync(versionFile, join(lpDownloads, "extension-version.json"));
+
 console.log(`\n✓ ${zipPath}`);
 console.log(`✓ ${versionFile}`);
+console.log(`✓ ${join(lpDownloads, "shapeit-chrome-extension.zip")}`);

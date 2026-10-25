@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { ExtensionGuidePanel } from "../components/ExtensionGuidePanel";
+import { EXTENSION_VERSION } from "../lib/extensionShortcuts";
 import { chromeExtensionSupported, isAndroid, isIos, isStandalonePwa } from "../lib/device";
 import { t } from "../lib/i18n";
 
@@ -16,7 +17,7 @@ export default function ExtensionInstallPage() {
         </h1>
         <p className="mt-2 text-sm text-ink/65">
           {desktopExt
-            ? "全画面・範囲選択・スクショなしの3モード。ショートカットまたは右下 FAB から、話してすぐ送信できます（v0.4.1）。"
+            ? `全画面・範囲選択・コメントのみ。Alt+Shift+G / R / N / A の4キーで報告できます（v${EXTENSION_VERSION}）。`
             : "スマートフォンでは Chrome 拡張は使えません。ホーム画面追加（PWA）＋ スクショ → 話す → 送信 が本命です。"}
         </p>
       </div>
@@ -68,14 +69,32 @@ export default function ExtensionInstallPage() {
                 Safari でこのアプリを開き、共有 → <strong>ホーム画面に追加</strong>
                 {standalone ? "（済）" : ""}
               </li>
-              <li>気づいた画面でスクショ（電源＋音量上）</li>
-              <li>ShapeIt「投稿」→ アルバム / 貼り付けでスクショ添付</li>
               <li>
-                大きな「話す」ボタン、またはキーボードの🎤で一言 → 送信
+                <strong>ショートカット「ShapeItに投稿」を作成</strong>（共有シートに表示・画像を受け取る）
               </li>
+              <li>アクション：①クリップボードにコピー → ② URLを開く（下記）</li>
+              <li>スクショ → 共有 → <strong>ShapeItに投稿</strong> → 話す or 書く → 送信</li>
             </ol>
+            <p className="mt-2 rounded-lg bg-sand px-3 py-2 font-mono text-[10px] text-ink/70 break-all">
+              {typeof window !== "undefined"
+                ? `${window.location.origin}/capture?paste=1`
+                : "https://app.shapeit.shigotoku.com/capture?paste=1"}
+            </p>
             <p className="mt-2 text-xs text-ink/50">
-              ホーム画面アプリでは音声認識が不安定なことがあります。そのときはキーボードのマイクか「音声のまま添付」を使ってください。
+              詳細は LP の
+              <a
+                className="font-semibold text-mint hover:underline"
+                href="https://shigotoku.com/shapeit/setup/#mobile-ios"
+                target="_blank"
+                rel="noreferrer"
+              >
+                スマホ投稿手順
+              </a>
+              を参照。音声だけは
+              <Link to="/capture?voice=1" className="font-semibold text-mint hover:underline">
+                音声投稿画面
+              </Link>
+              から。
             </p>
           </div>
         ) : isAndroid() ? (
@@ -86,9 +105,12 @@ export default function ExtensionInstallPage() {
                 Chrome で「ホーム画面に追加 / インストール」
                 {standalone ? "（済）" : ""}
               </li>
-              <li>スクショ後、共有シートから <strong>ShapeIt</strong>（またはアルバムから添付）</li>
-              <li>「話す」で端末の音声認識 → 送信</li>
+              <li>スクショ → 共有シートから <strong>ShapeIt</strong> を選ぶ</li>
+              <li>「話す」で端末の音声認識 → 送信（またはキーボードの🎤）</li>
             </ol>
+            <p className="mt-2 text-xs text-ink/50">
+              共有に ShapeIt が出ない場合はホーム画面追加を確認してください。
+            </p>
           </div>
         ) : (
           <ol className="list-decimal space-y-2 pl-5 text-ink/75">
@@ -153,8 +175,8 @@ export default function ExtensionInstallPage() {
           <li>
             <p className="font-semibold">3. 報告する</p>
             <p className="mt-1 text-ink/65">
-              ショートカット（G / S / C / F）、拡張アイコンのポップアップ、またはページ右下の緑 FAB から操作します。
-              音声で話したあと確認画面で送信。詳しく編集したいときは Alt+Shift+F で注釈エディタが開きます。
+              ショートカット <kbd className="rounded bg-paper px-1">Alt+Shift+G</kbd> / <kbd className="rounded bg-paper px-1">Alt+Shift+R</kbd> / <kbd className="rounded bg-paper px-1">Alt+Shift+N</kbd> / <kbd className="rounded bg-paper px-1">Alt+Shift+A</kbd>、拡張アイコンのポップアップ、またはページ右下の緑 FAB から操作します。
+              音声で話したあと確認画面で送信。詳しく編集したいときは <kbd className="rounded bg-paper px-1">Alt+Shift+A</kbd> で注釈エディタが開きます。
             </p>
           </li>
           <li>

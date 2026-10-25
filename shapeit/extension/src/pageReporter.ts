@@ -145,10 +145,10 @@ function createFab() {
   menu.className = "menu";
   menu.innerHTML = `
     <button type="button" data-action="full">全画面を撮って話す<span class="sub">Alt+Shift+G</span></button>
-    <button type="button" data-action="instant">範囲を選んで話す<span class="sub">Alt+Shift+S</span></button>
+    <button type="button" data-action="instant">範囲を選んで話す<span class="sub">Alt+Shift+R</span></button>
     <button type="button" data-action="element">要素を指定して報告<span class="sub">Marker.io 型</span></button>
-    <button type="button" data-action="annotate">範囲を選んで詳しく編集<span class="sub">Alt+Shift+F</span></button>
-    <button type="button" data-action="comment">コメントだけ送る<span class="sub">Alt+Shift+C</span></button>
+    <button type="button" data-action="annotate">範囲を選んで詳しく編集<span class="sub">Alt+Shift+A</span></button>
+    <button type="button" data-action="comment">コメントだけ送る<span class="sub">Alt+Shift+N</span></button>
   `;
 
   const fab = document.createElement("button");

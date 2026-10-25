@@ -16,9 +16,18 @@ import { loadSettings, suggestAssignees, listCorrections } from "../lib/demoStor
 import { buildGithubIssueMarkdown, githubNewIssueUrl } from "../lib/github";
 import { canonicalizePageKey, encodePackId } from "../lib/pageKey";
 import { canEditIssue } from "../lib/roles";
+import { t } from "../lib/i18n";
+import {
+  ISSUE_CATEGORIES,
+  ISSUE_STATUSES,
+  issueCategoryLabel,
+  issueStatusLabel,
+} from "../lib/issueLabels";
+import { useLocale } from "../lib/useLocale";
 import type { Feedback, Issue, IssueComment, IssueStatus } from "../lib/types";
 
 export default function IssueDetailPage() {
+  const locale = useLocale();
   const { id = "" } = useParams();
   const [issue, setIssue] = useState<Issue | undefined>();
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
@@ -54,7 +63,7 @@ export default function IssueDetailPage() {
   if (!issue) {
     return (
       <div className="text-sm text-ink/60">
-        Issue が見つかりません。<Link to="/board" className="text-mint hover:underline">Boardへ</Link>
+        {t("issue_not_found", locale)}<Link to="/board" className="text-mint hover:underline">{t("nav_board", locale)}</Link>
       </div>
     );
   }
@@ -67,7 +76,7 @@ export default function IssueDetailPage() {
   return (
     <div className="w-full space-y-6">
       <div>
-        <Link to="/board" className="text-xs text-mint hover:underline">← Board</Link>
+        <Link to="/board" className="text-xs text-mint hover:underline">{t("issue_back_board", locale)}</Link>
         <input
           className="font-display mt-2 w-full border-0 bg-transparent text-3xl font-bold outline-none"
           value={issue.title}
@@ -95,7 +104,7 @@ export default function IssueDetailPage() {
               await reload();
             }}
           >
-            Archive
+            {t("issue_archive", locale)}
           </button>
         )}
         {editable && issue.status === "archived" && (
@@ -107,7 +116,7 @@ export default function IssueDetailPage() {
               await reload();
             }}
           >
-            Restore → Todo
+            {t("issue_restore", locale)}
           </button>
         )}
         {githubRepo && (
@@ -136,7 +145,7 @@ export default function IssueDetailPage() {
             alert("Fix with AI プロンプトをコピーしました（Human Review 必須）");
           }}
         >
-          Fix with AI（コピー）
+          {t("issue_fix_ai", locale)}
         </button>
         {(() => {
           const url = feedbacks.find((f) => f.pageUrl)?.pageUrl;
@@ -147,29 +156,30 @@ export default function IssueDetailPage() {
               to={`/fix-packs/${encodePackId(key)}`}
               className="rounded-lg border border-mint/30 bg-mint/5 px-3 py-2 text-xs font-semibold text-mint"
             >
-              同じ画面の修正パック
+              {t("issue_fixpack", locale)}
             </Link>
           );
         })()}
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Field label="Category">
+        <Field label={t("issue_field_category", locale)}>
           <select
             className="w-full rounded-lg border border-ink/10 bg-white px-2 py-2 text-sm"
             value={issue.category}
+            disabled={!editable}
             onChange={(e) => {
               const category = e.target.value as Issue["category"];
               setIssue({ ...issue, category });
               void updateIssueRemote(issue.id, { category });
             }}
           >
-            {["BUG", "UX", "UI", "FEATURE", "COPY", "PERFORMANCE", "SECURITY", "OTHER"].map((c) => (
-              <option key={c} value={c}>{c}</option>
+            {ISSUE_CATEGORIES.map((c) => (
+              <option key={c} value={c}>{issueCategoryLabel(c, locale)}</option>
             ))}
           </select>
         </Field>
-        <Field label="Severity">
+        <Field label={t("issue_field_severity", locale)}>
           <select
             className="w-full rounded-lg border border-ink/10 bg-white px-2 py-2 text-sm"
             value={issue.severity}
@@ -184,29 +194,30 @@ export default function IssueDetailPage() {
             ))}
           </select>
         </Field>
-        <Field label="Status">
+        <Field label={t("issue_field_status", locale)}>
           <select
             className="w-full rounded-lg border border-ink/10 bg-white px-2 py-2 text-sm"
             value={issue.status}
+            disabled={!editable}
             onChange={(e) => {
               const status = e.target.value as IssueStatus;
               setIssue({ ...issue, status });
               void updateIssueStatusRemote(issue.id, status).then(reload);
             }}
           >
-            {["todo", "in_progress", "review", "verify", "done", "archived"].map((c) => (
-              <option key={c} value={c}>{c}</option>
+            {ISSUE_STATUSES.map((c) => (
+              <option key={c} value={c}>{issueStatusLabel(c, locale)}</option>
             ))}
           </select>
         </Field>
-        <Field label="Priority (effective)">
+        <Field label={t("issue_field_priority", locale)}>
           <p className="text-lg font-semibold tabular-nums">{effectivePriority}</p>
-          <p className="text-xs text-ink/45">AI: {issue.priorityScore}</p>
+          <p className="text-xs text-ink/45">{t("issue_field_priority_ai", locale)}: {issue.priorityScore}</p>
         </Field>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <Field label="Product Area">
+        <Field label={t("issue_field_area", locale)}>
           <input
             className="w-full rounded-lg border border-ink/10 px-2 py-2 text-sm"
             value={issue.productArea}
@@ -214,7 +225,7 @@ export default function IssueDetailPage() {
             onBlur={() => void updateIssueRemote(issue.id, { productArea: issue.productArea })}
           />
         </Field>
-        <Field label="Assignee">
+        <Field label={t("issue_field_assignee", locale)}>
           <input
             className="w-full rounded-lg border border-ink/10 px-2 py-2 text-sm"
             value={issue.assignee ?? ""}
@@ -240,7 +251,7 @@ export default function IssueDetailPage() {
             </div>
           )}
         </Field>
-        <Field label="Due / Release">
+        <Field label={t("issue_field_due", locale)}>
           <input
             type="date"
             className="mb-1 w-full rounded-lg border border-ink/10 px-2 py-2 text-sm"
@@ -252,7 +263,7 @@ export default function IssueDetailPage() {
           />
           <input
             className="w-full rounded-lg border border-ink/10 px-2 py-2 text-sm"
-            placeholder="Release (e.g. 1.2.0)"
+            placeholder={t("issue_field_release_ph", locale)}
             value={issue.release ?? ""}
             onChange={(e) => setIssue({ ...issue, release: e.target.value })}
             onBlur={() => void updateIssueRemote(issue.id, { release: issue.release ?? "" })}
@@ -261,7 +272,7 @@ export default function IssueDetailPage() {
       </div>
 
       <section className="rounded-2xl border border-ink/10 bg-white p-5">
-        <h2 className="text-sm font-semibold">Priority Override</h2>
+        <h2 className="text-sm font-semibold">{t("issue_priority_override", locale)}</h2>
         <div className="mt-2 flex flex-wrap gap-2">
           <input
             type="number"
@@ -276,7 +287,7 @@ export default function IssueDetailPage() {
             value={overrideReason}
             onChange={(e) => setOverrideReason(e.target.value)}
             className="min-w-[200px] flex-1 rounded-lg border border-ink/10 px-2 py-2 text-sm"
-            placeholder="上書き理由（必須）"
+            placeholder={t("issue_priority_override_ph", locale)}
           />
           <button
             type="button"
@@ -292,16 +303,16 @@ export default function IssueDetailPage() {
               await reload();
             }}
           >
-            保存
+            {t("issue_save", locale)}
           </button>
         </div>
       </section>
 
       {feedbacks[0]?.analysis && (
         <section className="rounded-2xl border border-ink/10 bg-white p-5 text-sm">
-          <h2 className="font-semibold">AI Developer Summary</h2>
+          <h2 className="font-semibold">{t("issue_ai_summary", locale)}</h2>
           <p className="mt-2 text-ink/70">{feedbacks[0].analysis.developerSummary}</p>
-          <h3 className="mt-4 font-semibold">Reproduction Steps</h3>
+          <h3 className="mt-4 font-semibold">{t("issue_repro_steps", locale)}</h3>
           <ol className="mt-2 list-decimal space-y-1 pl-5 text-ink/70">
             {feedbacks[0].analysis.reproductionSteps.map((s) => (
               <li key={s}>{s}</li>
@@ -311,7 +322,7 @@ export default function IssueDetailPage() {
       )}
 
       <section className="rounded-2xl border border-ink/10 bg-white p-5">
-        <h2 className="text-sm font-semibold">紐づく Feedback（{feedbacks.length}）</h2>
+        <h2 className="text-sm font-semibold">{t("issue_linked_feedback", locale)}（{feedbacks.length}）</h2>
         <ul className="mt-3 space-y-3">
           {feedbacks.map((fb) => (
             <li key={fb.id} className="rounded-xl bg-paper p-3 text-sm">

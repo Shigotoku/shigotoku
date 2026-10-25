@@ -2,11 +2,14 @@
 import Layout from '../layouts/Layout.astro';
 import GuideToc from '../components/GuideToc.astro';
 import GuideCallout from '../components/GuideCallout.astro';
+import ExtensionShortcuts from '../components/ExtensionShortcuts.astro';
 import { appPath, sitePath } from '../lib/urls';
 
 const signupUrl = appPath('/signup');
 const loginUrl = appPath('/login');
 const captureUrl = appPath('/capture');
+const capturePasteUrl = appPath('/capture?paste=1');
+const captureVoiceUrl = appPath('/capture?voice=1');
 const settingsUrl = appPath('/settings');
 const homeUrl = import.meta.env.BASE_URL;
 const faqUrl = `${homeUrl}#faq`;
@@ -21,7 +24,7 @@ const setupUrl = sitePath('setup');
     <div class="guide-portal-bar__inner">
       <a href={homeUrl}>← ShapeIt トップ</a>
       <span aria-hidden="true">·</span>
-      <a href={setupUrl}>ログイン・拡張の設定</a>
+      <a href={setupUrl} target="_blank" rel="noopener noreferrer">ログイン・拡張の設定</a>
       <span aria-hidden="true">·</span>
       <a href="#manual" class="is-active">使い方ガイド</a>
       <span aria-hidden="true">·</span>
@@ -54,7 +57,7 @@ const setupUrl = sitePath('setup');
         <article class="guide-intro-card__item">
           <h3>📖 すでに参加済みの方</h3>
           <p>気づきの投稿、Chrome 拡張、自分の投稿の確認など、日常運用の手順をまとめています。</p>
-          <p class="text-xs text-ink/50">よく見られている項目：拡張からの投稿 / 受信箱 / 自分の投稿</p>
+          <p class="text-xs text-ink/50">よく見られている項目：拡張からの投稿 / スマホ共有 / 受信箱 / 自分の投稿</p>
           <a href="#capture-app">投稿の手順へ →</a>
         </article>
       </div>
@@ -451,6 +454,7 @@ const setupUrl = sitePath('setup');
         <div class="guide-section" id="capture-extension">
           <h3>9. Chrome 拡張から投稿する（いちばん速い）</h3>
           <p class="guide-lead">SaaS を操作中に気づいたとき、ShapeIt の画面を開かずにその場で報告できます。</p>
+          <ExtensionShortcuts />
           <ol class="guide-steps">
             <li>
               <strong>拡張をインストールする</strong>
@@ -461,8 +465,8 @@ const setupUrl = sitePath('setup');
               <p>登録時と同じ方法でログインすると、拡張へ接続情報が保存されます。</p>
             </li>
             <li>
-              <strong>報告したい SaaS を Chrome で開き、拡張アイコンをクリック</strong>
-              <p>ショートカット <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> でも起動できます。</p>
+              <strong>報告したい SaaS を Chrome で開き、ショートカットまたは拡張アイコンをクリック</strong>
+              <p><kbd>Alt+Shift+R</kbd>（範囲）がいちばんよく使います。全画面は <kbd>Alt+Shift+G</kbd>、スクショなしは <kbd>Alt+Shift+N</kbd>、詳しく編集は <kbd>Alt+Shift+A</kbd> です。</p>
             </li>
             <li>
               <strong>キャプチャ方法を選ぶ</strong>
@@ -519,23 +523,102 @@ const setupUrl = sitePath('setup');
         </div>
 
         <div class="guide-section" id="capture-mobile">
-          <h3>10. スマートフォンから投稿する</h3>
+          <h3>スマートフォンから投稿する</h3>
+          <p class="guide-lead" data-jp-wrap>
+            スマホでは Chrome 拡張は使えません。代わりに<strong>スクショ → 共有ボタン → ShapeIt</strong>の流れが最も自然です。
+            Android はホーム画面に追加すると共有シートに ShapeIt が出ます。iPhone は<strong>ショートカット</strong>を共有シートに登録します（初回のみ設定）。
+          </p>
+          <GuideCallout variant="important">
+            <p>
+              事前に ShapeIt を<strong>ホーム画面に追加</strong>し、Google でログイン済みにしてください。
+              初回セットアップは <a href={setupUrl} target="_blank" rel="noopener noreferrer">ログイン・拡張の設定</a> も参照できます。
+            </p>
+          </GuideCallout>
+        </div>
+
+        <div class="guide-section" id="capture-mobile-android">
+          <h3>10. Android：共有シートから送る</h3>
           <ol class="guide-steps">
             <li>
-              <strong>ブラウザで ShapeIt を開き「ホーム画面に追加」（PWA）</strong>
-              <p>iPhone は Safari の共有メニュー、Android は Chrome のメニューから追加します。</p>
+              <strong>Chrome でホーム画面に追加</strong>
+              <p>メニュー →「アプリをインストール」または「ホーム画面に追加」。</p>
             </li>
             <li>
-              <strong>スクショを撮る → アルバムから選択</strong>
-              <p>投稿画面で画像を添付します。</p>
+              <strong>SaaS でスクショを撮る</strong>
+              <p>気づいた画面で電源＋音量下など。</p>
             </li>
             <li>
-              <strong>音声入力で話す → 送信</strong>
-              <p>キーボードのマイク、またはアプリ内の音声ボタンが使えます。手が離せないときに便利です。</p>
+              <strong>共有 → ShapeIt</strong>
+              <p>共有シートに <strong>ShapeIt</strong> を選ぶと投稿画面が開き、画像が自動で入ります。</p>
+            </li>
+            <li>
+              <strong>話す / 書く → 送信</strong>
+              <p>大きな「話す」ボタン、キーボードの🎤、または文字入力で一言を足して送信。</p>
+            </li>
+          </ol>
+        </div>
+
+        <div class="guide-section" id="capture-mobile-ios">
+          <h3>11. iPhone：共有シートに「ShapeItに投稿」を出す</h3>
+          <p class="guide-lead">
+            iOS では PWA が共有先に直接出ないため、<strong>ショートカットアプリ</strong>を共有シートに登録します。
+            一度作れば、Instagram などと同じ「共有 → ShapeItに投稿」で使えます。
+          </p>
+          <ol class="guide-steps">
+            <li>
+              <strong>ショートカットアプリで新規作成</strong>
+              <p>右上「…」→ 詳細 →「共有シートで表示」をオン。受け取る項目は<strong>画像</strong>。</p>
+            </li>
+            <li>
+              <strong>アクションを2つ追加</strong>
+              <ul>
+                <li>「クリップボードにコピー」（共有された画像）</li>
+                <li>
+                  「URLを開く」→
+                  <code class="setup-inline-code">{capturePasteUrl}</code>
+                </li>
+              </ul>
+            </li>
+            <li>
+              <strong>名前を「ShapeItに投稿」にする</strong>
+              <p>スクショプレビュー → 共有 → <strong>ShapeItに投稿</strong> を選ぶと ShapeIt が開きます。</p>
+            </li>
+            <li>
+              <strong>画像が入ったら話す / 書く → 送信</strong>
+              <p>iPhone ではキーボードの🎤が最も確実です。アプリ内「話す」も試せます。</p>
+            </li>
+          </ol>
+          <GuideCallout variant="tip">
+            <p>
+              手順の詳細版は
+              <a href={`${setupUrl}#mobile-ios`} target="_blank" rel="noopener noreferrer">セットアップガイド（iPhone）</a>
+              も参照してください。
+            </p>
+          </GuideCallout>
+        </div>
+
+        <div class="guide-section" id="capture-mobile-voice">
+          <h3>12. 音声だけ送る（スクショ不要）</h3>
+          <ol class="guide-steps">
+            <li>
+              <strong>ShapeIt を開く</strong>
+              <p>
+                ホーム画面アイコン、または
+                <a href={captureVoiceUrl}>音声投稿用リンク</a>
+                （ショートカットの「URLを開く」にも使えます）。
+              </p>
+            </li>
+            <li>
+              <strong>「話す」または「音声のまま添付」</strong>
+              <p>文字起こしできない環境でも、録音だけで送信できます。</p>
+            </li>
+            <li>
+              <strong>送信</strong>
+              <p><a href={captureUrl}>投稿画面</a>のボトムナビ「投稿」からも同じ操作ができます。</p>
             </li>
           </ol>
           <GuideCallout variant="warn">
-            <p>スマートフォンの Chrome では、PC 用の拡張機能は使えません。PWA ＋ スクショ ＋ 音声が正解ルートです。</p>
+            <p>スマートフォンの Chrome では PC 用拡張は使えません。PWA ＋ 共有シート（またはショートカット）＋ 音声が正解ルートです。</p>
           </GuideCallout>
         </div>
       </section>
@@ -657,6 +740,28 @@ const setupUrl = sitePath('setup');
           <p>気づいた内容だけで大丈夫です。「ボタンが分かりにくい」「エラーが出た」程度で OK です。再現手順や優先度は AI が後から整理します。</p>
         </details>
         <details>
+          <summary>iPhone で共有に ShapeIt が出ない</summary>
+          <p>
+            iOS では PWA が共有先に直接出ません。ショートカット「ShapeItに投稿」を作成してください（
+            <a href="#capture-mobile-ios">iPhone の手順</a>、
+            <a href={setupUrl} target="_blank" rel="noopener noreferrer">セットアップガイド</a>）。
+          </p>
+        </details>
+        <details>
+          <summary>Android で共有に ShapeIt が出ない</summary>
+          <p>
+            Chrome で ShapeIt をホーム画面に追加してから、再度共有シートを開いてください。
+            <a href="#capture-mobile-android">Android の手順</a>を参照。
+          </p>
+        </details>
+        <details>
+          <summary>スマホで音声入力がうまくいかない</summary>
+          <p>
+            iPhone ではキーボードの🎤が最も確実です。文字起こし不要なら「音声のまま添付」で録音だけ送ることもできます（
+            <a href="#capture-mobile-voice">音声だけ送る</a>）。
+          </p>
+        </details>
+        <details>
           <summary>個人メールで登録したのに、よく使う Google で拡張をつなげたい</summary>
           <p>
             拡張に Google を選ぶ画面はありません。ShapeIt にログインしているアカウントがそのまま使われます。
@@ -700,6 +805,16 @@ const setupUrl = sitePath('setup');
             4. Chrome プロフィール（仕事用 / 個人）が登録時と同じか確認する<br />
             5. 拡張を chrome://extensions で再読み込みする<br />
             6. それでもダメなら、アプリの投稿画面から送れるか試す
+          </p>
+        </details>
+        <details>
+          <summary>スマホでスクショ共有がうまくいかない</summary>
+          <p>
+            Android：ホーム画面追加後、共有 → ShapeIt。<br />
+            iPhone：ショートカット「ShapeItに投稿」の URL が
+            <code class="setup-inline-code">{capturePasteUrl}</code>
+            か確認。<br />
+            それでも画像が入らない場合は投稿画面の「アルバムから」で選んでください。
           </p>
         </details>
         <details>

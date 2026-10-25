@@ -1,21 +1,26 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
+  deleteFeedbackRemote,
   getIssueRemote,
   listMyFeedbackRemote,
   setVerificationRemote,
 } from "../lib/cloudStore";
 import { formatInTz } from "../lib/demoStore";
+import { extractFeedbackTitle } from "../lib/feedbackTitle";
+import {
+  feedbackDeviceLabel,
+  matchesDeviceFilter,
+  type FeedbackDeviceFilter,
+} from "../lib/feedbackSource";
 import type { Feedback, Issue } from "../lib/types";
-import FeedbackTimeline from "../components/FeedbackTimeline";
-import { buildFeedbackTimeline } from "../lib/feedbackTimeline";
 import { t } from "../lib/i18n";
 
 const STATUS_LABEL: Record<string, string> = {
   pending: "受付待ち",
   accepted: "対応中",
-  merged: "既存Issueに統合",
-  snoozed: "保留中",
+  merged: "統合済み",
+  snoozed: "保留",
   rejected: "却下",
 };
 
@@ -23,7 +28,9 @@ export default function MyFeedbackPage() {
   const [items, setItems] = useState<Feedback[]>([]);
   const [issueMap, setIssueMap] = useState<Record<string, Issue>>({});
   const [status, setStatus] = useState("all");
+  const [deviceFilter, setDeviceFilter] = useState<FeedbackDeviceFilter>("all");
   const [sort, setSort] = useState<"new" | "old">("new");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const reload = async () => {
     const list = await listMyFeedbackRemote();
@@ -44,11 +51,22 @@ export default function MyFeedbackPage() {
   const filtered = useMemo(() => {
     let list = [...items];
     if (status !== "all") list = list.filter((f) => f.triageStatus === status);
+    list = list.filter((f) => matchesDeviceFilter(f.source, deviceFilter));
     list.sort((a, b) =>
       sort === "new" ? b.createdAt.localeCompare(a.createdAt) : a.createdAt.localeCompare(b.createdAt),
     );
     return list;
-  }, [items, status, sort]);
+  }, [items, status, deviceFilter, sort]);
+
+  const handleDelete = async (fb: Feedback) => {
+    if (!window.confirm("この投稿を削除しますか？元に戻せません。")) return;
+    try {
+      await deleteFeedbackRemote(fb.id);
+      await reload();
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : "削除できませんでした");
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -56,7 +74,7 @@ export default function MyFeedbackPage() {
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mint">{t("nav_my")}</p>
         <h1 className="font-display mt-1 text-3xl font-bold">{t("page_my")}</h1>
         <p className="mt-2 text-sm text-ink/60">
-          自分の報告と対応状況。Issue が Done になったら解決確認できます。
+          自分の報告と対応状況。間違えた投稿はカードから削除できます。
         </p>
       </div>
       <div className="flex flex-wrap gap-2">
@@ -72,6 +90,16 @@ export default function MyFeedbackPage() {
               {STATUS_LABEL[s] ?? s}
             </option>
           ))}
+        </select>
+        <select
+          className="rounded-lg border border-ink/15 bg-white px-2 py-2 text-xs"
+          value={deviceFilter}
+          onChange={(e) => setDeviceFilter(e.target.value as FeedbackDeviceFilter)}
+          aria-label="端末で絞り込み"
+        >
+          <option value="all">すべての端末</option>
+          <option value="pc">PC</option>
+          <option value="mobile">携帯</option>
         </select>
         <select
           className="rounded-lg border border-ink/15 bg-white px-2 py-2 text-xs"
@@ -91,112 +119,104 @@ export default function MyFeedbackPage() {
           </Link>
         </div>
       ) : (
-        <ul className="space-y-3">
+        <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((fb) => {
             const issue = fb.issueId ? issueMap[fb.issueId] : undefined;
+            const expanded = expandedId === fb.id;
+            const title = extractFeedbackTitle(fb.rawText, fb.analysis?.title);
             const canVerify =
               Boolean(fb.issueId) &&
               (fb.triageStatus === "accepted" || fb.triageStatus === "merged") &&
               issue?.status === "done";
+
             return (
-              <li key={fb.id} className="rounded-2xl border border-ink/10 bg-white p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-medium">{fb.rawText}</p>
-                  <span className="rounded-full bg-sand px-2 py-0.5 text-xs font-semibold">
+              <li
+                key={fb.id}
+                className="flex flex-col rounded-lg border border-ink/10 bg-white p-3 shadow-sm"
+              >
+                {fb.screenshotDataUrl ? (
+                  <img
+                    src={fb.screenshotDataUrl}
+                    alt=""
+                    className="mb-2 h-24 w-full rounded border border-ink/10 object-cover object-top"
+                  />
+                ) : (
+                  <div className="mb-2 flex h-24 items-center justify-center rounded border border-dashed border-ink/15 bg-paper text-[10px] text-ink/40">
+                    テキストのみ
+                  </div>
+                )}
+                <div className="flex items-start justify-between gap-2">
+                  <p className="line-clamp-2 text-sm font-semibold leading-snug text-ink">{title}</p>
+                  <span className="shrink-0 rounded-full bg-sand px-2 py-0.5 text-[10px] font-semibold">
                     {STATUS_LABEL[fb.triageStatus] ?? fb.triageStatus}
                   </span>
                 </div>
-                {(fb.screenshotDataUrl || fb.audioDataUrl) && (
-                  <div className="mt-2 flex flex-wrap items-start gap-3">
-                    {fb.screenshotDataUrl && (
-                      <img
-                        src={fb.screenshotDataUrl}
-                        alt=""
-                        className="h-16 w-auto max-w-[40%] rounded-lg border border-ink/10 object-cover"
-                      />
-                    )}
-                    {fb.audioDataUrl && (
-                      <audio controls src={fb.audioDataUrl} className="h-8 max-w-full flex-1" />
-                    )}
-                  </div>
-                )}
-                {fb.source && (
-                  <p className="mt-1 text-[10px] uppercase tracking-wide text-ink/35">{fb.source}</p>
-                )}
-                <p className="mt-2 text-xs text-ink/45">
-                  {formatInTz(fb.createdAt)}
-                  {fb.analysis?.title ? ` · ${fb.analysis.title}` : ""}
+                <p className="mt-1 line-clamp-2 text-xs text-ink/60">{fb.rawText}</p>
+                <p className="mt-2 text-[10px] text-ink/45">
+                  {formatInTz(fb.createdAt)} · {feedbackDeviceLabel(fb.source)}
                 </p>
-                <FeedbackTimeline steps={buildFeedbackTimeline(fb, issue)} />
-                {fb.triageStatus === "rejected" && (
-                  <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                    却下理由: {fb.rejectReason || "（理由なし）"}
-                  </p>
-                )}
-                {fb.triageStatus === "snoozed" && fb.snoozeUntil && (
-                  <p className="mt-2 text-xs text-ink/50">
-                    保留中（{formatInTz(fb.snoozeUntil)} まで）
-                  </p>
-                )}
-                {fb.issueId && (
-                  <div className="mt-2 flex flex-wrap gap-3 text-xs">
-                    <Link to={`/issues/${fb.issueId}`} className="text-mint hover:underline">
-                      紐づく Issue を見る →
+                <div className="mt-auto flex flex-wrap gap-2 pt-3">
+                  <button
+                    type="button"
+                    className="rounded-md border border-ink/15 px-2 py-1 text-[11px] font-semibold"
+                    onClick={() => setExpandedId(expanded ? null : fb.id)}
+                  >
+                    {expanded ? "閉じる" : "詳細"}
+                  </button>
+                  {fb.issueId && (
+                    <Link
+                      to={`/issues/${fb.issueId}`}
+                      className="rounded-md border border-mint/30 px-2 py-1 text-[11px] font-semibold text-mint"
+                    >
+                      Issue
                     </Link>
-                    {issue?.status === "done" && (
-                      <Link to="/changelog" className="text-mint hover:underline">
-                        Changelog →
-                      </Link>
+                  )}
+                  <button
+                    type="button"
+                    className="rounded-md border border-red-200 px-2 py-1 text-[11px] font-semibold text-red-700"
+                    onClick={() => void handleDelete(fb)}
+                  >
+                    削除
+                  </button>
+                </div>
+                {expanded && (
+                  <div className="mt-3 border-t border-ink/8 pt-3 text-xs text-ink/70">
+                    {fb.audioDataUrl && (
+                      <audio controls src={fb.audioDataUrl} className="mb-2 h-8 w-full" />
                     )}
-                  </div>
-                )}
-                {canVerify && (
-                  <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-ink/5 pt-3">
-                    <p className="w-full text-xs text-ink/50">対応完了しました。解決しましたか？</p>
-                    {fb.verification && (
-                      <p className="w-full text-xs font-medium text-ink/60">
-                        回答済み: {fb.verification === "solved" ? "解決した" : "まだ解決していない"}
+                    {fb.triageStatus === "rejected" && (
+                      <p className="mb-2 rounded bg-amber-50 px-2 py-1 text-amber-900">
+                        却下: {fb.rejectReason || "（理由なし）"}
                       </p>
                     )}
-                    <button
-                      type="button"
-                      disabled={fb.verification === "solved"}
-                      className={`rounded-lg px-3 py-1.5 text-xs font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-mint ${
-                        fb.verification === "solved"
-                          ? "bg-mint/20 text-mint"
-                          : "border border-ink/15 hover:bg-sand"
-                      }`}
-                      onClick={async () => {
-                        await setVerificationRemote(fb.id, "solved");
-                        await reload();
-                      }}
-                    >
-                      解決した
-                    </button>
-                    <button
-                      type="button"
-                      disabled={fb.verification === "unsolved"}
-                      className={`rounded-lg px-3 py-1.5 text-xs font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-mint ${
-                        fb.verification === "unsolved"
-                          ? "bg-amber-100 text-amber-900"
-                          : "border border-ink/15 hover:bg-sand"
-                      }`}
-                      onClick={async () => {
-                        await setVerificationRemote(fb.id, "unsolved");
-                        await reload();
-                      }}
-                    >
-                      まだ解決していない
-                    </button>
+                    {canVerify && (
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          disabled={fb.verification === "solved"}
+                          className="rounded-md border border-ink/15 px-2 py-1 font-semibold disabled:opacity-50"
+                          onClick={async () => {
+                            await setVerificationRemote(fb.id, "solved");
+                            await reload();
+                          }}
+                        >
+                          解決した
+                        </button>
+                        <button
+                          type="button"
+                          disabled={fb.verification === "unsolved"}
+                          className="rounded-md border border-ink/15 px-2 py-1 font-semibold disabled:opacity-50"
+                          onClick={async () => {
+                            await setVerificationRemote(fb.id, "unsolved");
+                            await reload();
+                          }}
+                        >
+                          未解決
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
-                {(fb.triageStatus === "accepted" || fb.triageStatus === "merged") &&
-                  issue &&
-                  issue.status !== "done" && (
-                    <p className="mt-3 text-xs text-ink/45">
-                      Issue が Done になると、ここで解決確認ができます（現在: {issue.status}）
-                    </p>
-                  )}
               </li>
             );
           })}

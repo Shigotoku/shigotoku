@@ -1,6 +1,7 @@
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -13,7 +14,7 @@ import {
 import { auth, db, getIdToken } from "./firebase";
 import { API_URL } from "./urls";
 import { getCurrentOrgId } from "./org";
-import { isLoggedIn as isDemo, listChangelog, listIssues, listMyFeedback, listPendingFeedback } from "./demoStore";
+import { isLoggedIn as isDemo, listChangelog, listIssues, listMyFeedback, listPendingFeedback, suggestAssignees } from "./demoStore";
 import { localTriage } from "./triage";
 import { loadSettings } from "./demoStore";
 import { pushAudit } from "./audit";
@@ -21,6 +22,7 @@ import {
   listDemoNotifications,
   markAllDemoNotificationsRead,
   markDemoNotificationRead,
+  pushDemoNotification,
 } from "./notifications";
 import type {
   AppNotification,
@@ -32,6 +34,8 @@ import type {
   IssueStatus,
 } from "./types";
 import type { FixPackMeta } from "./packMeta";
+import { applyIssueTemplate } from "./issueTemplates";
+import { findOpenIssueByPageKey } from "./issueLookup";
 
 let cache = {
   issues: [] as Issue[],
@@ -222,7 +226,11 @@ export async function createFeedbackRemote(input: {
 }): Promise<Feedback> {
   if (isDemo()) {
     const { createFeedback } = await import("./demoStore");
-    return createFeedback(input);
+    const fb = createFeedback(input);
+    if (loadSettings().autoTriageEnabled) {
+      void import("./autoTriage").then(({ runAutoTriageForFeedback }) => runAutoTriageForFeedback(fb.id));
+    }
+    return fb;
   }
   const orgId = await requireOrgId();
   const user = auth.currentUser;
@@ -251,24 +259,54 @@ export async function createFeedbackRemote(input: {
   };
   const ref = await addDoc(collection(db, "shapeit_feedback"), payload);
   pushAudit({ action: "create_feedback", entity: "feedback", entityId: ref.id });
-  return mapFeedback(ref.id, { ...payload, createdAtIso: now });
+  const created = mapFeedback(ref.id, { ...payload, createdAtIso: now });
+  if (loadSettings().autoTriageEnabled) {
+    void import("./autoTriage").then(({ runAutoTriageForFeedback }) => runAutoTriageForFeedback(ref.id));
+  }
+  return created;
 }
 
-export async function acceptAsIssueRemote(feedbackId: string): Promise<Issue> {
+export async function acceptAsIssueRemote(
+  feedbackId: string,
+  opts?: { forceCategory?: Issue["category"] },
+): Promise<Issue> {
   const fb = await getFeedbackRemote(feedbackId);
   if (!fb) throw new Error("投稿が見つかりません");
+
+  if (fb.pageUrl) {
+    const [issues, allFeedback] = await Promise.all([listIssuesRemote(), listOrgFeedbackRemote()]);
+    const fbMap = new Map(allFeedback.map((f) => [f.id, f]));
+    const existing = findOpenIssueByPageKey(issues, fbMap, fb.pageUrl);
+    if (existing) {
+      await mergeIntoIssueRemote(feedbackId, existing.id);
+      return existing;
+    }
+  }
+
+  if (isDemo()) {
+    const { acceptFeedbackAsIssueDemo } = await import("./demoStore");
+    return acceptFeedbackAsIssueDemo(feedbackId, opts);
+  }
+
   const orgId = fb.organizationId || (await requireOrgId());
   const now = new Date().toISOString();
+  const category = opts?.forceCategory ?? fb.analysis?.category ?? "OTHER";
+  const templated = applyIssueTemplate(category, {
+    priorityScore: fb.analysis?.priorityScore ?? 40,
+    severity: fb.analysis?.severity || "S3",
+  });
+  const suggested = suggestAssignees(fb.analysis?.productArea || "");
   const issuePayload = {
     uid: auth.currentUser?.uid ?? fb.uid,
     organizationId: orgId,
     title: fb.analysis?.title || fb.rawText.slice(0, 80),
     summary: fb.analysis?.summary || fb.rawText.slice(0, 200),
-    category: fb.analysis?.category || "OTHER",
-    severity: fb.analysis?.severity || "S3",
-    priorityScore: fb.analysis?.priorityScore ?? 40,
-    status: "todo",
+    category,
+    severity: templated.severity,
+    priorityScore: templated.priorityScore,
+    status: "todo" as const,
     productArea: fb.analysis?.productArea || "",
+    assignee: templated.assignee ?? suggested[0] ?? null,
     feedbackIds: [fb.id],
     createdAt: serverTimestamp(),
     createdAtIso: now,
@@ -282,6 +320,13 @@ export async function acceptAsIssueRemote(feedbackId: string): Promise<Issue> {
 }
 
 export async function mergeIntoIssueRemote(feedbackId: string, issueId: string) {
+  if (isDemo()) {
+    const { mergeFeedbackIntoIssueDemo } = await import("./demoStore");
+    mergeFeedbackIntoIssueDemo(feedbackId, issueId);
+    const issue = await getIssueRemote(issueId);
+    if (!issue) throw new Error("Issue が見つかりません");
+    return;
+  }
   const issue = await getIssueRemote(issueId);
   if (!issue) throw new Error("Issue が見つかりません");
   const ids = Array.from(new Set([...issue.feedbackIds, feedbackId]));
@@ -296,11 +341,83 @@ export async function rejectFeedbackRemote(feedbackId: string, reason: string) {
   });
 }
 
+export async function deleteFeedbackRemote(feedbackId: string): Promise<void> {
+  if (isDemo()) {
+    const { deleteFeedbackDemo } = await import("./demoStore");
+    deleteFeedbackDemo(feedbackId);
+    return;
+  }
+  const fb = await getFeedbackRemote(feedbackId);
+  if (!fb) throw new Error("投稿が見つかりません");
+  const uid = auth.currentUser?.uid;
+  if (!uid || fb.uid !== uid) throw new Error("自分の投稿のみ削除できます");
+  if (fb.issueId) {
+    const issue = await getIssueRemote(fb.issueId);
+    if (issue) {
+      await updateDoc(doc(db, "shapeit_issues", fb.issueId), {
+        feedbackIds: issue.feedbackIds.filter((id) => id !== feedbackId),
+      });
+    }
+  }
+  await deleteDoc(doc(db, "shapeit_feedback", feedbackId));
+  pushAudit({ action: "delete_feedback", entity: "feedback", entityId: feedbackId });
+}
+
 export async function snoozeFeedbackRemote(feedbackId: string, hours: number, untilIso?: string) {
   const until = untilIso || new Date(Date.now() + hours * 3600_000).toISOString();
+  if (isDemo()) {
+    const { snoozeFeedbackDemo } = await import("./demoStore");
+    snoozeFeedbackDemo(feedbackId, hours, until);
+    return;
+  }
   await updateDoc(doc(db, "shapeit_feedback", feedbackId), {
     triageStatus: "snoozed",
     snoozeUntil: until,
+  });
+}
+
+export async function markFeedbackAutoTriagedRemote(feedbackId: string) {
+  if (isDemo()) {
+    const { markFeedbackAutoTriagedDemo } = await import("./demoStore");
+    markFeedbackAutoTriagedDemo(feedbackId);
+    return;
+  }
+  await updateDoc(doc(db, "shapeit_feedback", feedbackId), {
+    autoTriaged: true,
+    updatedAtIso: new Date().toISOString(),
+  });
+}
+
+export async function pushNotificationRemote(input: {
+  title: string;
+  body: string;
+  href?: string;
+  kind?: AppNotification["kind"];
+}) {
+  if (isDemo()) {
+    pushDemoNotification({
+      uid: "demo",
+      title: input.title,
+      body: input.body,
+      href: input.href,
+      kind: input.kind ?? "general",
+      read: false,
+    });
+    return;
+  }
+  const uid = auth.currentUser?.uid;
+  if (!uid) return;
+  const now = new Date().toISOString();
+  await addDoc(collection(db, "shapeit_notifications"), {
+    uid,
+    organizationId: getCurrentOrgId() ?? null,
+    title: input.title,
+    body: input.body,
+    href: input.href ?? null,
+    kind: input.kind ?? "general",
+    read: false,
+    createdAt: serverTimestamp(),
+    createdAtIso: now,
   });
 }
 

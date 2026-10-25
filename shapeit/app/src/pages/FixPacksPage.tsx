@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { encodePackId } from "../lib/pageKey";
 import { listIssuesRemote, listOrgFeedbackRemote, listPackMetaRemote } from "../lib/cloudStore";
 import { buildFixPacks, splitPackIntoClusters, type FixPack } from "../lib/fixPacks";
 import type { FixPackMeta } from "../lib/packMeta";
@@ -119,7 +120,7 @@ function PackRow({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <Link
-            to={`/fix-packs/${pack.id}`}
+            to={`/fix-packs/${encodePackId(pack.pageKey)}`}
             className="break-all text-sm font-semibold text-ink hover:text-mint"
           >
             {pack.label}
@@ -158,11 +159,21 @@ function PackRow({
           <span className="text-lg font-semibold tabular-nums">{pack.openIssueCount}</span>
           <span className="text-[10px] text-ink/50">問題 · 報告 {pack.reportCount}</span>
           <Link
-            to={`/fix-packs/${pack.id}`}
+            to={`/fix-packs/${encodePackId(pack.pageKey)}`}
             className="mt-1 text-xs font-semibold text-mint hover:underline"
           >
-            開いて直す
+            {t("fixpack_open_detail")}
           </Link>
+          {pack.sampleUrl && (
+            <a
+              href={pack.sampleUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[10px] text-ink/50 hover:text-mint"
+            >
+              画面を開く
+            </a>
+          )}
         </div>
       </div>
     </li>

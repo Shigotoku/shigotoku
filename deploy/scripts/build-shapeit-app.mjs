@@ -22,6 +22,10 @@ execSync("npm run build", {
   env: { ...process.env, ...env },
 });
 
+rmSync(out, { recursive: true, force: true });
+mkdirSync(out, { recursive: true });
+cpSync(join(appCwd, "dist"), out, { recursive: true });
+
 console.log("\nPackaging Chrome extension...\n");
 execSync("node scripts/package-shapeit-extension.mjs", {
   cwd: deployDir,
@@ -29,7 +33,4 @@ execSync("node scripts/package-shapeit-extension.mjs", {
   shell: true,
 });
 
-rmSync(out, { recursive: true, force: true });
-mkdirSync(out, { recursive: true });
-cpSync(join(appCwd, "dist"), out, { recursive: true });
 console.log(`\n✓ shapeit-app -> ${out}`);

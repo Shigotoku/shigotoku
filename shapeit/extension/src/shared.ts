@@ -73,6 +73,44 @@ export async function getActiveTabMeta(): Promise<{
   };
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** キャプチャ直前に ShapeIt の UI を隠し、描画が落ち着くまで待つ */
+async function prepareTabForCapture(tabId: number): Promise<void> {
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => {
+        document.getElementById("shapeit-region-overlay")?.remove();
+        document.getElementById("shapeit-element-overlay")?.remove();
+        const fab = document.getElementById("shapeit-fab-host");
+        if (fab) fab.style.display = "none";
+        const overlay = document.getElementById("shapeit-overlay-host");
+        if (overlay) overlay.style.display = "none";
+      },
+    });
+  } catch {
+    /* ignore */
+  }
+  await sleep(150);
+}
+
+async function restoreTabAfterCapture(tabId: number): Promise<void> {
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => {
+        const fab = document.getElementById("shapeit-fab-host");
+        if (fab) fab.style.display = "";
+      },
+    });
+  } catch {
+    /* ignore */
+  }
+}
+
 export async function captureVisibleTab(windowId: number): Promise<string | undefined> {
   return new Promise((resolve) => {
     chrome.tabs.captureVisibleTab(windowId, { format: "jpeg", quality: 92 }, (dataUrl) => {
@@ -111,7 +149,13 @@ export async function captureFullOnTab(tabId: number, windowId: number): Promise
   if (!isCapturableUrl(pageUrl)) {
     return { pageUrl, pageTitle, captureMode: "full" };
   }
-  const screenshotDataUrl = await captureVisibleTab(windowId);
+  await prepareTabForCapture(tabId);
+  let screenshotDataUrl: string | undefined;
+  try {
+    screenshotDataUrl = await captureVisibleTab(windowId);
+  } finally {
+    await restoreTabAfterCapture(tabId);
+  }
   return { pageUrl, pageTitle, screenshotDataUrl, captureMode: "full" };
 }
 
@@ -131,7 +175,13 @@ export async function captureRegionOnTab(tabId: number, windowId: number): Promi
   const rect = await requestRegionSelection(tabId);
   if (!rect) return { pageUrl, pageTitle, captureMode: "region" };
 
-  const fullShot = await captureVisibleTab(windowId);
+  await prepareTabForCapture(tabId);
+  let fullShot: string | undefined;
+  try {
+    fullShot = await captureVisibleTab(windowId);
+  } finally {
+    await restoreTabAfterCapture(tabId);
+  }
   if (!fullShot) return { pageUrl, pageTitle, captureMode: "region" };
 
   try {
@@ -160,7 +210,13 @@ export async function captureElementOnTab(tabId: number, windowId: number): Prom
   const rect = await requestElementSelection(tabId);
   if (!rect) return { pageUrl, pageTitle, captureMode: "element" };
 
-  const fullShot = await captureVisibleTab(windowId);
+  await prepareTabForCapture(tabId);
+  let fullShot: string | undefined;
+  try {
+    fullShot = await captureVisibleTab(windowId);
+  } finally {
+    await restoreTabAfterCapture(tabId);
+  }
   if (!fullShot) return { pageUrl, pageTitle, captureMode: "element" };
 
   try {
