@@ -61,9 +61,16 @@ const prev = gsc.filter((r) => r.date >= prevFrom && r.date <= prevTo);
 const pagePath = (u) => { try { return new URL(u).pathname; } catch { return u; } };
 const sum = (rows, k) => rows.reduce((s, r) => s + r[k], 0);
 const tot = (rows) => { const i = sum(rows, 'impressions'); return { clicks: sum(rows, 'clicks'), impressions: i, ctr: i ? sum(rows, 'clicks') / i : 0, position: i ? rows.reduce((s, r) => s + r.position * r.impressions, 0) / i : 0 }; };
-const T = tot(cur), P = tot(prev);
+// ページ別の合計(data/gsc-page)があれば、サイト合計とページ別の数値はそれを使う。
+// クエリ別の行(data/gsc)は匿名化クエリが除外されクリックの一部しか含まないため、クエリ分析専用にする。
+const gscPage = readDir('gsc-page').map((r) => ({ ...r, page: normUrl(r.page) }));
+const curP = gscPage.filter((r) => r.date >= curFrom && r.date <= latest);
+const prevP = gscPage.filter((r) => r.date >= prevFrom && r.date <= prevTo);
+const hasPageTotals = curP.length > 0;
+const T = tot(hasPageTotals ? curP : cur), P = tot(hasPageTotals ? prevP : prev);
+if (hasPageTotals) console.log(`クエリ別で見えるクリック: ${(tot(cur).clicks / (T.clicks || 1) * 100).toFixed(0)}% (残りは匿名化クエリ)`);
 
-const pages = agg(cur, (r) => r.page), pagesPrev = agg(prev, (r) => r.page);
+const pages = agg(hasPageTotals ? curP : cur, (r) => r.page), pagesPrev = agg(hasPageTotals ? prevP : prev, (r) => r.page);
 const pq = agg(cur, (r) => r.page + '\t' + r.query);
 const queries = agg(cur, (r) => r.query);
 

@@ -45,11 +45,34 @@ async function fetchDay(date) {
   return rows;
 }
 
+// ページ別の合計(クエリ次元なし)。クエリ別の行は匿名化クエリが除外されるためクリックの大半が欠ける
+// (メディトクで実測: クリックの約27%しか見えない)。ページ単位の正確な合計はこちらを使う。
+const PAGE_OUT = ensureDir(dataDir('gsc-page'));
+async function fetchPageDay(date) {
+  const rows = [];
+  for (let startRow = 0; ; startRow += ROW_LIMIT) {
+    const res = await client.request({
+      url: endpoint,
+      method: 'POST',
+      data: { startDate: date, endDate: date, dimensions: ['date', 'page'], rowLimit: ROW_LIMIT, startRow, dataState: 'final' },
+    });
+    const batch = res.data.rows ?? [];
+    for (const r of batch) {
+      const [d, page] = r.keys;
+      rows.push({ date: d, page, clicks: r.clicks, impressions: r.impressions, ctr: r.ctr, position: r.position });
+    }
+    if (batch.length < ROW_LIMIT) break;
+  }
+  return rows;
+}
+
 let day = new Date(from);
 let total = 0;
 while (day <= to) {
   const date = ymd(day);
   try {
+    const pageRows = await fetchPageDay(date);
+    writeFileSync(join(PAGE_OUT, `${date}.ndjson`), pageRows.map((r) => JSON.stringify(r)).join('\n') + (pageRows.length ? '\n' : ''));
     const rows = await fetchDay(date);
     writeFileSync(join(OUT, `${date}.ndjson`), rows.map((r) => JSON.stringify(r)).join('\n') + (rows.length ? '\n' : ''));
     total += rows.length;
