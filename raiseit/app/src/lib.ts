@@ -38,6 +38,7 @@ export type Summary = {
   seo: { clicks: number; impressions: number; ctrPct: number; position: number; prev: { clicks: number; impressions: number; ctrPct: number; position: number }; queryCoveragePct: number };
   conversion: { leadsPer100Clicks: number; note: string };
   landing: { path: string; sessions: number; leads: number; cvrPct: number }[];
+  audit?: { date: string | null; checked: number; clean: number };
   actions: Action[];
   thisWeek: string[];
   skipList: { id: string; title: string; reason: string }[];
@@ -50,3 +51,15 @@ export type Finding = { rule: string; severity: string; label: string; line: num
 export const pct = (n: number | null | undefined) => (n == null ? "-" : `${n > 0 ? "+" : ""}${n}%`);
 export const yen = (n: number) => n.toLocaleString("ja-JP");
 
+
+export type Detail = {
+  period: { from: string; to: string; prevFrom: string; prevTo: string; days: number };
+  notes: { queries: string; devices: string };
+  daily: { date: string; clicks: number; impressions: number; position: number; sessions: number; engaged: number; leads: number; formStart: number }[];
+  queries: { query: string; clicks: number; impressions: number; ctrPct: number; position: number; prevClicks: number; prevImpressions: number; prevPosition: number; topPage: string }[];
+  pages: { path: string; clicks: number; impressions: number; ctrPct: number; position: number; prevClicks: number; prevImpressions: number; prevPosition: number; sessions: number; leads: number; cvrPct: number }[];
+  sources: { name: string; channel: string; sessions: number; prevSessions: number; engaged: number; engagedPct: number }[];
+  devices: { device: string; clicks: number; impressions: number; ctrPct: number; position: number; prevClicks: number }[];
+  views: { path: string; views: number; prevViews: number; sessions: number; avgEngageSec: number; engagedPct: number }[];
+  weekdays: { dow: string; sessions: number; leads: number; clicks: number }[];
+};

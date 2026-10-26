@@ -101,6 +101,36 @@ api.get('/summary', async (req, res) => {
   res.json({ summary, state });
 });
 
+// 施策の記録(効果測定の起点)。data/<site>/actions/<date>.ndjson に追記する
+async function appendAction(siteId, row) {
+  const file = bucket.file(`tenants/${TENANT}/${siteId}/data/actions/${row.date}.ndjson`);
+  const [exists] = await file.exists();
+  const old = exists ? (await file.download())[0].toString('utf8') : '';
+  await file.save(old + JSON.stringify(row) + '\n', { contentType: 'application/x-ndjson' });
+}
+
+api.get('/detail', async (req, res) => {
+  const site = await siteOf(req, res);
+  if (!site) return;
+  const f = bucket.file(`tenants/${TENANT}/${site.id}/reports/detail.json`);
+  const [ok] = await f.exists();
+  if (!ok) return res.status(404).json({ error: 'detail not ready' });
+  res.setHeader('Cache-Control', 'no-store');
+  res.type('json').send((await f.download())[0]);
+});
+
+// 過去の施策を後から記録する(日付は過去でも可)
+api.post('/history', canWrite, async (req, res) => {
+  const site = await siteOf(req, res);
+  if (!site) return;
+  const date = String(req.body?.date || '');
+  const note = String(req.body?.note || '').trim().slice(0, 300);
+  const url = String(req.body?.url || '').trim().slice(0, 500);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !note || (url && !/^https?:\/\//.test(url))) return res.status(400).json({ error: 'bad request' });
+  await appendAction(site.id, { date, url, note, recordedAt: new Date().toISOString(), by: req.user.email });
+  await org.collection('auditLogs').add({ at: FieldValue.serverTimestamp(), by: req.user.email, type: 'history.add', siteId: site.id, date, note });
+  res.json({ ok: true });
+});
 api.post('/actions/:id', canWrite, async (req, res) => {
   const site = await siteOf(req, res);
   if (!site) return;
@@ -115,12 +145,8 @@ api.post('/actions/:id', canWrite, async (req, res) => {
   // 「実施済み」は効果測定の起点として data/<site>/actions に追記する(夜間ジョブが前後比較する)
   if (status === 'done' && prev !== 'done') {
     const date = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
-    const file = bucket.file(`tenants/${TENANT}/${site.id}/data/actions/${date}.ndjson`);
-    const [exists] = await file.exists();
-    const old = exists ? (await file.download())[0].toString('utf8') : '';
     const title = String(req.body?.title || actionId).slice(0, 200);
-    const row = { date, url: String(req.body?.url || '').slice(0, 500), note: `${title}${note ? ' / ' + note : ''}`, actionId, recordedAt: new Date().toISOString() };
-    await file.save(old + JSON.stringify(row) + '\n', { contentType: 'application/x-ndjson' });
+    await appendAction(site.id, { date, url: String(req.body?.url || '').slice(0, 500), note: `${title}${note ? ' / ' + note : ''}`, actionId, recordedAt: new Date().toISOString() });
   }
   res.json({ ok: true });
 });

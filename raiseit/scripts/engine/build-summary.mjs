@@ -4,6 +4,7 @@ import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadEnv, readSites, dataDir, reportDir, ensureDir, ymd } from '../lib.mjs';
 import { buildSummary } from './insights.mjs';
+import { buildDetail } from './detail.mjs';
 
 loadEnv();
 
@@ -22,6 +23,14 @@ function readDir(sub) {
 
 const id = process.env.SITE_ID;
 const site = readSites().find((s) => s.id === id) ?? { id, name: process.env.SITE_NAME || id, industry: process.env.SITE_INDUSTRY || '' };
+const src = {
+  gscPage: readDir('gsc-page'),
+  gscQuery: readDir('gsc'),
+  ga4: readDir('ga4'),
+  ga4src: readDir('ga4src'),
+  ga4ev: readDir('ga4ev'),
+  ga4conv: readDir('ga4conv'),
+};
 const summary = buildSummary({
   site,
   today: ymd(new Date()),
@@ -35,5 +44,7 @@ const summary = buildSummary({
   audit: readDir('audit'),
 });
 const out = ensureDir(reportDir());
+const detail = buildDetail({ ...src, today: ymd(new Date()), leadEvent: summary.northStar.event ?? '', formEvent: site.formStartEvent || 'form_start' });
+writeFileSync(join(out, 'detail.json'), JSON.stringify(detail));
 writeFileSync(join(out, 'summary.json'), JSON.stringify(summary, null, 2));
 console.log(`summary.json: 成果 ${summary.northStar.cur}件(前期間 ${summary.northStar.prev}) / アクション ${summary.actions.length}件 / 今週 ${summary.thisWeek.join(', ') || '-'} → ${out}`);

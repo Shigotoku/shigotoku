@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import type { Action } from "./lib";
-import { Bars, Card, Delta, useData } from "./ui";
+import { api, type Action } from "./lib";
+import { Card, useData } from "./ui";
 
 const RISK = { low: "低", mid: "中", high: "高" } as const;
 const RISK_CLS = { low: "bg-emerald-50 text-emerald-700", mid: "bg-amber-50 text-amber-700", high: "bg-rose-50 text-rose-700" } as const;
@@ -63,64 +62,6 @@ export function ActionCard({ a, compact = false }: { a: Action; compact?: boolea
   );
 }
 
-export function Home() {
-  const { summary: s, state, loading } = useData();
-  if (loading && !s) return <p className="text-slate-500">読み込み中…</p>;
-  if (!s) return null;
-  const week = s.thisWeek.map((id) => s.actions.find((a) => a.id === id)).filter((a): a is Action => !!a && (state[a.id]?.status ?? "open") !== "skipped");
-  const n = s.northStar;
-  return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-bold">{s.site.name} の今月の結論</h1>
-        <p className="text-xs text-slate-500">{s.period.from} 〜 {s.period.to}(直近{s.period.days}日)</p>
-      </div>
-
-      <Card>
-        <div className="text-sm text-slate-500">{n.label}(最重要の成果指標)</div>
-        <div className="flex items-end gap-3">
-          <div className="text-5xl font-bold">{n.cur}<span className="text-lg font-normal">件</span></div>
-          <Delta cur={n.cur} prev={n.prev} unit="件" />
-        </div>
-        <div className="mt-3">
-          <Bars values={n.weekly.map((w) => w.leads)} labels={n.weekly.map((w) => `${w.from}〜${w.to}`)} />
-          <div className="text-[10px] text-slate-400 mt-1">週ごとの推移(直近12週)</div>
-        </div>
-        <p className="text-xs text-slate-400 mt-2">{n.note}</p>
-      </Card>
-
-      <div className="grid grid-cols-3 gap-2 text-center">
-        <Card><div className="text-[11px] text-slate-500">検索クリック</div><div className="text-xl font-bold">{s.seo.clicks.toLocaleString()}</div><Delta cur={s.seo.clicks} prev={s.seo.prev.clicks} /></Card>
-        <Card><div className="text-[11px] text-slate-500">セッション</div><div className="text-xl font-bold">{s.funnel.sessions.toLocaleString()}</div><Delta cur={s.funnel.sessions} prev={s.funnel.sessionsPrev} /></Card>
-        <Card><div className="text-[11px] text-slate-500">AI経由</div><div className="text-xl font-bold">{s.ai.sessions}</div><Delta cur={s.ai.sessions} prev={s.ai.prev} /></Card>
-      </div>
-
-      <div>
-        <h2 className="font-bold mb-2">今週やること({week.length}件)</h2>
-        {week.length === 0 && <Card><p className="text-sm text-slate-500">今週の必須施策はありません。</p></Card>}
-        <div className="space-y-3">{week.map((a) => <ActionCard key={a.id} a={a} compact />)}</div>
-        <Link to="/actions" className="block text-center text-sm text-mint underline mt-3">すべての改善候補({s.actions.length}件)を見る</Link>
-      </div>
-
-      {s.skipList.length > 0 && (
-        <Card>
-          <h2 className="font-bold text-sm mb-1">今月はやらないこと</h2>
-          <ul className="text-sm space-y-1">{s.skipList.slice(0, 3).map((k) => <li key={k.id}><span className="text-slate-700">{k.title}</span><div className="text-xs text-slate-500">{k.reason}</div></li>)}</ul>
-        </Card>
-      )}
-
-      <Card>
-        <h2 className="font-bold text-sm mb-1">データの鮮度</h2>
-        <ul className="text-xs space-y-0.5">
-          {s.freshness.map((f) => (
-            <li key={f.id} className="flex justify-between"><span>{f.label}</span><span className={f.status === "ok" ? "text-emerald-600" : f.status === "missing" ? "text-rose-600" : "text-amber-600"}>{f.latest ?? "未取得"}{f.lagDays != null ? `(${f.lagDays}日前)` : ""}</span></li>
-          ))}
-        </ul>
-      </Card>
-    </div>
-  );
-}
-
 export function ActionsPage() {
   const { summary: s, state } = useData();
   const [showDone, setShowDone] = useState(false);
@@ -131,7 +72,7 @@ export function ActionsPage() {
       <h1 className="text-xl font-bold">改善候補</h1>
       <p className="text-sm text-slate-500">期待成果 × 確度 ÷ 手間 の順に並べています。期待効果は「問い合わせ件数」に換算した幅つきの推定です。</p>
       <label className="text-sm flex items-center gap-2"><input type="checkbox" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} />実施済み・見送りも表示</label>
-      <div className="space-y-3">{list.map((a) => <ActionCard key={a.id} a={a} compact />)}</div>
+      <div className="grid xl:grid-cols-2 gap-3 items-start">{list.map((a) => <ActionCard key={a.id} a={a} compact />)}</div>
       {list.length === 0 && <Card><p className="text-sm text-slate-500">対応が必要な候補はありません。</p></Card>}
     </div>
   );
@@ -140,23 +81,53 @@ export function ActionsPage() {
 const V: Record<string, string> = { measuring: "計測中", up: "増加傾向", down: "減少傾向", flat: "横ばい", unknown: "判定不能(母数不足)" };
 
 export function HistoryPage() {
-  const { summary: s, state } = useData();
+  const { summary: s, site, role, reload } = useData();
+  const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+  const [date, setDate] = useState(today);
+  const [url, setUrl] = useState("");
+  const [note, setNote] = useState("");
+  const [msg, setMsg] = useState("");
   if (!s) return null;
-  const done = s.actions.filter((a) => state[a.id]?.status === "done");
+  const add = async () => {
+    setMsg("");
+    try {
+      await api("/history", { method: "POST", body: { site, date, url, note } });
+      setNote("");
+      setUrl("");
+      setMsg("記録しました。効果測定は翌朝の更新から反映されます。");
+      await reload();
+    } catch {
+      setMsg("記録できませんでした(日付・URLの形式を確認してください)。");
+    }
+  };
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-bold">施策履歴と効果</h1>
-      {s.effects.length === 0 && <Card><p className="text-sm text-slate-500">まだ「実施した」施策がありません。実施済みにすると、翌朝から14日間の前後比較を始めます。</p></Card>}
-      {s.effects.map((e, i) => (
-        <Card key={i} className="space-y-1">
-          <div className="text-xs text-slate-500">{e.date}{e.url ? ` / ${e.url}` : ""}</div>
-          <div className="font-semibold text-sm">{e.note}</div>
-          <div className="text-sm">判定:<b>{V[e.verdict] ?? e.verdict}</b>(経過{e.days}日)</div>
-          <div className="text-xs text-slate-600">クリック: 実施前14日 {e.before.clicks ?? 0} → 実施後 {e.after ? e.after.clicks : "計測待ち"}</div>
-          <div className="text-[11px] text-slate-400">{e.caveat}</div>
+      {["owner", "admin", "editor"].includes(role) && (
+        <Card className="space-y-2">
+          <h2 className="font-bold text-sm">過去の施策を記録する</h2>
+          <p className="text-xs text-slate-500">サイトを変更した日付と内容を残すと、その前後14日の検索クリックを比較します(URLを入れるとそのページだけを比較)。</p>
+          <div className="grid md:grid-cols-12 gap-2">
+            <input type="date" className="md:col-span-2 border rounded-lg p-2" value={date} max={today} onChange={(e) => setDate(e.target.value)} />
+            <input className="md:col-span-4 border rounded-lg p-2" placeholder="対象URL(省略でサイト全体)" value={url} onChange={(e) => setUrl(e.target.value)} />
+            <input className="md:col-span-5 border rounded-lg p-2" placeholder="内容(例: タイトルを変更)" value={note} onChange={(e) => setNote(e.target.value)} />
+            <button onClick={add} disabled={!note.trim()} className="md:col-span-1 rounded-lg bg-ink text-white disabled:opacity-40">記録</button>
+          </div>
+          {msg && <p className="text-xs text-slate-600">{msg}</p>}
         </Card>
-      ))}
-      {done.length > 0 && <p className="text-xs text-slate-400">実施済み {done.length} 件</p>}
+      )}
+      {s.effects.length === 0 && <Card><p className="text-sm text-slate-500">まだ記録がありません。</p></Card>}
+      <div className="grid lg:grid-cols-2 gap-3">
+        {s.effects.map((e, i) => (
+          <Card key={i} className="space-y-1">
+            <div className="text-xs text-slate-500">{e.date}{e.url ? ` / ${e.url}` : " / サイト全体"}</div>
+            <div className="font-semibold text-sm">{e.note}</div>
+            <div className="text-sm">判定:<b>{V[e.verdict] ?? e.verdict}</b>{e.days < 1 ? "(実施日のデータが反映されるまで計測待ち)" : `(経過${e.days}日)`}</div>
+            <div className="text-xs text-slate-600">クリック: 実施前14日 {e.before.clicks ?? 0} → 実施後{Math.max(0, e.afterDays)}日 {e.after ? e.after.clicks : "計測待ち"}</div>
+            <div className="text-[11px] text-slate-400">{e.caveat}</div>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 }

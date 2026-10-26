@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { NavLink, Route, Routes } from "react-router-dom";
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, type User } from "firebase/auth";
-import { api, auth, type ActionState, type Summary } from "./lib";
+import { api, auth, type ActionState, type Detail, type Summary } from "./lib";
 import { C, type Ctx } from "./ui";
 import AuthAction from "./AuthAction";
-import { ActionsPage, HistoryPage, Home } from "./pages-main";
+import { ActionsPage, HistoryPage } from "./pages-main";
+import { Home } from "./pages-home";
 import { CompliancePage, FunnelPage, SettingsPage } from "./pages-other";
+import { DetailPage } from "./pages-detail";
 
 
 function Login() {
@@ -43,6 +45,7 @@ function Login() {
 
 function Shell({ user }: { user: User }) {
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [detail, setDetail] = useState<Detail | null>(null);
   const [state, setState] = useState<ActionState>({});
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -62,6 +65,7 @@ function Shell({ user }: { user: User }) {
       const r = await api<{ summary: Summary; state: ActionState }>(`/summary?site=${id}`);
       setSummary(r.summary);
       setState(r.state);
+      api<Detail>(`/detail?site=${id}`).then(setDetail).catch(() => setDetail(null));
     } catch (e) {
       const s = (e as { status?: number }).status;
       setError(s === 403 ? "このアカウントには権限がありません。管理者に追加を依頼してください。" : s === 404 ? "集計データがまだ作成されていません(翌朝に反映されます)。" : "読み込みに失敗しました。");
@@ -80,29 +84,30 @@ function Shell({ user }: { user: User }) {
     }
   };
 
-  const nav = [["/", "今月の結論"], ["/actions", "改善候補"], ["/funnel", "流入・漏斗"], ["/compliance", "文案チェック"], ["/history", "施策履歴"], ["/settings", "設定"]] as const;
+  const nav = [["/", "今月の結論"], ["/actions", "改善候補"], ["/funnel", "流入・漏斗"], ["/detail", "詳細データ"], ["/compliance", "文案チェック"], ["/history", "施策履歴"], ["/settings", "設定"]] as const;
   return (
-    <C.Provider value={{ summary, state, error, loading, role, email: user.email ?? "", reload: load, setStatus }}>
-      <div className="min-h-dvh pb-20 lg:pb-0 lg:pl-52">
-        <aside className="hidden lg:flex fixed inset-y-0 left-0 w-52 flex-col bg-ink text-white p-4 gap-1">
+    <C.Provider value={{ summary, detail, site, state, error, loading, role, email: user.email ?? "", reload: load, setStatus }}>
+      <div className="min-h-dvh pb-20 lg:pb-0 lg:pl-44">
+        <aside className="hidden lg:flex fixed inset-y-0 left-0 w-44 flex-col bg-ink text-white p-4 gap-1">
           <div className="text-lg font-bold mb-4">レイジット</div>
           {nav.map(([to, label]) => (
             <NavLink key={to} to={to} end={to === "/"} className={({ isActive }) => `rounded-lg px-3 py-2 text-sm ${isActive ? "bg-white/15 font-semibold" : "text-white/70"}`}>{label}</NavLink>
           ))}
           <button onClick={() => signOut(auth)} className="mt-auto text-left text-xs text-white/60 px-3">ログアウト</button>
         </aside>
-        <main className="max-w-3xl mx-auto p-4 lg:p-8">
+        <main className="w-full p-3 lg:p-5">
           {error && <div className="mb-4 rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm">{error}</div>}
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/actions" element={<ActionsPage />} />
             <Route path="/funnel" element={<FunnelPage />} />
+            <Route path="/detail" element={<DetailPage />} />
             <Route path="/compliance" element={<CompliancePage />} />
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </main>
-        <nav className="lg:hidden fixed bottom-0 inset-x-0 bg-white border-t grid grid-cols-6 text-[10px] pb-[env(safe-area-inset-bottom)]">
+        <nav className="lg:hidden fixed bottom-0 inset-x-0 bg-white border-t grid grid-cols-7 text-[10px] pb-[env(safe-area-inset-bottom)]">
           {nav.map(([to, label]) => (
             <NavLink key={to} to={to} end={to === "/"} className={({ isActive }) => `py-3 text-center ${isActive ? "text-mint font-bold" : "text-slate-500"}`}>{label.replace("・", "")}</NavLink>
           ))}
