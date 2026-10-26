@@ -38,6 +38,7 @@ export type Summary = {
   seo: { clicks: number; impressions: number; ctrPct: number; position: number; prev: { clicks: number; impressions: number; ctrPct: number; position: number }; queryCoveragePct: number };
   conversion: { leadsPer100Clicks: number; note: string };
   landing: { path: string; sessions: number; orgSessions: number; sessionPerClick: number; leads: number; cvrPct: number }[];
+  competitors?: Competitor[];
   audit?: { date: string | null; checked: number; clean: number };
   actions: Action[];
   thisWeek: string[];
@@ -64,3 +65,5 @@ export type Detail = {
   views: { path: string; views: number; prevViews: number; sessions: number; avgEngageSec: number; engagedPct: number }[];
   weekdays: { dow: string; sessions: number; leads: number; clicks: number }[];
 };
+
+export type Competitor = { id: string; name: string; url: string; ok: boolean; note: string; lastDate: string; home: { title: string; desc: string; h1Count: number; jsonldTypes: string[] } | null; sitemapCount: number | null; sitemapTrend: { date: string; count: number | null }[]; newCount: number; newPages: { url: string; title?: string; desc?: string; date: string }[]; removedCount: number; weeks: number };

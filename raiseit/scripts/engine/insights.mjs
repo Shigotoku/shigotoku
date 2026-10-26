@@ -50,7 +50,7 @@ export function pickConversion(site, events) {
 const confLabel = (c) => (c >= 0.7 ? '高' : c >= 0.45 ? '中' : '低');
 
 /**
- * @param input {{site, today, gscPage, gscQuery, ga4src, ga4ev, ga4conv, psi, actions, audit}}
+ * @param input {{site, today, gscPage, gscQuery, ga4src, ga4ev, ga4conv, psi, actions, audit, competitors}}
  * @param opts  {{days?: number}}
  */
 export function buildSummary(input, opts = {}) {
@@ -250,6 +250,34 @@ export function buildSummary(input, opts = {}) {
         value: 3, confidence: 0.7, effortMin: 60, risk: 'low', approval: 'none',
       });
     }
+  }
+  // 競合の定点観測(公開情報の週次スナップショット)
+  const cmpRows = input.competitors ?? [];
+  const competitors = [...new Set(cmpRows.map((r) => r.id))].map((id) => {
+    const rows = cmpRows.filter((r) => r.id === id).sort((a, b) => (a.date < b.date ? -1 : 1));
+    const last = rows[rows.length - 1];
+    const since = addDays(latest, -(N - 1));
+    const seen = new Set();
+    const newPages = [];
+    for (const r of rows.filter((x) => x.date >= since)) for (const u of r.newUrls ?? []) if (!seen.has(u.url)) { seen.add(u.url); newPages.push({ ...u, date: r.date }); }
+    const newCount = rows.filter((x) => x.date >= since).reduce((n, r) => n + (r.newCount ?? 0), 0);
+    return {
+      id, name: last.name, url: last.url, ok: last.ok !== false, note: last.note ?? '', lastDate: last.date,
+      home: last.home ?? null, sitemapCount: last.sitemapCount ?? null,
+      sitemapTrend: rows.slice(-12).map((r) => ({ date: r.date, count: r.sitemapCount ?? null })),
+      newCount, newPages: newPages.slice(0, 15), removedCount: rows.filter((x) => x.date >= since).reduce((n, r) => n + (r.removedCount ?? 0), 0),
+      weeks: rows.length,
+    };
+  });
+  for (const c of competitors.filter((x) => x.newCount >= 3)) {
+    push({
+      id: `cmp-new-${c.id}`, rule: 'competitor.new-pages', category: '競合',
+      title: `競合「${c.name}」が直近${N}日で新規ページを${c.newCount}本公開しています`,
+      why: [`サイトマップ上の新規ページ: ${c.newPages.slice(0, 4).map((p) => p.title || pathOf(p.url)).join(' / ')}`, '競合が注力しているテーマの手がかりです(あくまで公開ページの題名からの推測です)。'],
+      how: ['新規ページのテーマを確認し、自社に同等のページがあるか、内容が劣っていないかを見る。', '内容の模倣はしない。自社の強み・一次情報で差をつける。'],
+      impact: { kind: 'quality', basis: '市場の動きの把握(件数には換算しない)' },
+      value: 0.5, confidence: 0.25, effortMin: 30, risk: 'low', approval: 'none',
+    });
   }
   // AI 検索
   push({
@@ -489,6 +517,7 @@ export function buildSummary(input, opts = {}) {
     site: { id: site.id, name: site.name, industry: site.industry || '' },
     period: { latest, from: curFrom, to: latest, days: N, prevFrom, prevTo },
     northStar, funnel, channels, ai, seo, conversion, landing,
+    competitors,
     audit: { date: auditDate, checked: audit.length, clean: audit.length ? audit.filter((r) => r.status === 200 && !r.blocks?.length).length : 0 },
     actions, thisWeek, skipList, effects, freshness, limits,
     pagesTop: [...pagesCur.values()].sort((a, b) => b.impressions - a.impressions).slice(0, 15).map((a) => ({ path: a.path, clicks: a.clicks, impressions: a.impressions, ctrPct: round(a.ctr * 100, 2), position: round(a.position, 1), prevClicks: pagesPrev.get(a.path)?.clicks ?? 0 })),

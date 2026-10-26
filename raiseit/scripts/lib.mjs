@@ -53,6 +53,7 @@ export function applySite() {
     process.env.SITE_CONVERSION_EVENTS = (s.conversionEvents ?? []).join(',');
     process.env.SITE_PRIMARY_CONVERSION = s.primaryConversion ?? '';
     process.env.SITE_FORM_START_EVENT = s.formStartEvent ?? '';
+    process.env.SITE_COMPETITORS = JSON.stringify(s.competitors ?? []);
   } else {
     process.env.SITE_ID ||= 'default';
     process.env.SITE_NAME ||= process.env.SITE_ID;

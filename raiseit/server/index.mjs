@@ -200,6 +200,43 @@ api.patch('/members/:uid', isAdmin, async (req, res) => {
   res.json({ ok: true });
 });
 
+// ---- 競合の登録(観測対象)。夜間ジョブ(週次)が公開情報だけを読み取る ----
+function safeCompetitorUrl(raw) {
+  let u;
+  try {
+    u = new URL(String(raw).trim());
+  } catch {
+    return null;
+  }
+  const h = u.hostname.toLowerCase();
+  if (!['http:', 'https:'].includes(u.protocol) || !h.includes('.') || /^\d+(\.\d+){3}$/.test(h) || h.includes(':') || /(^|\.)(local|localhost|internal|lan)$/.test(h) || u.username || u.password) return null;
+  return u.origin + (u.pathname === '/' ? '/' : u.pathname);
+}
+
+api.get('/competitors', async (req, res) => {
+  const site = await siteOf(req, res);
+  res.json(site ? site.competitors ?? [] : []);
+});
+
+api.put('/competitors', isAdmin, async (req, res) => {
+  const site = await siteOf(req, res);
+  if (!site) return;
+  const list = Array.isArray(req.body?.competitors) ? req.body.competitors.slice(0, 10) : null;
+  if (!list) return res.status(400).json({ error: 'bad request' });
+  const out = [];
+  for (const c of list) {
+    const url = safeCompetitorUrl(c?.url);
+    const name = String(c?.name || '').trim().slice(0, 60);
+    if (!url || !name) return res.status(400).json({ error: `不正な競合: ${name || c?.url}` });
+    const id = new URL(url).hostname.replace(/^www\./, '').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+    if (out.some((x) => x.id === id)) continue;
+    out.push({ id, name, url });
+  }
+  await org.collection('sites').doc(site.id).set({ competitors: out }, { merge: true });
+  await org.collection('auditLogs').add({ at: FieldValue.serverTimestamp(), by: req.user.email, type: 'competitors.update', siteId: site.id, count: out.length });
+  res.json(out);
+});
+
 api.get('/runs', async (_req, res) => {
   const s = await org.collection('runs').orderBy('finishedAt', 'desc').limit(14).get();
   res.json(s.docs.map((d) => ({ id: d.id, ...d.data() })));

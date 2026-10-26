@@ -94,6 +94,7 @@ function steps(site) {
   }
   if (new Date().getUTCDay() === 1 && process.env.PSI_API_KEY) list.push(['fetch-psi.mjs', []]);
   list.push(['fetch-site-audit.mjs', []]);
+  list.push(['fetch-competitors.mjs', []]);
   list.push(['analyze.mjs', []]);
   list.push(['engine/build-summary.mjs', []]);
   return list.filter(([s]) => !(s === 'fetch-search-console.mjs' && !site.gscSite));

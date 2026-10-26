@@ -42,6 +42,7 @@ const summary = buildSummary({
   psi: readDir('psi'),
   actions: readDir('actions'),
   audit: readDir('audit'),
+  competitors: readDir('competitors'),
 });
 const out = ensureDir(reportDir());
 const dctx = { ...src, today: ymd(new Date()), leadEvent: summary.northStar.event ?? '', formEvent: site.formStartEvent || 'form_start', brandTerms: [site.name, ...(site.brandTerms ?? [])] };

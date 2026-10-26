@@ -8,6 +8,7 @@ import { ActionsPage, HistoryPage } from "./pages-main";
 import { Home } from "./pages-home";
 import { CompliancePage, FunnelPage, SettingsPage } from "./pages-other";
 import { DetailPage } from "./pages-detail";
+import { CompetitorsPage } from "./pages-competitors";
 
 
 function Login() {
@@ -84,7 +85,7 @@ function Shell({ user }: { user: User }) {
     }
   };
 
-  const nav = [["/", "今月の結論"], ["/actions", "改善候補"], ["/funnel", "流入・漏斗"], ["/detail", "詳細データ"], ["/compliance", "文案チェック"], ["/history", "施策履歴"], ["/settings", "設定"]] as const;
+  const nav = [["/", "今月の結論"], ["/actions", "改善候補"], ["/funnel", "流入・漏斗"], ["/detail", "詳細データ"], ["/competitors", "競合"], ["/compliance", "文案チェック"], ["/history", "施策履歴"], ["/settings", "設定"]] as const;
   return (
     <C.Provider value={{ summary, detail, site, state, error, loading, role, email: user.email ?? "", reload: load, setStatus }}>
       <div className="min-h-dvh pb-20 lg:pb-0 lg:pl-44">
@@ -102,12 +103,13 @@ function Shell({ user }: { user: User }) {
             <Route path="/actions" element={<ActionsPage />} />
             <Route path="/funnel" element={<FunnelPage />} />
             <Route path="/detail" element={<DetailPage />} />
+            <Route path="/competitors" element={<CompetitorsPage />} />
             <Route path="/compliance" element={<CompliancePage />} />
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </main>
-        <nav className="lg:hidden fixed bottom-0 inset-x-0 bg-white border-t grid grid-cols-7 text-[10px] pb-[env(safe-area-inset-bottom)]">
+        <nav className="lg:hidden fixed bottom-0 inset-x-0 bg-white border-t grid grid-cols-8 text-[10px] pb-[env(safe-area-inset-bottom)]">
           {nav.map(([to, label]) => (
             <NavLink key={to} to={to} end={to === "/"} className={({ isActive }) => `py-3 text-center ${isActive ? "text-mint font-bold" : "text-slate-500"}`}>{label.replace("・", "")}</NavLink>
           ))}
