@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { NavLink, Route, Routes } from "react-router-dom";
-import { onAuthStateChanged, sendPasswordResetEmail, signInWithEmailAndPassword, signOut, type User } from "firebase/auth";
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut, type User } from "firebase/auth";
 import { api, auth, type ActionState, type Summary } from "./lib";
 import { C, type Ctx } from "./ui";
+import AuthAction from "./AuthAction";
 import { ActionsPage, HistoryPage, Home } from "./pages-main";
 import { CompliancePage, FunnelPage, SettingsPage } from "./pages-other";
 
@@ -23,15 +24,6 @@ function Login() {
     }
     setBusy(false);
   };
-  const reset = async () => {
-    if (!email) return setMsg("メールアドレスを入力してください。");
-    try {
-      await sendPasswordResetEmail(auth, email);
-    } catch {
-      /* 存在確認を避けるため結果は同じ文言にする */
-    }
-    setMsg("登録済みのアドレスであれば、パスワード設定メールを送信しました。");
-  };
   return (
     <div className="min-h-dvh grid place-items-center p-6">
       <form onSubmit={go} className="w-full max-w-sm bg-white rounded-2xl shadow p-6 space-y-4">
@@ -42,7 +34,7 @@ function Login() {
         <input className="w-full border rounded-lg p-3" type="email" autoComplete="username" placeholder="メールアドレス" value={email} onChange={(e) => setEmail(e.target.value)} required />
         <input className="w-full border rounded-lg p-3" type="password" autoComplete="current-password" placeholder="パスワード" value={pw} onChange={(e) => setPw(e.target.value)} required />
         <button disabled={busy} className="w-full rounded-lg bg-ink text-white py-3 font-semibold disabled:opacity-50">ログイン</button>
-        <button type="button" onClick={reset} className="w-full text-sm text-mint underline">パスワードの設定・再設定</button>
+        <p className="text-xs text-slate-500">パスワードを忘れた場合は、管理者(オーナー)にパスワード設定リンクの再発行を依頼してください。</p>
         {msg && <p className="text-sm text-slate-600">{msg}</p>}
       </form>
     </div>
@@ -121,6 +113,7 @@ function Shell({ user }: { user: User }) {
 }
 
 export default function App() {
+  if (window.location.pathname === "/auth/action") return <AuthAction />;
   const [user, setUser] = useState<User | null | undefined>(undefined);
   useEffect(() => onAuthStateChanged(auth, setUser), []);
   if (user === undefined) return <div className="p-8 text-slate-500">読み込み中…</div>;

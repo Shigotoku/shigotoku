@@ -70,6 +70,12 @@ async function siteOf(req, res) {
   return { id, ...snap.data() };
 }
 
+// Firebase 標準の action ハンドラは使わず、アプリ内の /auth/action でパスワードを設定する
+function ownLink(link, req) {
+  const code = new URL(link).searchParams.get('oobCode');
+  return `https://${req.get('host')}/auth/action?mode=resetPassword&oobCode=${code}`;
+}
+
 const api = express.Router();
 api.use(auth);
 
@@ -148,7 +154,7 @@ api.post('/members', isAdmin, async (req, res) => {
   await org.collection('members').doc(user.uid).set({ email, role, active: true, invitedBy: req.user.email, createdAt: FieldValue.serverTimestamp() }, { merge: true });
   await org.collection('auditLogs').add({ at: FieldValue.serverTimestamp(), by: req.user.email, type: 'member.upsert', email, role });
   const link = await getAuth().generatePasswordResetLink(email);
-  res.json({ ok: true, uid: user.uid, setPasswordLink: link });
+  res.json({ ok: true, uid: user.uid, setPasswordLink: ownLink(link, req) });
 });
 
 api.patch('/members/:uid', isAdmin, async (req, res) => {
