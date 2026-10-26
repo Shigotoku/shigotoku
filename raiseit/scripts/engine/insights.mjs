@@ -235,6 +235,22 @@ export function buildSummary(input, opts = {}) {
     });
   }
 
+  // 計測の乖離: 検索クリックに対し GA4 の自然検索セッションが極端に少ない(同意バナー・タグ未設置・ボット等の疑い)
+  {
+    const clicksCur = sum(gscPage.filter(inCur), 'clicks');
+    const orgSess = sum(ga4src.filter((r) => inCur(r) && r.channel === 'Organic Search'), 'sessions');
+    const ratio = clicksCur ? orgSess / clicksCur : null;
+    if (clicksCur >= 200 && ratio !== null && ratio < 0.5) {
+      push({
+        id: 'trk-gap', rule: 'tracking.gap', category: '計測',
+        title: `検索クリック${clicksCur}件に対し、GA4 の自然検索セッションは${orgSess}件しかありません`,
+        why: [`クリック→セッションの比率が約${round(ratio * 100, 0)}%です(通常は7〜9割程度)。`, '同意バナーでGA4が止まっている、一部ページにタグがない、クリックの一部が計測されない端末・ブラウザ、などが疑われます。', '計測が欠けていると、成果率・チャネル別成果がすべて過小評価になり、施策判断を誤ります。'],
+        how: ['同意(Cookie)バナーの設定を確認し、GA4が拒否時にも匿名計測できる設定(同意モード)になっているか確認する。', '詳細データ「ページ別」で、クリックに対し入口セッションが特に少ないページを開き、GA4タグが出力されているか確認する。', 'GA4 リアルタイムで自分のアクセスが記録されるか試す。'],
+        impact: { kind: 'foundation', basis: '計測精度の回復(以後の全ての判断の前提)' },
+        value: 3, confidence: 0.7, effortMin: 60, risk: 'low', approval: 'none',
+      });
+    }
+  }
   // AI 検索
   push({
     id: 'ai-visibility', rule: 'ai.referral', category: 'AI検索',

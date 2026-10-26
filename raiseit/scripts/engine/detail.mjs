@@ -25,8 +25,19 @@ function gscAgg(rows) {
   return { clicks, impressions, ctrPct: impressions ? r2((clicks / impressions) * 100) : 0, position: r2(pos, 1) };
 }
 
+
+// 検索意図の簡易分類(ルールベース。完全ではない)。brand = サイト名・ブランド語を含む指名検索
+export function classifyIntent(query, brandTerms = []) {
+  const q = String(query).toLowerCase().replace(/\s+/g, '');
+  if (brandTerms.some((b) => b && q.includes(String(b).toLowerCase().replace(/\s+/g, '')))) return '指名';
+  if (/(予約|申込|申し込み|問い合わせ|問合せ|依頼|導入|見積|資料請求|無料相談|契約|料金|費用|価格|値段|いくら)/.test(q)) return '行動(予約・導入・費用)';
+  if (/(比較|おすすめ|オススメ|ランキング|違い|メリット|デメリット|評判|口コミ|選び方|vs|どっち|最適|サービス|ソフト|システム|業者)/.test(q)) return '比較検討';
+  if (/(とは|方法|やり方|手順|流れ|いつ|なぜ|なに|何|意味|基準|要件|条件|対象|算定|改定|ガイド|解説|まとめ|一覧|エラー|できない|どうやって|書き方|様式|加算|届出|スケジュール|令和|ファイル|ツール|制度|診療報酬|レセプト|償還|加算)/.test(q)) return '疑問・情報収集';
+  return 'その他';
+}
 export function buildDetail(input, opts = {}) {
   const N = opts.days ?? 28;
+  const brandTerms = input.brandTerms ?? [];
   const { gscPage = [], gscQuery = [], ga4 = [], ga4src = [], ga4ev = [], ga4conv = [], leadEvent = '', formEvent = 'form_start' } = input;
   const latest = [maxDate(gscPage) || maxDate(gscQuery), maxDate(ga4src) || maxDate(ga4ev)].filter(Boolean).sort()[0] || input.today;
   const curFrom = addDays(latest, -(N - 1));
@@ -54,19 +65,21 @@ export function buildDetail(input, opts = {}) {
     const c = gscAgg(rows.filter(cur));
     const p = gscAgg(rows.filter(prev));
     const pages = [...groupBy(rows.filter(cur), (r) => pathOf(r.page)).entries()].sort((a, b) => sum(b[1], 'impressions') - sum(a[1], 'impressions'))[0]?.[0] ?? '';
-    return { query, ...c, prevClicks: p.clicks, prevImpressions: p.impressions, prevPosition: p.position, topPage: pages };
+    return { query, intent: classifyIntent(query, brandTerms), ...c, prevClicks: p.clicks, prevImpressions: p.impressions, prevPosition: p.position, topPage: pages };
   }).filter((q) => q.impressions > 0).sort((a, b) => b.impressions - a.impressions).slice(0, 400);
 
   // ---- ページ(検索 + 入口セッション + 成果) ----
   const landCur = groupBy(ga4src.filter(cur), (r) => norm(r.landingPage));
+  const orgLand = groupBy(ga4src.filter((r) => cur(r) && r.channel === 'Organic Search'), (r) => norm(r.landingPage));
   const convCur = ga4conv.filter(cur);
   const pMap = groupBy(gscPage, (r) => pathOf(r.page));
   const pages = [...pMap.entries()].map(([path, rows]) => {
     const c = gscAgg(rows.filter(cur));
     const p = gscAgg(rows.filter(prev));
     const sessions = sum(landCur.get(norm(path)) ?? [], 'sessions');
+    const orgSessions = sum(orgLand.get(norm(path)) ?? [], 'sessions');
     const leads = sum(convCur.filter((r) => norm(r.landingPage) === norm(path) && r.eventName === leadEvent), 'count');
-    return { path, ...c, prevClicks: p.clicks, prevImpressions: p.impressions, prevPosition: p.position, sessions, leads, cvrPct: sessions ? r2((leads / sessions) * 100) : 0 };
+    return { path, ...c, prevClicks: p.clicks, prevImpressions: p.impressions, prevPosition: p.position, sessions, orgSessions, sessionPerClick: c.clicks ? r2(orgSessions / c.clicks, 2) : 0, leads, cvrPct: sessions ? r2((leads / sessions) * 100) : 0 };
   }).filter((p) => p.impressions > 0 || p.sessions > 0).sort((a, b) => b.impressions - a.impressions).slice(0, 300);
 
   // ---- 流入元(source / medium) ----
@@ -100,10 +113,12 @@ export function buildDetail(input, opts = {}) {
   }
   const weekdays = dow.map((x, i) => ({ dow: '日月火水木金土'[i], sessions: x.n ? r2(x.sessions / x.n, 1) : 0, leads: x.n ? r2(x.leads / x.n, 2) : 0, clicks: x.n ? r2(x.clicks / x.n, 1) : 0 }));
 
+  const intents = [...groupBy(queries, (q) => q.intent).entries()].map(([intent, rows]) => ({ intent, queries: rows.length, clicks: sum(rows, 'clicks'), impressions: sum(rows, 'impressions'), prevClicks: sum(rows, 'prevClicks') })).sort((a, b) => b.impressions - a.impressions);
+
   return {
     schema: 1,
     period: { from: curFrom, to: latest, prevFrom, prevTo, days: N },
     notes: { queries: '検索語は Google が匿名化したものを含みません(全クリックの一部のみ)。ページ別は全体を反映します。', devices: '端末別は検索語データ由来のため、匿名化分を含みません。' },
-    daily, queries, pages, sources, devices, views, weekdays,
+    daily, intents, queries, pages, sources, devices, views, weekdays,
   };
 }

@@ -44,7 +44,6 @@ const summary = buildSummary({
   audit: readDir('audit'),
 });
 const out = ensureDir(reportDir());
-const detail = buildDetail({ ...src, today: ymd(new Date()), leadEvent: summary.northStar.event ?? '', formEvent: site.formStartEvent || 'form_start' });
-writeFileSync(join(out, 'detail.json'), JSON.stringify(detail));
-writeFileSync(join(out, 'summary.json'), JSON.stringify(summary, null, 2));
+const dctx = { ...src, today: ymd(new Date()), leadEvent: summary.northStar.event ?? '', formEvent: site.formStartEvent || 'form_start', brandTerms: [site.name, ...(site.brandTerms ?? [])] };
+for (const [file, days] of [['detail.json', 28], ['detail-7.json', 7], ['detail-90.json', 90]]) writeFileSync(join(out, file), JSON.stringify(buildDetail(dctx, { days })));
 console.log(`summary.json: 成果 ${summary.northStar.cur}件(前期間 ${summary.northStar.prev}) / アクション ${summary.actions.length}件 / 今週 ${summary.thisWeek.join(', ') || '-'} → ${out}`);

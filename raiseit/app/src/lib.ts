@@ -37,7 +37,7 @@ export type Summary = {
   ai: { sessions: number; prev: number; sources: { source: string; sessions: number }[] };
   seo: { clicks: number; impressions: number; ctrPct: number; position: number; prev: { clicks: number; impressions: number; ctrPct: number; position: number }; queryCoveragePct: number };
   conversion: { leadsPer100Clicks: number; note: string };
-  landing: { path: string; sessions: number; leads: number; cvrPct: number }[];
+  landing: { path: string; sessions: number; orgSessions: number; sessionPerClick: number; leads: number; cvrPct: number }[];
   audit?: { date: string | null; checked: number; clean: number };
   actions: Action[];
   thisWeek: string[];
@@ -56,8 +56,9 @@ export type Detail = {
   period: { from: string; to: string; prevFrom: string; prevTo: string; days: number };
   notes: { queries: string; devices: string };
   daily: { date: string; clicks: number; impressions: number; position: number; sessions: number; engaged: number; leads: number; formStart: number }[];
-  queries: { query: string; clicks: number; impressions: number; ctrPct: number; position: number; prevClicks: number; prevImpressions: number; prevPosition: number; topPage: string }[];
-  pages: { path: string; clicks: number; impressions: number; ctrPct: number; position: number; prevClicks: number; prevImpressions: number; prevPosition: number; sessions: number; leads: number; cvrPct: number }[];
+  intents: { intent: string; queries: number; clicks: number; impressions: number; prevClicks: number }[];
+  queries: { query: string; intent: string; clicks: number; impressions: number; ctrPct: number; position: number; prevClicks: number; prevImpressions: number; prevPosition: number; topPage: string }[];
+  pages: { path: string; clicks: number; impressions: number; ctrPct: number; position: number; prevClicks: number; prevImpressions: number; prevPosition: number; sessions: number; orgSessions: number; sessionPerClick: number; leads: number; cvrPct: number }[];
   sources: { name: string; channel: string; sessions: number; prevSessions: number; engaged: number; engagedPct: number }[];
   devices: { device: string; clicks: number; impressions: number; ctrPct: number; position: number; prevClicks: number }[];
   views: { path: string; views: number; prevViews: number; sessions: number; avgEngageSec: number; engagedPct: number }[];

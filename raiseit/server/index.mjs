@@ -112,7 +112,8 @@ async function appendAction(siteId, row) {
 api.get('/detail', async (req, res) => {
   const site = await siteOf(req, res);
   if (!site) return;
-  const f = bucket.file(`tenants/${TENANT}/${site.id}/reports/detail.json`);
+  const suffix = { 7: '-7', 90: '-90' }[String(req.query.days)] ?? '';
+  const f = bucket.file(`tenants/${TENANT}/${site.id}/reports/detail${suffix}.json`);
   const [ok] = await f.exists();
   if (!ok) return res.status(404).json({ error: 'detail not ready' });
   res.setHeader('Cache-Control', 'no-store');
