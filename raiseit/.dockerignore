@@ -1,0 +1,11 @@
+node_modules
+.env
+credentials
+data
+reports
+logs
+config/sites.json
+docs
+app/node_modules
+app/dist
+Dockerfile*

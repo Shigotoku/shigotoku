@@ -1,3 +1,5 @@
+import { shouldApplyWatermark, WATERMARK_SUFFIX } from './planLimits';
+
 const NG_WORDS = [
   '完全治癒',
   '必ず治る',
@@ -30,7 +32,7 @@ function generateScript(idea: string) {
 }
 
 function withWatermark(text: string, plan: string) {
-  if (plan === 'starter') return `${text}\n\n— Powered by BuzzIt`;
+  if (shouldApplyWatermark(plan)) return `${text}${WATERMARK_SUFFIX}`;
   return text;
 }
 

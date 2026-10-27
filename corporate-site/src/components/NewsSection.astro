@@ -1,19 +1,33 @@
 ---
-import { news } from '../data/content';
+import { getCollection } from 'astro:content';
+import { newsCategoryStyles, formatNewsDate } from '../lib/news';
+
+const allNews = await getCollection('news', ({ data }) => !data.draft);
+const news = allNews
+  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())
+  .slice(0, 5);
 ---
 
 <section id="news" class="py-32 bg-gray-50">
   <div class="mx-auto max-w-7xl px-6 lg:px-8">
-    <div class="mb-12 headline-fit-wrap">
-      <span class="inline-block rounded-full bg-blue-50 px-4 py-1.5 text-sm font-semibold text-blue-600 mb-4">News</span>
-      <h2 class="text-4xl sm:text-5xl font-black tracking-tight text-gray-900" data-headline-fit>お知らせ</h2>
+    <div class="mb-12 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 headline-fit-wrap">
+      <div>
+        <span class="inline-block rounded-full bg-blue-50 px-4 py-1.5 text-sm font-semibold text-blue-600 mb-4">News</span>
+        <h2 class="text-4xl sm:text-5xl font-black tracking-tight text-gray-900" data-headline-fit>お知らせ</h2>
+      </div>
+      <a href="/news/" class="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700 transition-colors shrink-0">
+        すべて見る
+        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
+      </a>
     </div>
     <div class="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-100 overflow-hidden">
       {news.map((item) => (
-        <article class="group flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 p-6 hover:bg-blue-50/30 transition-colors">
-          <time class="text-sm text-gray-400 font-mono shrink-0">{item.date}</time>
-          <span class={`inline-flex self-start rounded-full px-3 py-0.5 text-xs font-semibold shrink-0 ${item.categoryColor}`}>{item.category}</span>
-          <h3 class="text-sm sm:text-base font-medium text-gray-700 group-hover:text-blue-600 transition-colors flex-1">{item.title}</h3>
+        <article class="group">
+          <a href={`/news/${item.id}/`} class="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 p-6 hover:bg-blue-50/30 transition-colors">
+            <time datetime={item.data.pubDate.toISOString()} class="text-sm text-gray-400 font-mono shrink-0">{formatNewsDate(item.data.pubDate)}</time>
+            <span class={`inline-flex self-start rounded-full px-3 py-0.5 text-xs font-semibold shrink-0 ${newsCategoryStyles[item.data.category] ?? 'bg-gray-100 text-gray-700'}`}>{item.data.category}</span>
+            <h3 class="text-sm sm:text-base font-medium text-gray-700 group-hover:text-blue-600 transition-colors flex-1">{item.data.title}</h3>
+          </a>
         </article>
       ))}
     </div>

@@ -1,0 +1,19 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="セキュリティ - ShapeIt" description="スクリーンショットは高機密データ。Private Storage・RBAC・Auditを初期から設計。">
+  <section class="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-16">
+    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-mint">Security</p>
+    <h1 class="shapeit-h1 font-display mt-3 font-bold text-ink">画像は便利な添付ではない</h1>
+    <p class="mt-4 leading-relaxed text-ink/70">
+      スクリーンショットには個人情報・機密が映り得ます。ShapeItは Private Storage、短時間Signed URL、組織/Project単位の認可、Audit Log、機微DOMマスクを前提に設計します。
+    </p>
+    <ul class="mt-8 space-y-3 text-sm text-ink/75">
+      <li>• テナント境界（organization_id）を全APIで強制</li>
+      <li>• Secret は Secret Manager。ログに token / cookie を出さない</li>
+      <li>• Retention / 削除 / エクスポート（V1 コンプライアンス）</li>
+      <li>• 既存SaaSのDB・Secretsと共有しない独立プロジェクト</li>
+    </ul>
+  </section>
+</Layout>

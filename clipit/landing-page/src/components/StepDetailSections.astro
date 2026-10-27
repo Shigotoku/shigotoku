@@ -1,0 +1,165 @@
+---
+import { appPath } from '../lib/urls';
+
+const loginUrl = appPath('/login');
+const bulkUrl = appPath('/bulk-update');
+
+const steps = [
+  {
+    id: 'step-create',
+    num: '01',
+    label: 'ステップ 1',
+    title: 'マニュアルの作り方を選ぶ',
+    body: 'Chrome拡張での操作記録、Google Meetでの話して作成、スクショのアップロード、テンプレート——現場に合った方法を選ぶだけで、手順のたたき台ができます。',
+    bullets: ['Chrome拡張で記録（おすすめ）', '話して作成（Meet連携）', 'スクショから作る', 'テンプレートから素早く'],
+    bg: 'bg-white',
+  },
+  {
+    id: 'step-edit',
+    num: '02',
+    label: 'ステップ 2',
+    title: '手順を整えて完成させる',
+    body: 'AIが日本語の説明文を整え、スクショには赤枠・番号を付与。文言の修正と画像の差し替えだけで、読みやすいマニュアルに仕上がります。',
+    bullets: ['AIが手順文を自動生成', '赤枠・番号で「どこを押すか」明示', '並び替え・マスキング・プレビュー'],
+    bg: 'bg-white',
+  },
+  {
+    id: 'step-share',
+    num: '03',
+    label: 'ステップ 3',
+    title: '共有して、ずっと新しく',
+    body: 'PDF・QR・A4印刷・スマホ表示で現場に届けます。システムや連絡先が変わっても、まとめて修正で全マニュアルを横断更新できます。',
+    bullets: ['PDF / Word / Googleドキュメント出力', '共有URL・QRコード', 'まとめて修正 — 1つずつ開かない'],
+    bg: 'bg-white',
+  },
+];
+---
+
+{steps.map((s) => (
+  <section id={s.id} class:list={['clipit-section py-10 sm:py-16', s.bg]}>
+    <div class="mx-auto max-w-7xl px-4 sm:px-6">
+      <div class="clipit-grid-safe grid items-center gap-8 lg:grid-cols-2 lg:gap-14">
+        <div class="min-w-0">
+          <p class="text-sm font-semibold uppercase tracking-widest text-primary-600">{s.label}</p>
+          <div class="mt-2 flex items-center gap-3">
+            <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary-500 text-lg font-bold text-white shadow-lg shadow-primary-500/25">
+              {s.num}
+            </span>
+            <h2 class="clipit-h2 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl lg:text-3xl" data-jp-heading>
+              {s.title}
+            </h2>
+          </div>
+          <p class="clipit-lead mt-4 text-base leading-relaxed text-slate-600" data-jp-wrap>{s.body}</p>
+          <ul class="mt-5 space-y-2">
+            {s.bullets.map((b) => (
+              <li class="flex items-start gap-2 text-sm text-slate-700">
+                <span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary-100 text-[10px] font-bold text-primary-700">✓</span>
+                <span data-jp-wrap>{b}</span>
+              </li>
+            ))}
+          </ul>
+          {s.id === 'step-create' && (
+            <a
+              href={loginUrl}
+              class="mt-6 inline-flex rounded-xl bg-primary-500 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-primary-600"
+            >
+              無料で作り方を試す
+            </a>
+          )}
+          {s.id === 'step-share' && (
+            <a
+              href={bulkUrl}
+              class="mt-6 inline-flex rounded-xl border border-primary-300 bg-primary-50 px-6 py-3 text-sm font-bold text-primary-800 transition-colors hover:bg-primary-100"
+            >
+              まとめて修正を見る
+            </a>
+          )}
+        </div>
+
+        <div class="min-w-0">
+          {s.id === 'step-create' && (
+            <div class="clipit-step-visual rounded-2xl border border-slate-200 bg-white p-4 shadow-lg shadow-slate-200/60 sm:p-5">
+              <p class="text-xs font-semibold text-slate-500">マニュアルの作り方を選ぶ</p>
+              <div class="mt-3 grid grid-cols-2 gap-2">
+                <div class="rounded-xl border-2 border-primary-300 bg-primary-50/60 p-3">
+                  <span class="text-lg">🌐</span>
+                  <p class="mt-1 text-xs font-bold text-slate-900">クリック記録</p>
+                  <span class="mt-1 inline-block rounded-full bg-primary-500 px-1.5 py-0.5 text-[9px] font-bold text-white">おすすめ</span>
+                </div>
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <span class="text-lg">💬</span>
+                  <p class="mt-1 text-xs font-bold text-slate-900">話して作成</p>
+                </div>
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <span class="text-lg">🖼️</span>
+                  <p class="mt-1 text-xs font-bold text-slate-900">スクショから</p>
+                </div>
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <span class="text-lg">📋</span>
+                  <p class="mt-1 text-xs font-bold text-slate-900">テンプレート</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {s.id === 'step-edit' && (
+            <div class="clipit-step-visual rounded-2xl border border-slate-200 bg-white p-4 shadow-lg shadow-slate-200/60 sm:p-5">
+              <div class="flex items-center gap-2 border-b border-slate-100 pb-3">
+                <span class="h-2.5 w-2.5 rounded-full bg-red-400"></span>
+                <span class="h-2.5 w-2.5 rounded-full bg-amber-400"></span>
+                <span class="h-2.5 w-2.5 rounded-full bg-emerald-400"></span>
+                <span class="ml-1 text-[11px] font-medium text-slate-500">新患受付の手順 — 編集</span>
+              </div>
+              <div class="mt-3 space-y-2">
+                <div class="relative aspect-[16/10] overflow-hidden rounded-xl bg-slate-100">
+                  <div class="absolute left-[40%] top-[45%] flex h-8 w-8 items-center justify-center rounded-full border-[3px] border-red-500 bg-red-50 text-xs font-bold text-red-600">1</div>
+                  <p class="absolute bottom-2 left-2 right-2 rounded-lg bg-white/90 px-2 py-1.5 text-[10px] text-slate-700 shadow-sm">
+                    「受付」ボタンをクリックして、新患登録画面を開きます。
+                  </p>
+                </div>
+                <div class="flex gap-2">
+                  <span class="rounded-lg bg-primary-100 px-2 py-1 text-[10px] font-semibold text-primary-700">AI整形済み</span>
+                  <span class="rounded-lg bg-slate-100 px-2 py-1 text-[10px] text-slate-600">手順 3 / 5</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {s.id === 'step-share' && (
+            <div class="clipit-step-visual space-y-3">
+              <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-lg shadow-slate-200/60">
+                <p class="text-xs font-semibold text-slate-500">共有・出力</p>
+                <div class="mt-2 flex flex-wrap gap-2">
+                  <span class="rounded-lg border border-slate-200 px-3 py-2 text-[11px] font-semibold text-slate-700">PDF</span>
+                  <span class="rounded-lg border border-slate-200 px-3 py-2 text-[11px] font-semibold text-slate-700">QR</span>
+                  <span class="rounded-lg border border-slate-200 px-3 py-2 text-[11px] font-semibold text-slate-700">A4印刷</span>
+                  <span class="rounded-lg border border-primary-200 bg-primary-50 px-3 py-2 text-[11px] font-semibold text-primary-800">共有URL</span>
+                </div>
+              </div>
+              <div class="rounded-2xl border border-slate-800 bg-slate-900 p-4 font-mono text-[11px] text-slate-300 sm:text-xs">
+                <p class="font-semibold text-primary-400">まとめて修正</p>
+                <p class="mt-2 text-slate-400">システムが変わっても、1つずつ開かない。</p>
+                <div class="mt-3 rounded-lg border border-white/10 bg-white/5 p-3">
+                  <p class="text-primary-300">請求書発行 / 手順2</p>
+                  <p class="mt-1 line-through text-red-300/80">freeeにログインします</p>
+                  <p class="text-emerald-300">マネーフォワードにログインします</p>
+                  <span class="mt-2 inline-block rounded bg-amber-500/20 px-2 py-0.5 text-[10px] text-amber-200">スクショ要確認</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  </section>
+))}
+
+<style>
+  .clipit-step-visual {
+    animation: clipit-step-float 7s ease-in-out infinite;
+  }
+  @keyframes clipit-step-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+  }
+</style>

@@ -1,0 +1,10 @@
+node_modules/
+dist/
+# API の tsc 出力（src/lib はソースなので無視しない）
+api/lib/
+.astro/
+.env
+.env.*
+!.env.example
+*.local
+.DS_Store

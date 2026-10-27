@@ -1,13 +1,14 @@
 ---
 import { navItems } from '../data/content';
 import { RUNWITH_LP } from '../lib/urls';
+import { brandLogo } from '../lib/assets';
 ---
 
 <header class="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm">
   <div class="mx-auto max-w-7xl px-6 lg:px-8">
     <div class="flex h-16 items-center justify-between">
       <a href="/" class="flex items-center gap-2">
-        <img src="/images/shigotoku-logo.png" alt="シゴトク" class="h-8 w-auto object-contain" />
+        <img src={brandLogo} alt="シゴトク" class="h-8 w-auto object-contain" />
         <span class="text-lg font-bold text-gray-900 tracking-tight">シゴトク</span>
       </a>
 

@@ -1,0 +1,16 @@
+---
+description: レイジット (RaiseIt) 開発方針(常時適用)
+alwaysApply: true
+---
+
+# レイジット (RaiseIt) 開発方針
+
+- 最初に `HANDOVER.md` と `docs/要件定義書.md` を読む。応答は日本語。
+- 目的: Search Console / GA4 / PageSpeed 等を毎日蓄積し、「データで見つける → 安全に直す → 効果を測る」を自動化する。
+- **秘密情報**: `.env` / `credentials/` / OAuthトークン / APIキーをコミット・チャット貼付しない。顧客トークンは Secret Manager + KMS、分析データとは分離。
+- **データ保存**: 現状は `data/<siteId>/<source>/*.ndjson`。GCP移行時は Cloud SQL(PostgreSQL)。全データに `tenant_id` を付ける前提で設計する。
+- **複数サイト**: すべてのスクリプトは `--site <id>`(`config/sites.json`)。パスは `lib.mjs` の `dataDir()` / `reportDir()` を使う。
+- **医療広告**: 医療向けは `medical-ad-check.mjs` のルールを通す。体験談・誇大・比較優良・ビフォーアフター等を提案しない。契約月無料などを「トライアル」と書かない。
+- **AI**: ローカルLLM優先、無ければBYO(`scripts/ai/provider.mjs`)。AIの出力は必ず人が承認するまで何も変更しない。顧客の個人情報はAIに送らない。
+- **自動変更の禁止**: 診療内容・`canonical` / `noindex` / `robots` は自動変更しない。
+- 変更したら `npm test` を実行。レポートの見た目を変えたら `npm run report -- --site <id>` で確認。

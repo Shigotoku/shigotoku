@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" role="img" aria-label="BuzzIt">
+  <defs>
+    <linearGradient id="buzzBolt" x1="20" y1="2" x2="44" y2="62" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#d8b4fe"/>
+      <stop offset="0.4" stop-color="#a855f7"/>
+      <stop offset="1" stop-color="#4c1d95"/>
+    </linearGradient>
+  </defs>
+  <path
+    fill="url(#buzzBolt)"
+    d="M38.5 2.5 16 34.2h13.2L22.8 61.5 50.5 26.8H36.8L38.5 2.5Z"
+  />
+</svg>

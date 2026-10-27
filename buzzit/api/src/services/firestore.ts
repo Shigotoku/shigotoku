@@ -6,12 +6,18 @@ export type PlanTier = 'free' | 'line_lite' | 'line_pro' | 'starter' | 'pro' | '
 export interface UserSettings {
   uid: string;
   plan: PlanTier;
+  /** 所属アカウント（課金主体） */
+  accountId?: string;
+  accountType?: 'individual' | 'business';
+  accountSetupComplete?: boolean;
   email?: string;
   displayName?: string;
   slackWebhookUrl?: string;
   ayrshareProfileKey?: string;
   autoModeEnabled?: boolean;
   industry?: string;
+  /** 事業所の特徴・トーン（投稿文生成に反映） */
+  brandProfile?: string;
   slackTeamId?: string;
   /** LINE Messaging API Channel Secret（Webhook 署名検証） */
   lineChannelSecret?: string;
@@ -27,14 +33,89 @@ export interface UserSettings {
   metaIgUserId?: string;
   metaPageId?: string;
   metaTokenExpiresAt?: string;
-  /** 通知モード（notify / meta / line / approval / auto） */
-  defaultPublishMode?: 'notify' | 'meta' | 'line' | 'approval' | 'auto';
+  /** 通知モード（notify / meta / line / approval / x_free / auto） */
+  defaultPublishMode?: PublishMode;
+  /** X API BYOK（OAuth 1.0a）— ユーザー自身の開発者アプリ鍵 */
+  xApiKey?: string;
+  xApiSecret?: string;
+  xAccessToken?: string;
+  xAccessSecret?: string;
+  xUsername?: string;
+  /** 当月の X API 投稿成功数（ソフト上限管理用） */
+  xApiPostsMonthKey?: string;
+  xApiPostsThisMonth?: number;
   /** クリック計測のリダイレクト先（店舗サイト・予約ページ等） */
   defaultDestinationUrl?: string;
   /** 所属店舗ID一覧 */
   storeIds?: string[];
   /** 現在操作中の店舗ID */
   activeStoreId?: string;
+  /** 所属ペルソナ（配信キャラ）ID一覧 */
+  personaIds?: string[];
+  /** 現在操作中のペルソナID */
+  activePersonaId?: string;
+  /** HPB / 予約サイトURL */
+  hpbStoreUrl?: string;
+  /** HPB 予約トラッキングを有効化 */
+  hpbTrackingEnabled?: boolean;
+  /** Free プラン月間投稿カウント */
+  postsMonthKey?: string;
+  postsThisMonth?: number;
+  /** Auto Mode 最適化目標 */
+  autoModeGoal?: 'reach' | 'cv';
+  /** 紹介コード */
+  referralCode?: string;
+  referredBy?: string;
+  /** Stripe */
+  stripeCustomerId?: string;
+  billingInterval?: 'monthly' | 'annual';
+  /** Googleビジネスプロフィール */
+  gbpConnected?: boolean;
+  gbpLocationName?: string;
+  gbpAccessToken?: string;
+  gbpRefreshToken?: string;
+  gbpTokenExpiresAt?: string;
+  gbpAccountName?: string;
+  gbpLocationId?: string;
+  gbpLocationResourceName?: string;
+  /** 店長通知用メール（将来拡張・現状はSlack/LINE優先） */
+  notifyEmail?: string;
+  /**
+   * SNS追加アカウント枠数（各媒体の1アカウント目はプランに含む。
+   * 例: Instagram公式＋採用用の2アカウント目 → 1枠）
+   */
+  extraSnsAccounts?: number;
+  /** インサイト自動取得（Meta 等）。未設定は有効扱い */
+  insightsEnabled?: boolean;
+  /**
+   * X インサイト取得（impression 読み取り）。従量課金の可能性あり。
+   * 未設定・false はオフ（追加費用プラン検討用の費用ガード）
+   */
+  xInsightsEnabled?: boolean;
+  insightsLastSyncedAt?: string;
+}
+
+export interface PostInsightDoc {
+  id: string;
+  uid?: string;
+  jobId: string;
+  platform: string;
+  externalId: string;
+  impressions: number;
+  reach?: number;
+  likes?: number;
+  comments?: number;
+  replies?: number;
+  reposts?: number;
+  quotes?: number;
+  bookmarks?: number;
+  saved?: number;
+  fetchedAt: string;
+  source: 'meta' | 'x';
+  lastError?: string;
+  scheduledAt?: string;
+  preview?: string;
+  personaId?: string;
 }
 
 export interface MetricsSummary {
@@ -122,11 +203,14 @@ export async function ensureUser(uid: string, email?: string, displayName?: stri
   const snap = await ref.get();
 
   if (!snap.exists) {
+    const { randomBytes } = await import('crypto');
+    const referralCode = `BZ${randomBytes(4).toString('hex').toUpperCase()}`;
     const settings: UserSettings = {
       uid,
       plan: 'starter',
       autoModeEnabled: false,
       industry: 'salon',
+      referralCode,
       ...(email ? { email } : {}),
       ...(displayName ? { displayName } : {}),
     };
@@ -176,6 +260,35 @@ export async function updateUserSettings(uid: string, patch: Partial<UserSetting
     { merge: true },
   );
   return getUserSettings(uid);
+}
+
+/** X API 投稿成功時に当月カウントをインクリメント */
+export async function incrementXApiPostCount(uid: string): Promise<number> {
+  const monthKey = new Date().toISOString().slice(0, 7); // YYYY-MM
+  const ref = db().collection('users').doc(uid);
+  await db().runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const data = snap.data() ?? {};
+    const currentKey = (data.xApiPostsMonthKey as string | undefined) ?? '';
+    const currentCount = currentKey === monthKey ? Number(data.xApiPostsThisMonth ?? 0) : 0;
+    tx.set(
+      ref,
+      {
+        xApiPostsMonthKey: monthKey,
+        xApiPostsThisMonth: currentCount + 1,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+  });
+  const after = await getUserSettings(uid);
+  return after.xApiPostsThisMonth ?? 0;
+}
+
+export function getXApiPostsThisMonth(settings: UserSettings): number {
+  const monthKey = new Date().toISOString().slice(0, 7);
+  if (settings.xApiPostsMonthKey !== monthKey) return 0;
+  return Number(settings.xApiPostsThisMonth ?? 0);
 }
 
 export async function getMetrics(uid: string): Promise<MetricsSummary> {
@@ -326,12 +439,30 @@ export async function recordTrackingClick(uid: string, token: string, postId?: s
   const utmCampaign = linkSnap.data()?.utmCampaign as string;
   const platform = linkSnap.data()?.platform as string | undefined;
 
-  const { appendUtmParams } = await import('./tracking');
-  return appendUtmParams(destinationUrl, {
+  const settings = await getUserSettings(uid);
+  const { appendUtmParams, isHpbUrl } = await import('./tracking');
+  const redirectUrl = appendUtmParams(destinationUrl, {
     campaign: utmCampaign,
     medium: platform ?? 'social',
     content: postId,
+    hpbTracking: settings.hpbTrackingEnabled || isHpbUrl(destinationUrl),
   });
+
+  if (postId && (settings.hpbTrackingEnabled || isHpbUrl(destinationUrl))) {
+    const { upsertHpbConversion } = await import('./productExtras');
+    const postSnap = await db().collection('users').doc(uid).collection('posts').doc(postId).get();
+    const title = (postSnap.data()?.title as string) ?? '投稿';
+    const prev = await db().collection(`users/${uid}/hpbConversions`).doc(postId).get();
+    const reservations = (prev.data()?.reservations as number) ?? 0;
+    await upsertHpbConversion(uid, {
+      postId,
+      title,
+      reservations: reservations + 1,
+      estimatedRevenue: (reservations + 1) * 8000,
+    });
+  }
+
+  return redirectUrl;
 }
 
 export async function findUserByLineDestination(destination: string): Promise<string | null> {
@@ -365,6 +496,8 @@ export interface CreateScheduledJobInput {
   destinationUrl?: string;
   trackingLinks?: Array<{ platform: string; trackingUrl: string; postId: string }>;
   ayrshareResponse?: unknown;
+  personaId?: string;
+  dualApprovalRequired?: boolean;
 }
 
 export async function createScheduledJob(uid: string, input: CreateScheduledJobInput): Promise<string> {
@@ -381,6 +514,8 @@ export async function createScheduledJob(uid: string, input: CreateScheduledJobI
     destinationUrl: input.destinationUrl ?? null,
     trackingLinks: input.trackingLinks ?? [],
     ayrshareResponse: input.ayrshareResponse ?? null,
+    ...(input.personaId ? { personaId: input.personaId } : {}),
+    ...(input.dualApprovalRequired ? { dualApprovalRequired: true } : {}),
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   });
@@ -390,6 +525,10 @@ export async function createScheduledJob(uid: string, input: CreateScheduledJobI
 export interface ScheduledJobDoc {
   id: string;
   uid: string;
+  personaId?: string;
+  dualApprovalRequired?: boolean;
+  firstApprovedBy?: string;
+  firstApprovedAt?: string;
   contents: ScheduleContentItem[];
   scheduledAt: string;
   publishMode: PublishMode;
@@ -410,6 +549,10 @@ function mapScheduledDoc(uid: string, id: string, data: FirebaseFirestore.Docume
   return {
     id,
     uid,
+    personaId: data.personaId as string | undefined,
+    dualApprovalRequired: data.dualApprovalRequired as boolean | undefined,
+    firstApprovedBy: data.firstApprovedBy as string | undefined,
+    firstApprovedAt: data.firstApprovedAt as string | undefined,
     contents: data.contents as ScheduleContentItem[],
     scheduledAt: data.scheduledAt as string,
     publishMode: (data.publishMode as PublishMode) ?? 'notify',
@@ -424,16 +567,24 @@ function mapScheduledDoc(uid: string, id: string, data: FirebaseFirestore.Docume
   };
 }
 
+export async function getScheduledJob(uid: string, jobId: string): Promise<ScheduledJobDoc | null> {
+  const ref = db().collection('users').doc(uid).collection('scheduled').doc(jobId);
+  const snap = await ref.get();
+  if (!snap.exists) return null;
+  return mapScheduledDoc(uid, jobId, snap.data()!);
+}
+
 export async function getScheduledJobs(
   uid: string,
   status?: ScheduledJobStatus | ScheduledJobStatus[],
+  personaId?: string,
 ): Promise<ScheduledJobDoc[]> {
   let query: FirebaseFirestore.Query = db()
     .collection('users')
     .doc(uid)
     .collection('scheduled')
     .orderBy('scheduledAt', 'desc')
-    .limit(30);
+    .limit(100);
 
   if (status) {
     const statuses = Array.isArray(status) ? status : [status];
@@ -447,15 +598,42 @@ export async function getScheduledJobs(
   if (status && Array.isArray(status) && status.length > 1) {
     docs = docs.filter((d) => status.includes(d.status));
   }
+  if (personaId) {
+    docs = docs.filter((d) => !d.personaId || d.personaId === personaId);
+  }
   return docs;
 }
 
-export async function approveScheduledJob(uid: string, jobId: string): Promise<ScheduledJobDoc | null> {
+export type ApproveScheduledJobResult =
+  | { kind: 'approved'; job: ScheduledJobDoc }
+  | { kind: 'first_approval'; job: ScheduledJobDoc }
+  | { kind: 'error'; code: 'not_found' | 'invalid_status' | 'same_approver' };
+
+export async function approveScheduledJob(
+  uid: string,
+  jobId: string,
+  approverUid: string,
+): Promise<ApproveScheduledJobResult> {
   const ref = db().collection('users').doc(uid).collection('scheduled').doc(jobId);
   const snap = await ref.get();
-  if (!snap.exists) return null;
+  if (!snap.exists) return { kind: 'error', code: 'not_found' };
   const data = snap.data()!;
-  if (data.status !== 'pending_approval') return null;
+  if (data.status !== 'pending_approval') return { kind: 'error', code: 'invalid_status' };
+
+  if (data.dualApprovalRequired) {
+    if (!data.firstApprovedBy) {
+      await ref.update({
+        firstApprovedBy: approverUid,
+        firstApprovedAt: new Date().toISOString(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      const updated = await ref.get();
+      return { kind: 'first_approval', job: mapScheduledDoc(uid, jobId, updated.data()!) };
+    }
+    if (data.firstApprovedBy === approverUid) {
+      return { kind: 'error', code: 'same_approver' };
+    }
+  }
 
   await ref.update({
     status: 'pending',
@@ -464,7 +642,7 @@ export async function approveScheduledJob(uid: string, jobId: string): Promise<S
   });
 
   const updated = await ref.get();
-  return mapScheduledDoc(uid, jobId, updated.data()!);
+  return { kind: 'approved', job: mapScheduledDoc(uid, jobId, updated.data()!) };
 }
 
 export async function updateScheduledJobStatus(
@@ -556,11 +734,111 @@ export async function getSlackIdeas(uid: string): Promise<SlackIdea[]> {
   });
 }
 
-export async function approveSlackIdea(uid: string, ideaId: string): Promise<void> {
+export async function getSlackIdea(uid: string, ideaId: string): Promise<SlackIdea | null> {
+  const snap = await db().collection('users').doc(uid).collection('slackIdeas').doc(ideaId).get();
+  if (!snap.exists) return null;
+  const data = snap.data()!;
+  const created =
+    data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : new Date().toISOString();
+  return {
+    id: snap.id,
+    text: data.text as string,
+    author: data.author as string,
+    scriptPreview: data.scriptPreview as string,
+    status: data.status as SlackIdea['status'],
+    createdAt: created,
+  };
+}
+
+export async function approveSlackIdea(uid: string, ideaId: string): Promise<SlackIdea | null> {
+  const idea = await getSlackIdea(uid, ideaId);
+  if (!idea) return null;
   await db().collection('users').doc(uid).collection('slackIdeas').doc(ideaId).update({
     status: 'approved',
     approvedAt: FieldValue.serverTimestamp(),
   });
+  return { ...idea, status: 'approved' };
+}
+
+export async function retryScheduledJob(uid: string, jobId: string): Promise<ScheduledJobDoc | null> {
+  const ref = db().collection('users').doc(uid).collection('scheduled').doc(jobId);
+  const snap = await ref.get();
+  if (!snap.exists) return null;
+  const data = snap.data()!;
+  if (data.status !== 'failed') return null;
+
+  await ref.update({
+    status: 'pending',
+    errorMessage: FieldValue.delete(),
+    retryCount: FieldValue.increment(1),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+
+  const updated = await ref.get();
+  return mapScheduledDoc(uid, jobId, updated.data()!);
+}
+
+export async function revertScheduledJobToDraft(uid: string, jobId: string): Promise<ScheduledJobDoc | null> {
+  const ref = db().collection('users').doc(uid).collection('scheduled').doc(jobId);
+  const snap = await ref.get();
+  if (!snap.exists) return null;
+  const data = snap.data()!;
+  const editable: ScheduledJobStatus[] = ['failed', 'pending_approval', 'pending'];
+  if (!editable.includes(data.status as ScheduledJobStatus)) return null;
+
+  await ref.update({
+    status: 'draft',
+    errorMessage: FieldValue.delete(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+
+  const updated = await ref.get();
+  return mapScheduledDoc(uid, jobId, updated.data()!);
+}
+
+const EDITABLE_SCHEDULE_STATUSES: ScheduledJobStatus[] = [
+  'pending',
+  'pending_approval',
+  'draft',
+  'failed',
+];
+
+export async function updateScheduledJob(
+  uid: string,
+  jobId: string,
+  patch: {
+    scheduledAt?: string;
+    contents?: ScheduleContentItem[];
+    publishMode?: PublishMode;
+  },
+): Promise<ScheduledJobDoc | null> {
+  const ref = db().collection('users').doc(uid).collection('scheduled').doc(jobId);
+  const snap = await ref.get();
+  if (!snap.exists) return null;
+  const data = snap.data()!;
+  const status = data.status as ScheduledJobStatus;
+  if (!EDITABLE_SCHEDULE_STATUSES.includes(status)) return null;
+
+  const updates: Record<string, unknown> = {
+    updatedAt: FieldValue.serverTimestamp(),
+  };
+  if (patch.scheduledAt !== undefined) updates.scheduledAt = patch.scheduledAt;
+  if (patch.contents !== undefined) updates.contents = patch.contents;
+  if (patch.publishMode !== undefined) {
+    updates.publishMode = patch.publishMode;
+    if (status === 'draft' || status === 'failed') {
+      updates.status = patch.publishMode === 'approval' ? 'pending_approval' : 'pending';
+      updates.errorMessage = FieldValue.delete();
+    } else if (status === 'pending_approval' && patch.publishMode !== 'approval') {
+      updates.status = 'pending';
+    } else if (status === 'pending' && patch.publishMode === 'approval') {
+      updates.status = 'pending_approval';
+    }
+  }
+
+  await ref.update(updates);
+  const updated = await ref.get();
+  return mapScheduledDoc(uid, jobId, updated.data()!);
 }
 
 export async function trackMetricEvent(
@@ -603,12 +881,135 @@ export async function trackMetricEvent(
 
 export async function getAutoModeUsers(): Promise<UserSettings[]> {
   const snap = await db().collection('users').where('autoModeEnabled', '==', true).get();
-  return snap.docs.map((d) => d.data() as UserSettings);
+  return snap.docs.map((d) => ({ ...(d.data() as UserSettings), uid: d.id }));
 }
 
 export async function getAllUsersWithSlack(): Promise<UserSettings[]> {
   const snap = await db().collection('users').get();
   return snap.docs
-    .map((d) => d.data() as UserSettings)
+    .map((d) => ({ ...(d.data() as UserSettings), uid: d.id }))
     .filter((u) => !!u.slackWebhookUrl);
+}
+
+export async function getPostInsight(uid: string, id: string): Promise<PostInsightDoc | null> {
+  const snap = await db().collection('users').doc(uid).collection('postInsights').doc(id).get();
+  if (!snap.exists) return null;
+  return { id: snap.id, ...(snap.data() as Omit<PostInsightDoc, 'id'>) };
+}
+
+export async function upsertPostInsight(
+  uid: string,
+  doc: Omit<PostInsightDoc, 'uid'>,
+): Promise<void> {
+  await db()
+    .collection('users')
+    .doc(uid)
+    .collection('postInsights')
+    .doc(doc.id)
+    .set(
+      {
+        ...doc,
+        uid,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+}
+
+export async function listPostInsights(
+  uid: string,
+  options: { limit?: number } = {},
+): Promise<PostInsightDoc[]> {
+  const limit = options.limit ?? 100;
+  const snap = await db()
+    .collection('users')
+    .doc(uid)
+    .collection('postInsights')
+    .orderBy('fetchedAt', 'desc')
+    .limit(limit)
+    .get();
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<PostInsightDoc, 'id'>) }));
+}
+
+/** 日次インサイトスナップショット（長期推移グラフ用） */
+export interface InsightsDailySnapshot {
+  date: string;
+  impressions: number;
+  reach: number;
+  engagements: number;
+  postCount: number;
+  byPlatform: Record<string, { impressions: number; reach: number; engagements: number; postCount: number }>;
+  lineFollowers?: number | null;
+  savedAt: string;
+}
+
+export async function upsertInsightsDailySnapshot(
+  uid: string,
+  snapshot: InsightsDailySnapshot,
+): Promise<void> {
+  await db()
+    .collection('users')
+    .doc(uid)
+    .collection('insightsDaily')
+    .doc(snapshot.date)
+    .set(
+      {
+        ...snapshot,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+}
+
+export async function listInsightsDailySnapshots(
+  uid: string,
+  days = 90,
+): Promise<InsightsDailySnapshot[]> {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  const cutoffKey = cutoff.toISOString().slice(0, 10);
+  const snap = await db()
+    .collection('users')
+    .doc(uid)
+    .collection('insightsDaily')
+    .where('date', '>=', cutoffKey)
+    .orderBy('date', 'asc')
+    .limit(days)
+    .get();
+  return snap.docs.map((d) => d.data() as InsightsDailySnapshot);
+}
+
+/** 共有レポート（URL閲覧用・30日有効） */
+export interface SharedInsightsReportDoc {
+  token: string;
+  uid: string;
+  html: string;
+  businessName?: string;
+  platform: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
+export async function createSharedInsightsReport(
+  uid: string,
+  doc: Omit<SharedInsightsReportDoc, 'token' | 'uid' | 'createdAt'> & { token: string },
+): Promise<string> {
+  const createdAt = new Date().toISOString();
+  await db()
+    .collection('sharedInsightsReports')
+    .doc(doc.token)
+    .set({
+      ...doc,
+      uid,
+      createdAt,
+    });
+  return doc.token;
+}
+
+export async function getSharedInsightsReport(token: string): Promise<SharedInsightsReportDoc | null> {
+  const snap = await db().collection('sharedInsightsReports').doc(token).get();
+  if (!snap.exists) return null;
+  const data = snap.data() as SharedInsightsReportDoc;
+  if (new Date(data.expiresAt).getTime() < Date.now()) return null;
+  return data;
 }

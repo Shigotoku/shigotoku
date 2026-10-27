@@ -10,7 +10,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const OUT_DIR = path.join(__dirname, '../public/images');
+const OUT_DIR = path.join(__dirname, '../../../web-assets/landing-pages/buzzit/images');
 const STRIP_DIR = path.join(OUT_DIR, 'strip');
 
 const BG = { r: 245, g: 244, b: 240 };

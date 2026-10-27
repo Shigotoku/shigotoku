@@ -1,0 +1,55 @@
+---
+const features = [
+  {
+    icon: '01',
+    title: '手間なしでエラーを記録',
+    body: '拡張・アプリ・ウィジェットから最短10秒。スクショ・URL・ブラウザ/OSは自動取得。必須入力は「気づき」だけです。',
+  },
+  {
+    icon: '02',
+    title: 'みんなの声を一つに集約',
+    body: '社員も顧客も同じ流れで投稿。散らばったチャット報告をやめ、Feedback と Issue を分離して追える状態にします。',
+  },
+  {
+    icon: '03',
+    title: 'AIが整理・重複統合',
+    body: 'タイトル・要約・カテゴリ・Severity・優先度・類似候補を自動生成。管理者は採用・統合・保留を1〜2操作で。',
+  },
+  {
+    icon: '04',
+    title: '直したら、報告者へ戻す',
+    body: 'Doneで終わらず投稿者に確認。「解決した / していない」で再オープン。改善文化が途切れません。',
+  },
+];
+---
+
+<section id="features" class="shapeit-features shapeit-section--lg relative overflow-hidden bg-ink">
+  <div
+    class="pointer-events-none absolute inset-0"
+    aria-hidden="true"
+    style="background: radial-gradient(ellipse 90% 70% at 50% -10%, rgba(46, 196, 168, 0.22), transparent 55%), radial-gradient(ellipse 50% 40% at 100% 80%, rgba(31, 157, 138, 0.1), transparent);"
+  ></div>
+
+  <div class="relative z-10 mx-auto max-w-6xl px-4 sm:px-6">
+    <div class="text-center">
+      <p class="text-xs font-bold uppercase tracking-widest text-mint-bright sm:text-sm">Features</p>
+      <h2 class="shapeit-h2 font-display mt-3 font-bold tracking-tight text-paper" data-jp-heading>
+        ShapeIt の<span class="text-mint-bright">4つ</span>の特徴
+      </h2>
+      <p class="shapeit-lead mx-auto mt-3 max-w-2xl text-paper/60 sm:mt-4" data-jp-wrap>
+        記録する。まとめる。優先する。確認する。サービス改善に必要なことだけ。
+      </p>
+    </div>
+    <div class="shapeit-grid-safe mt-8 grid gap-3 sm:mt-10 sm:grid-cols-2 sm:gap-6">
+      {features.map((f) => (
+        <div class="group min-w-0 rounded-2xl border border-paper/10 bg-ink-soft/80 p-4 transition-all hover:border-mint/50 hover:bg-ink-soft sm:p-6">
+          <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-mint text-sm font-bold text-white shadow-md shadow-mint/30 transition-transform group-hover:scale-105 sm:h-10 sm:w-10">
+            {f.icon}
+          </span>
+          <h3 class="shapeit-h3 font-display mt-3 font-bold text-paper sm:mt-4" data-jp-heading>{f.title}</h3>
+          <p class="shapeit-body mt-2 text-paper/55 sm:mt-2.5" data-jp-wrap>{f.body}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>

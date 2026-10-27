@@ -42,11 +42,11 @@ export function buildStrategicNotification(
 ): string {
   switch (slot) {
     case 'morning':
-      return `☀️ *【朝の全社レポート】*\n健康スコア: ${metrics.healthScore}点\n推定売上: ¥${metrics.estimatedRevenue.toLocaleString()}\nLINE友だち: ${metrics.lineFriends}件\n\n💡 今日は「保存率」を上げるフックから始めましょう。`;
+      return `☀️ *【朝の全社レポート】*\n健康スコア: ${metrics.healthScore}点\n推定売上: ¥${metrics.estimatedRevenue.toLocaleString()}\nLINE友だち: ${metrics.lineFriends}件\n\n💡 コクピットの「今日のトレンド枠」から1本作ると、手間少なくバズを狙えます。\n👉 https://app.buzzit.shigotoku.com/dashboard`;
     case 'noon':
-      return `🍽 *【昼の承認依頼】*\n本日の投稿案が生成されました。\nBuzzIt で内容を確認し、承認してください。\n👉 https://app.buzzit.shigotoku.com/magic-creator`;
+      return `🍽 *【昼の承認依頼】*\n本日の投稿案が生成されました。\nBuzzIt で内容を確認し、承認してください。\n👉 https://app.buzzit.shigotoku.com/calendar`;
     case 'evening':
-      return `🌙 *【夜のバズ通知】*\n本日の投稿が伸び始めています！\nチーム全員でエンゲージメントを増やしましょう 🔥`;
+      return `🌙 *【夜のバズ通知】*\n本日の投稿が伸び始めています！\nチーム全員でエンゲージメントを増やしましょう 🔥\nXはコピー投稿でも十分効きます。`;
     default:
       return 'BuzzIt 通知';
   }

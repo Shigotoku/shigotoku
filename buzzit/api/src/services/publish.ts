@@ -1,9 +1,20 @@
 import type { PublishMode, ScheduleContentItem } from '../types/schedule';
-import type { UserSettings } from './firestore';
+import {
+  getXApiPostsThisMonth,
+  incrementXApiPostCount,
+  type UserSettings,
+} from './firestore';
 import { scheduleWithAyrshare } from './ayrshare';
 import { publishToMeta, type MetaConnection } from './meta';
 import { formatScheduleNotification, sendLineBroadcast } from './lineMessaging';
 import { postToSlackWebhook } from './slack';
+import {
+  credentialsFromSettings,
+  pickXPostText,
+  postTweetWithXApi,
+  X_FREE_MONTHLY_SOFT_LIMIT,
+} from './xApi';
+import { publishGbpLocalPost } from './gbp';
 
 export interface PublishOutcome {
   status: 'published' | 'notified' | 'failed';
@@ -79,14 +90,87 @@ export async function executePublish(
       }
     }
 
+    case 'x_free': {
+      const creds = credentialsFromSettings(settings);
+      if (!creds) {
+        const fallback = await notifyUser(settings, contents, scheduledAt);
+        return {
+          ...fallback,
+          message: `X API未設定のため通知に切替: ${fallback.message}`,
+        };
+      }
+      const used = getXApiPostsThisMonth(settings);
+      if (used >= X_FREE_MONTHLY_SOFT_LIMIT) {
+        return {
+          status: 'failed',
+          message: `今月のX投稿上限（${X_FREE_MONTHLY_SOFT_LIMIT}件）に達しています。開発者コンソールの枠・課金を確認してください`,
+        };
+      }
+      const text = pickXPostText(contents);
+      const result = await postTweetWithXApi(creds, text, mediaUrls);
+      if (result.success) {
+        const count = await incrementXApiPostCount(uid);
+        return {
+          status: 'published',
+          message: `${result.message}（今月 ${count}/${X_FREE_MONTHLY_SOFT_LIMIT}）`,
+          results: [
+            {
+              platform: 'x_thread',
+              success: true,
+              message: result.message,
+              externalId: result.tweetId,
+            },
+          ],
+        };
+      }
+      return {
+        status: 'failed',
+        message: result.message,
+        results: [{ platform: 'x_thread', success: false, message: result.message }],
+      };
+    }
+
+    case 'gbp': {
+      if (!settings.gbpConnected) {
+        return {
+          status: 'failed',
+          message: 'GBP未連携です。設定で OAuth 連携を行ってください',
+        };
+      }
+      const gbpContent = contents.find((c) => c.platform === 'gbp') ?? contents[0];
+      const mediaUrl = mediaUrls?.[0];
+      const result = await publishGbpLocalPost(settings, gbpContent.content, mediaUrl);
+      if (result.success) {
+        return {
+          status: 'published',
+          message: result.message,
+          results: [{ platform: 'gbp', success: true, message: result.message, externalId: result.postId }],
+        };
+      }
+      const notified = await notifyUser(settings, contents, scheduledAt);
+      return {
+        status: notified.status === 'notified' ? 'notified' : 'failed',
+        message: `${result.message}。通知にフォールバック: ${notified.message}`,
+        results: [{ platform: 'gbp', success: false, message: result.message }],
+      };
+    }
+
     default:
       return notifyUser(settings, contents, scheduledAt);
   }
 }
 
 function resolveAutoMode(settings: UserSettings): PublishMode {
-  if (settings.metaAccessToken && settings.metaIgUserId) return 'meta';
-  if (settings.lineChannelAccessToken) return 'line';
+  const goal = settings.autoModeGoal ?? 'reach';
+  if (goal === 'cv') {
+    if (settings.lineChannelAccessToken) return 'line';
+    if (settings.metaAccessToken && settings.metaIgUserId) return 'meta';
+  } else {
+    if (settings.gbpConnected && settings.gbpAccessToken) return 'gbp';
+    if (settings.metaAccessToken && settings.metaIgUserId) return 'meta';
+    if (settings.lineChannelAccessToken) return 'line';
+  }
+  if (credentialsFromSettings(settings)) return 'x_free';
   if (process.env.AYRSHARE_API_KEY && settings.ayrshareProfileKey) return 'ayrshare';
   return 'notify';
 }

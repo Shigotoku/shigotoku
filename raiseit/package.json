@@ -1,0 +1,34 @@
+{
+  "name": "raiseit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "レイジット (RaiseIt): Search Console / GA4 の日次保存と改善候補抽出（Phase 1-A）",
+  "scripts": {
+    "check:auth": "node scripts/check-auth.mjs",
+    "fetch:gsc": "node scripts/fetch-search-console.mjs",
+    "fetch:ga4": "node scripts/fetch-ga4.mjs",
+    "fetch:src": "node scripts/fetch-ga4-sources.mjs",
+    "import:social": "node scripts/import-social.mjs",
+    "fetch:psi": "node scripts/fetch-psi.mjs",
+    "fetch:events": "node scripts/fetch-ga4-events.mjs",
+    "check:ad": "node scripts/medical-ad-check.mjs",
+    "test": "node --test scripts/medical-ad-check.test.mjs scripts/engine/insights.test.mjs scripts/engine/digest.test.mjs scripts/engine/detail.test.mjs scripts/fetch-competitors.test.mjs scripts/fetch-site-audit.test.mjs scripts/engine/build-summary.test.mjs",
+    "action:add": "node scripts/action-add.mjs",
+    "ai:propose": "node scripts/ai/propose.mjs propose",
+    "ai:review": "node scripts/ai/propose.mjs review",
+    "report": "node scripts/analyze.mjs",
+    "fetch:all": "node scripts/fetch-search-console.mjs && node scripts/fetch-ga4.mjs",
+    "job:run": "node scripts/cloud/run-job.mjs",
+    "seed:tenant": "node scripts/cloud/seed-tenant.mjs",
+    "summary": "node scripts/engine/build-summary.mjs",
+    "fetch:conv": "node scripts/fetch-ga4-conversions.mjs",
+    "fetch:audit": "node scripts/fetch-site-audit.mjs",
+    "fetch:competitors": "node scripts/fetch-competitors.mjs"
+  },
+  "dependencies": {
+    "express": "^5.3.0",
+    "firebase-admin": "^13.4.0",
+    "google-auth-library": "^9.15.0"
+  }
+}

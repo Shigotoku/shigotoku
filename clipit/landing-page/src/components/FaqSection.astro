@@ -1,0 +1,40 @@
+---
+const faqs = [
+  {
+    q: '閲覧するスタッフもアカウントが必要ですか？',
+    a: '共有URL・QR・PDFで閲覧する場合はログイン不要です。既読確認や社内管理にはスタッフ招待（有料プラン）をご利用ください。',
+  },
+  {
+    q: '個人情報が写り込んだ場合は？',
+    a: '手動マスキングと公開前の「隠し忘れ確認」で、公開前に必ずチェックできます。',
+  },
+  {
+    q: 'どの業務システムでも使えますか？',
+    a: 'ブラウザ上で操作できる業務であれば記録可能です（Google Chrome・PC）。拡張なしでスクショから作る方法もあります。',
+  },
+  {
+    q: 'Chrome拡張は必須ですか？',
+    a: '必須ではありません。スクショアップロードやテンプレートからも始められます。操作の自動記録を使う場合のみ Chrome 拡張が必要です。',
+  },
+  {
+    q: '無料プランでも試せますか？',
+    a: 'はい。月3本まで・透かしありでお試しできます。本格運用はスタンダード（月額2,980円）がおすすめです。',
+  },
+];
+---
+
+<section id="faq" class="clipit-section bg-slate-50 py-12 sm:py-20">
+  <div class="mx-auto max-w-3xl px-4 sm:px-6">
+    <div class="text-center">
+      <h2 class="clipit-h2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl" data-jp-heading>よくある質問</h2>
+    </div>
+    <dl class="mt-8 space-y-3 sm:mt-12 sm:space-y-4">
+      {faqs.map((item) => (
+        <div class="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm sm:px-6 sm:py-5">
+          <dt class="text-sm font-bold text-slate-900 sm:text-base" data-jp-wrap>{item.q}</dt>
+          <dd class="clipit-body mt-2 text-sm leading-relaxed text-slate-600" data-jp-wrap>{item.a}</dd>
+        </div>
+      ))}
+    </dl>
+  </div>
+</section>

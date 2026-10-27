@@ -46,6 +46,25 @@ BuzzIt は **店舗（ロケーション）単位** で課金します。RunWith
 | ロール変更 | ✓ | staffのみ | — |
 | オーナー移譲 | ✓ | — | — |
 
+## アカウント（課金主体）
+
+詳細: [ACCOUNT-BILLING-MODEL.md](./ACCOUNT-BILLING-MODEL.md)
+
+```
+accounts/{accountId}
+  accountType: individual | business
+  billingStatus: monitor | trial | active | past_due | cancelled
+  plan, billingExempt, companyName, seatCount, paymentProvider, paymentCustomerId
+accounts/{accountId}/members/{uid}
+  role: owner | admin | member
+users/{uid}
+  accountId, accountType, accountSetupComplete
+```
+
+- 個人: アカウント1つまで、追加メンバー不可
+- 法人: メンバー追加可（2人目以降 +¥1,980/月）
+- 決済: Stripe / PAY.JP 抽象化（`paymentProvider.ts`）
+
 ## データモデル（Firestore）
 
 ```
@@ -73,11 +92,18 @@ users/{uid}
 | POST | /v1/stores/:id/invitations | 招待作成 |
 | POST | /v1/invitations/:token/accept | 招待承認 |
 
+## 実装済み（2026-09-10）
+
+- Stripe Checkout `/v1/billing/checkout` + Webhook `/v1/billing/webhook`（`STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` 必須）
+- ダウングレード時の店舗数ガード（`PUT /v1/settings` で `plan` 変更時）
+- Firestore Security Rules（`deploy/firestore.buzzit.rules` — 店舗メンバー）
+- 紹介コード（`referralCode` 自動発行 + `/v1/billing/referral/apply`）
+- 年払い（Checkout で `interval: annual`、10ヶ月分請求）
+
 ## 未実装（次フェーズ）
 
-- Stripe Checkout / Webhook 連携
-- ダウングレード時の店舗数・スタッフ数ガード（UI）
-- Firestore Security Rules（店舗メンバー限定アクセス）
+- ダウングレード時のスタッフ数ガード（UI）
+- Stripe Subscription による自動更新（現状は Checkout 単発決済）
 - プランは現状 `users/{uid}.plan` に保存（オーナーUID基準）
 
 ## 関連ファイル

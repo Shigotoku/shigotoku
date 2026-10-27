@@ -1,0 +1,50 @@
+---
+import { appPath } from '../lib/urls';
+
+const newUrl = appPath('/manuals/new');
+const bulkUrl = appPath('/bulk-update');
+---
+
+<section id="pillars" class="clipit-section border-y border-slate-100 bg-white py-12 sm:py-20">
+  <div class="mx-auto max-w-7xl px-4 sm:px-6">
+    <div class="text-center">
+      <p class="text-sm font-semibold uppercase tracking-widest text-primary-600">Create · Manage · Teach</p>
+      <h2 class="clipit-h2 mt-3 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl" data-jp-heading>作る。直す。教える。</h2>
+      <p class="clipit-lead mt-3 text-base text-slate-600 sm:mt-4 sm:text-lg" data-jp-wrap>ぜんぶ ClipIt で。作って終わりではなく、資産として使い続けられる。</p>
+    </div>
+    <div class="clipit-grid-safe mt-10 grid gap-5 sm:mt-14 sm:gap-8 lg:grid-cols-3">
+      <div class="rounded-2xl border border-slate-200 bg-slate-50/50 p-5 sm:p-8">
+        <span class="text-xs font-bold uppercase tracking-wider text-primary-600">Create</span>
+        <h3 class="mt-2 text-xl font-bold text-slate-900">作る</h3>
+        <ul class="mt-4 space-y-2 text-sm text-slate-600">
+          <li>クリックで記録（Chrome拡張）</li>
+          <li>話して作成（Google Meet連携）</li>
+          <li>スクショから作成</li>
+          <li>AIが日本語の手順文を生成</li>
+        </ul>
+        <a href={newUrl} class="mt-6 inline-block text-sm font-semibold text-primary-600 hover:underline">作り方を選ぶ →</a>
+      </div>
+      <div class="rounded-2xl border-2 border-primary-300 bg-primary-50/40 p-5 shadow-lg shadow-primary-500/5 sm:p-8">
+        <span class="text-xs font-bold uppercase tracking-wider text-primary-700">Manage</span>
+        <h3 class="mt-2 text-xl font-bold text-slate-900">直す・管理する</h3>
+        <ul class="mt-4 space-y-2 text-sm text-slate-700">
+          <li><strong>まとめて修正</strong>（AI一括更新）</li>
+          <li>共通パーツ・変数</li>
+          <li>差分確認・ロールバック</li>
+          <li>マニュアル健康診断</li>
+        </ul>
+        <a href={bulkUrl} class="mt-6 inline-block rounded-lg bg-primary-500 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-600">まとめて修正を試す</a>
+      </div>
+      <div class="rounded-2xl border border-slate-200 bg-slate-50/50 p-5 sm:p-8">
+        <span class="text-xs font-bold uppercase tracking-wider text-primary-600">Teach</span>
+        <h3 class="mt-2 text-xl font-bold text-slate-900">教える</h3>
+        <ul class="mt-4 space-y-2 text-sm text-slate-600">
+          <li>既読確認・教育管理</li>
+          <li>QR・A4印刷・スマホ閲覧</li>
+          <li>「わかりにくい」フィードバック</li>
+          <li>教材・プリント運用（拡張予定）</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>

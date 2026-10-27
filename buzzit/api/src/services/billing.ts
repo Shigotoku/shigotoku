@@ -1,4 +1,20 @@
 import type { PlanTier } from './firestore';
+import type { AccountRecord } from '../types/account';
+
+function isAccountBillingExempt(account: AccountRecord): boolean {
+  if (account.billingExempt) return true;
+  if (account.billingStatus === 'monitor') return true;
+  if (account.billingExemptExpiresAt) {
+    return new Date(account.billingExemptExpiresAt) > new Date();
+  }
+  return false;
+}
+
+/** 個人が作成できるアカウント数の上限 */
+export const INDIVIDUAL_MAX_ACCOUNTS = 1;
+
+/** 法人アカウントの追加ユーザー席（2人目以降）月額 */
+export const EXTRA_ACCOUNT_SEAT_MONTHLY = 1980;
 
 /** 1店舗目の月額基本料 */
 export const PLAN_BASE_MONTHLY: Record<PlanTier, number> = {
@@ -14,6 +30,21 @@ export const PLAN_BASE_MONTHLY: Record<PlanTier, number> = {
 
 /** 2店舗目以降の割引率 */
 export const ADDITIONAL_STORE_DISCOUNT = 0.2;
+
+/** 追加ペルソナ（配信キャラ）枠の月額・1枠（旧称: 追加SNSアカウント枠） */
+export const EXTRA_SNS_ACCOUNT_MONTHLY = 980;
+
+/** プランに含まれるペルソナ数（1体目込み） */
+export const INCLUDED_PERSONAS_BY_PLAN: Record<PlanTier, number> = {
+  free: 1,
+  line_lite: 1,
+  line_pro: 1,
+  starter: 1,
+  pro: 1,
+  team: 2,
+  growth: 3,
+  enterprise: 10,
+};
 
 /** プランごとの最大店舗数 */
 export const MAX_STORES_BY_PLAN: Record<PlanTier, number> = {
@@ -39,12 +70,46 @@ export const MAX_STAFF_BY_PLAN: Record<PlanTier, number> = {
   enterprise: Number.POSITIVE_INFINITY,
 };
 
-export function computeMonthlyTotal(plan: PlanTier, storeCount: number): number {
+export function computeMonthlyTotal(
+  plan: PlanTier,
+  storeCount: number,
+  extraSnsAccounts = 0,
+): number {
   const base = PLAN_BASE_MONTHLY[plan];
-  if (storeCount <= 0 || base === 0) return 0;
+  if (storeCount <= 0) return 0;
   const additional = Math.max(0, storeCount - 1);
-  const additionalCost = additional * base * (1 - ADDITIONAL_STORE_DISCOUNT);
-  return Math.round(base + additionalCost);
+  const storeCost =
+    base === 0 ? 0 : Math.round(base + additional * base * (1 - ADDITIONAL_STORE_DISCOUNT));
+  const snsExtra = Math.max(0, extraSnsAccounts) * EXTRA_SNS_ACCOUNT_MONTHLY;
+  return storeCost + snsExtra;
+}
+
+export function extraSnsAccountsCost(extraSnsAccounts: number): number {
+  return Math.max(0, extraSnsAccounts) * EXTRA_SNS_ACCOUNT_MONTHLY;
+}
+
+export function includedPersonasForPlan(plan: PlanTier): number {
+  return INCLUDED_PERSONAS_BY_PLAN[plan] ?? 1;
+}
+
+export function maxPersonasForPlan(plan: PlanTier, extraPersonaSlots = 0): number {
+  return includedPersonasForPlan(plan) + Math.max(0, extraPersonaSlots);
+}
+
+export function canAddPersona(
+  plan: PlanTier,
+  currentPersonaCount: number,
+  extraPersonaSlots = 0,
+): boolean {
+  return currentPersonaCount < maxPersonasForPlan(plan, extraPersonaSlots);
+}
+
+export function personaLimitLabel(plan: PlanTier, extraSlots = 0): string {
+  const included = includedPersonasForPlan(plan);
+  if (extraSlots > 0) {
+    return `${included}体込み + 追加${extraSlots}体`;
+  }
+  return `${included}体まで`;
 }
 
 export function canAddStore(plan: PlanTier, currentStoreCount: number): boolean {
@@ -67,3 +132,29 @@ export function storeLimitLabel(plan: PlanTier): string {
   const max = MAX_STORES_BY_PLAN[plan];
   return `${max}店舗まで`;
 }
+
+/** アカウント単位の月額見積（基本料 + 追加席） */
+export function computeAccountMonthlyTotal(account: AccountRecord, storeCount = 1): number {
+  if (isAccountBillingExempt(account)) return 0;
+  if (account.billingStatus !== 'active' && account.billingStatus !== 'past_due') return 0;
+
+  const base = computeMonthlyTotal(account.plan, storeCount, 0);
+  if (account.accountType === 'business') {
+    const extraSeats = Math.max(0, account.seatCount - account.includedSeats);
+    return base + extraSeats * EXTRA_ACCOUNT_SEAT_MONTHLY;
+  }
+  return base;
+}
+
+export const BILLING_STATUS_LABELS: Record<string, string> = {
+  monitor: 'モニター',
+  trial: 'トライアル',
+  active: '課金中',
+  past_due: '支払い遅延',
+  cancelled: '解約済み',
+};
+
+export const ACCOUNT_TYPE_LABELS: Record<string, string> = {
+  individual: '個人',
+  business: '法人',
+};

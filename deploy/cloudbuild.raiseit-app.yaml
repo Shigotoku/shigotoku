@@ -1,0 +1,8 @@
+substitutions:
+  _IMAGE: asia-northeast1-docker.pkg.dev/shigotoku-raiseit-prod/raiseit/raiseit-app:latest
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: [build, -f, Dockerfile.app, -t, '${_IMAGE}', .]
+images:
+  - ${_IMAGE}

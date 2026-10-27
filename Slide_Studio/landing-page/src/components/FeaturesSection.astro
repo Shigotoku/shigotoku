@@ -1,0 +1,54 @@
+---
+const features = [
+  {
+    icon: '01',
+    title: '元資料から構成を作る',
+    body: 'Drive のドキュメントや資料を起点に、枚数・目的に合わせた構成案を組み立てます。写す作業を減らし、伝える順番に集中できます。',
+  },
+  {
+    icon: '02',
+    title: 'Style で「らしさ」を固定',
+    body: '会社公式・個人・用途別（営業、学会、VC など）の Style を選ぶだけ。色・レイアウトの癖を保持し、ブレを抑えます。',
+  },
+  {
+    icon: '03',
+    title: 'お手本 Reference の蓄積',
+    body: '良かった完成資料だけを Reference に。次の生成が、そのデザイン DNA に近づくよう設計されています。',
+  },
+  {
+    icon: '04',
+    title: 'Google Slides で仕上げ',
+    body: '生成結果は Slides として Drive に。右側の 16:9 プレビューで確認し、いつもの Google ワークフローで共有・編集できます。',
+  },
+];
+---
+
+<section id="features" class="deckit-section--lg relative overflow-hidden bg-deck-side text-white">
+  <div
+    class="pointer-events-none absolute inset-0"
+    aria-hidden="true"
+    style="background: radial-gradient(ellipse 90% 60% at 50% 0%, rgba(15, 108, 120, 0.28), transparent 55%);"
+  ></div>
+  <div class="relative z-10 mx-auto max-w-6xl px-4 sm:px-6">
+    <div class="text-center">
+      <p class="text-xs font-bold uppercase tracking-widest text-deck-accent-soft sm:text-sm">Features</p>
+      <h2 class="deckit-h2 mt-3 font-bold" data-jp-heading>
+        DeckIt の<span class="text-deck-accent-soft">4つ</span>の柱
+      </h2>
+      <p class="deckit-lead mx-auto mt-3 max-w-2xl text-[#c8d4dc] sm:mt-4" data-jp-wrap>
+        集める。型づける。学ばせる。Slides に出す。資料作成 OS に必要なことだけ。
+      </p>
+    </div>
+    <div class="deckit-grid-safe mt-8 grid gap-3 sm:mt-10 sm:grid-cols-2 sm:gap-5">
+      {features.map((f) => (
+        <div class="min-w-0 rounded-xl border border-white/10 bg-deck-side-2/90 p-4 transition-colors hover:border-deck-accent/50 sm:p-6">
+          <span class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-deck-accent text-sm font-bold text-white sm:h-10 sm:w-10">
+            {f.icon}
+          </span>
+          <h3 class="deckit-h3 mt-3 font-bold sm:mt-4" data-jp-heading>{f.title}</h3>
+          <p class="deckit-body mt-2 text-[#9fb0bc]" data-jp-wrap>{f.body}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>

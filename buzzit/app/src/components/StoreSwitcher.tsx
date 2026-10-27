@@ -28,14 +28,14 @@ export default function StoreSwitcher() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex max-w-[12rem] items-center gap-1.5 truncate rounded border border-neutral-200 bg-white px-2.5 py-1.5 text-xs font-medium text-neutral-700 hover:border-neutral-400"
+        className="flex max-w-[12rem] items-center gap-1.5 truncate rounded-lg border border-neutral-200/80 bg-white px-2.5 py-1.5 text-xs font-medium text-neutral-700 shadow-sm hover:border-neutral-300"
       >
         <Store className="h-3.5 w-3.5 shrink-0" />
         <span className="truncate">{active?.name ?? '店舗'}</span>
         <ChevronDown className="h-3.5 w-3.5 shrink-0" />
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 min-w-[12rem] border border-neutral-200 bg-white py-1 shadow-lg">
+        <div className="absolute left-0 top-full z-50 mt-1 min-w-[12rem] overflow-hidden rounded-xl border border-neutral-200/80 bg-white py-1 shadow-lg">
           {stores.map((store) => (
             <button
               key={store.id}

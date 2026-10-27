@@ -1,0 +1,220 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { appPath, assetPath, CONTACT_URL, CORPORATE_URL } from '../lib/urls';
+
+const loginUrl = appPath('/');
+
+const steps = [
+  { no: '1', title: 'データで見つける', body: 'Search Console・GA4・公開ページの監査を毎朝自動で取得。問い合わせ（成果）につながる所から、直すべき点を洗い出します。' },
+  { no: '2', title: '安全に直す', body: '改善候補ごとに「なぜ」「やること」「所要時間」「リスク」を表示。AI・制作会社にそのまま渡せる依頼文も用意します。反映は人が承認してから。' },
+  { no: '3', title: '効果を測る', body: '実施した施策は前後14日で比較。効きそうに見えた施策が本当に効いたかを、数字で振り返れます。' },
+];
+
+const problems = [
+  { title: '数字は見えるが、次に何をすればいいか分からない', body: '順位やアクセス数が並んでいても、問い合わせを増やすために今週やることまでは教えてくれません。' },
+  { title: '計測が壊れていても、気づけない', body: 'タグの出力漏れで一部のページだけ数字が欠けていても、画面上は「いつも通り」に見えます。判断の土台が崩れます。' },
+  { title: 'AIに直させたいが、指示が書けない', body: '原因・対象ページ・守る条件を整理して伝えないと、AIは的外れな修正をします。その整理に時間がかかります。' },
+];
+
+const features = [
+  { icon: '🎯', title: '成果基点の優先順位', body: '評価の軸はPVや順位ではなく、問い合わせ（GA4 の成果イベント）の件数。期待効果の幅・確度・所要時間・リスクを並べて、今週やる3つを示します。' },
+  { icon: '🔎', title: '計測の欠けを自動検知', body: '検索のクリックに対しGA4のセッションが極端に少ないとき、ページ群ごとに分解。タグが出ていないページ群まで特定します。' },
+  { icon: '📋', title: 'そのまま貼れる依頼文', body: '各改善候補に「AI向け」「制作会社向け」の依頼文を自動作成。守る条件（デザイン・canonical・計測IDを変えない等）も入っています。' },
+  { icon: '🛡️', title: '医療広告のチェック', body: '公開ページと文案を、体験談・効果の断定・最上級表現などの観点で確認。クリニックサイトの変更を安全側に保ちます。' },
+  { icon: '✅', title: '人が承認するまで何も変えない', body: 'レイジットがサイトを書き換えることはありません。canonical・noindex・robots は自動変更の対象外。承認・実施・見送りの履歴が残ります。' },
+  { icon: '📱', title: 'スマホで30秒の承認', body: '外出先でも、結論と承認ボタンだけで判断できるモバイル優先の画面。週次のダイジェストメールで見落としも防げます。' },
+];
+
+const limits = [
+  'Search Console のクエリ別データは匿名化された検索語を含まず、クリックの一部しか見えません。判断はページ別の合計を基準にし、画面にもその旨を表示します。',
+  '効果測定は施策の前後14日の傾向比較です。季節性や他の施策の影響までは取り除けません。',
+  'データには鮮度があります。最後に取得した日と、できないことを画面で明示します。',
+  '改善の効果を保証するものではありません。判断と実施は、必ず人が行います。',
+];
+
+const faqs = [
+  { q: 'どんなサイトが対象ですか？', a: 'Search Console と GA4 を設定している Web サイトが対象です。クリニック・医院向けの設定（医療広告のチェックなど）にも対応しています。' },
+  { q: 'サイトを自動で書き換えますか？', a: 'いいえ。レイジットは読み取り専用で、サイトを書き換えません。提案と依頼文を出し、修正は担当者・制作会社・AIの作業として人が承認したうえで行います。' },
+  { q: 'どんな権限が必要ですか？', a: 'Search Console は「制限付き」、GA4 は「閲覧者」の権限を、レイジット用のサービスアカウントに付与します。パスワードや鍵ファイルのやり取りはありません。' },
+  { q: '誰でも使えますか？', a: '現在は招待制で提供しています。導入のご相談はお問い合わせからご連絡ください。' },
+  { q: '費用はいくらですか？', a: '現在は個別にご案内しています。お問い合わせください。' },
+];
+---
+
+<Layout
+  title="レイジット (RaiseIt) — 集患の数字を、次の一手に。"
+  description="Search Console・GA4・公開ページの監査をつなぎ、問い合わせを増やすために今週やることを優先順位つきで提案。AIや制作会社にそのまま渡せる依頼文つき。人が承認するまで何も変えない、集患改善の司令塔。"
+>
+  <header class="sticky top-0 z-30 border-b border-line/70 bg-white/85 backdrop-blur">
+    <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
+      <a href={assetPath('')} class="flex items-center gap-2.5 font-bold">
+        <img src={assetPath('images/raiseit-icon.png')} alt="" width="32" height="32" class="h-8 w-8 rounded-lg" />
+        <span>レイジット <span class="text-sm font-medium text-muted">RaiseIt</span></span>
+      </a>
+      <nav class="flex items-center gap-2 text-sm sm:gap-4">
+        <a href="#how" class="hidden text-muted hover:text-ink sm:inline">しくみ</a>
+        <a href="#features" class="hidden text-muted hover:text-ink sm:inline">機能</a>
+        <a href="#faq" class="hidden text-muted hover:text-ink sm:inline">よくある質問</a>
+        <a href={loginUrl} class="rounded-lg border border-line px-3 py-2 font-semibold hover:border-brand hover:text-brand">ログイン</a>
+        <a href={CONTACT_URL} class="brand-gradient rounded-lg px-3.5 py-2 font-semibold text-white shadow-sm hover:opacity-90">導入のご相談</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <!-- Hero -->
+    <section class="relative overflow-hidden bg-ink text-white">
+      <div class="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-brand/40 blur-3xl"></div>
+      <div class="pointer-events-none absolute -bottom-32 -left-24 h-96 w-96 rounded-full bg-sky/20 blur-3xl"></div>
+      <div class="relative mx-auto grid max-w-6xl gap-10 px-4 py-16 sm:px-6 md:grid-cols-[1.15fr_0.85fr] md:items-center md:py-24">
+        <div>
+          <p class="mb-4 inline-block rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold tracking-wide">SEO・GEO・MEO・SNS の集患改善</p>
+          <h1 class="text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">
+            集患の数字を、<br /><span class="brand-text">次の一手</span>に。
+          </h1>
+          <p class="mt-6 max-w-xl text-base leading-relaxed text-white/80 sm:text-lg">
+            Search Console と GA4 をつなぎ、「問い合わせを増やすために、今週やること」を優先順位つきで提案。AI や制作会社にそのまま渡せる依頼文も、自動で用意します。
+          </p>
+          <div class="mt-8 flex flex-wrap gap-3">
+            <a href={CONTACT_URL} class="brand-gradient rounded-xl px-6 py-3.5 text-base font-bold text-white shadow-lg shadow-brand/30 hover:opacity-90">導入のご相談</a>
+            <a href={loginUrl} class="rounded-xl border border-white/30 px-6 py-3.5 text-base font-semibold hover:bg-white/10">ログイン（招待制）</a>
+          </div>
+          <p class="mt-4 text-xs text-white/60">人が承認するまで、サイトは一切変更しません。</p>
+        </div>
+
+        <!-- 表示イメージ -->
+        <div class="rounded-2xl border border-white/10 bg-white p-5 text-ink shadow-2xl shadow-black/30">
+          <div class="mb-3 flex flex-wrap gap-1.5 text-[11px]">
+            <span class="rounded-full bg-ink px-2 py-0.5 font-semibold text-white">計測</span>
+            <span class="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">確度 高</span>
+            <span class="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">所要 約30分</span>
+            <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-700">リスク 低</span>
+          </div>
+          <p class="text-sm font-bold leading-snug">検索クリックに対し、GA4 の自然検索セッションが少なすぎます</p>
+          <table class="mt-3 w-full text-xs">
+            <thead>
+              <tr class="border-b text-slate-500"><th class="py-1 text-left font-normal">ページ群</th><th class="text-right font-normal">クリック</th><th class="text-right font-normal">セッション</th><th class="text-right font-normal">タグなし</th></tr>
+            </thead>
+            <tbody>
+              <tr class="border-b"><td class="py-1 font-mono">/blog/</td><td class="text-right">1,234</td><td class="text-right">266</td><td class="text-right font-semibold text-rose-700">18/18</td></tr>
+              <tr><td class="py-1 font-mono">/</td><td class="text-right">137</td><td class="text-right">344</td><td class="text-right text-slate-400">0/1</td></tr>
+            </tbody>
+          </table>
+          <div class="mt-3 flex gap-2 text-xs">
+            <span class="rounded-lg border px-3 py-2 font-semibold">AI向けをコピー</span>
+            <span class="rounded-lg border px-3 py-2 font-semibold">制作会社向けをコピー</span>
+          </div>
+          <p class="mt-3 text-[11px] text-slate-400">※ 画面の表示イメージ（数値は例）</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 課題 -->
+    <section class="bg-bg py-16 sm:py-20">
+      <div class="mx-auto max-w-6xl px-4 sm:px-6">
+        <h2 class="text-center text-2xl font-extrabold sm:text-3xl">集患の改善が、前に進まない理由</h2>
+        <div class="mt-10 grid gap-5 md:grid-cols-3">
+          {problems.map((p) => (
+            <div class="rounded-2xl border border-line bg-white p-6">
+              <h3 class="text-base font-bold leading-snug">{p.title}</h3>
+              <p class="mt-3 text-sm leading-relaxed text-muted">{p.body}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- しくみ -->
+    <section id="how" class="py-16 sm:py-20">
+      <div class="mx-auto max-w-6xl px-4 sm:px-6">
+        <h2 class="text-center text-2xl font-extrabold sm:text-3xl">データで見つける → 安全に直す → 効果を測る</h2>
+        <div class="mt-10 grid gap-5 md:grid-cols-3">
+          {steps.map((s) => (
+            <div class="relative rounded-2xl border border-line p-6">
+              <span class="brand-gradient flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold text-white">{s.no}</span>
+              <h3 class="mt-4 text-lg font-bold">{s.title}</h3>
+              <p class="mt-2 text-sm leading-relaxed text-muted">{s.body}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- 機能 -->
+    <section id="features" class="bg-bg py-16 sm:py-20">
+      <div class="mx-auto max-w-6xl px-4 sm:px-6">
+        <h2 class="text-center text-2xl font-extrabold sm:text-3xl">できること</h2>
+        <div class="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {features.map((f) => (
+            <div class="rounded-2xl border border-line bg-white p-6">
+              <div class="text-2xl" aria-hidden="true">{f.icon}</div>
+              <h3 class="mt-3 text-base font-bold">{f.title}</h3>
+              <p class="mt-2 text-sm leading-relaxed text-muted">{f.body}</p>
+            </div>
+          ))}
+        </div>
+        <p class="mt-8 text-center text-sm text-muted">連携するデータ：Search Console ／ GA4 ／ PageSpeed Insights ／ 公開ページの監査 ／ 競合サイトの定点観測（週次・robots.txt を遵守）</p>
+      </div>
+    </section>
+
+    <!-- 正直な限界 -->
+    <section class="py-16 sm:py-20">
+      <div class="mx-auto max-w-4xl px-4 sm:px-6">
+        <h2 class="text-center text-2xl font-extrabold sm:text-3xl">できないことも、先にお伝えします</h2>
+        <p class="mt-3 text-center text-sm text-muted">数字を信じて判断するための前提を、画面にもそのまま表示します。</p>
+        <ul class="mt-8 space-y-3">
+          {limits.map((l) => (
+            <li class="flex gap-3 rounded-xl border border-line bg-white p-4 text-sm leading-relaxed">
+              <span class="mt-0.5 text-brand" aria-hidden="true">●</span><span>{l}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section id="faq" class="bg-bg py-16 sm:py-20">
+      <div class="mx-auto max-w-3xl px-4 sm:px-6">
+        <h2 class="text-center text-2xl font-extrabold sm:text-3xl">よくある質問</h2>
+        <div class="mt-8 space-y-3">
+          {faqs.map((f) => (
+            <details class="group rounded-xl border border-line bg-white p-5">
+              <summary class="cursor-pointer list-none font-bold marker:hidden">
+                <span class="flex items-center justify-between gap-4">{f.q}<span class="text-brand transition group-open:rotate-45" aria-hidden="true">＋</span></span>
+              </summary>
+              <p class="mt-3 text-sm leading-relaxed text-muted">{f.a}</p>
+            </details>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="brand-gradient py-16 text-white sm:py-20">
+      <div class="mx-auto max-w-3xl px-4 text-center sm:px-6">
+        <h2 class="text-2xl font-extrabold sm:text-3xl">まずは、いまの数字から始めませんか。</h2>
+        <p class="mt-4 text-white/85">導入のご相談・デモのご依頼は、お問い合わせからお気軽にどうぞ。</p>
+        <div class="mt-8 flex flex-wrap justify-center gap-3">
+          <a href={CONTACT_URL} class="rounded-xl bg-white px-7 py-3.5 font-bold text-brand shadow-lg hover:opacity-95">導入のご相談</a>
+          <a href={loginUrl} class="rounded-xl border border-white/60 px-7 py-3.5 font-semibold hover:bg-white/10">ログイン（招待制）</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="bg-ink py-10 text-sm text-white/70">
+    <div class="mx-auto flex max-w-6xl flex-col gap-4 px-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+      <div class="flex items-center gap-2.5">
+        <img src={assetPath('images/raiseit-icon.png')} alt="" width="28" height="28" class="h-7 w-7 rounded-md" />
+        <span>レイジット (RaiseIt) ｜ 株式会社シゴトク</span>
+      </div>
+      <nav class="flex flex-wrap gap-x-5 gap-y-2">
+        <a href={CORPORATE_URL} class="hover:text-white">運営会社</a>
+        <a href={`${CORPORATE_URL}privacy/`} class="hover:text-white">プライバシーポリシー</a>
+        <a href={`${CORPORATE_URL}terms/`} class="hover:text-white">利用規約</a>
+        <a href={`${CORPORATE_URL}security/`} class="hover:text-white">セキュリティ</a>
+        <a href={CONTACT_URL} class="hover:text-white">お問い合わせ</a>
+      </nav>
+    </div>
+  </footer>
+</Layout>

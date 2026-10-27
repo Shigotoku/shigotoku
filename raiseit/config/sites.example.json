@@ -1,0 +1,18 @@
+{
+  "sites": [
+    {
+      "id": "site-a",
+      "name": "サイトA",
+      "industry": "general",
+      "gscSite": "sc-domain:example.com",
+      "ga4PropertyId": ""
+    },
+    {
+      "id": "site-b",
+      "name": "サイトB(医療機関の例)",
+      "industry": "clinic",
+      "gscSite": "sc-domain:example.jp",
+      "ga4PropertyId": ""
+    }
+  ]
+}

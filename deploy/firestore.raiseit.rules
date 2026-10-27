@@ -1,0 +1,62 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 集患ワークス: テナント(組織)単位でアクセス制御する。
+    // 分析データ本体は Cloud Storage(サーバーのみ)。ここは設定・メンバー・承認・実行履歴。
+    function isRaiseItAdmin() {
+      return request.auth != null
+        && request.auth.token.email in [
+          'meditoku.jp@gmail.com',
+          'r.tokunaga@meditoku.com'
+        ];
+    }
+
+    function memberDoc(orgId) {
+      return get(/databases/$(database)/documents/raiseit_organizations/$(orgId)/members/$(request.auth.uid));
+    }
+
+    function isMember(orgId) {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/raiseit_organizations/$(orgId)/members/$(request.auth.uid));
+    }
+
+    function hasRole(orgId, roles) {
+      return isMember(orgId) && memberDoc(orgId).data.role in roles;
+    }
+
+    match /raiseit_organizations/{orgId} {
+      allow read: if isMember(orgId) || isRaiseItAdmin();
+      allow write: if false; // 作成・更新は Admin SDK(サーバー)のみ
+
+      match /members/{uid} {
+        allow read: if request.auth != null && (request.auth.uid == uid || hasRole(orgId, ['owner', 'admin']) || isRaiseItAdmin());
+        allow write: if false;
+      }
+
+      match /sites/{siteId} {
+        allow read: if isMember(orgId) || isRaiseItAdmin();
+        allow write: if false;
+      }
+
+      match /runs/{runId} {
+        allow read: if isMember(orgId) || isRaiseItAdmin();
+        allow write: if false;
+      }
+
+      // 改善案(AI提案→承認): 承認操作はサーバー API 経由に限定(監査ログのため)
+      match /proposals/{proposalId} {
+        allow read: if isMember(orgId) || isRaiseItAdmin();
+        allow write: if false;
+      }
+
+      match /auditLogs/{logId} {
+        allow read: if hasRole(orgId, ['owner', 'admin']) || isRaiseItAdmin();
+        allow write: if false;
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

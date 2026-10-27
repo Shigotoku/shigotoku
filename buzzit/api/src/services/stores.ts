@@ -1,6 +1,6 @@
 import { randomBytes } from 'crypto';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
-import type { PlanTier } from './firestore';
+import type { PlanTier, UserSettings } from './firestore';
 import { getUserSettings } from './firestore';
 import { canAddStaff, canAddStore } from './billing';
 
@@ -10,6 +10,8 @@ export interface StoreRecord {
   id: string;
   name: string;
   ownerId: string;
+  /** 課金主体アカウント */
+  accountId?: string;
   industry?: string;
   createdAt: string;
 }
@@ -62,11 +64,13 @@ export async function ensureDefaultStore(
     }
   }
 
+  const accountId = data.accountId as string | undefined;
   const storeRef = storesCol().doc();
   const storeName = displayName ? `${displayName}の店舗` : 'マイ店舗';
   const store: Omit<StoreRecord, 'id'> = {
     name: storeName,
     ownerId: uid,
+    ...(accountId ? { accountId } : {}),
     industry: 'salon',
     createdAt: new Date().toISOString(),
   };
@@ -88,9 +92,12 @@ export async function ensureDefaultStore(
   return { id: storeRef.id, ...store };
 }
 
-export async function listStoresForUser(uid: string): Promise<StoreRecord[]> {
-  const settings = await getUserSettings(uid);
-  const storeIds: string[] = (settings as { storeIds?: string[] }).storeIds ?? [];
+export async function listStoresForUser(
+  uid: string,
+  preloadedSettings?: UserSettings,
+): Promise<StoreRecord[]> {
+  const settings = preloadedSettings ?? (await getUserSettings(uid));
+  const storeIds: string[] = settings.storeIds ?? [];
 
   if (!storeIds.length) {
     const created = await ensureDefaultStore(uid, settings.displayName);
@@ -144,6 +151,7 @@ export async function createStore(
   const store: Omit<StoreRecord, 'id'> = {
     name,
     ownerId: uid,
+    ...(settings.accountId ? { accountId: settings.accountId } : {}),
     industry: industry ?? settings.industry ?? 'salon',
     createdAt: new Date().toISOString(),
   };

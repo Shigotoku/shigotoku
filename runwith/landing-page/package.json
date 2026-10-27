@@ -6,6 +6,9 @@
     "node": ">=22.12.0"
   },
   "scripts": {
+    "sync:assets": "node ../../deploy/scripts/sync-web-assets.mjs",
+    "predev": "npm run sync:assets",
+    "prebuild": "npm run sync:assets",
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",

@@ -1,4 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
-  <rect width="32" height="32" fill="#111111"/>
-  <path d="M9 22V10h4.2c2.1 0 3.4 1.1 3.4 2.8 0 1.2-.6 2.1-1.6 2.5 1.3.4 2.1 1.4 2.1 2.9 0 2-1.5 3.3-3.9 3.3H9zm2.2-7.8h1.9c1 0 1.5-.5 1.5-1.3s-.5-1.3-1.5-1.3h-1.9v2.6zm0 5.8h2.1c1.2 0 1.9-.6 1.9-1.5 0-.9-.7-1.5-1.9-1.5h-2.1v3zM18.5 22l3.5-12h2.4l3.5 12h-2.3l-.7-2.4h-3.9l-.7 2.4h-2.3zm4.1-8.8-1.3 4.4h2.6l-1.3-4.4z" fill="white"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" role="img" aria-label="BuzzIt">
+  <defs>
+    <linearGradient id="buzzBolt" x1="20" y1="2" x2="44" y2="62" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#d8b4fe"/>
+      <stop offset="0.4" stop-color="#a855f7"/>
+      <stop offset="1" stop-color="#4c1d95"/>
+    </linearGradient>
+  </defs>
+  <path
+    fill="url(#buzzBolt)"
+    d="M38.5 2.5 16 34.2h13.2L22.8 61.5 50.5 26.8H36.8L38.5 2.5Z"
+  />
 </svg>
