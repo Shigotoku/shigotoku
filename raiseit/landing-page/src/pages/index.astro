@@ -10,6 +10,13 @@ const steps = [
   { no: '3', title: '効果を測る', body: '実施した施策は前後14日で比較。効きそうに見えた施策が本当に効いたかを、数字で振り返れます。' },
 ];
 
+const channels = [
+  { tag: 'SEO', img: 'photo-seo.jpg', alt: '検索結果を確認する様子', title: '検索で、見つけてもらう', body: '検索のクリック・表示回数と、問い合わせにつながったかを突き合わせ、直すべきページを順位づけします。' },
+  { tag: 'GEO', img: 'photo-geo.jpg', alt: 'スマートフォンのAIチャットに質問する男性', title: 'AIの回答に、選ばれる', body: 'AIに引用・要約されやすいページか、公開ページの構造（見出し・要約・構造化データなど）を監査し、足りない箇所を示します。' },
+  { tag: 'MEO', img: 'photo-meo.jpg', alt: '地図アプリで近くの店舗を探す様子', title: '地図で、近くの人に届く', body: '地図検索から来た人の受け皿となるサイト側の情報（名称・住所・診療内容）の整合や、スマホでの導線を点検します。' },
+  { tag: 'SNS', img: 'photo-sns.jpg', alt: 'SNSを見て笑顔になる二人の女性', title: 'SNSの関心を、予約へ', body: 'SNSから来た人が迷わず問い合わせまで進めているか。流入後の導線と、GA4の計測の欠けを見つけます。' },
+];
+
 const problems = [
   { title: '数字は見えるが、次に何をすればいいか分からない', body: '順位やアクセス数が並んでいても、問い合わせを増やすために今週やることまでは教えてくれません。' },
   { title: '計測が壊れていても、気づけない', body: 'タグの出力漏れで一部のページだけ数字が欠けていても、画面上は「いつも通り」に見えます。判断の土台が崩れます。' },
@@ -82,8 +89,15 @@ const faqs = [
           <p class="mt-4 text-xs text-white/60">人が承認するまで、サイトは一切変更しません。</p>
         </div>
 
-        <!-- 表示イメージ -->
-        <div class="rounded-2xl border border-white/10 bg-white p-5 text-ink shadow-2xl shadow-black/30">
+        <!-- 写真 + 表示イメージ -->
+        <div class="relative sm:pb-24">
+          <img
+            src={assetPath('images/photo-hero.jpg')}
+            alt="分析画面を確認するクリニックの院長"
+            width="1152" height="864" fetchpriority="high"
+            class="aspect-[4/3] w-full rounded-3xl object-cover shadow-2xl shadow-black/40 ring-1 ring-white/15"
+          />
+          <div class="relative -mt-12 mx-3 rounded-2xl border border-white/10 bg-white p-4 text-ink shadow-2xl shadow-black/30 sm:absolute sm:inset-x-auto sm:bottom-0 sm:-left-6 sm:right-6 sm:mx-0 sm:mt-0 sm:p-5">
           <div class="mb-3 flex flex-wrap gap-1.5 text-[11px]">
             <span class="rounded-full bg-ink px-2 py-0.5 font-semibold text-white">計測</span>
             <span class="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">確度 高</span>
@@ -105,7 +119,31 @@ const faqs = [
             <span class="rounded-lg border px-3 py-2 font-semibold">制作会社向けをコピー</span>
           </div>
           <p class="mt-3 text-[11px] text-slate-400">※ 画面の表示イメージ（数値は例）</p>
+          </div>
         </div>
+      </div>
+    </section>
+
+    <!-- 4つの集患導線 -->
+    <section class="py-16 sm:py-20">
+      <div class="mx-auto max-w-6xl px-4 sm:px-6">
+        <p class="text-center text-xs font-bold tracking-widest text-brand">CHANNELS</p>
+        <h2 class="mt-2 text-center text-2xl font-extrabold sm:text-3xl">見つけられる入口を、ひとつの数字で見渡す</h2>
+        <p class="mx-auto mt-3 max-w-2xl text-center text-sm leading-relaxed text-muted">検索、AI、地図、SNS。患者さんや見込み客があなたを見つける入口は増えています。どこで取りこぼしているかを、問い合わせ（成果）基点で見つけます。</p>
+        <div class="mt-10 grid gap-5 sm:grid-cols-2">
+          {channels.map((c) => (
+            <article class="group relative overflow-hidden rounded-3xl bg-ink shadow-lg">
+              <img src={assetPath(`images/${c.img}`)} alt={c.alt} width="1280" height="720" loading="lazy" class="aspect-[16/10] w-full object-cover opacity-90 transition duration-700 group-hover:scale-105" />
+              <div class="absolute inset-0 bg-gradient-to-t from-ink via-ink/55 to-transparent"></div>
+              <div class="absolute inset-x-0 bottom-0 p-5 sm:p-6 text-white">
+                <span class="brand-gradient inline-block rounded-full px-3 py-1 text-xs font-bold">{c.tag}</span>
+                <h3 class="mt-2 text-lg font-extrabold sm:text-xl">{c.title}</h3>
+                <p class="mt-1 text-sm leading-relaxed text-white/80">{c.body}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+        <p class="mt-6 text-center text-xs text-muted">※ 現在の対象は、Search Console・GA4・公開ページの監査から分かる範囲です。Googleビジネスプロフィールや各SNSの管理画面そのものは読み取りません。</p>
       </div>
     </section>
 
@@ -137,6 +175,17 @@ const faqs = [
             </div>
           ))}
         </div>
+      </div>
+    </section>
+
+    <!-- 全幅フォト帯 -->
+    <section class="relative isolate overflow-hidden">
+      <img src={assetPath('images/photo-team.jpg')} alt="施策を話し合うチーム" width="1280" height="720" loading="lazy" class="absolute inset-0 -z-10 h-full w-full object-cover" />
+      <div class="absolute inset-0 -z-10 bg-gradient-to-r from-ink/95 via-ink/75 to-brand/40"></div>
+      <div class="mx-auto max-w-6xl px-4 py-20 text-white sm:px-6 sm:py-28">
+        <p class="text-xs font-bold tracking-widest text-sky">TEAM × DATA</p>
+        <p class="mt-3 max-w-2xl text-2xl font-extrabold leading-snug sm:text-4xl">数字を見る会議を、<br />「何をやるか」を決める会議に。</p>
+        <p class="mt-5 max-w-xl text-sm leading-relaxed text-white/80 sm:text-base">今週やる3つが、理由・所要時間・リスクつきで並びます。決めて、依頼して、結果を振り返る。その流れをチームで共有できます。</p>
       </div>
     </section>
 
@@ -190,7 +239,9 @@ const faqs = [
     </section>
 
     <!-- CTA -->
-    <section class="brand-gradient py-16 text-white sm:py-20">
+    <section class="relative isolate overflow-hidden py-20 text-white sm:py-28">
+      <img src={assetPath('images/photo-sns.jpg')} alt="" width="1280" height="720" loading="lazy" class="absolute inset-0 -z-20 h-full w-full object-cover" />
+      <div class="brand-gradient absolute inset-0 -z-10 opacity-90"></div>
       <div class="mx-auto max-w-3xl px-4 text-center sm:px-6">
         <h2 class="text-2xl font-extrabold sm:text-3xl">まずは、いまの数字から始めませんか。</h2>
         <p class="mt-4 text-white/85">導入のご相談・デモのご依頼は、お問い合わせからお気軽にどうぞ。</p>
