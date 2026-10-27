@@ -11,7 +11,7 @@
  * 前提: firebase login 済み(プロジェクトに権限のあるアカウント)、gcloud ログイン済み。
  */
 import { execSync } from 'node:child_process';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -40,7 +40,9 @@ function run(cmd, opts = {}) {
 // 1) 公開フォルダ(中身は使わない。全パスを Cloud Run へ転送するため、空のスタブでよい)
 const stub = join(deployDir, 'dist', 'raiseit-hosting-stub');
 mkdirSync(stub, { recursive: true });
-writeFileSync(join(stub, 'index.html'), '<!doctype html><meta charset="utf-8"><title>RaiseIt</title>\n');
+// index.html は置かない(実ファイルが rewrite より優先され、トップが Cloud Run に届かなくなる)
+rmSync(join(stub, 'index.html'), { force: true });
+writeFileSync(join(stub, '_stub.txt'), 'RaiseIt hosting stub: all paths are rewritten to Cloud Run\n');
 
 // 2) Hosting API の有効化 + サイト作成
 try {
