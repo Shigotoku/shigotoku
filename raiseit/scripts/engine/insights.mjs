@@ -11,7 +11,37 @@
 // 注意: GSC のクエリ別行は匿名化クエリが除外され、クリックの一部しか含まない(実測: 約27%)。
 //       そのため判断はページ別の実数(gsc-page)で行い、クエリ別は「ヒント表示」にのみ使う。
 
+import { buildInstructions } from '../issue-text.mjs';
+
 const DAY = 86400000;
+
+// 計測の改善では、デザインや文言の制約より「計測の連続性」を守る制約が重要
+const TRACKING_CONSTRAINTS = [
+  '既存のイベント名・GA4 の測定IDは変更しないでください(過去データとの連続性のため)。',
+  '同意(Cookie)の挙動を変える場合は、実施前に必ず確認してください。',
+  'デザイン(見た目・レイアウト・文言)は変えないでください。',
+  '本番に反映する前に、プレビュー環境で表示とタグの出力を確認してください。',
+];
+
+/** 改善候補(action)を、依頼文の入力形式(issue)に変換する */
+export function actionToIssue(a, urgent = false) {
+  const verifyByCategory = {
+    計測: ['本番ページの HTML に GA4 の測定ID(G-…)が出力されていることを確認する', 'GA4 のリアルタイムで、実際にそのページを開いたアクセスが記録されることを確認する', '数日後、レイジットの「計測の乖離」の比率が上がっているか確認する'],
+    SEO: ['Search Console で2〜4週間後に、対象ページの表示回数・クリック率・平均掲載順位が改善しているか確認する'],
+  };
+  const verify = verifyByCategory[a.category] ?? ['実施後に本番ページを開いて表示と動作を確認し、レイジットの「施策履歴」に記録して効果測定を開始する'];
+  return {
+    kind: a.rule,
+    title: a.title,
+    severity: urgent || a.risk === 'high' ? 'high' : 'mid',
+    url: a.url,
+    facts: a.why,
+    problem: a.why[0] ? `${a.why[0]}` : a.title,
+    fixes: a.how,
+    verify,
+    ...(a.category === '計測' ? { constraints: TRACKING_CONSTRAINTS } : {}),
+  };
+}
 export const addDays = (s, n) => new Date(Date.parse(s + 'T00:00:00Z') + n * DAY).toISOString().slice(0, 10);
 const diffDays = (a, b) => Math.round((Date.parse(a + 'T00:00:00Z') - Date.parse(b + 'T00:00:00Z')) / DAY);
 const sum = (rows, k) => rows.reduce((s, r) => s + (r[k] || 0), 0);
@@ -515,6 +545,9 @@ export function buildSummary(input, opts = {}) {
   }
   actions.sort((a, b) => b.priority - a.priority);
   const thisWeek = actions.filter((a) => a.confidence >= 0.3).slice(0, 3).map((a) => a.id);
+  // そのまま貼れる依頼文(AI 向け / 制作会社向け)。承認前の提案であり、実施は人が判断する
+  const ictx = { site: (site.gscSite || '').replace(/^sc-domain:/, '') || site.name || site.id, date: today };
+  for (const a of actions) a.instructions = buildInstructions(actionToIssue(a, thisWeek.includes(a.id)), ictx);
   const skipList = actions
     .filter((a) => !thisWeek.includes(a.id) && ((a.impact.kind === 'leads' && a.impact.mid < 0.3) || (a.risk === 'high' && a.confidence < 0.4)))
     .map((a) => ({ id: a.id, title: a.title, reason: a.impact.kind === 'leads' && a.impact.mid < 0.3 ? `期待成果が月${a.impact.mid}件と小さく、今月は後回しでよい` : '確度が低く本文変更のリスクが高いため、まず他の施策を優先' }));

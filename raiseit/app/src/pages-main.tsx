@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api, type Action } from "./lib";
+import { api, type Action, type GapSection } from "./lib";
 import { Card, useData } from "./ui";
 
 const RISK = { low: "低", mid: "中", high: "高" } as const;
@@ -8,6 +8,67 @@ const STATUS_LABEL: Record<string, string> = { open: "未対応", approved: "承
 
 function Chip({ children, cls = "bg-slate-100 text-slate-600" }: { children: React.ReactNode; cls?: string }) {
   return <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] ${cls}`}>{children}</span>;
+}
+
+function CopyButton({ label, text }: { label: string; text: string }) {
+  const [done, setDone] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // クリップボード API が使えない環境(古いブラウザ・非HTTPS)向けの代替
+      const t = document.createElement("textarea");
+      t.value = text;
+      document.body.appendChild(t);
+      t.select();
+      document.execCommand("copy");
+      document.body.removeChild(t);
+    }
+    setDone(true);
+    setTimeout(() => setDone(false), 2000);
+  };
+  return (
+    <button type="button" onClick={copy} className={`rounded-lg border px-3 py-2 text-xs font-semibold ${done ? "bg-mint text-white border-mint" : "text-ink"}`}>
+      {done ? "コピーしました" : label}
+    </button>
+  );
+}
+
+/** 検索クリックと GA4 自然検索セッションを、ページ群ごとに並べる(どこで計測が欠けているかを一目で示す) */
+function GapTable({ sections }: { sections: GapSection[] }) {
+  return (
+    <div>
+      <div className="font-semibold text-xs text-slate-500 mb-1">ページ群別の内訳(検索クリック → GA4 自然検索セッション)</div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="text-slate-500 border-b">
+              <th className="text-left py-1 pr-2 font-normal">ページ群</th>
+              <th className="text-right py-1 px-2 font-normal">クリック</th>
+              <th className="text-right py-1 px-2 font-normal">セッション</th>
+              <th className="text-right py-1 px-2 font-normal">比率</th>
+              <th className="text-right py-1 pl-2 font-normal">タグなし</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sections.map((s) => {
+              const low = s.ratioPct !== null && s.clicks >= 30 && s.ratioPct < 50;
+              return (
+                <tr key={s.section} className="border-b last:border-0">
+                  <td className="py-1 pr-2 font-mono">{s.section}</td>
+                  <td className="py-1 px-2 text-right tabular-nums">{s.clicks}</td>
+                  <td className="py-1 px-2 text-right tabular-nums">{s.orgSessions}</td>
+                  <td className={`py-1 px-2 text-right tabular-nums ${low ? "text-rose-700 font-semibold" : ""}`}>{s.ratioPct === null ? "-" : `${s.ratioPct}%`}</td>
+                  <td className={`py-1 pl-2 text-right tabular-nums ${s.noTag ? "text-rose-700 font-semibold" : "text-slate-400"}`}>{s.audited ? `${s.noTag}/${s.audited}` : "未監査"}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div className="text-[11px] text-slate-400 mt-1">比率が低くタグなしのページ群が、計測の欠けの主因です。「未監査」は公開ページ監査の対象外(流入上位のページのみ確認)。</div>
+    </div>
+  );
 }
 
 export function ActionCard({ a, compact = false }: { a: Action; compact?: boolean }) {
@@ -37,6 +98,20 @@ export function ActionCard({ a, compact = false }: { a: Action; compact?: boolea
             <div className="font-semibold text-xs text-slate-500">やること</div>
             <ul className="list-disc pl-5">{a.how.map((w, i) => <li key={i}>{w}</li>)}</ul>
           </div>
+          {a.evidence?.sections?.length ? <GapTable sections={a.evidence.sections} /> : null}
+          {a.instructions && (
+            <div>
+              <div className="font-semibold text-xs text-slate-500 mb-1">依頼文(そのまま貼れます。実施は人が判断してください)</div>
+              <div className="flex flex-wrap gap-2">
+                <CopyButton label="AI向けをコピー" text={a.instructions.ai} />
+                <CopyButton label="制作会社向けをコピー" text={a.instructions.vendor} />
+              </div>
+              <details className="mt-2">
+                <summary className="text-xs text-mint cursor-pointer">AI向けの文面を見る</summary>
+                <pre className="mt-1 whitespace-pre-wrap break-words rounded-lg bg-slate-50 border p-3 text-xs leading-relaxed">{a.instructions.ai}</pre>
+              </details>
+            </div>
+          )}
           <div className="text-xs text-slate-400">根拠:{a.impact.basis}</div>
           {a.risk !== "low" && <div className="text-xs text-amber-700">本文・見出しを変える施策です。医療広告の確認(文案チェック)のうえ、人が最終確認してください。</div>}
         </div>

@@ -95,3 +95,26 @@ test('計測の乖離: 監査にタグ情報が無い古いデータでも従来
   assert.ok(gap);
   assert.match(gap.why.join('\n'), /同意バナーでGA4が止まっている/);
 });
+
+test('全ての改善候補に、AI向け・制作会社向けの依頼文が付く', () => {
+  const s = buildSummary(base());
+  assert.ok(s.actions.length > 0);
+  for (const a of s.actions) {
+    assert.ok(a.instructions?.ai && a.instructions?.vendor, `${a.id} に依頼文がある`);
+    assert.ok(a.instructions.ai.includes(a.title), `${a.id} の依頼文に課題名が入る`);
+    assert.ok(a.instructions.ai.includes('不明点があれば、推測で進めず先に質問してください'), `${a.id} は推測で進めない旨を含む`);
+  }
+});
+
+test('計測の乖離の依頼文: 原因のページ群と、計測を壊さない制約が入る', () => {
+  const inp = base();
+  const d = days(28);
+  inp.gscPage = d.map((date) => ({ date, page: 'https://x.example/blog/a/', clicks: 20 }));
+  inp.ga4src = d.map((date) => ({ date, sessions: 1, engagedSessions: 1, keyEvents: 0, channel: 'Organic Search', source: 'google', medium: 'organic', landingPage: '/blog/a/' }));
+  inp.audit = [{ date: today, page: 'https://x.example/blog/a/', status: 200, title: 'T', desc: 'd', h1Count: 1, canonical: '', robots: '', blocks: [], hasAnalytics: false, ga4Ids: [] }];
+  const gap = buildSummary(inp).actions.find((a) => a.id === 'trk-gap');
+  assert.match(gap.instructions.ai, /\/blog\/ はクリック560件/);
+  assert.match(gap.instructions.ai, /測定ID は変更しないでください|測定IDは変更しないでください/);
+  assert.match(gap.instructions.ai, /GA4 のリアルタイム/);
+  assert.doesNotMatch(gap.instructions.ai, /canonical \/ noindex/, '計測の依頼文に無関係な既定制約を混ぜない');
+});
