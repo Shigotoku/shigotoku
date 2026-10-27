@@ -32,6 +32,21 @@ const first = (re, html) => {
   return m ? decode(m[1].replace(/<[^>]+>/g, '').trim()) : '';
 };
 
+/**
+ * 計測タグの有無を検出する(GA4 の測定ID・GTM コンテナ)。
+ * dns-prefetch / preconnect だけでは計測されないため、実際に読み込む script と設定呼び出しだけを見る。
+ */
+export function detectAnalytics(html) {
+  const ga4Ids = new Set();
+  for (const m of html.matchAll(/googletagmanager\.com\/gtag\/js\?id=(G-[A-Z0-9]+)/g)) ga4Ids.add(m[1]);
+  for (const m of html.matchAll(/gtag\(\s*['"]config['"]\s*,\s*['"](G-[A-Z0-9]+)['"]/g)) ga4Ids.add(m[1]);
+  const gtmIds = new Set();
+  for (const m of html.matchAll(/googletagmanager\.com\/(?:gtm\.js|ns\.html)\?id=(GTM-[A-Z0-9]+)/g)) gtmIds.add(m[1]);
+  const ga4 = [...ga4Ids];
+  const gtm = [...gtmIds];
+  return { ga4Ids: ga4, gtmIds: gtm, hasAnalytics: ga4.length > 0 || gtm.length > 0 };
+}
+
 export function auditHtml(html) {
   const head = html.slice(0, 200000);
   const title = first(/<title[^>]*>([\s\S]*?)<\/title>/i, head);
@@ -60,7 +75,7 @@ export function auditHtml(html) {
     .replace(/<[^>]+>/g, ' ');
   const text = decode(body).replace(/\s+/g, ' ');
   const blocks = checkText(text).findings.filter((f) => f.severity === 'block').slice(0, 5).map((f) => ({ label: f.label, match: f.match, advice: f.advice }));
-  return { title, desc, robots, canonical, ogTitle, h1Count, jsonldTypes: [...new Set(jsonldTypes)], textLength: text.length, blocks };
+  return { title, desc, robots, canonical, ogTitle, h1Count, jsonldTypes: [...new Set(jsonldTypes)], textLength: text.length, blocks, ...detectAnalytics(html) };
 }
 
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split(/[\\/]/).pop())) {

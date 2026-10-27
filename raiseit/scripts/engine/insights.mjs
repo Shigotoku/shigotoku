@@ -241,13 +241,65 @@ export function buildSummary(input, opts = {}) {
     const orgSess = sum(ga4src.filter((r) => inCur(r) && r.channel === 'Organic Search'), 'sessions');
     const ratio = clicksCur ? orgSess / clicksCur : null;
     if (clicksCur >= 200 && ratio !== null && ratio < 0.5) {
+      // どのページ群(最初のパス区間)で欠けているかを分解する。トップは '/'、それ以外は '/blog/' のように区間単位。
+      const sectionOf = (u) => {
+        const p = pathOf(u);
+        const s = p.split('/').filter(Boolean)[0];
+        return s ? `/${s}/` : '/';
+      };
+      const grp = new Map();
+      const g = (k) => {
+        if (!grp.has(k)) grp.set(k, { section: k, clicks: 0, orgSessions: 0, audited: 0, noTag: 0, noTagSamples: [] });
+        return grp.get(k);
+      };
+      for (const r of gscPage.filter(inCur)) g(sectionOf(r.page)).clicks += r.clicks || 0;
+      for (const r of ga4src.filter((x) => inCur(x) && x.channel === 'Organic Search')) g(sectionOf(r.landingPage)).orgSessions += r.sessions || 0;
+      // 公開ページ監査の最新結果(計測タグの有無。古い監査データには項目がないので除外)
+      const auditRows = input.audit ?? [];
+      const auditLatest = auditRows.reduce((m, r) => (r.date > m ? r.date : m), '');
+      for (const r of auditRows.filter((x) => x.date === auditLatest && x.status === 200 && typeof x.hasAnalytics === 'boolean')) {
+        const o = g(sectionOf(r.page));
+        o.audited += 1;
+        if (!r.hasAnalytics) {
+          o.noTag += 1;
+          if (o.noTagSamples.length < 3) o.noTagSamples.push(pathOf(r.page));
+        }
+      }
+      const sections = [...grp.values()]
+        .map((o) => ({ ...o, ratioPct: o.clicks ? round((o.orgSessions / o.clicks) * 100, 0) : null, lostClicks: Math.max(0, o.clicks - o.orgSessions) }))
+        .sort((a, b) => b.lostClicks - a.lostClicks);
+      // 欠けの大半を占める区間(クリック30件以上・比率が全体の半分未満)
+      const gapSections = sections.filter((o) => o.clicks >= 30 && o.ratioPct !== null && o.ratioPct < 50).slice(0, 3);
+      const tagMissing = gapSections.filter((o) => o.audited > 0 && o.noTag / o.audited >= 0.5);
+      const secLine = (o) => `${o.section} はクリック${o.clicks}件に対し自然検索セッション${o.orgSessions}件(${o.ratioPct}%)`;
+      const why = [`クリック→セッションの比率が約${round(ratio * 100, 0)}%です(通常は7〜9割程度)。`];
+      if (gapSections.length) why.push(`欠けが大きいページ群: ${gapSections.map(secLine).join(' / ')}。`);
+      if (tagMissing.length) {
+        why.push(`公開ページ監査で計測タグ(GA4/GTM)が見つからないページ群: ${tagMissing.map((o) => `${o.section}(${o.audited}件中${o.noTag}件${o.noTagSamples.length ? `。例: ${o.noTagSamples.join('、')}` : ''})`).join(' / ')}。タグの出力漏れが主因の可能性が高いです。`);
+      } else if (gapSections.length && gapSections.some((o) => o.audited > 0)) {
+        why.push('監査したページにはタグが出力されていました。同意バナーでGA4が止まっている、クリックの一部が計測されない端末・ブラウザ、などを疑います。');
+      } else {
+        why.push('同意バナーでGA4が止まっている、一部ページにタグがない、クリックの一部が計測されない端末・ブラウザ、などが疑われます。');
+      }
+      why.push('計測が欠けていると、成果率・チャネル別成果がすべて過小評価になり、施策判断を誤ります。');
+      const how = tagMissing.length
+        ? [
+            `${tagMissing.map((o) => o.section).join('、')} のページ生成テンプレート(共通レイアウト)に、トップと同じ GA4 タグ(または GTM)が出力されているか確認する。`,
+            'ビルド時の環境変数(測定ID)が空のままデプロイされていないか確認する(空だとタグが出力されない実装がある)。',
+            '修正後に本番ページのHTMLを開いて GA4 の測定IDが入っていること、GA4 リアルタイムで自分のアクセスが記録されることを確認する。',
+          ]
+        : [
+            '同意(Cookie)バナーの設定を確認し、GA4が拒否時にも匿名計測できる設定(同意モード)になっているか確認する。',
+            '詳細データ「ページ別」で、クリックに対し入口セッションが特に少ないページを開き、GA4タグが出力されているか確認する。',
+            'GA4 リアルタイムで自分のアクセスが記録されるか試す。',
+          ];
       push({
         id: 'trk-gap', rule: 'tracking.gap', category: '計測',
         title: `検索クリック${clicksCur}件に対し、GA4 の自然検索セッションは${orgSess}件しかありません`,
-        why: [`クリック→セッションの比率が約${round(ratio * 100, 0)}%です(通常は7〜9割程度)。`, '同意バナーでGA4が止まっている、一部ページにタグがない、クリックの一部が計測されない端末・ブラウザ、などが疑われます。', '計測が欠けていると、成果率・チャネル別成果がすべて過小評価になり、施策判断を誤ります。'],
-        how: ['同意(Cookie)バナーの設定を確認し、GA4が拒否時にも匿名計測できる設定(同意モード)になっているか確認する。', '詳細データ「ページ別」で、クリックに対し入口セッションが特に少ないページを開き、GA4タグが出力されているか確認する。', 'GA4 リアルタイムで自分のアクセスが記録されるか試す。'],
+        why, how,
         impact: { kind: 'foundation', basis: '計測精度の回復(以後の全ての判断の前提)' },
-        value: 3, confidence: 0.7, effortMin: 60, risk: 'low', approval: 'none',
+        value: 3, confidence: tagMissing.length ? 0.9 : 0.7, effortMin: tagMissing.length ? 30 : 60, risk: 'low', approval: 'none',
+        evidence: { sections: sections.slice(0, 8).map(({ section, clicks, orgSessions, ratioPct, audited, noTag }) => ({ section, clicks, orgSessions, ratioPct, audited, noTag })) },
       });
     }
   }
