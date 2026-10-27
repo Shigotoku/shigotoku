@@ -109,9 +109,9 @@ function Shell({ user }: { user: User }) {
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </main>
-        <nav className="lg:hidden fixed bottom-0 inset-x-0 bg-white border-t grid grid-cols-8 text-[10px] pb-[env(safe-area-inset-bottom)]">
+        <nav className="lg:hidden fixed bottom-0 inset-x-0 bg-white border-t flex overflow-x-auto text-[11px] pb-[env(safe-area-inset-bottom)]">
           {nav.map(([to, label]) => (
-            <NavLink key={to} to={to} end={to === "/"} className={({ isActive }) => `py-3 text-center ${isActive ? "text-mint font-bold" : "text-slate-500"}`}>{label.replace("・", "")}</NavLink>
+            <NavLink key={to} to={to} end={to === "/"} className={({ isActive }) => `shrink-0 whitespace-nowrap px-3.5 py-3 text-center ${isActive ? "text-mint font-bold" : "text-slate-500"}`}>{label.replace("・", "")}</NavLink>
           ))}
         </nav>
       </div>
@@ -119,12 +119,16 @@ function Shell({ user }: { user: User }) {
   );
 }
 
-export default function App() {
-  if (window.location.pathname === "/auth/action") return <AuthAction />;
+function Authed() {
   const [user, setUser] = useState<User | null | undefined>(undefined);
   useEffect(() => onAuthStateChanged(auth, setUser), []);
   if (user === undefined) return <div className="p-8 text-slate-500">読み込み中…</div>;
   return user ? <Shell user={user} /> : <Login />;
+}
+
+export default function App() {
+  // パスワード設定ページはログイン不要(フックの呼び出し順を変えないよう、コンポーネントを分ける)
+  return window.location.pathname === "/auth/action" ? <AuthAction /> : <Authed />;
 }
 
 

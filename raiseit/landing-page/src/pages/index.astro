@@ -228,10 +228,10 @@ const faqs = [
         <div class="mt-8 space-y-3">
           {faqs.map((f) => (
             <details class="group rounded-xl border border-line bg-white p-5">
-              <summary class="cursor-pointer list-none font-bold marker:hidden">
+              <summary class="-m-5 block cursor-pointer list-none p-5 font-bold marker:hidden">
                 <span class="flex items-center justify-between gap-4">{f.q}<span class="text-brand transition group-open:rotate-45" aria-hidden="true">＋</span></span>
               </summary>
-              <p class="mt-3 text-sm leading-relaxed text-muted">{f.a}</p>
+              <p class="mt-8 text-sm leading-relaxed text-muted">{f.a}</p>
             </details>
           ))}
         </div>
@@ -259,12 +259,12 @@ const faqs = [
         <img src={assetPath('images/raiseit-icon.png')} alt="" width="28" height="28" class="h-7 w-7 rounded-md" />
         <span>レイジット (RaiseIt) ｜ 株式会社シゴトク</span>
       </div>
-      <nav class="flex flex-wrap gap-x-5 gap-y-2">
-        <a href={CORPORATE_URL} class="hover:text-white">運営会社</a>
-        <a href={`${CORPORATE_URL}privacy/`} class="hover:text-white">プライバシーポリシー</a>
-        <a href={`${CORPORATE_URL}terms/`} class="hover:text-white">利用規約</a>
-        <a href={`${CORPORATE_URL}security/`} class="hover:text-white">セキュリティ</a>
-        <a href={CONTACT_URL} class="hover:text-white">お問い合わせ</a>
+      <nav class="flex flex-wrap gap-x-5">
+        <a href={CORPORATE_URL} class="py-2 hover:text-white">運営会社</a>
+        <a href={`${CORPORATE_URL}privacy/`} class="py-2 hover:text-white">プライバシーポリシー</a>
+        <a href={`${CORPORATE_URL}terms/`} class="py-2 hover:text-white">利用規約</a>
+        <a href={`${CORPORATE_URL}security/`} class="py-2 hover:text-white">セキュリティ</a>
+        <a href={CONTACT_URL} class="py-2 hover:text-white">お問い合わせ</a>
       </nav>
     </div>
   </footer>
