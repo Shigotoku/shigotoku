@@ -13,7 +13,7 @@
     "fetch:psi": "node scripts/fetch-psi.mjs",
     "fetch:events": "node scripts/fetch-ga4-events.mjs",
     "check:ad": "node scripts/medical-ad-check.mjs",
-    "test": "node --test scripts/medical-ad-check.test.mjs scripts/engine/insights.test.mjs scripts/engine/digest.test.mjs scripts/engine/detail.test.mjs scripts/fetch-competitors.test.mjs",
+    "test": "node --test scripts/medical-ad-check.test.mjs scripts/engine/insights.test.mjs scripts/engine/digest.test.mjs scripts/engine/detail.test.mjs scripts/fetch-competitors.test.mjs scripts/fetch-site-audit.test.mjs scripts/engine/build-summary.test.mjs",
     "action:add": "node scripts/action-add.mjs",
     "ai:propose": "node scripts/ai/propose.mjs propose",
     "ai:review": "node scripts/ai/propose.mjs review",
