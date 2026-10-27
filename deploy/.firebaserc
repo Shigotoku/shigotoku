@@ -46,6 +46,13 @@
           "shigotoku-deckit-app"
         ]
       }
+    },
+    "shigotoku-raiseit-prod": {
+      "hosting": {
+        "raiseit-app": [
+          "shigotoku-raiseit-app"
+        ]
+      }
     }
   }
 }
