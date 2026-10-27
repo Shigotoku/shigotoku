@@ -15,6 +15,7 @@ const required = [
   'buzzit/index.html',
   'clipit/index.html',
   'shapeit/index.html',
+  'raiseit/index.html',
   'sitemap.xml',
   'robots.txt',
 ];

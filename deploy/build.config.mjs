@@ -9,6 +9,7 @@ export const BUZZIT_APP_URL = 'https://app.buzzit.shigotoku.com';
 export const CLIPIT_APP_URL = 'https://app.clipit.shigotoku.com';
 export const SHAPEIT_APP_URL = 'https://app.shapeit.shigotoku.com';
 export const DECKIT_APP_URL = 'https://app.deckit.shigotoku.com';
+export const RAISEIT_APP_URL = 'https://app.raiseit.shigotoku.com';
 export const CORPORATE_URL = 'https://shigotoku.com';
 export const RUNWITH_LP_URL = 'https://shigotoku.com/runwith';
 export const BUZZIT_LP_URL = 'https://shigotoku.com/buzzit';
@@ -99,6 +100,11 @@ export const projectEnv = {
   },
   'deckit-landing': {
     PUBLIC_APP_URL: DECKIT_APP_URL,
+    PUBLIC_GA_MEASUREMENT_ID: GA_MEASUREMENT_ID,
+  },
+  'raiseit-landing': {
+    PUBLIC_APP_URL: RAISEIT_APP_URL,
+    PUBLIC_CORPORATE_URL: `${CORPORATE_URL}/`,
     PUBLIC_GA_MEASUREMENT_ID: GA_MEASUREMENT_ID,
   },
   'runwith-app': {

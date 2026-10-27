@@ -52,6 +52,12 @@ const landingPages = [
     out: join(webOut, 'deckit'),
     env: projectEnv['deckit-landing'],
   },
+  {
+    name: 'raiseit-landing',
+    cwd: join(root, 'raiseit', 'landing-page'),
+    out: join(webOut, 'raiseit'),
+    env: projectEnv['raiseit-landing'],
+  },
 ];
 
 const jobs = [

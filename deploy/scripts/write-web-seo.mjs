@@ -15,6 +15,7 @@ Allow: /buzzit/
 Allow: /clipit/
 Allow: /shapeit/
 Allow: /deckit/
+Allow: /raiseit/
 
 Sitemap: https://shigotoku.com/sitemap.xml
 `,
@@ -35,6 +36,7 @@ Sitemap: https://shigotoku.com/sitemap.xml
     { loc: 'https://shigotoku.com/shapeit/guide/', changefreq: 'monthly', priority: '0.8' },
     { loc: 'https://shigotoku.com/shapeit/pricing/', changefreq: 'monthly', priority: '0.8' },
     { loc: 'https://shigotoku.com/deckit/', changefreq: 'weekly', priority: '0.9' },
+    { loc: 'https://shigotoku.com/raiseit/', changefreq: 'weekly', priority: '0.9' },
   ];
 
   const today = new Date().toISOString().slice(0, 10);
