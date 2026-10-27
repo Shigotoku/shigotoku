@@ -1,5 +1,5 @@
 ---
-import { RUNWITH_LP, BUZZIT_LP, CLIPIT_LP, runwithPath, runwithLoginUrl } from '../lib/urls';
+import { RUNWITH_LP, BUZZIT_LP, CLIPIT_LP, SHAPEIT_LP, DECKIT_LP, RAISEIT_LP, runwithPath, runwithLoginUrl } from '../lib/urls';
 import { brandLogo } from '../lib/assets';
 
 const currentYear = new Date().getFullYear();
@@ -31,6 +31,9 @@ const currentYear = new Date().getFullYear();
           <li><a href={RUNWITH_LP} class="text-sm text-gray-400 hover:text-white transition-colors">ランウィズ</a></li>
           <li><a href={BUZZIT_LP} class="text-sm text-gray-400 hover:text-white transition-colors">バジット (BuzzIt)</a></li>
           <li><a href={CLIPIT_LP} class="text-sm text-gray-400 hover:text-white transition-colors">クリッピット (ClipIt)</a></li>
+          <li><a href={SHAPEIT_LP} class="text-sm text-gray-400 hover:text-white transition-colors">シェイプイット (ShapeIt)</a></li>
+          <li><a href={DECKIT_LP} class="text-sm text-gray-400 hover:text-white transition-colors">デキット (DeckIt)</a></li>
+          <li><a href={RAISEIT_LP} class="text-sm text-gray-400 hover:text-white transition-colors">レイジット (RaiseIt)</a></li>
           <li><a href={runwithLoginUrl()} class="text-sm text-gray-400 hover:text-white transition-colors">ランウィズ ログイン</a></li>
           <li><a href={runwithPath('/pricing')} class="text-sm text-gray-400 hover:text-white transition-colors">ランウィズ 料金</a></li>
         </ul>

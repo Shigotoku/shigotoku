@@ -1,5 +1,5 @@
 ---
-import { RUNWITH_LP, BUZZIT_LP, CLIPIT_LP, runwithLoginUrl, buzzitLoginUrl, clipitLoginUrl } from '../lib/urls';
+import { RUNWITH_LP, BUZZIT_LP, CLIPIT_LP, SHAPEIT_LP, DECKIT_LP, RAISEIT_LP, runwithLoginUrl, buzzitLoginUrl, clipitLoginUrl, shapeitLoginUrl, deckitLoginUrl, raiseitLoginUrl } from '../lib/urls';
 import { productImages } from '../lib/assets';
 
 const products = [
@@ -69,6 +69,75 @@ const products = [
     },
     logo: { type: 'img' as const, src: `${productImages.clipit}?v=5`, alt: 'クリッピット' },
   },
+  {
+    badge: 'みんなで良くする',
+    badgeClass: 'bg-emerald-50 text-emerald-600',
+    name: 'シェイプイット',
+    en: 'ShapeIt',
+    description: 'バグ・使いにくさを最短10秒で記録。AIが整理し、チーム全員でサービスを改善する Product Feedback OS。',
+    highlight: '10秒で記録',
+    highlightSub: 'チームで改善するフィードバックOS',
+    tags: ['Chrome拡張', 'AI整理', '優先順位付け'],
+    siteUrl: SHAPEIT_LP,
+    demoUrl: shapeitLoginUrl(),
+    demoLabel: 'デモを試す',
+    accent: {
+      ring: 'from-emerald-600 to-teal-500',
+      shadow: 'shadow-emerald-100',
+      btn: 'bg-emerald-600 hover:bg-emerald-700',
+      demo: 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100',
+      visual: 'from-emerald-50 to-teal-50 border-emerald-100',
+      tag: 'border-emerald-100 text-emerald-700',
+      logoRing: 'ring-emerald-100',
+    },
+    logo: { type: 'img' as const, src: productImages.shapeit, alt: 'シェイプイット' },
+  },
+  {
+    badge: '資料、できた。',
+    badgeClass: 'bg-cyan-50 text-cyan-700',
+    name: 'デキット',
+    en: 'DeckIt',
+    description: 'Google Drive の元資料と Style から、自分らしい Google Slides を短時間で。資料づくりのノウハウを蓄積するスタジオ。',
+    highlight: 'Drive × Style × AI',
+    highlightSub: '資料づくりスタジオ',
+    tags: ['Google Slides', 'Style', 'AI生成'],
+    siteUrl: DECKIT_LP,
+    demoUrl: deckitLoginUrl(),
+    demoLabel: 'デモを試す',
+    accent: {
+      ring: 'from-cyan-700 to-teal-500',
+      shadow: 'shadow-cyan-100',
+      btn: 'bg-cyan-700 hover:bg-cyan-800',
+      demo: 'border-cyan-200 bg-cyan-50 text-cyan-800 hover:bg-cyan-100',
+      visual: 'from-cyan-50 to-teal-50 border-cyan-100',
+      tag: 'border-cyan-100 text-cyan-800',
+      logoRing: 'ring-cyan-100',
+    },
+    logo: { type: 'letter' as const, letter: 'D', bg: 'bg-cyan-700' },
+  },
+  {
+    badge: '集患を次の一手に',
+    badgeClass: 'bg-violet-50 text-violet-600',
+    name: 'レイジット',
+    en: 'RaiseIt',
+    description: 'Search Console と GA4 をつなぎ、問い合わせを増やす改善を優先順位つきで提案。AI・制作会社に渡せる依頼文つき。',
+    highlight: '成果基点の改善提案',
+    highlightSub: 'クリニック・店舗の集患向け',
+    tags: ['招待制', 'GA4・GSC連携', 'AI向け依頼文'],
+    siteUrl: RAISEIT_LP,
+    demoUrl: raiseitLoginUrl(),
+    demoLabel: 'ログイン（招待制）',
+    accent: {
+      ring: 'from-sky-500 to-violet-600',
+      shadow: 'shadow-violet-100',
+      btn: 'bg-violet-600 hover:bg-violet-700',
+      demo: 'border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100',
+      visual: 'from-sky-50 to-violet-50 border-violet-100',
+      tag: 'border-violet-100 text-violet-700',
+      logoRing: 'ring-violet-100',
+    },
+    logo: { type: 'img' as const, src: productImages.raiseit, alt: 'レイジット' },
+  },
 ];
 
 const features = [
@@ -123,7 +192,7 @@ const features = [
                 <svg class="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
               </a>
               <a href={product.demoUrl} class={`group inline-flex items-center justify-center gap-1.5 rounded-lg border px-4 py-2.5 text-sm font-semibold transition-colors ${product.accent.demo}`}>
-                デモを試す
+                {product.demoLabel ?? 'デモを試す'}
                 <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 010 1.972l-11.54 6.347a1.125 1.125 0 01-1.667-.986V5.653z" /></svg>
               </a>
             </div>

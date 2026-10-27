@@ -11,4 +11,6 @@ export const siteImages = {
 export const productImages = {
   runwith: '/images/products/runwith-logo.png',
   clipit: '/images/products/clipit-icon.png',
+  shapeit: '/images/products/shapeit-icon.png',
+  raiseit: '/images/products/raiseit-icon.png',
 } as const;
