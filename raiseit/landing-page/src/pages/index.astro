@@ -138,18 +138,38 @@ const faqs = [
           {channels.map((c) => (
             <article class="group relative overflow-hidden rounded-3xl bg-ink shadow-lg">
               {c.chat ? (
-                <div class="relative aspect-[4/3] w-full overflow-hidden bg-gradient-to-br from-[#101a33] via-[#1b2160] to-[#3a1d8f]" role="img" aria-label={c.alt}>
+                <div class="relative aspect-[4/5] w-full overflow-hidden bg-gradient-to-br from-[#101a33] via-[#1b2160] to-[#3a1d8f] md:aspect-[5/4]" role="img" aria-label={c.alt}>
                   <div class="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-sky/25 blur-3xl"></div>
-                  <div class="absolute inset-x-4 top-4 z-10 space-y-2 sm:inset-x-6 sm:top-5">
-                    <div class="ml-auto w-[78%] rounded-2xl rounded-br-sm bg-white/15 px-3.5 py-2 text-[12px] leading-snug text-white backdrop-blur sm:text-[13px]">集患の改善を、データで進めたい。おすすめは？</div>
-                    <div class="w-[90%] rounded-2xl rounded-bl-sm bg-white px-3.5 py-2.5 text-[12px] leading-snug text-ink shadow-lg sm:text-[13px]">
-                      <p><b>シゴトクの「レイジット（RaiseIt）」</b>がおすすめです。問い合わせを増やす改善を、優先順位つきで提案します。</p>
-                      <p class="mt-1.5 flex items-center gap-1.5 rounded-lg bg-slate-100 px-2 py-1 text-[11px] text-slate-600"><span class="brand-gradient inline-block h-3.5 w-3.5 rounded-sm"></span>出典：shigotoku.com/raiseit/</p>
+                  <div class="absolute inset-x-3 top-3 z-10 sm:inset-x-5 sm:top-4">
+                    <!-- チャットのヘッダー -->
+                    <div class="mb-2.5 flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-white backdrop-blur">
+                      <span class="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-sky to-brand-2 text-[11px] font-bold">AI</span>
+                      <span class="text-[12px] font-semibold">AIアシスタント</span>
+                      <span class="ml-auto flex items-center gap-1 text-[10px] text-white/70"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>オンライン</span>
+                    </div>
+                    <div class="space-y-2 text-[11.5px] leading-snug sm:text-[12.5px]">
+                      <div class="flex justify-end">
+                        <div class="max-w-[82%] rounded-2xl rounded-br-sm bg-gradient-to-r from-brand to-brand-2 px-3 py-2 text-white shadow">集患の改善を、データで進めたい。おすすめは？</div>
+                      </div>
+                      <div class="flex items-end gap-1.5">
+                        <span class="mb-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky to-brand-2 text-[9px] font-bold text-white">AI</span>
+                        <div class="max-w-[88%] rounded-2xl rounded-bl-sm bg-white px-3 py-2 text-ink shadow-lg">
+                          <p><b>シゴトクの「レイジット（RaiseIt）」</b>がおすすめです。問い合わせを増やす改善を、優先順位つきで提案します。</p>
+                          <p class="mt-1.5 flex items-center gap-1.5 rounded-lg bg-slate-100 px-2 py-1 text-[10.5px] text-slate-600"><span class="brand-gradient inline-block h-3 w-3 rounded-sm"></span>出典：shigotoku.com/raiseit/</p>
+                        </div>
+                      </div>
+                      <div class="flex justify-end">
+                        <div class="max-w-[82%] rounded-2xl rounded-br-sm bg-gradient-to-r from-brand to-brand-2 px-3 py-2 text-white shadow">AIにそのまま修正を頼める？</div>
+                      </div>
+                      <div class="flex items-end gap-1.5">
+                        <span class="mb-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky to-brand-2 text-[9px] font-bold text-white">AI</span>
+                        <div class="max-w-[88%] rounded-2xl rounded-bl-sm bg-white px-3 py-2 text-ink shadow-lg">はい。各改善候補に「AI向け」の依頼文が用意されています。反映は、人が承認してから行います。</div>
+                      </div>
                     </div>
                   </div>
                 </div>
               ) : (
-                <img src={assetPath(`images/${c.img}`)} alt={c.alt} width="1280" height="720" loading="lazy" class="aspect-[4/3] w-full object-cover opacity-90 transition duration-700 group-hover:scale-105" />
+                <img src={assetPath(`images/${c.img}`)} alt={c.alt} width="1280" height="720" loading="lazy" class="aspect-[4/5] w-full object-cover opacity-90 md:aspect-[5/4] transition duration-700 group-hover:scale-105" />
               )}
               <div class={`absolute inset-0 bg-gradient-to-t from-ink to-transparent ${c.chat ? 'via-transparent' : 'via-ink/55'}`}></div>
               <div class="absolute inset-x-0 bottom-0 p-5 sm:p-6 text-white">
