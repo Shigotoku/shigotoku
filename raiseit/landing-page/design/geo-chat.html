@@ -1,0 +1,58 @@
+<!doctype html>
+<!--
+  LP「GEO」カード用のチャット画像の原稿。
+  書き出し: design/render-geo-chat.mjs (Edge/Chrome ヘッドレスで撮影 → public/images/geo-chat-*.webp)
+  #portrait = 縦(スマホ) / #landscape = 横(タブレット・PC)。下部は、カード上の見出し文のために空けてある。
+-->
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<style>
+  :root { --w: 1000px; --h: 1060px; --fs: 38px; --pad: 56px; --reserve: 40px; }
+  html.landscape { --w: 1250px; --h: 940px; --fs: 31px; --pad: 56px; --reserve: 40px; }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: var(--w); height: var(--h); overflow: hidden; }
+  body {
+    font-family: "Noto Sans JP", "Yu Gothic UI", "Meiryo", sans-serif;
+    font-size: var(--fs); line-height: 1.55; color: #0b1320; position: relative;
+    background: linear-gradient(135deg, #101a33 0%, #1b2160 55%, #3a1d8f 100%);
+  }
+  .glow { position: absolute; right: -120px; top: -120px; width: 520px; height: 520px; border-radius: 50%; background: rgba(31,180,255,.28); filter: blur(90px); }
+  .glow2 { position: absolute; left: -160px; bottom: 25%; width: 480px; height: 480px; border-radius: 50%; background: rgba(106,36,255,.30); filter: blur(100px); }
+  .stage { position: absolute; left: var(--pad); right: var(--pad); top: var(--pad); bottom: var(--reserve); display: flex; flex-direction: column; gap: calc(var(--fs) * .55); }
+  .head { display: flex; align-items: center; gap: 20px; padding: 18px 26px; border-radius: 26px; background: rgba(255,255,255,.12); color: #fff; font-weight: 700; font-size: calc(var(--fs) * .8); }
+  .head .online { margin-left: auto; font-weight: 500; font-size: calc(var(--fs) * .6); color: rgba(255,255,255,.75); display: flex; align-items: center; gap: 10px; }
+  .head .online i { width: 16px; height: 16px; border-radius: 50%; background: #34d399; display: block; }
+  .av { flex: none; width: calc(var(--fs) * 1.35); height: calc(var(--fs) * 1.35); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: calc(var(--fs) * .5); background: linear-gradient(135deg, #1fb4ff, #6a24ff); }
+  .row { display: flex; align-items: flex-end; gap: 16px; }
+  .row.me { justify-content: flex-end; }
+  .bubble { border-radius: 36px; padding: calc(var(--fs) * .5) calc(var(--fs) * .7); box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+  .me .bubble { color: #fff; border-bottom-right-radius: 10px; background: linear-gradient(90deg, #2f4bff, #6a24ff); }
+  .ai .bubble { background: #fff; border-bottom-left-radius: 10px; }
+  .chip { margin-top: calc(var(--fs) * .4); display: flex; align-items: center; gap: 12px; padding: 8px 18px; border-radius: 16px; background: #f1f5f9; color: #475569; font-size: calc(var(--fs) * .68); }
+  .chip i { width: 26px; height: 26px; border-radius: 6px; background: linear-gradient(135deg, #2f4bff, #6a24ff); display: block; }
+</style>
+</head>
+<body>
+<div class="glow"></div><div class="glow2"></div>
+<div class="stage">
+  <div class="head"><span class="av">AI</span>AIアシスタント<span class="online"><i></i>オンライン</span></div>
+
+  <div class="row me"><div class="bubble">集患の改善を、<br>データで進めたい。おすすめは？</div></div>
+
+  <div class="row ai"><span class="av">AI</span>
+    <div class="bubble">
+      <b>シゴトクの「レイジット（RaiseIt）」</b>が<br>おすすめです。問い合わせを増やす改善を、<br>優先順位つきで提案します。
+      <div class="chip"><i></i>出典：shigotoku.com/raiseit/</div>
+    </div>
+  </div>
+
+  <div class="row me"><div class="bubble">AIにそのまま修正を頼める？</div></div>
+
+  <div class="row ai"><span class="av">AI</span>
+    <div class="bubble">はい。各改善候補に「AI向け」の<br>依頼文が用意されています。<br>反映は、人が承認してから行います。</div>
+  </div>
+</div>
+<script>if (location.hash === '#landscape') document.documentElement.classList.add('landscape');</script>
+</body>
+</html>

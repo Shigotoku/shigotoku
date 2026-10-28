@@ -134,53 +134,25 @@ const faqs = [
         <p class="text-center text-xs font-bold tracking-widest text-brand">CHANNELS</p>
         <h2 class="mt-2 text-center text-2xl font-extrabold sm:text-3xl">見つけられる入口を、ひとつの数字で見渡す</h2>
         <p class="mx-auto mt-3 max-w-2xl text-center text-sm leading-relaxed text-muted">検索、AI、地図、SNS。患者さんや見込み客があなたを見つける入口は増えています。どこで取りこぼしているかを、問い合わせ（成果）基点で見つけます。</p>
-        <div class="mt-10 grid gap-5 md:grid-cols-2">
+        <div class="mx-auto mt-10 grid max-w-2xl gap-5 lg:max-w-none lg:grid-cols-2">
           {channels.map((c) => (
-            <article class="group relative overflow-hidden rounded-3xl bg-ink shadow-lg">
+            <article class="group overflow-hidden rounded-3xl bg-ink text-white shadow-lg">
               {c.chat ? (
-                <div class="relative aspect-[4/5] w-full overflow-hidden bg-gradient-to-br from-[#101a33] via-[#1b2160] to-[#3a1d8f] md:aspect-[5/4]" role="img" aria-label={c.alt}>
-                  <div class="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-sky/25 blur-3xl"></div>
-                  <div class="absolute inset-x-3 top-3 z-10 sm:inset-x-5 sm:top-4">
-                    <!-- チャットのヘッダー -->
-                    <div class="mb-2.5 flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-white backdrop-blur">
-                      <span class="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-sky to-brand-2 text-[11px] font-bold">AI</span>
-                      <span class="text-[12px] font-semibold">AIアシスタント</span>
-                      <span class="ml-auto flex items-center gap-1 text-[10px] text-white/70"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>オンライン</span>
-                    </div>
-                    <div class="space-y-2 text-[11.5px] leading-snug sm:text-[12.5px]">
-                      <div class="flex justify-end">
-                        <div class="max-w-[82%] rounded-2xl rounded-br-sm bg-gradient-to-r from-brand to-brand-2 px-3 py-2 text-white shadow">集患の改善を、データで進めたい。おすすめは？</div>
-                      </div>
-                      <div class="flex items-end gap-1.5">
-                        <span class="mb-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky to-brand-2 text-[9px] font-bold text-white">AI</span>
-                        <div class="max-w-[88%] rounded-2xl rounded-bl-sm bg-white px-3 py-2 text-ink shadow-lg">
-                          <p><b>シゴトクの「レイジット（RaiseIt）」</b>がおすすめです。問い合わせを増やす改善を、優先順位つきで提案します。</p>
-                          <p class="mt-1.5 flex items-center gap-1.5 rounded-lg bg-slate-100 px-2 py-1 text-[10.5px] text-slate-600"><span class="brand-gradient inline-block h-3 w-3 rounded-sm"></span>出典：shigotoku.com/raiseit/</p>
-                        </div>
-                      </div>
-                      <div class="flex justify-end">
-                        <div class="max-w-[82%] rounded-2xl rounded-br-sm bg-gradient-to-r from-brand to-brand-2 px-3 py-2 text-white shadow">AIにそのまま修正を頼める？</div>
-                      </div>
-                      <div class="flex items-end gap-1.5">
-                        <span class="mb-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky to-brand-2 text-[9px] font-bold text-white">AI</span>
-                        <div class="max-w-[88%] rounded-2xl rounded-bl-sm bg-white px-3 py-2 text-ink shadow-lg">はい。各改善候補に「AI向け」の依頼文が用意されています。反映は、人が承認してから行います。</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <picture>
+                  <source media="(min-width: 640px)" srcset={assetPath('images/geo-chat-landscape.webp')} width="1250" height="940" />
+                  <img src={assetPath('images/geo-chat-portrait.webp')} alt={c.alt} width="1000" height="1060" loading="lazy" class="block aspect-[1000/1060] h-auto w-full object-cover sm:aspect-[1250/940]" />
+                </picture>
               ) : (
-                <img src={assetPath(`images/${c.img}`)} alt={c.alt} width="1280" height="720" loading="lazy" class="aspect-[4/5] w-full object-cover opacity-90 md:aspect-[5/4] transition duration-700 group-hover:scale-105" />
+                <img src={assetPath(`images/${c.img}`)} alt={c.alt} width="1280" height="720" loading="lazy" class="block aspect-[4/3] w-full object-cover" />
               )}
-              <div class={`absolute inset-0 bg-gradient-to-t from-ink to-transparent ${c.chat ? 'via-transparent' : 'via-ink/55'}`}></div>
-              <div class="absolute inset-x-0 bottom-0 p-5 sm:p-6 text-white">
+              <div class="p-5 sm:p-6">
                 <span class="brand-gradient inline-block rounded-full px-3 py-1 text-xs font-bold">{c.tag}</span>
-                <h3 class="mt-2 text-lg font-extrabold sm:text-xl">{c.title}</h3>
-                <p class="mt-1 text-sm leading-relaxed text-white/80">{c.body}</p>
+                <h3 class="mt-2 text-lg font-extrabold leading-snug sm:text-xl">{c.title}</h3>
+                <p class="mt-1.5 text-sm leading-relaxed text-white/80">{c.body}</p>
               </div>
             </article>
           ))}
-        </div>
-        <p class="mt-6 text-center text-xs text-muted">※ GEOのチャット画面はイメージです。AIによる紹介や引用を保証するものではありません。現在の対象は、Search Console・GA4・公開ページの監査から分かる範囲です。Googleビジネスプロフィールや各SNSの管理画面そのものは読み取りません。</p>
+        </div>        <p class="mt-6 text-center text-xs text-muted">※ GEOのチャット画面はイメージです。AIによる紹介や引用を保証するものではありません。現在の対象は、Search Console・GA4・公開ページの監査から分かる範囲です。Googleビジネスプロフィールや各SNSの管理画面そのものは読み取りません。</p>
       </div>
     </section>
 
