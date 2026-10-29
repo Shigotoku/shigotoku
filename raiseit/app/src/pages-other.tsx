@@ -111,7 +111,18 @@ function Members() {
   const [link, setLink] = useState("");
   const [err, setErr] = useState("");
   const load = async () => setList(await api<Member[]>("/members"));
-  useEffect(() => { void load(); }, []);
+  const [reqs, setReqs] = useState<{ uid: string; email: string; name: string; company: string }[]>([]);
+  const loadReqs = async () => setReqs(await api("/signup-requests"));
+  useEffect(() => { void load(); void loadReqs(); }, []);
+  const decide = async (uid: string, action: "approve" | "reject", r: string) => {
+    setErr("");
+    try {
+      await api(`/signup-requests/${uid}`, { method: "POST", body: { action, role: r } });
+      await Promise.all([load(), loadReqs()]);
+    } catch {
+      setErr("処理できませんでした。");
+    }
+  };
   const invite = async () => {
     setErr("");
     setLink("");
@@ -135,6 +146,19 @@ function Members() {
   };
   return (
     <Card className="space-y-3">
+      {reqs.length > 0 && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-2">
+          <div className="font-bold text-sm">承認待ちの利用申請({reqs.length}件)</div>
+          {reqs.map((r) => (
+            <div key={r.uid} className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="flex-1 min-w-48">{r.name}{r.company ? `(${r.company})` : ""}<br /><span className="text-xs text-slate-500">{r.email}</span></span>
+              <select id={`role-${r.uid}`} defaultValue="viewer" className="border rounded p-1 text-xs">{Object.entries(ROLE_LABEL).filter(([k]) => k !== "owner").map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
+              <button className="rounded-md bg-ink text-white text-xs px-3 py-1.5" onClick={() => decide(r.uid, "approve", (document.getElementById(`role-${r.uid}`) as HTMLSelectElement).value)}>承認</button>
+              <button className="rounded-md border text-xs px-3 py-1.5" onClick={() => decide(r.uid, "reject", "viewer")}>却下</button>
+            </div>
+          ))}
+        </div>
+      )}
       <h2 className="font-bold text-sm">メンバー</h2>
       <ul className="divide-y text-sm">
         {list.map((m) => (

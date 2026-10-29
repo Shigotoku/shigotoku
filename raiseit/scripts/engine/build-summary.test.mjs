@@ -15,7 +15,9 @@ test('build-summary は summary.json と detail*.json を必ず書き出す', ()
   const reports = join(root, 'reports');
   mkdirSync(join(data, 't1', 'gsc-page'), { recursive: true });
   writeFileSync(join(data, 't1', 'gsc-page', '2026-10-20.ndjson'), JSON.stringify({ date: '2026-10-20', page: 'https://x.example/', clicks: 1, impressions: 10, position: 5 }) + '\n');
-  const r = spawnSync(process.execPath, [script], { env: { ...process.env, DATA_ROOT: data, REPORT_ROOT: reports, SITE_ID: 't1', SITE_NAME: 'T1' }, encoding: 'utf8' });
+  const sitesFile = join(root, 'sites.json');
+  writeFileSync(sitesFile, JSON.stringify({ sites: [{ id: 't1', name: 'T1' }] }));
+  const r = spawnSync(process.execPath, [script], { env: { ...process.env, SITES_FILE: sitesFile, DATA_ROOT: data, REPORT_ROOT: reports, SITE_ID: 't1', SITE_NAME: 'T1' }, encoding: 'utf8' });
   assert.equal(r.status, 0, r.stderr);
   const out = join(reports, 't1');
   for (const f of ['summary.json', 'detail.json', 'detail-7.json', 'detail-90.json']) assert.ok(existsSync(join(out, f)), `${f} が出力される`);
