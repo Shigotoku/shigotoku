@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { browserSessionPersistence, initializeAuth } from "firebase/auth";
 
 // Firebase Web の設定値は公開前提(秘密ではない)。権限判定はサーバー側 members で行う。
 export const app = initializeApp({
@@ -8,7 +8,8 @@ export const app = initializeApp({
   projectId: "shigotoku-raiseit-prod",
   appId: "1:973742525375:web:6598a25b2e2e3ee9476f0a",
 });
-export const auth = getAuth(app);
+// ログイン状態はブラウザのタブ/ウィンドウを閉じると消える(次回は必ずログイン画面が出る)。
+export const auth = initializeAuth(app, { persistence: browserSessionPersistence });
 
 export async function api<T>(path: string, init?: { method?: string; body?: unknown }): Promise<T> {
   const token = await auth.currentUser?.getIdToken();

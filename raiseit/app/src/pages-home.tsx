@@ -58,7 +58,7 @@ export function Home() {
   return (
     <div className="flex flex-col gap-3 lg:h-[calc(100dvh-2.5rem)] lg:overflow-hidden">
       <div className="flex items-baseline justify-between gap-2">
-        <h1 className="text-lg font-bold">{s.site.name} 今月の結論 <span className="text-xs font-normal text-slate-500">{s.period.from} 〜 {s.period.to}(直近{s.period.days}日・前期間と比較)</span></h1>
+        <h1 className="text-lg font-bold">{s.site.name} 今月の結論 <span className="text-xs font-normal text-slate-500">{s.period.from} 〜 {s.period.to}(直近{s.period.days}日・前期間と比較)</span><span className="block text-[11px] font-normal text-slate-400">毎朝4時に更新。検索データはGoogleの仕様で2日前まで、アクセスは前日までのため、期間の終わりは最も古い方に合わせています。</span></h1>
         <span className="text-[11px] text-slate-400 hidden sm:inline">更新 {new Date(s.generatedAt).toLocaleString("ja-JP")}</span>
       </div>
 

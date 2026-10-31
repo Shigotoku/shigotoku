@@ -82,9 +82,55 @@ api.use((_req, res, next) => {
   res.setHeader('Cache-Control', 'private, no-store');
   next();
 });
-api.use(auth);
 
-api.get('/me', (req, res) => res.json({ ...req.user, tenant: TENANT }));
+// ---- ログイン直後(メンバー未登録でも呼べる): 自分の状態と新規登録の申請 ----
+async function verify(req, res, next) {
+  try {
+    const m = /^Bearer (.+)$/.exec(req.headers.authorization || '');
+    if (!m) return res.status(401).json({ error: 'unauthorized' });
+    req.token = await getAuth().verifyIdToken(m[1]);
+    next();
+  } catch {
+    res.status(401).json({ error: 'unauthorized' });
+  }
+}
+
+async function orgName() {
+  const o = (await org.get()).data();
+  if (o?.name) return o.name;
+  const s = await org.collection('sites').limit(1).get();
+  return s.docs[0]?.data().name || TENANT;
+}
+
+api.get('/me', verify, async (req, res) => {
+  const t = req.token;
+  const email = (t.email || '').toLowerCase();
+  const ref = org.collection('members').doc(t.uid);
+  let snap = await ref.get();
+  if (!snap.exists && email && OWNERS.includes(email)) {
+    await ref.set({ email, role: 'owner', active: true, createdAt: FieldValue.serverTimestamp() });
+    snap = await ref.get();
+  }
+  if (snap.exists && snap.data().active !== false) return res.json({ member: true, uid: t.uid, email, role: snap.data().role || 'viewer', tenant: TENANT, orgName: await orgName() });
+  const r = await org.collection('signupRequests').doc(t.uid).get();
+  res.json({ member: false, email, request: r.exists ? { status: r.data().status, name: r.data().name, company: r.data().company } : null, disabled: snap.exists });
+});
+
+// 新規ユーザーの利用申請(承認されるまで何も見えない)
+api.post('/signup', verify, async (req, res) => {
+  const t = req.token;
+  const name = String(req.body?.name || '').trim().slice(0, 60);
+  const company = String(req.body?.company || '').trim().slice(0, 80);
+  if (!name) return res.status(400).json({ error: 'name required' });
+  const ref = org.collection('signupRequests').doc(t.uid);
+  const cur = await ref.get();
+  if (cur.exists && cur.data().status === 'approved') return res.json({ ok: true });
+  await ref.set({ uid: t.uid, email: (t.email || '').toLowerCase(), name, company, status: 'pending', requestedAt: FieldValue.serverTimestamp() });
+  await org.collection('auditLogs').add({ at: FieldValue.serverTimestamp(), by: t.email || t.uid, type: 'signup.request', name, company });
+  res.json({ ok: true });
+});
+
+api.use(auth);
 
 api.get('/sites', async (_req, res) => {
   const s = await org.collection('sites').get();
@@ -189,6 +235,27 @@ api.post('/members', isAdmin, async (req, res) => {
   res.json({ ok: true, uid: user.uid, setPasswordLink: ownLink(link, req) });
 });
 
+api.get('/signup-requests', isAdmin, async (_req, res) => {
+  const s = await org.collection('signupRequests').where('status', '==', 'pending').get();
+  res.json(s.docs.map((d) => ({ uid: d.id, email: d.data().email, name: d.data().name, company: d.data().company })));
+});
+
+api.post('/signup-requests/:uid', isAdmin, async (req, res) => {
+  const ref = org.collection('signupRequests').doc(req.params.uid);
+  const snap = await ref.get();
+  if (!snap.exists) return res.status(404).json({ error: 'not found' });
+  const action = req.body?.action;
+  if (action === 'reject') {
+    await ref.set({ status: 'rejected', decidedBy: req.user.email, decidedAt: FieldValue.serverTimestamp() }, { merge: true });
+  } else if (action === 'approve') {
+    const role = String(req.body?.role || 'viewer');
+    if (!ROLES.includes(role) || (role === 'owner' && req.user.role !== 'owner')) return res.status(400).json({ error: 'bad role' });
+    await org.collection('members').doc(req.params.uid).set({ email: snap.data().email, name: snap.data().name, company: snap.data().company, role, active: true, approvedBy: req.user.email, createdAt: FieldValue.serverTimestamp() }, { merge: true });
+    await ref.set({ status: 'approved', role, decidedBy: req.user.email, decidedAt: FieldValue.serverTimestamp() }, { merge: true });
+  } else return res.status(400).json({ error: 'bad request' });
+  await org.collection('auditLogs').add({ at: FieldValue.serverTimestamp(), by: req.user.email, type: `signup.${action}`, uid: req.params.uid });
+  res.json({ ok: true });
+});
 api.patch('/members/:uid', isAdmin, async (req, res) => {
   const ref = org.collection('members').doc(req.params.uid);
   const snap = await ref.get();
