@@ -26,7 +26,7 @@ export type Impact = { kind: string; low?: number; mid?: number; high?: number; 
 export type Action = {
   id: string; rule: string; category: string; title: string; why: string[]; how: string[]; impact: Impact;
   confidence: number; confidenceLabel: string; effortMin: number; risk: "low" | "mid" | "high"; approval: string;
-  priority: number; url?: string;
+  priority: number; url?: string; hints?: string[];
   evidence?: { sections?: GapSection[] };
   /** そのまま貼れる依頼文。ai=ChatGPT/Cursor 等への指示、vendor=制作会社・担当者への依頼 */
   instructions?: { ai: string; vendor: string };

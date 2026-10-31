@@ -1,6 +1,10 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
+
+const AREA_NAME: Record<string, string> = { seo: "検索(SEO)", geo: "AI検索(GEO)", meo: "地図(MEO)", sns: "SNS", site: "サイトの土台" };
 import { api, type Action, type GapSection } from "./lib";
 import { Card, useData } from "./ui";
+import { buildAiPrompt, buildCombinedPrompt, CONFIDENCE_HELP, plainOf, RISK_HELP } from "./plain";
 
 const RISK = { low: "低", mid: "中", high: "高" } as const;
 const RISK_CLS = { low: "bg-emerald-50 text-emerald-700", mid: "bg-amber-50 text-amber-700", high: "bg-rose-50 text-rose-700" } as const;
@@ -10,7 +14,7 @@ function Chip({ children, cls = "bg-slate-100 text-slate-600" }: { children: Rea
   return <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] ${cls}`}>{children}</span>;
 }
 
-function CopyButton({ label, text }: { label: string; text: string }) {
+function CopyButton({ label, text, primary = false }: { label: string; text: string; primary?: boolean }) {
   const [done, setDone] = useState(false);
   const copy = async () => {
     try {
@@ -28,8 +32,8 @@ function CopyButton({ label, text }: { label: string; text: string }) {
     setTimeout(() => setDone(false), 2000);
   };
   return (
-    <button type="button" onClick={copy} className={`rounded-lg border px-3 py-2 text-xs font-semibold ${done ? "bg-mint text-white border-mint" : "text-ink"}`}>
-      {done ? "コピーしました" : label}
+    <button type="button" onClick={copy} className={`rounded-lg border px-4 py-2.5 text-sm font-semibold ${done ? "bg-mint text-white border-mint" : primary ? "bg-ink text-white border-ink" : "text-ink"}`}>
+      {done ? "コピーしました。AIに貼り付けてください" : label}
     </button>
   );
 }
@@ -71,23 +75,49 @@ function GapTable({ sections }: { sections: GapSection[] }) {
   );
 }
 
-export function ActionCard({ a, compact = false }: { a: Action; compact?: boolean }) {
+export function ActionCard({ a, compact = false, selected, onToggle }: { a: Action; compact?: boolean; selected?: boolean; onToggle?: () => void }) {
   const { state, setStatus, role } = useData();
   const [open, setOpen] = useState(!compact);
+  const { summary } = useData();
   const st = state[a.id]?.status ?? "open";
   const writable = ["owner", "admin", "editor"].includes(role);
+  const p = plainOf(a);
+  const prompt = buildAiPrompt(a, summary?.site.name ?? "", summary?.period.latest ?? "");
+  const [showPrompt, setShowPrompt] = useState(false);
   return (
-    <Card className="space-y-3">
+    <Card className={`space-y-3 ${selected ? "ring-2 ring-mint" : ""}`}>
+      {onToggle && (
+        <label className="flex items-center gap-2 text-sm font-semibold cursor-pointer">
+          <input type="checkbox" className="h-4 w-4" checked={!!selected} onChange={onToggle} />
+          まとめてプロンプトにする
+        </label>
+      )}
       <div className="flex flex-wrap gap-1.5">
-        <Chip cls="bg-ink text-white">{a.category}</Chip>
-        <Chip>確度 {a.confidenceLabel}</Chip>
-        <Chip>所要 約{a.effortMin}分</Chip>
-        <Chip cls={RISK_CLS[a.risk]}>リスク {RISK[a.risk]}</Chip>
+        <span title={p.areaInfo.hint}><Chip cls={p.areaInfo.cls}>{p.areaInfo.label}</Chip></span>
+        <span title="作業にかかる時間の目安"><Chip>作業 約{a.effortMin}分</Chip></span>
+        <span title={CONFIDENCE_HELP}><Chip>見込みの確かさ {a.confidenceLabel}</Chip></span>
+        <span title={RISK_HELP}><Chip cls={RISK_CLS[a.risk]}>変更の注意度 {RISK[a.risk]}</Chip></span>
         {st !== "open" && <Chip cls="bg-mint/10 text-mint">{STATUS_LABEL[st]}</Chip>}
       </div>
-      <div className="font-semibold leading-snug">{a.title}</div>
-      <div className="text-sm text-slate-600">期待効果:{a.impact.label}</div>
-      <button className="text-xs text-mint underline" onClick={() => setOpen(!open)}>{open ? "理由と手順を閉じる" : "理由と手順を見る"}</button>
+      <div className="font-semibold leading-snug">{p.headline}</div>
+      <div className="rounded-lg bg-amber-50/60 border border-amber-100 p-3 text-sm space-y-1.5">
+        <div><span className="text-xs font-semibold text-slate-500">何が悪い?</span><div>{p.problem}</div></div>
+        <div><span className="text-xs font-semibold text-slate-500">放っておくと</span><div>{p.risk}</div></div>
+        {a.why[0] && <div><span className="text-xs font-semibold text-slate-500">実際のデータ</span><div className="text-slate-600">{a.why[0]}</div></div>}
+      </div>
+      <div className="text-sm text-slate-600">期待できる効果:{a.impact.label}</div>
+      {a.url && <div className="text-xs text-slate-500">対象ページ:<span className="font-mono">{a.url}</span></div>}
+      <div className="rounded-lg border border-mint/40 bg-mint/5 p-3 space-y-2">
+        <div className="text-xs text-slate-600">
+          {p.mode === "guide" ? "これは管理画面での設定作業です。AIに手順を案内してもらえます。" : p.mode === "research" ? "AIに調べてもらい、対処案を出してもらいます。" : "サイトを作ったAI(Cursor・Claude・ChatGPTなど)に貼り付けると、修正してもらえます。"}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <CopyButton label="AIに渡すプロンプトをコピー" text={prompt} primary />
+          <button type="button" className="text-xs text-mint underline" onClick={() => setShowPrompt(!showPrompt)}>{showPrompt ? "プロンプトを閉じる" : "プロンプトの中身を見る"}</button>
+        </div>
+        {showPrompt && <pre className="whitespace-pre-wrap break-words rounded-lg bg-white border p-3 text-xs leading-relaxed max-h-80 overflow-auto">{prompt}</pre>}
+      </div>
+      <button className="text-xs text-mint underline" onClick={() => setOpen(!open)}>{open ? "くわしい理由と手順を閉じる" : "くわしい理由と手順を見る"}</button>
       {open && (
         <div className="text-sm space-y-2">
           <div>
@@ -101,15 +131,8 @@ export function ActionCard({ a, compact = false }: { a: Action; compact?: boolea
           {a.evidence?.sections?.length ? <GapTable sections={a.evidence.sections} /> : null}
           {a.instructions && (
             <div>
-              <div className="font-semibold text-xs text-slate-500 mb-1">依頼文(そのまま貼れます。実施は人が判断してください)</div>
-              <div className="flex flex-wrap gap-2">
-                <CopyButton label="AI向けをコピー" text={a.instructions.ai} />
-                <CopyButton label="制作会社向けをコピー" text={a.instructions.vendor} />
-              </div>
-              <details className="mt-2">
-                <summary className="text-xs text-mint cursor-pointer">AI向けの文面を見る</summary>
-                <pre className="mt-1 whitespace-pre-wrap break-words rounded-lg bg-slate-50 border p-3 text-xs leading-relaxed">{a.instructions.ai}</pre>
-              </details>
+              <div className="font-semibold text-xs text-slate-500 mb-1">制作会社・担当者に頼む場合</div>
+              <CopyButton label="制作会社向けの依頼文をコピー" text={a.instructions.vendor} />
             </div>
           )}
           <div className="text-xs text-slate-400">根拠:{a.impact.basis}</div>
@@ -140,14 +163,46 @@ export function ActionCard({ a, compact = false }: { a: Action; compact?: boolea
 export function ActionsPage() {
   const { summary: s, state } = useData();
   const [showDone, setShowDone] = useState(false);
+  const [params, setParams] = useSearchParams();
+  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [showCombined, setShowCombined] = useState(false);
   if (!s) return null;
-  const list = s.actions.filter((a) => showDone || !["done", "skipped"].includes(state[a.id]?.status ?? "open"));
+  const toggle = (id: string) => setSel((o) => { const n = new Set(o); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const chosen = s.actions.filter((a) => sel.has(a.id));
+  const combined = buildCombinedPrompt(chosen, s.site.name, s.period.latest);
+  const area = params.get("area");
+  const list = s.actions
+    .filter((a) => !area || plainOf(a).area === area)
+    .filter((a) => showDone || !["done", "skipped"].includes(state[a.id]?.status ?? "open"));
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-bold">改善候補</h1>
-      <p className="text-sm text-slate-500">期待成果 × 確度 ÷ 手間 の順に並べています。期待効果は「問い合わせ件数」に換算した幅つきの推定です。</p>
+      <Card className="text-sm space-y-2">
+        <div className="font-semibold">使い方(3ステップ)</div>
+        <ol className="list-decimal pl-5 space-y-1 text-slate-600">
+          <li>レイジットが検索・AI検索・地図・アクセスのデータを見張り、「ここが悪い」を見つけます。</li>
+          <li>直したい項目にチェックを入れ、画面下の「まとめたプロンプトをコピー」を押します(1件だけなら、その項目のボタンでもOK)。</li>
+          <li>HP・LPを作ったAI(Cursor・Claude・ChatGPTなど)に貼り付けて、修正してもらいます。直したら「実施した」を押すと効果を測ります。</li>
+        </ol>
+        <p className="text-xs text-slate-400">上にあるほどおすすめ順です(効果の大きさ・確かさ・手間の少なさで並べています)。期待効果は「問い合わせ件数」に換算した幅つきの推定です。SNSとGoogleマップの監視は今後対応予定です。</p>
+      </Card>
+      {area && <div className="text-sm">絞り込み中:<b>{AREA_NAME[area] ?? area}</b> <button className="text-mint underline text-xs ml-2" onClick={() => setParams({})}>すべて表示</button></div>}
       <label className="text-sm flex items-center gap-2"><input type="checkbox" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} />実施済み・見送りも表示</label>
-      <div className="grid xl:grid-cols-2 gap-3 items-start">{list.map((a) => <ActionCard key={a.id} a={a} compact />)}</div>
+      <div className="flex flex-wrap gap-3 text-sm">
+        <button className="text-mint underline" onClick={() => setSel(new Set(list.map((a) => a.id)))}>表示中をすべて選ぶ</button>
+        {sel.size > 0 && <button className="text-slate-500 underline" onClick={() => setSel(new Set())}>選択を解除</button>}
+      </div>
+      <div className="grid xl:grid-cols-2 gap-3 items-start">{list.map((a) => <ActionCard key={a.id} a={a} compact selected={sel.has(a.id)} onToggle={() => toggle(a.id)} />)}</div>
+      {chosen.length > 0 && (
+        <div className="sticky bottom-16 lg:bottom-3 z-10 rounded-2xl bg-white shadow-lg border border-mint/40 p-3 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="text-sm font-semibold flex-1 min-w-40">{chosen.length}件を選択中</div>
+            <CopyButton label={`選んだ${chosen.length}件をまとめたプロンプトをコピー`} text={combined} primary />
+            <button type="button" className="text-xs text-mint underline" onClick={() => setShowCombined(!showCombined)}>{showCombined ? "閉じる" : "中身を見る"}</button>
+          </div>
+          {showCombined && <pre className="whitespace-pre-wrap break-words rounded-lg bg-slate-50 border p-3 text-xs leading-relaxed max-h-72 overflow-auto">{combined}</pre>}
+        </div>
+      )}
       {list.length === 0 && <Card><p className="text-sm text-slate-500">対応が必要な候補はありません。</p></Card>}
     </div>
   );

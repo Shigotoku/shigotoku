@@ -5,6 +5,7 @@ import { api, auth, type ActionState, type Detail, type Summary } from "./lib";
 import { C, type Ctx } from "./ui";
 import AuthAction from "./AuthAction";
 import { ActionsPage, HistoryPage } from "./pages-main";
+import { ScorePage } from "./pages-score";
 import { Home } from "./pages-home";
 import { CompliancePage, FunnelPage, SettingsPage } from "./pages-other";
 import { DetailPage } from "./pages-detail";
@@ -176,7 +177,7 @@ function Shell({ user }: { user: User }) {
 
   if (me && !me.member) return <Pending me={me} onChanged={() => void load()} />;
 
-  const nav = [["/", "今月の結論"], ["/actions", "改善候補"], ["/funnel", "流入・漏斗"], ["/detail", "詳細データ"], ["/competitors", "競合"], ["/compliance", "文案チェック"], ["/history", "施策履歴"], ["/settings", "設定"]] as const;
+  const nav = [["/", "今月の結論"], ["/score", "集客の通信簿"], ["/actions", "改善候補"], ["/funnel", "流入・漏斗"], ["/detail", "詳細データ"], ["/competitors", "競合"], ["/compliance", "文案チェック"], ["/history", "施策履歴"], ["/settings", "設定"]] as const;
   return (
     <C.Provider value={{ summary, detail, site, state, error, loading, role, email: user.email ?? "", reload: load, setStatus }}>
       <div className="min-h-dvh pb-20 lg:pb-0 lg:pl-44">
@@ -195,6 +196,7 @@ function Shell({ user }: { user: User }) {
           {error && <div className="mb-4 rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm">{error}</div>}
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/score" element={<ScorePage />} />
             <Route path="/actions" element={<ActionsPage />} />
             <Route path="/funnel" element={<FunnelPage />} />
             <Route path="/detail" element={<DetailPage />} />

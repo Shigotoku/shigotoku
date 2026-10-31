@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import type { Action } from "./lib";
 import { Bars, Delta, Spark, useData } from "./ui";
+import { plainOf } from "./plain";
 
 const RISK = { low: ["低", "bg-emerald-50 text-emerald-700"], mid: ["中", "bg-amber-50 text-amber-700"], high: ["高", "bg-rose-50 text-rose-700"] } as const;
 const ST: Record<string, string> = { approved: "承認済み", done: "実施済み", skipped: "見送り" };
@@ -25,9 +26,9 @@ function Row({ a }: { a: Action }) {
     <li className="py-2 border-b last:border-0">
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-semibold leading-snug">{a.title}</div>
+          <div className="text-sm font-semibold leading-snug">{plainOf(a).headline}</div>
           <div className="text-[11px] text-slate-500 flex flex-wrap gap-x-2">
-            <span>{a.category}</span><span>{a.impact.label}</span><span>確度{a.confidenceLabel}</span><span>約{a.effortMin}分</span>
+            <span>{plainOf(a).areaInfo.label}</span><span>{a.impact.label}</span><span>確度{a.confidenceLabel}</span><span>約{a.effortMin}分</span>
             <span className={`rounded px-1 ${rc}`}>リスク{rl}</span>
             {st !== "open" && <span className="text-mint font-semibold">{ST[st]}</span>}
           </div>
