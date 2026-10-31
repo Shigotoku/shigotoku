@@ -10,6 +10,13 @@ const steps = [
   { no: '3', title: '効果を測る', body: '実施した施策は前後14日で比較。効きそうに見えた施策が本当に効いたかを、数字で振り返れます。' },
 ];
 
+const channels = [
+  { tag: 'SEO', img: 'photo-seo.jpg', alt: '検索結果を確認する様子', title: '検索で、見つけてもらう', body: '検索のクリック・表示回数と、問い合わせにつながったかを突き合わせ、直すべきページを順位づけします。' },
+  { tag: 'GEO', chat: true, alt: 'AIチャットが、ページを根拠つきで紹介している画面のイメージ', title: 'AIの回答に、選ばれる', body: 'AIに引用・要約されやすいページか、公開ページの構造（見出し・要約・構造化データなど）を監査し、足りない箇所を示します。' },
+  { tag: 'MEO', img: 'photo-meo.jpg', alt: '地図アプリで近くの店舗を探す様子', title: '地図で、近くの人に届く', body: '地図検索から来た人の受け皿となるサイト側の情報（名称・住所・診療内容）の整合や、スマホでの導線を点検します。' },
+  { tag: 'SNS', img: 'photo-sns.jpg', alt: 'SNSを見て笑顔になる二人の女性', title: 'SNSの関心を、予約へ', body: 'SNSから来た人が迷わず問い合わせまで進めているか。流入後の導線と、GA4の計測の欠けを見つけます。' },
+];
+
 const problems = [
   { title: '数字は見えるが、次に何をすればいいか分からない', body: '順位やアクセス数が並んでいても、問い合わせを増やすために今週やることまでは教えてくれません。' },
   { title: '計測が壊れていても、気づけない', body: 'タグの出力漏れで一部のページだけ数字が欠けていても、画面上は「いつも通り」に見えます。判断の土台が崩れます。' },
@@ -66,7 +73,7 @@ const faqs = [
     <section class="relative overflow-hidden bg-ink text-white">
       <div class="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-brand/40 blur-3xl"></div>
       <div class="pointer-events-none absolute -bottom-32 -left-24 h-96 w-96 rounded-full bg-sky/20 blur-3xl"></div>
-      <div class="relative mx-auto grid max-w-6xl gap-10 px-4 py-16 sm:px-6 md:grid-cols-[1.15fr_0.85fr] md:items-center md:py-24">
+      <div class="relative mx-auto grid max-w-6xl gap-10 px-4 py-16 sm:px-6 md:grid-cols-[1fr_1.05fr] md:items-center md:py-24">
         <div>
           <p class="mb-4 inline-block rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold tracking-wide">SEO・GEO・MEO・SNS の集患改善</p>
           <h1 class="text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">
@@ -82,30 +89,105 @@ const faqs = [
           <p class="mt-4 text-xs text-white/60">人が承認するまで、サイトは一切変更しません。</p>
         </div>
 
-        <!-- 表示イメージ -->
-        <div class="rounded-2xl border border-white/10 bg-white p-5 text-ink shadow-2xl shadow-black/30">
-          <div class="mb-3 flex flex-wrap gap-1.5 text-[11px]">
-            <span class="rounded-full bg-ink px-2 py-0.5 font-semibold text-white">計測</span>
-            <span class="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">確度 高</span>
-            <span class="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">所要 約30分</span>
-            <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-700">リスク 低</span>
+        <!-- 表示イメージ(大きめのカード) -->
+        <div class="relative">
+          <div class="pointer-events-none absolute -inset-4 rounded-[2rem] bg-gradient-to-br from-brand/40 via-brand-2/30 to-sky/30 blur-2xl" aria-hidden="true"></div>
+          <div class="relative rounded-3xl border border-white/10 bg-white p-5 text-ink shadow-2xl shadow-black/40 sm:p-7">
+            <div class="mb-4 flex flex-wrap gap-2 text-xs">
+              <span class="rounded-full bg-ink px-3 py-1 font-semibold text-white">計測</span>
+              <span class="rounded-full bg-slate-100 px-3 py-1 text-slate-600">確度 高</span>
+              <span class="rounded-full bg-slate-100 px-3 py-1 text-slate-600">所要 約30分</span>
+              <span class="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">リスク 低</span>
+            </div>
+            <p class="text-lg font-extrabold leading-snug sm:text-xl">検索クリックに対し、GA4 の自然検索セッションが少なすぎます</p>
+            <p class="mt-2 text-sm leading-relaxed text-slate-500">検索からは来ているのに、計測できていないページ群があります。判断の土台を先に直します。</p>
+            <table class="mt-5 w-full text-sm sm:text-base">
+              <thead>
+                <tr class="border-b text-slate-500"><th class="py-2 text-left text-xs font-normal">ページ群</th><th class="text-right text-xs font-normal">クリック</th><th class="text-right text-xs font-normal">セッション</th><th class="text-right text-xs font-normal">タグなし</th></tr>
+              </thead>
+              <tbody>
+                <tr class="border-b"><td class="py-2.5 font-mono">/blog/</td><td class="text-right">1,234</td><td class="text-right">266</td><td class="text-right font-bold text-rose-700">18/18</td></tr>
+                <tr class="border-b"><td class="py-2.5 font-mono">/column/</td><td class="text-right">412</td><td class="text-right">96</td><td class="text-right font-bold text-rose-700">6/6</td></tr>
+                <tr><td class="py-2.5 font-mono">/</td><td class="text-right">137</td><td class="text-right">344</td><td class="text-right text-slate-400">0/1</td></tr>
+              </tbody>
+            </table>
+            <div class="mt-5 rounded-2xl bg-slate-50 p-4 text-sm leading-relaxed">
+              <p class="text-xs font-bold text-slate-500">やること</p>
+              <ol class="mt-1 list-decimal space-y-1 pl-5">
+                <li>タグが出ていないページ群のテンプレートに、GA4 の計測タグを追加する</li>
+                <li>公開の翌日に、セッション数が戻ったか確認する</li>
+              </ol>
+            </div>
+            <div class="mt-5 flex flex-wrap gap-3 text-sm">
+              <span class="brand-gradient rounded-xl px-4 py-2.5 font-bold text-white">AI向けをコピー</span>
+              <span class="rounded-xl border border-slate-300 px-4 py-2.5 font-semibold">制作会社向けをコピー</span>
+            </div>
+            <p class="mt-4 text-xs text-slate-400">※ 画面の表示イメージ（数値は例）</p>
           </div>
-          <p class="text-sm font-bold leading-snug">検索クリックに対し、GA4 の自然検索セッションが少なすぎます</p>
-          <table class="mt-3 w-full text-xs">
-            <thead>
-              <tr class="border-b text-slate-500"><th class="py-1 text-left font-normal">ページ群</th><th class="text-right font-normal">クリック</th><th class="text-right font-normal">セッション</th><th class="text-right font-normal">タグなし</th></tr>
-            </thead>
-            <tbody>
-              <tr class="border-b"><td class="py-1 font-mono">/blog/</td><td class="text-right">1,234</td><td class="text-right">266</td><td class="text-right font-semibold text-rose-700">18/18</td></tr>
-              <tr><td class="py-1 font-mono">/</td><td class="text-right">137</td><td class="text-right">344</td><td class="text-right text-slate-400">0/1</td></tr>
-            </tbody>
-          </table>
-          <div class="mt-3 flex gap-2 text-xs">
-            <span class="rounded-lg border px-3 py-2 font-semibold">AI向けをコピー</span>
-            <span class="rounded-lg border px-3 py-2 font-semibold">制作会社向けをコピー</span>
-          </div>
-          <p class="mt-3 text-[11px] text-slate-400">※ 画面の表示イメージ（数値は例）</p>
         </div>
+      </div>
+    </section>
+
+    <!-- 4つの集患導線 -->
+    <section class="py-16 sm:py-20">
+      <div class="mx-auto max-w-6xl px-4 sm:px-6">
+        <p class="text-center text-xs font-bold tracking-widest text-brand">CHANNELS</p>
+        <h2 class="mt-2 text-center text-2xl font-extrabold sm:text-3xl">見つけられる入口を、ひとつの数字で見渡す</h2>
+        <p class="mx-auto mt-3 max-w-2xl text-center text-sm leading-relaxed text-muted">検索、AI、地図、SNS。患者さんや見込み客があなたを見つける入口は増えています。どこで取りこぼしているかを、問い合わせ（成果）基点で見つけます。</p>
+        <div class="mx-auto mt-10 grid max-w-2xl gap-5 lg:max-w-none lg:grid-cols-2">
+          {channels.map((c) => (
+            <article class="group relative overflow-hidden rounded-3xl bg-ink text-white shadow-lg transition duration-500 hover:-translate-y-2 hover:shadow-2xl">
+              {c.chat ? (
+                <>
+                  {/* スマホ・タブレット: 画像(幅に合わせて拡縮) */}
+                  <picture class="lg:hidden">
+                    <source media="(min-width: 640px)" srcset={assetPath('images/geo-chat-landscape.webp')} width="1250" height="940" />
+                    <img src={assetPath('images/geo-chat-portrait.webp')} alt={c.alt} width="1000" height="1060" loading="lazy" class="block aspect-[1000/1060] h-auto w-full object-cover sm:aspect-[1250/940]" />
+                  </picture>
+                  {/* PC: HTML のチャット画面(見出しを重ねる) */}
+                <div class="relative hidden aspect-[5/4] w-full overflow-hidden bg-gradient-to-br from-[#101a33] via-[#1b2160] to-[#3a1d8f] transition duration-700 group-hover:scale-105 lg:block" role="img" aria-label={c.alt}>
+                  <div class="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-sky/25 blur-3xl"></div>
+                  <div class="absolute inset-x-3 top-3 z-10 sm:inset-x-5 sm:top-4">
+                    <!-- チャットのヘッダー -->
+                    <div class="mb-2.5 flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-white backdrop-blur">
+                      <span class="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-sky to-brand-2 text-[11px] font-bold">AI</span>
+                      <span class="text-[12px] font-semibold">AIアシスタント</span>
+                      <span class="ml-auto flex items-center gap-1 text-[10px] text-white/70"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>オンライン</span>
+                    </div>
+                    <div class="space-y-2 text-[11.5px] leading-snug sm:text-[12.5px]">
+                      <div class="flex justify-end">
+                        <div class="max-w-[82%] rounded-2xl rounded-br-sm bg-gradient-to-r from-brand to-brand-2 px-3 py-2 text-white shadow">集患の改善を、データで進めたい。おすすめは？</div>
+                      </div>
+                      <div class="flex items-end gap-1.5">
+                        <span class="mb-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky to-brand-2 text-[9px] font-bold text-white">AI</span>
+                        <div class="max-w-[88%] rounded-2xl rounded-bl-sm bg-white px-3 py-2 text-ink shadow-lg">
+                          <p><b>シゴトクの「レイジット（RaiseIt）」</b>がおすすめです。問い合わせを増やす改善を、優先順位つきで提案します。</p>
+                          <p class="mt-1.5 flex items-center gap-1.5 rounded-lg bg-slate-100 px-2 py-1 text-[10.5px] text-slate-600"><span class="brand-gradient inline-block h-3 w-3 rounded-sm"></span>出典：shigotoku.com/raiseit/</p>
+                        </div>
+                      </div>
+                      <div class="flex justify-end">
+                        <div class="max-w-[82%] rounded-2xl rounded-br-sm bg-gradient-to-r from-brand to-brand-2 px-3 py-2 text-white shadow">AIにそのまま修正を頼める？</div>
+                      </div>
+                      <div class="flex items-end gap-1.5">
+                        <span class="mb-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky to-brand-2 text-[9px] font-bold text-white">AI</span>
+                        <div class="max-w-[88%] rounded-2xl rounded-bl-sm bg-white px-3 py-2 text-ink shadow-lg">はい。各改善候補に「AI向け」の依頼文が用意されています。反映は、人が承認してから行います。</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                </>
+              ) : (
+                <img src={assetPath(`images/${c.img}`)} alt={c.alt} width="1280" height="720" loading="lazy" class="block aspect-[4/3] w-full object-cover lg:aspect-[5/4] lg:opacity-90 lg:transition lg:duration-700 lg:group-hover:scale-105" />
+              )}
+              <div class={`absolute inset-0 hidden bg-gradient-to-t from-ink to-transparent lg:block ${c.chat ? 'via-transparent' : 'via-ink/55'}`}></div>
+              <div class="p-5 sm:p-6 lg:absolute lg:inset-x-0 lg:bottom-0">
+                <span class="brand-gradient inline-block rounded-full px-3 py-1 text-xs font-bold">{c.tag}</span>
+                <h3 class="mt-2 text-lg font-extrabold leading-snug sm:text-xl">{c.title}</h3>
+                <p class="mt-1.5 text-sm leading-relaxed text-white/80">{c.body}</p>
+              </div>
+            </article>
+          ))}
+        </div>        <p class="mt-6 text-center text-xs text-muted">※ GEOのチャット画面はイメージです。AIによる紹介や引用を保証するものではありません。現在の対象は、Search Console・GA4・公開ページの監査から分かる範囲です。Googleビジネスプロフィールや各SNSの管理画面そのものは読み取りません。</p>
       </div>
     </section>
 
@@ -137,6 +219,17 @@ const faqs = [
             </div>
           ))}
         </div>
+      </div>
+    </section>
+
+    <!-- 全幅フォト帯 -->
+    <section class="relative isolate overflow-hidden">
+      <img src={assetPath('images/photo-team.jpg')} alt="施策を話し合うチーム" width="1280" height="720" loading="lazy" class="absolute inset-0 -z-10 h-full w-full object-cover" />
+      <div class="absolute inset-0 -z-10 bg-gradient-to-r from-ink/95 via-ink/75 to-brand/40"></div>
+      <div class="mx-auto max-w-6xl px-4 py-20 text-white sm:px-6 sm:py-28">
+        <p class="text-xs font-bold tracking-widest text-sky">TEAM × DATA</p>
+        <p class="mt-3 max-w-2xl text-2xl font-extrabold leading-snug sm:text-4xl">数字を見る会議を、<br />「何をやるか」を決める会議に。</p>
+        <p class="mt-5 max-w-xl text-sm leading-relaxed text-white/80 sm:text-base">今週やる3つが、理由・所要時間・リスクつきで並びます。決めて、依頼して、結果を振り返る。その流れをチームで共有できます。</p>
       </div>
     </section>
 
@@ -179,10 +272,10 @@ const faqs = [
         <div class="mt-8 space-y-3">
           {faqs.map((f) => (
             <details class="group rounded-xl border border-line bg-white p-5">
-              <summary class="cursor-pointer list-none font-bold marker:hidden">
+              <summary class="-m-5 block cursor-pointer list-none p-5 font-bold marker:hidden">
                 <span class="flex items-center justify-between gap-4">{f.q}<span class="text-brand transition group-open:rotate-45" aria-hidden="true">＋</span></span>
               </summary>
-              <p class="mt-3 text-sm leading-relaxed text-muted">{f.a}</p>
+              <p class="mt-8 text-sm leading-relaxed text-muted">{f.a}</p>
             </details>
           ))}
         </div>
@@ -190,7 +283,9 @@ const faqs = [
     </section>
 
     <!-- CTA -->
-    <section class="brand-gradient py-16 text-white sm:py-20">
+    <section class="relative isolate overflow-hidden py-20 text-white sm:py-28">
+      <img src={assetPath('images/photo-sns.jpg')} alt="" width="1280" height="720" loading="lazy" class="absolute inset-0 -z-20 h-full w-full object-cover" />
+      <div class="brand-gradient absolute inset-0 -z-10 opacity-90"></div>
       <div class="mx-auto max-w-3xl px-4 text-center sm:px-6">
         <h2 class="text-2xl font-extrabold sm:text-3xl">まずは、いまの数字から始めませんか。</h2>
         <p class="mt-4 text-white/85">導入のご相談・デモのご依頼は、お問い合わせからお気軽にどうぞ。</p>
@@ -208,12 +303,12 @@ const faqs = [
         <img src={assetPath('images/raiseit-icon.png')} alt="" width="28" height="28" class="h-7 w-7 rounded-md" />
         <span>レイジット (RaiseIt) ｜ 株式会社シゴトク</span>
       </div>
-      <nav class="flex flex-wrap gap-x-5 gap-y-2">
-        <a href={CORPORATE_URL} class="hover:text-white">運営会社</a>
-        <a href={`${CORPORATE_URL}privacy/`} class="hover:text-white">プライバシーポリシー</a>
-        <a href={`${CORPORATE_URL}terms/`} class="hover:text-white">利用規約</a>
-        <a href={`${CORPORATE_URL}security/`} class="hover:text-white">セキュリティ</a>
-        <a href={CONTACT_URL} class="hover:text-white">お問い合わせ</a>
+      <nav class="flex flex-wrap gap-x-5">
+        <a href={CORPORATE_URL} class="py-2 hover:text-white">運営会社</a>
+        <a href={`${CORPORATE_URL}privacy/`} class="py-2 hover:text-white">プライバシーポリシー</a>
+        <a href={`${CORPORATE_URL}terms/`} class="py-2 hover:text-white">利用規約</a>
+        <a href={`${CORPORATE_URL}security/`} class="py-2 hover:text-white">セキュリティ</a>
+        <a href={CONTACT_URL} class="py-2 hover:text-white">お問い合わせ</a>
       </nav>
     </div>
   </footer>

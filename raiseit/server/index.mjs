@@ -77,6 +77,12 @@ function ownLink(link, req) {
 }
 
 const api = express.Router();
+// 認証つきの応答は CDN(Firebase Hosting)やブラウザに保存させない
+api.use((_req, res, next) => {
+  res.setHeader('Cache-Control', 'private, no-store');
+  next();
+});
+
 // ---- ログイン直後(メンバー未登録でも呼べる): 自分の状態と新規登録の申請 ----
 async function verify(req, res, next) {
   try {
@@ -312,9 +318,26 @@ app.use('/api', api);
 app.use('/api', (_req, res) => res.status(404).json({ error: 'not found' }));
 
 if (existsSync(dist)) {
+  // ハッシュ付き成果物は長期キャッシュ、それ以外は 1 時間
+  app.use('/assets', express.static(join(dist, 'assets'), { maxAge: '365d', immutable: true, fallthrough: false }));
   app.use(express.static(dist, { maxAge: '1h', index: false }));
-  app.use((req, res, next) => (['GET', 'HEAD'].includes(req.method) ? res.sendFile(join(dist, 'index.html')) : next()));
+  // SPA フォールバックは「拡張子のないパス」だけ。存在しない静的ファイルに HTML を 200 で返さない
+  app.use((req, res, next) => {
+    if (!['GET', 'HEAD'].includes(req.method)) return next();
+    if (/\.[a-z0-9]{1,8}$/i.test(req.path)) return res.status(404).type('text/plain').send('not found');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.sendFile(join(dist, 'index.html'));
+  });
 }
+
+// 想定外のエラーは内容を返さない(ログにだけ残す)
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, _next) => {
+  console.error(`${req.method} ${req.path}`, err);
+  if (res.headersSent) return;
+  if (err?.status === 404 || err?.statusCode === 404) return res.status(404).type('text/plain').send('not found');
+  res.status(err?.status || err?.statusCode || 500).json({ error: 'internal error' });
+});
 
 const port = Number(process.env.PORT || 8080);
 app.listen(port, () => console.log(`raiseit-app listening on ${port}`));

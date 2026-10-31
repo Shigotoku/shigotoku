@@ -69,10 +69,14 @@ export function CompliancePage() {
   const [text, setText] = useState("");
   const [res, setRes] = useState<{ verdict: string; findings: Finding[] } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
   const run = async () => {
     setBusy(true);
+    setErr("");
     try {
       setRes(await api("/compliance/check", { method: "POST", body: { text } }));
+    } catch {
+      setErr("チェックに失敗しました。通信状況を確認して、もう一度お試しください。");
     } finally {
       setBusy(false);
     }
@@ -83,7 +87,8 @@ export function CompliancePage() {
       <h1 className="text-xl font-bold">医療広告チェック</h1>
       <p className="text-sm text-slate-500">公開前の文案を貼り付けてください。ルールベースの簡易チェックで、弁護士・行政の判断の代わりにはなりません。最終判断は人が行います。</p>
       <textarea className="w-full border rounded-xl p-3 min-h-48 bg-white" placeholder="タイトル・見出し・本文を貼り付け" value={text} onChange={(e) => setText(e.target.value)} />
-      <button onClick={run} disabled={!text.trim() || busy} className="w-full rounded-lg bg-ink text-white py-3 font-semibold disabled:opacity-40">チェックする</button>
+      <button onClick={run} disabled={!text.trim() || busy} className="w-full rounded-lg bg-ink text-white py-3 font-semibold disabled:opacity-40">{busy ? "チェック中…" : "チェックする"}</button>
+      {err && <p className="text-sm text-rose-600">{err}</p>}
       {res && (
         <Card className="space-y-3">
           <div className="font-bold">{verdict[res.verdict]}</div>
@@ -110,7 +115,13 @@ function Members() {
   const [role, setRole] = useState("viewer");
   const [link, setLink] = useState("");
   const [err, setErr] = useState("");
-  const load = async () => setList(await api<Member[]>("/members"));
+  const load = async () => {
+    try {
+      setList(await api<Member[]>("/members"));
+    } catch {
+      setErr("メンバー一覧を読み込めませんでした。");
+    }
+  };
   const [reqs, setReqs] = useState<{ uid: string; email: string; name: string; company: string }[]>([]);
   const loadReqs = async () => setReqs(await api("/signup-requests"));
   useEffect(() => { void load(); void loadReqs(); }, []);
@@ -180,7 +191,7 @@ function Members() {
       </div>
       {link && (
         <div className="text-xs bg-amber-50 border border-amber-200 rounded p-2 break-all">
-          パスワード設定リンク(本人にだけ共有してください。このメッセージを閉じると再表示できません):<br />{link}
+          パスワード設定リンク(本人にだけ共有してください。画面を更新すると再表示できません):<br />{link}
         </div>
       )}
       {err && <p className="text-xs text-rose-600">{err}</p>}
