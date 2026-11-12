@@ -53,6 +53,12 @@ const landingPages = [
     env: projectEnv['deckit-landing'],
   },
   {
+    name: 'predeck-landing',
+    cwd: join(root, 'PreDeck', 'landing-page'),
+    out: join(webOut, 'predeck'),
+    env: projectEnv['predeck-landing'],
+  },
+  {
     name: 'raiseit-landing',
     cwd: join(root, 'raiseit', 'landing-page'),
     out: join(webOut, 'raiseit'),
