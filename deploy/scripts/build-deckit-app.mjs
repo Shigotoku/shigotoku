@@ -10,7 +10,7 @@ import { projectEnv } from '../build.config.mjs';
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const deployDir = dirname(scriptDir);
 const root = dirname(deployDir);
-const appCwd = join(root, 'Slide_Studio', 'app');
+const appCwd = join(root, 'deckit', 'app');
 const out = join(deployDir, 'dist', 'deckit-app');
 const env = projectEnv['deckit-app'] ?? {};
 

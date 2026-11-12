@@ -1,0 +1,36 @@
+{
+  "hosting": [
+    {
+      "target": "predeck-app",
+      "public": "dist/predeck-app",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [
+        {
+          "source": "/api/**",
+          "function": {
+            "functionId": "predeckApi",
+            "codebase": "predeck-api",
+            "region": "asia-northeast1"
+          }
+        },
+        { "source": "**", "destination": "/index.html" }
+      ],
+      "headers": [
+        {
+          "source": "**",
+          "headers": [
+            { "key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains; preload" },
+            { "key": "X-Content-Type-Options", "value": "nosniff" },
+            { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+            { "key": "Permissions-Policy", "value": "microphone=(self)" },
+            { "key": "X-Robots-Tag", "value": "noindex, nofollow" }
+          ]
+        }
+      ]
+    }
+  ],
+  "functions": [
+    { "source": "functions/predeck-api", "codebase": "predeck-api", "runtime": "nodejs22" }
+  ],
+  "firestore": { "rules": "firestore.predeck.rules" }
+}

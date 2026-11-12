@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // PreDeck は利用回数（usage/）のみを保存する。クライアントからの読み書きはすべて拒否し、
+    // API（Admin SDK）だけが書き込む。スライド・音声・原稿は保存しない。
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

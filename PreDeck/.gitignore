@@ -1,0 +1,70 @@
+# --- 埋め込みPython（install.bat が初回起動時に自動DL） ---
+python/
+python-embed.zip
+
+# --- Python 仮想環境 ---
+.venv/
+venv/
+env/
+
+# --- 実行時データ ---
+sessions/
+recordings/
+uploads/
+data_archive/
+
+# --- Python キャッシュ ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- 環境変数・シークレット ---
+.env
+.env.local
+*.key
+*.pem
+
+# --- IDE / エディタ ---
+.vscode
+.idea
+.cursor
+.cursor_work
+.claude
+*.swp
+*.swo
+
+# --- シェル/ツール用 dotfile（個人環境のもので、リポジトリには含めない） ---
+.bash_profile
+.bashrc
+.profile
+.zprofile
+.zshrc
+.gitconfig
+.gitmodules
+.mcp.json
+.ripgreprc
+
+# --- サンドボックス遮断パス（character device として現れるシステムパス名） ---
+/etc
+/root
+/mnt
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- ログ ---
+*.log
+logs/
+
+# --- ビルド成果物 ---
+build/
+dist/
+*.egg

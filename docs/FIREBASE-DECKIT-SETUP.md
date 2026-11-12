@@ -6,7 +6,7 @@ ShapeIt / ClipIt と同様、**専用 Firebase プロジェクト**（目標 ID:
 |------|-----|
 | 製品名 | **DeckIt**（読み: デキット） |
 | 本番 URL（目標） | `https://app.deckit.shigotoku.com`（手順 [DECKIT-CUSTOM-DOMAIN.md](./DECKIT-CUSTOM-DOMAIN.md)） |
-| アプリコード | `Slide_Studio/app`（リポジトリ内パスは歴史的名称） |
+| アプリコード | `deckit/app`（リポジトリ内パスは歴史的名称） |
 | Firestore ルール | `deploy/firestore.deckit.rules`（コレクション `deckit_*`） |
 
 ## 伴走チェックリスト（推奨）
@@ -25,7 +25,7 @@ ShapeIt / ClipIt と同様、**専用 Firebase プロジェクト**（目標 ID:
 
 1. Console → プロジェクトの設定 → マイアプリ → Web アプリ追加
 2. `deploy/build.config.mjs` の `DECKIT_FIREBASE` と `projectEnv['deckit-app']` にキーを貼る（ShapeIt の `SHAPEIT_FIREBASE` と同型）
-3. `Slide_Studio/app/.env.local` に同じ `NEXT_PUBLIC_FIREBASE_*` + `NEXT_PUBLIC_DECKIT_DATA_MODE=firebase`
+3. `deckit/app/.env.local` に同じ `NEXT_PUBLIC_FIREBASE_*` + `NEXT_PUBLIC_DECKIT_DATA_MODE=firebase`
 4. Cloud Run（またはローカル API）に Admin SDK 用サービスアカウント
 
 ## Phase 3 — 本番デプロイ（Cloud Run）
@@ -33,7 +33,7 @@ ShapeIt / ClipIt と同様、**専用 Firebase プロジェクト**（目標 ID:
 ローカル `npm run dev` より **本番 URL で開発**する流れ:
 
 1. **Secret Manager**（初回のみ）  
-   `Slide_Studio/app/secrets/deckit-admin.json` をシークレット `deckit-admin-sa` として登録。
+   `deckit/app/secrets/deckit-admin.json` をシークレット `deckit-admin-sa` として登録。
 2. **ビルド + デプロイ**
 
 ```powershell
@@ -53,9 +53,9 @@ npm run deploy:deckit
 ## ローカル開発
 
 ```powershell
-cd Slide_Studio/app
+cd deckit/app
 # .env なし → mock（E2E も mock）
 npm run dev
 ```
 
-関連: [DECKIT-BRAND.md](../Slide_Studio/docs/DECKIT-BRAND.md)、[FIREBASE-SPLIT.md](./FIREBASE-SPLIT.md)
+関連: [DECKIT-BRAND.md](../deckit/docs/DECKIT-BRAND.md)、[FIREBASE-SPLIT.md](./FIREBASE-SPLIT.md)

@@ -10,6 +10,7 @@ export const CLIPIT_APP_URL = 'https://app.clipit.shigotoku.com';
 export const SHAPEIT_APP_URL = 'https://app.shapeit.shigotoku.com';
 export const DECKIT_APP_URL = 'https://app.deckit.shigotoku.com';
 export const RAISEIT_APP_URL = 'https://app.raiseit.shigotoku.com';
+export const PREDECK_APP_URL = 'https://app.predeck.shigotoku.com';
 export const CORPORATE_URL = 'https://shigotoku.com';
 export const RUNWITH_LP_URL = 'https://shigotoku.com/runwith';
 export const BUZZIT_LP_URL = 'https://shigotoku.com/buzzit';
@@ -71,7 +72,33 @@ export const DECKIT_FIREBASE = {
   appId: process.env.DECKIT_FIREBASE_APP_ID ?? '1:174186643296:web:687b7796001cb98c78a805',
 };
 
+/**
+ * PreDeck 専用（shigotoku-predeck-prod）。プロジェクト作成後、Console の Web アプリ設定を
+ * 環境変数 PREDECK_FIREBASE_* で渡す（キーをリポジトリに直書きしない）。
+ */
+export const PREDECK_FIREBASE = {
+  apiKey: process.env.PREDECK_FIREBASE_API_KEY ?? '',
+  authDomain: process.env.PREDECK_FIREBASE_AUTH_DOMAIN ?? 'shigotoku-predeck-prod.firebaseapp.com',
+  projectId: process.env.PREDECK_FIREBASE_PROJECT_ID ?? 'shigotoku-predeck-prod',
+  storageBucket: process.env.PREDECK_FIREBASE_STORAGE_BUCKET ?? '',
+  messagingSenderId: process.env.PREDECK_FIREBASE_MESSAGING_SENDER_ID ?? '',
+  appId: process.env.PREDECK_FIREBASE_APP_ID ?? '',
+};
+
 export const projectEnv = {
+  'predeck-landing': {
+    PUBLIC_APP_URL: PREDECK_APP_URL,
+    PUBLIC_GA_MEASUREMENT_ID: GA_MEASUREMENT_ID,
+  },
+  'predeck-app': {
+    VITE_PREDECK_API_URL: `/api`,
+    VITE_FIREBASE_API_KEY: PREDECK_FIREBASE.apiKey,
+    VITE_FIREBASE_AUTH_DOMAIN: PREDECK_FIREBASE.authDomain,
+    VITE_FIREBASE_PROJECT_ID: PREDECK_FIREBASE.projectId,
+    VITE_FIREBASE_STORAGE_BUCKET: PREDECK_FIREBASE.storageBucket,
+    VITE_FIREBASE_MESSAGING_SENDER_ID: PREDECK_FIREBASE.messagingSenderId,
+    VITE_FIREBASE_APP_ID: PREDECK_FIREBASE.appId,
+  },
   'corporate-site': {
     PUBLIC_RUNWITH_APP_URL: RUNWITH_APP_URL,
     PUBLIC_BUZZIT_APP_URL: BUZZIT_APP_URL,

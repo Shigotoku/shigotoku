@@ -1,0 +1,109 @@
+﻿---
+const storyBeats = [
+  { label: 'すぐ話す', caption: 'PDF を開いて、マイクで話すだけ。' },
+  { label: 'すぐ直す', caption: 'AI が原稿を整え、英語版も作成。' },
+  { label: '自信がつく', caption: '構成と想定質問を、本番前に確認。' },
+];
+
+const pillars = [
+  {
+    title: '端末の外に出さない',
+    body: 'スライドと録音は、お使いの端末の中だけで処理・保存。文字起こしも Chrome の端末内認識なので、音声はクラウドに送られません。',
+  },
+  {
+    title: '専門用語に強い',
+    body: '医療・科学・物理の標準辞書に加え、自分の分野の用語を登録できる「マイ辞書」。聞き取りの誤りは辞書で補正します。',
+  },
+  {
+    title: 'AI にはテキストだけ',
+    body: 'AI に送るのは文字起こしのテキストだけ。画像や音声は送らず、原稿の本文は当社で保存しません。',
+  },
+  {
+    title: 'DeckIt とつながる',
+    body: 'DeckIt で作ったスライドを PDF で書き出して、そのまま PreDeck で練習。資料づくりから発表まで、一続きで進められます。',
+  },
+];
+
+const steps = [
+  { n: '1', title: 'PDF を開く', body: 'スライドを PDF で読み込みます。' },
+  { n: '2', title: '話す', body: 'マイクで話すと、その場で文字になります。' },
+  { n: '3', title: 'AI で整える', body: '原稿の手直し、英語化、構成の評価を行います。' },
+];
+---
+
+<section id="detail" class="border-t border-pd-line bg-pd-panel">
+  <div class="predeck-os-bleed relative w-full overflow-hidden" data-reveal>
+    <img
+      src={`${import.meta.env.BASE_URL}images/predeck-practice-bg.jpg`}
+      alt="会議室でスライドを前に発表の練習をする女性"
+      class="absolute inset-0 h-full w-full object-cover"
+      loading="lazy"
+    />
+    <div class="absolute inset-0 bg-gradient-to-r from-[#0c1220]/95 via-[#0c1220]/75 to-[#0c1220]/45" aria-hidden="true"></div>
+    <div class="relative z-10 mx-auto flex min-h-[min(88vh,40rem)] max-w-6xl flex-col justify-between px-6 py-14 sm:px-8 sm:py-16 lg:py-20">
+      <div class="max-w-2xl text-white">
+        <p class="text-sm font-semibold uppercase tracking-widest text-pd-highlight">About PreDeck</p>
+        <h2 class="predeck-h2 mt-3 font-bold" data-jp-heading>
+          発表を<span class="predeck-em-dark">通す</span>ための、練習スタジオ。
+        </h2>
+        <p class="predeck-lead mt-4 text-[#d3dcea]" data-jp-wrap>
+          話す。直す。伝える。——発表の準備の流れ全体を、PreDeck が支えます。
+        </p>
+      </div>
+
+      <ul class="mt-12 grid gap-4 border-t border-white/15 pt-8 sm:grid-cols-3 sm:gap-6">
+        {storyBeats.map((item, i) => (
+          <li
+            class="rounded-xl border border-white/20 bg-pd-side/35 px-4 py-4 backdrop-blur-md sm:px-5 sm:py-5"
+            data-reveal
+            data-reveal-delay={i + 1}
+          >
+            <p class="text-lg font-bold text-pd-highlight sm:text-xl">{item.label}</p>
+            <p class="predeck-body mt-2 text-[#e6edf6]" data-jp-wrap>{item.caption}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </div>
+
+  <div class="predeck-section--lg mx-auto max-w-6xl px-6">
+    <div class="grid gap-5 sm:grid-cols-2">
+      {pillars.map((p, i) => (
+        <article
+          class="rounded-xl border border-pd-line bg-pd-bg p-6 transition-shadow duration-300 hover:shadow-md hover:shadow-pd-accent/5"
+          data-reveal
+          data-reveal-delay={(i % 2) + 1}
+        >
+          <h3 class="predeck-h3 font-bold text-pd-text" data-jp-heading>{p.title}</h3>
+          <p class="predeck-body mt-2 text-pd-muted" data-jp-wrap>{p.body}</p>
+        </article>
+      ))}
+    </div>
+
+    <div class="mt-20">
+      <h3 class="predeck-h2 font-bold text-pd-text" data-reveal data-jp-heading>使い方（3ステップ）</h3>
+      <ol class="mt-8 grid gap-4 sm:grid-cols-3">
+        {steps.map((s, i) => (
+          <li class="rounded-xl border border-pd-line bg-pd-bg p-5" data-reveal data-reveal-delay={i + 1}>
+            <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-pd-highlight text-sm font-bold text-pd-side">
+              {s.n}
+            </span>
+            <p class="mt-3 font-semibold text-pd-text" data-jp-heading>{s.title}</p>
+            <p class="predeck-body mt-1 text-pd-muted" data-jp-wrap>{s.body}</p>
+          </li>
+        ))}
+      </ol>
+      <p class="mt-6 text-sm text-pd-muted">
+        ご利用には PC の Chrome 最新版とアカウント登録が必要です。AI 機能には 1 日あたりの無料枠があります。
+      </p>
+    </div>
+  </div>
+</section>
+
+<style>
+  .predeck-os-bleed {
+    background:
+      radial-gradient(60rem 28rem at 85% 0%, rgba(37, 99, 235, 0.35), transparent 60%),
+      linear-gradient(180deg, #0c1220 0%, #101a30 100%);
+  }
+</style>

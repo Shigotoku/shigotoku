@@ -1,0 +1,39 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="プライバシー · PreDeck" description="PreDeck のデータの取り扱い">
+  <section class="mx-auto max-w-3xl px-6 py-12 text-pd-text">
+    <h1 class="text-3xl font-bold">プライバシーとデータの取り扱い</h1>
+    <p class="mt-4 text-pd-muted">PreDeck（プレデキ）は、スライドや音声を当社のサーバーに保存しない設計です。</p>
+
+    <h2 class="mt-10 text-xl font-semibold">端末の中だけで扱うもの</h2>
+    <ul class="mt-3 list-disc space-y-2 pl-5 text-pd-muted">
+      <li>スライド（PDF）の読み込み・表示</li>
+      <li>録音と、Chrome の端末内音声認識による文字起こし</li>
+      <li>文字起こし・原稿・マイ辞書・自分の API キー（ブラウザ内に保存）</li>
+    </ul>
+
+    <h2 class="mt-10 text-xl font-semibold">当社が保存するもの</h2>
+    <ul class="mt-3 list-disc space-y-2 pl-5 text-pd-muted">
+      <li>アカウント情報（メールアドレス、Google ログイン時の識別子）</li>
+      <li>1 日あたりの AI 利用回数（無料枠の管理のため。本文は含みません）</li>
+    </ul>
+
+    <h2 class="mt-10 text-xl font-semibold">AI 事業者に送られるもの</h2>
+    <p class="mt-3 text-pd-muted">
+      「AI で原稿を整える」「英語原稿にする」「構成を評価」を使ったときだけ、その文字起こしテキストが AI 事業者（Google の Gemini API）に送信されます。
+      スライドの画像や音声は送信されません。当社はリクエストの本文を保存・記録しません。
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold">委託先（サブプロセッサ）</h2>
+    <ul class="mt-3 list-disc space-y-2 pl-5 text-pd-muted">
+      <li>Google Cloud / Firebase（ホスティング、認証、利用回数の保存）</li>
+      <li>Google Gemini API（テキストの AI 処理）</li>
+    </ul>
+
+    <h2 class="mt-10 text-xl font-semibold">お問い合わせ</h2>
+    <p class="mt-3 text-pd-muted"><a class="text-pd-accent underline" href="https://shigotoku.com/">シゴトク</a> までご連絡ください。</p>
+    <p class="mt-8 text-xs text-pd-muted">本ページは正式公開前の草案です。公開前に法務確認を行います。</p>
+  </section>
+</Layout>

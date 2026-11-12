@@ -82,7 +82,7 @@ const firebaseConfig = {
 
 ### 2-1. ローカル用（Git にコミットしない）
 
-`Slide_Studio/app/.env.local` を新規作成:
+`deckit/app/.env.local` を新規作成:
 
 ```env
 NEXT_PUBLIC_DECKIT_DATA_MODE=firebase
@@ -106,7 +106,7 @@ NEXT_PUBLIC_FIREBASE_APP_ID=（appId）
 ## Phase 3 — ローカルで Google ログイン試す
 
 ```powershell
-cd c:\Users\mappy\Desktop\shigotoku\Slide_Studio\app
+cd c:\Users\mappy\Desktop\shigotoku\deckit\app
 npm run dev
 ```
 
@@ -127,7 +127,7 @@ npm run dev
 
 1. Console → ⚙ **プロジェクトの設定** → **サービス アカウント**
 2. **新しい秘密鍵の生成** → JSON を保存（**Git に入れない**）
-3. JSON を **`Slide_Studio/app/secrets/deckit-admin.json`** に置く（フォルダはリポジトリ内・`*.json` は gitignore）
+3. JSON を **`deckit/app/secrets/deckit-admin.json`** に置く（フォルダはリポジトリ内・`*.json` は gitignore）
 4. `.env.local` に **相対パス**（どの PC でも同じ）:
 
 ```env
