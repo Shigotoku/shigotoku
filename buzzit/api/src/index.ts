@@ -1048,7 +1048,7 @@ api.put('/v1/settings', requireAuth, async (req: AuthedRequest, res) => {
     'plan', 'slackWebhookUrl', 'autoModeEnabled', 'slackTeamId',
     'displayName', 'defaultDestinationUrl',
     'hpbStoreUrl', 'hpbTrackingEnabled', 'autoModeGoal', 'notifyEmail', 'industry',
-    'extraSnsAccounts',
+    'extraSnsAccounts', 'businessEntityType', 'officeNumber',
   ];
   const personaAllowed = PERSONA_SETTINGS_ALLOWLIST.filter(
     (k) => !['name', 'slug', 'type', 'status'].includes(k),
@@ -2883,6 +2883,18 @@ api.patch('/v1/personas/:personaId', requireAuth, async (req: AuthedRequest, res
     res.json({ persona: safePersonaForClient(persona) });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'ペルソナの更新に失敗しました';
+    res.status(400).json({ error: message });
+  }
+});
+
+api.get('/v1/personas/:personaId/account-ledger', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const personaId = String(req.params.personaId);
+    await assertPersonaAccess(personaId, req.uid!, 'editor');
+    const persona = await getPersona(personaId);
+    res.json({ entries: persona?.accountLedger ?? [] });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '台帳の取得に失敗しました';
     res.status(400).json({ error: message });
   }
 });

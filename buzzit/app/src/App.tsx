@@ -8,6 +8,7 @@ import OnboardingGate from './components/OnboardingGate';
 import HeadlineFitRoot from './components/HeadlineFitRoot';
 import DashboardLayout from './layouts/DashboardLayout';
 import Dashboard from './pages/Dashboard';
+import GuidePage from './pages/GuidePage';
 import LoginPage from './pages/LoginPage';
 import MagicCreator from './pages/MagicCreator';
 import AnalyticsPage from './pages/AnalyticsPage';
@@ -47,6 +48,7 @@ function App() {
                   <Route path="/" element={<DashboardLayout />}>
                     <Route index element={<Navigate to="/dashboard" replace />} />
                     <Route path="dashboard" element={<Dashboard />} />
+                    <Route path="guide" element={<GuidePage />} />
                     <Route path="roadmap" element={<RoadmapPage />} />
                     <Route path="magic-creator" element={<MagicCreator />} />
                     <Route path="calendar" element={<CalendarPage />} />

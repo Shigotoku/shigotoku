@@ -62,6 +62,8 @@ type NavLinkItem = {
   icon: IconType;
   staffOk?: boolean;
   managerOnly?: boolean;
+  /** このパス配下のときもアクティブ表示にする */
+  match?: string[];
 };
 
 type NavGroupItem = {
@@ -83,21 +85,16 @@ type NavEntry = NavLinkItem | NavGroupItem | NavDivider;
 
 const mainNav: NavEntry[] = [
   { kind: 'link', name: 'ダッシュボード', path: '/dashboard', icon: LayoutDashboard, staffOk: true },
-  {
-    kind: 'group',
-    id: 'ideas',
-    name: 'ネタ作成',
-    icon: PenLine,
-    staffOk: true,
-    children: [
-      { kind: 'link', name: 'ネタInbox', path: '/inbox', icon: Inbox, staffOk: true },
-      { kind: 'link', name: 'ネタクリエイター', path: '/magic-creator', icon: Wand2, staffOk: true },
-    ],
-  },
+  { kind: 'divider', label: 'つくる' },
+  { kind: 'link', name: '① ネタを溜める', path: '/inbox', icon: Inbox, staffOk: true },
+  { kind: 'link', name: '② 投稿を作る', path: '/magic-creator', icon: Wand2, staffOk: true },
+  { kind: 'link', name: 'まとめて作る', path: '/content-calendar', icon: PenLine, staffOk: true, match: ['/content-calendar', '/x-series'] },
+  { kind: 'divider', label: '予約・確認' },
+  { kind: 'link', name: '投稿カレンダー', path: '/calendar', icon: CalendarDays, staffOk: true },
   {
     kind: 'group',
     id: 'sns',
-    name: 'SNS',
+    name: 'SNSごとの管理',
     icon: Share2,
     staffOk: true,
     children: SNS_NAV_PLATFORMS.map((p) => ({
@@ -108,16 +105,52 @@ const mainNav: NavEntry[] = [
       staffOk: true,
     })),
   },
-  { kind: 'link', name: '投稿カレンダー', path: '/calendar', icon: CalendarDays, staffOk: true },
-  { kind: 'link', name: '導線ビルダー', path: '/funnel', icon: Route, managerOnly: true },
-  { kind: 'link', name: 'LINE CRM', path: '/line-crm', icon: MessageCircle, managerOnly: true },
-  { kind: 'link', name: '設定', path: '/settings', icon: Settings, managerOnly: true },
-  { kind: 'divider', label: 'その他の機能' },
-  { kind: 'link', name: '成長ロードマップ', path: '/roadmap', icon: Map, staffOk: true },
-  { kind: 'link', name: '30本カレンダー', path: '/content-calendar', icon: CalendarRange, staffOk: true },
-  { kind: 'link', name: 'Xシリーズ', path: '/x-series', icon: Layers, staffOk: true },
+  { kind: 'divider', label: '増やす' },
+  { kind: 'link', name: '集客（LINE・導線）', path: '/line-crm', icon: MessageCircle, managerOnly: true, match: ['/line-crm', '/funnel'] },
   { kind: 'link', name: '分析・売上', path: '/analytics', icon: BarChart3, managerOnly: true },
+  { kind: 'divider', label: '設定・ヘルプ' },
+  { kind: 'link', name: '設定', path: '/settings', icon: Settings, managerOnly: true },
+  { kind: 'link', name: '使い方の手順', path: '/guide', icon: BookOpen, staffOk: true, match: ['/guide', '/roadmap'] },
 ];
+
+/** サイドバー1項目に対応する複数ページを、ページ上部のタブで切り替える */
+const SECTION_TABS: Record<string, Array<{ path: string; label: string }>> = {
+  bulk: [
+    { path: '/content-calendar', label: '30日分をまとめて作る' },
+    { path: '/x-series', label: 'Xシリーズ（自動投稿キュー）' },
+  ],
+  growth: [
+    { path: '/line-crm', label: 'LINE CRM（友だち管理）' },
+    { path: '/funnel', label: '導線ビルダー（SNS→LINE→予約）' },
+  ],
+  help: [
+    { path: '/guide', label: '使い方の手順' },
+    { path: '/roadmap', label: '成長ロードマップ' },
+  ],
+};
+
+function SectionTabs({ pathname }: { pathname: string }) {
+  const tabs = Object.values(SECTION_TABS).find((g) => g.some((t) => pathname.startsWith(t.path)));
+  if (!tabs) return null;
+  return (
+    <div className="mb-4 flex flex-wrap gap-1 border-b border-neutral-200">
+      {tabs.map((t) => {
+        const active = pathname.startsWith(t.path);
+        return (
+          <NavLink
+            key={t.path}
+            to={t.path}
+            className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${
+              active ? 'border-violet-600 text-violet-700' : 'border-transparent text-neutral-500 hover:text-neutral-800'
+            }`}
+          >
+            {t.label}
+          </NavLink>
+        );
+      })}
+    </div>
+  );
+}
 
 function filterNav(entries: NavEntry[], staffOnly: boolean): NavEntry[] {
   const out: NavEntry[] = [];
@@ -174,8 +207,7 @@ function SidebarContent({
 }) {
   const location = useLocation();
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => ({
-    ideas: true,
-    sns: true,
+    sns: false,
   }));
 
   useEffect(() => {
@@ -261,9 +293,10 @@ function SidebarContent({
               key={entry.path}
               to={entry.path}
               onClick={onNavigate}
-              className={({ isActive }) =>
-                `buzz-nav-link ${isActive ? 'buzz-nav-link-active' : 'buzz-nav-link-inactive'}`
-              }
+              className={({ isActive }) => {
+                const on = isActive || !!entry.match?.some((m) => location.pathname.startsWith(m));
+                return `buzz-nav-link ${on ? 'buzz-nav-link-active' : 'buzz-nav-link-inactive'}`;
+              }}
             >
               <entry.icon className="h-4 w-4 shrink-0" />
               {entry.name}
@@ -273,15 +306,6 @@ function SidebarContent({
       </nav>
       <div className="shrink-0 space-y-1.5 border-t border-white/10 px-2.5 py-2">
         <div className="flex items-center gap-2 text-[11px] text-neutral-500">
-          <NavLink
-            to="/onboarding?edit=1"
-            onClick={onNavigate}
-            className="underline-offset-2 hover:text-white hover:underline"
-            title="業種・目的の見直し"
-          >
-            はじめに
-          </NavLink>
-          <span className="text-neutral-600">|</span>
           <a
             href={landingPath('/')}
             target="_blank"
@@ -312,16 +336,6 @@ function SidebarContent({
             <LogOut className="h-3.5 w-3.5" />
           </button>
         </div>
-        <a
-          href={landingPath('/guide/')}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex h-8 w-full items-center justify-center gap-1.5 rounded-lg bg-white/10 text-xs font-semibold text-white transition-colors hover:bg-white/15"
-        >
-          <BookOpen className="h-3.5 w-3.5 shrink-0" />
-          使い方説明書
-          <ExternalLink className="h-3 w-3 shrink-0 opacity-70" />
-        </a>
       </div>
     </div>
   );
@@ -363,13 +377,13 @@ export default function DashboardLayout() {
 
   if (isStaffOnly(userRole)) {
     if (location.pathname.startsWith('/settings') && !canEditSettings(userRole)) {
-      return <Navigate to="/inbox" replace />;
+      return <Navigate to="/inbox" replace state={{ denied: true }} />;
     }
     if (location.pathname.startsWith('/line-crm') && !canManageLineCrm(userRole)) {
-      return <Navigate to="/inbox" replace />;
+      return <Navigate to="/inbox" replace state={{ denied: true }} />;
     }
     if (location.pathname.startsWith('/funnel') || location.pathname.startsWith('/analytics')) {
-      return <Navigate to="/inbox" replace />;
+      return <Navigate to="/inbox" replace state={{ denied: true }} />;
     }
   }
 
@@ -426,21 +440,19 @@ export default function DashboardLayout() {
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <PersonaSwitcher />
             <StoreSwitcher />
-            <button
-              type="button"
-              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700"
-              title="通知（準備中）"
-              aria-label="通知（準備中）"
-            >
-              <Bell className="h-5 w-5" />
-            </button>
           </div>
         </header>
         <ActivePersonaContextBar />
         <div className="relative z-0 flex-1 overflow-auto p-4 pb-24 md:p-6 lg:p-8 lg:pb-8">
+          {(location.state as { denied?: boolean } | null)?.denied && (
+            <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              そのページはスタッフ権限では開けません。オーナー・マネージャーにご相談ください。
+            </p>
+          )}
+          <SectionTabs pathname={location.pathname} />
           <Outlet />
         </div>
         <MobileBottomNav onOpenMenu={() => setNavOpen(true)} />

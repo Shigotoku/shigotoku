@@ -33,17 +33,14 @@ export default function ActivePersonaContextBar() {
   const missing = links.filter((l) => !l.connected);
 
   return (
-    <div className="shrink-0 border-b border-violet-200/80 bg-gradient-to-r from-violet-50/95 to-white px-4 py-2.5 lg:px-8">
+    <div className="shrink-0 border-b border-violet-200/80 bg-gradient-to-r from-violet-50/95 to-white px-4 py-1.5 lg:px-8">
       <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex min-w-0 items-start gap-2">
           <UserCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-violet-800" aria-hidden />
           <div className="min-w-0">
             <p className="text-xs font-semibold text-violet-950">
-              いまの配信キャラ: <span className="text-violet-900">{activePersona.name}</span>
+              <span title="ネタ作成・予約・承認・自動投稿はすべてこのキャラに紐づきます。">いまの配信キャラ</span>: <span className="text-violet-900">{activePersona.name}</span>
               <span className="ml-1.5 font-normal text-violet-700/90">（{personaTypeLabel(activePersona.type)}）</span>
-            </p>
-            <p className="mt-0.5 text-[11px] leading-snug text-violet-900/80">
-              ネタ作成・予約・承認・自動投稿はすべてこのキャラに紐づきます。別キャラの SNS には送られません。
             </p>
           </div>
         </div>
@@ -82,14 +79,13 @@ export default function ActivePersonaContextBar() {
         </div>
       </div>
       {missing.length > 0 && (
-        <p className="mt-2 flex items-start gap-1.5 text-[11px] text-amber-900">
-          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+        <p className="mt-1 flex items-center gap-1.5 text-[11px] text-amber-900">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden />
           <span>
-            {missing.map((m) => m.label).join('・')} は未連携です。このキャラで投稿する前に
-            <Link to={settingsPath({ tab: 'sns' })} className="mx-1 font-semibold underline underline-offset-2">
-              設定 → SNS連携
+            {missing.map((m) => m.label).join('・')} は未連携です。
+            <Link to={settingsPath({ tab: 'sns' })} className="ml-1 font-semibold underline underline-offset-2">
+              連携する
             </Link>
-            で接続してください。
           </span>
         </p>
       )}

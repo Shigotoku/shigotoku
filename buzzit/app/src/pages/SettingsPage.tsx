@@ -29,7 +29,23 @@ import {
 } from '../lib/api';
 import LineCostComparison from '../components/LineCostComparison';
 import StoreBillingSection from '../components/StoreBillingSection';
+import BusinessOverviewSection, { type BusinessEntityType } from '../components/BusinessOverviewSection';
 import PersonaManagementSection from '../components/PersonaManagementSection';
+import AccountLedgerSection from '../components/AccountLedgerSection';
+import PersonaSnsOverview from '../components/PersonaSnsOverview';
+
+/** SNS連携タブ: 1度に1サービスだけ表示する */
+const SNS_PANELS = [
+  { id: 'meta', label: 'Instagram / Facebook' },
+  { id: 'x', label: 'X' },
+  { id: 'line', label: 'LINE' },
+  { id: 'gbp', label: 'Googleビジネス' },
+  { id: 'hpb', label: 'ホットペッパー' },
+  { id: 'insights', label: 'インプレッション取得' },
+  { id: 'publish-mode', label: '投稿方法' },
+  { id: 'ayrshare', label: 'TikTok / YouTube' },
+  { id: 'slack', label: 'Slack・通知' },
+];
 import PersonaQuickGuide from '../components/PersonaQuickGuide';
 import { usePersona } from '../store/personaContext';
 import { useApp } from '../store/appContext';
@@ -132,6 +148,10 @@ export default function SettingsPage() {
   const [xTesting, setXTesting] = useState(false);
   const [brandProfile, setBrandProfile] = useState('');
   const [industry, setIndustry] = useState('');
+  const [entityType, setEntityType] = useState<BusinessEntityType>('');
+  const [officeNumber, setOfficeNumber] = useState('');
+  const [cardBrand, setCardBrand] = useState('');
+  const [cardLast4, setCardLast4] = useState('');
   const [insightsEnabled, setInsightsEnabled] = useState(true);
   const [xInsightsEnabled, setXInsightsEnabled] = useState(false);
   const [insightsLastSyncedAt, setInsightsLastSyncedAt] = useState('');
@@ -140,7 +160,7 @@ export default function SettingsPage() {
   const { activePersona } = usePersona();
 
   const SETTINGS_TABS: { id: SettingsTab; label: string }[] = [
-    { id: 'personas', label: '配信キャラ' },
+    { id: 'personas', label: '配信キャラ・アカウント' },
     { id: 'business', label: '事業所' },
     { id: 'sns', label: 'SNS連携' },
     { id: 'staff', label: 'スタッフ' },
@@ -154,6 +174,10 @@ export default function SettingsPage() {
     (section ? sectionTab(section) : null) ??
     (SETTINGS_TABS.some((t) => t.id === tabParam) ? (tabParam as SettingsTab) : 'personas');
   const scrolledSectionRef = useRef<string | null>(null);
+  const [snsPanel, setSnsPanel] = useState<string>(section ?? 'meta');
+  useEffect(() => {
+    if (section) setSnsPanel(section);
+  }, [section]);
   const setTab = (id: SettingsTab) => {
     const next = new URLSearchParams(searchParams);
     next.set('tab', id);
@@ -200,6 +224,10 @@ export default function SettingsPage() {
           setXApiMonthlyLimit(s.xApiMonthlyLimit ?? 500);
           setBrandProfile(s.brandProfile ?? '');
           setIndustry(s.industry ?? '');
+          setEntityType(s.businessEntityType ?? '');
+          setOfficeNumber(s.officeNumber ?? '');
+          setCardBrand(s.cardBrand ?? '');
+          setCardLast4(s.cardLast4 ?? '');
           setInsightsEnabled(s.insightsEnabled !== false);
           setXInsightsEnabled(s.xInsightsEnabled === true);
           setInsightsLastSyncedAt(s.insightsLastSyncedAt ?? '');
@@ -275,6 +303,8 @@ export default function SettingsPage() {
         notifyEmail,
         brandProfile,
         industry,
+        ...(entityType ? { businessEntityType: entityType } : {}),
+        officeNumber,
         insightsEnabled,
         xInsightsEnabled,
       });
@@ -393,21 +423,30 @@ export default function SettingsPage() {
         </section>
       )}
 
+      {activeTab === 'personas' && (
+        <section className="buzz-card-pad space-y-4">
+          <AccountLedgerSection />
+        </section>
+      )}
+
       {activeTab === 'business' && (
         <>
+          <BusinessOverviewSection
+            industry={industry}
+            onIndustryChange={setIndustry}
+            entityType={entityType}
+            onEntityTypeChange={setEntityType}
+            officeNumber={officeNumber}
+            onOfficeNumberChange={setOfficeNumber}
+            cardBrand={cardBrand}
+            cardLast4={cardLast4}
+          />
           <StoreBillingSection />
           <section className="buzz-card-pad space-y-4">
             <h3 className="text-lg font-bold">事業所の特徴</h3>
             <p className="text-sm text-neutral-600">
               ここに書いた強み・トーン・禁則は、ネタクリエイターの投稿文生成に反映されます。
             </p>
-            <label className="buzz-label">業種メモ（任意）</label>
-            <input
-              value={industry}
-              onChange={(e) => setIndustry(e.target.value)}
-              placeholder="例: 美容室・髪質改善特化"
-              className="buzz-input"
-            />
             <label className="buzz-label">お店の特徴・話し方</label>
             <textarea
               value={brandProfile}
@@ -530,6 +569,32 @@ export default function SettingsPage() {
           — ここで連携する SNS はこのキャラ専用です。
         </div>
       )}
+      <PersonaSnsOverview />
+      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="連携するサービス">
+        {SNS_PANELS.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            role="tab"
+            aria-selected={snsPanel === p.id}
+            onClick={() => setSnsPanel(p.id)}
+            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+              snsPanel === p.id
+                ? 'border-violet-600 bg-violet-600 text-white'
+                : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50'
+            }`}
+          >
+            {p.id === 'meta' && (
+              <span className={`h-1.5 w-1.5 rounded-full ${metaConnected ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+            )}
+            {p.id === 'x' && (
+              <span className={`h-1.5 w-1.5 rounded-full ${xConnected ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+            )}
+            {p.label}
+          </button>
+        ))}
+      </div>
+      <div data-sns-panel={snsPanel} className="sns-panels space-y-6">
       <section id="settings-meta" className="buzz-card-pad scroll-mt-24 space-y-4">
         <h3 className="flex items-center gap-2 text-lg font-bold">
           <Share2 className="h-5 w-5 text-neutral-700" />
@@ -959,6 +1024,7 @@ export default function SettingsPage() {
           className="buzz-input"
         />
       </section>
+      </div>
 
         </>
       )}

@@ -16,6 +16,13 @@ export interface UserSettings {
   ayrshareProfileKey?: string;
   autoModeEnabled?: boolean;
   industry?: string;
+  /** 事業者区分: corporate=法人 / individual=個人事業主 */
+  businessEntityType?: 'corporate' | 'individual';
+  /** 事業所番号（社内管理用） */
+  officeNumber?: string;
+  /** 登録カード（表示用。カード番号は保持しない） */
+  cardBrand?: string;
+  cardLast4?: string;
   /** 事業所の特徴・トーン（投稿文生成に反映） */
   brandProfile?: string;
   slackTeamId?: string;

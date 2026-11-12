@@ -115,6 +115,10 @@ export interface SettingsResponse {
   gbpLocationName?: string;
   notifyEmail?: string;
   industry?: string;
+  businessEntityType?: 'corporate' | 'individual';
+  officeNumber?: string;
+  cardBrand?: string;
+  cardLast4?: string;
   brandProfile?: string;
   activePersonaId?: string;
   activePersonaName?: string;
@@ -856,6 +860,29 @@ export function updatePersona(personaId: string, patch: Partial<PersonaRecord>) 
   return request<{ persona: PersonaRecord }>(`/v1/personas/${encodeURIComponent(personaId)}`, {
     method: 'PATCH',
     body: JSON.stringify(patch),
+  });
+}
+
+export interface AccountLedgerEntry {
+  id: string;
+  service: string;
+  handle?: string;
+  email?: string;
+  password?: string;
+  url?: string;
+  memo?: string;
+}
+
+export function fetchAccountLedger(personaId: string) {
+  return request<{ entries: AccountLedgerEntry[] }>(
+    `/v1/personas/${encodeURIComponent(personaId)}/account-ledger`,
+  );
+}
+
+export function saveAccountLedger(personaId: string, entries: AccountLedgerEntry[]) {
+  return request<{ persona: PersonaRecord }>(`/v1/personas/${encodeURIComponent(personaId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ accountLedger: entries }),
   });
 }
 

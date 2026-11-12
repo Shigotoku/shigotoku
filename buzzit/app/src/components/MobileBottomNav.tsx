@@ -10,9 +10,9 @@ export default function MobileBottomNav({ onOpenMenu }: { onOpenMenu: () => void
     accent?: boolean;
   }> = [
     { to: '/dashboard', label: 'ホーム', icon: LayoutDashboard },
-    { to: '/inbox', label: 'ネタ', icon: Inbox },
-    { to: '/magic-creator', label: '作る', icon: Wand2, accent: true },
-    { to: '/calendar', label: '予約', icon: CalendarDays },
+    { to: '/inbox', label: 'ネタ溜め', icon: Inbox },
+    { to: '/magic-creator', label: '投稿を作る', icon: Wand2, accent: true },
+    { to: '/calendar', label: 'カレンダー', icon: CalendarDays },
   ];
 
   return (

@@ -180,3 +180,16 @@
 :where([data-jp-wrap], main p, main li):not([data-headline-fit]):not([data-jp-wrap-off]) {
   word-break: keep-all; line-break: strict; overflow-wrap: break-word; text-wrap: pretty;
 }
+
+/* SNS連携タブ: 選択中のサービスだけ表示 */
+.sns-panels > section[id^='settings-'] { display: none; }
+.sns-panels[data-sns-panel='meta'] > #settings-meta { display: block; }
+.sns-panels[data-sns-panel='x'] > #settings-x { display: block; }
+.sns-panels[data-sns-panel='line'] > #settings-line { display: block; }
+.sns-panels[data-sns-panel='gbp'] > #settings-gbp { display: block; }
+.sns-panels[data-sns-panel='hpb'] > #settings-hpb { display: block; }
+.sns-panels[data-sns-panel='insights'] > #settings-insights { display: block; }
+.sns-panels[data-sns-panel='publish-mode'] > #settings-publish-mode { display: block; }
+.sns-panels[data-sns-panel='ayrshare'] > #settings-ayrshare { display: block; }
+.sns-panels[data-sns-panel='slack'] > #settings-slack { display: block; }
+
