@@ -668,6 +668,35 @@ export async function updateScheduledJobStatus(
   });
 }
 
+/**
+ * 'processing' のまま 15 分以上止まったジョブ（関数タイムアウト等）を failed にする。
+ * 二重投稿を避けるため自動再投稿はせず、SNS側で実際に投稿されたか確認のうえ手動で再試行する。
+ */
+export async function recoverStuckScheduledJobs(staleMinutes = 15): Promise<number> {
+  const now = new Date().toISOString();
+  const snap = await db()
+    .collectionGroup('scheduled')
+    .where('status', '==', 'processing')
+    .where('scheduledAt', '<=', now)
+    .limit(50)
+    .get();
+  const cutoff = Date.now() - staleMinutes * 60 * 1000;
+  let recovered = 0;
+  for (const doc of snap.docs) {
+    const updated = doc.data().updatedAt;
+    const ms = updated instanceof Timestamp ? updated.toMillis() : 0;
+    if (ms > cutoff) continue;
+    await doc.ref.update({
+      status: 'failed',
+      errorMessage:
+        '処理が途中で止まりました。実際に投稿されたかSNS側で確認してから「再試行」してください（二重投稿防止のため自動再投稿しません）',
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    recovered++;
+  }
+  return recovered;
+}
+
 export async function claimDueScheduledJobs(limit = 20): Promise<ScheduledJobDoc[]> {
   const now = new Date().toISOString();
   const snap = await db()

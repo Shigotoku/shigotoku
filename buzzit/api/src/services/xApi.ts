@@ -75,7 +75,9 @@ export function pickXPostText(
     contents.find((c) => c.platform === 'x_thread') ??
     contents.find((c) => c.platform === 'reels') ??
     contents[0];
-  return truncateForX(x?.content ?? '');
+  // スレッド（--- 区切り / 1/ 2/ 形式）を壊さないよう、ここでは切り詰めない。
+  // 分割と各投稿の 280 字切り詰めは postTweetWithXApi → splitThreadParts が行う。
+  return (x?.content ?? '').replace(/\r\n/g, '\n').trim();
 }
 
 async function uploadMediaSimple(

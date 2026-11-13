@@ -12,7 +12,6 @@ export function getPageMeta(pathname: string): PageMeta {
     const sns = getSnsNavPlatform(id);
     return {
       title: sns ? sns.name : 'SNS',
-      subtitle: 'このSNSの投稿・予約予定を管理します。',
     };
   }
   if (pathname.startsWith('/guide') || pathname.startsWith('/roadmap')) {

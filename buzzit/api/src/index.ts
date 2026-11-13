@@ -263,6 +263,8 @@ import {
   EXTRA_ACCOUNT_SEAT_MONTHLY,
 } from './services/billing';
 import { functionSecrets } from './config/secrets';
+import { agentRouter } from './services/agentApi';
+import './services/mcpRemote';
 import { checkLoginHintRateLimit, getLoginHint } from './services/loginHint';
 
 if (!getApps().length) initializeApp();
@@ -279,6 +281,7 @@ app.use(
 );
 
 const api = express.Router();
+api.use('/v1/agent', agentRouter);
 
 api.get('/health', (_req, res) => {
   res.json({
@@ -3420,3 +3423,4 @@ export {
   buzzitLineStepWorker,
   buzzitWeeklyReport,
 } from './scheduler';
+

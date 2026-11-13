@@ -27,6 +27,7 @@ import {
   type LineCostEstimate,
   type CustomerTag,
 } from '../lib/api';
+import AiConnectSection from '../components/AiConnectSection';
 import LineCostComparison from '../components/LineCostComparison';
 import StoreBillingSection from '../components/StoreBillingSection';
 import BusinessOverviewSection, { type BusinessEntityType } from '../components/BusinessOverviewSection';
@@ -420,6 +421,12 @@ export default function SettingsPage() {
       {activeTab === 'personas' && (
         <section className="buzz-card-pad space-y-4">
           <PersonaManagementSection />
+        </section>
+      )}
+
+      {activeTab === 'personas' && (
+        <section className="buzz-card-pad space-y-4">
+          <AiConnectSection />
         </section>
       )}
 

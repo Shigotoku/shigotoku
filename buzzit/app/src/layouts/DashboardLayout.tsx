@@ -35,7 +35,7 @@ import ActivePersonaContextBar from '../components/ActivePersonaContextBar';
 import BrandMark from '../components/BrandMark';
 import { ROLE_LABELS, canEditSettings, canManageLineCrm, isStaffOnly } from '../lib/permissions';
 import { getPageMeta } from '../lib/pageMeta';
-import { SNS_NAV_PLATFORMS } from '../lib/snsPlatforms';
+import { SNS_NAV_PLATFORMS, getSnsNavPlatform } from '../lib/snsPlatforms';
 
 const planLabels = {
   free: 'Free',
@@ -345,6 +345,10 @@ export default function DashboardLayout() {
   const displayName = user?.displayName ?? user?.email ?? 'デモユーザー';
   const pageMeta = getPageMeta(location.pathname);
   const title = pageMeta.title;
+  const snsPlatform = location.pathname.startsWith('/sns/')
+    ? getSnsNavPlatform(location.pathname.split('/')[2] ?? '')
+    : undefined;
+  const isSns = !!snsPlatform;
   const roleLabel = userRole ? ROLE_LABELS[userRole] : 'メンバー';
 
   const navEntries = useMemo(() => filterNav(mainNav, isStaffOnly(userRole)), [userRole]);
@@ -417,11 +421,18 @@ export default function DashboardLayout() {
       </aside>
 
       <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="relative z-30 flex min-h-14 shrink-0 items-center justify-between gap-3 border-b border-neutral-200/80 bg-white/95 px-4 py-2 backdrop-blur-sm lg:min-h-16 lg:px-8">
+        <header
+          className={`relative z-30 flex min-h-14 shrink-0 items-center justify-between gap-3 border-b px-4 py-2 lg:min-h-14 ${
+            isSns ? 'border-transparent lg:px-4' : 'border-neutral-200/80 bg-white/95 backdrop-blur-sm lg:min-h-16 lg:px-8'
+          }`}
+          style={isSns ? { background: snsPlatform?.brandGradient } : undefined}
+        >
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
-              className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg text-neutral-600 hover:bg-neutral-100 lg:hidden"
+              className={`flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg lg:hidden ${
+                isSns ? 'text-white hover:bg-white/15' : 'text-neutral-600 hover:bg-neutral-100'
+              }`}
               aria-label="メニューを開く"
               aria-expanded={navOpen}
               onClick={() => setNavOpen(true)}
@@ -429,19 +440,27 @@ export default function DashboardLayout() {
               <Menu className="h-5 w-5" />
             </button>
             <div className="min-w-0">
-              <h1 className="truncate text-base font-semibold text-neutral-900 lg:text-lg">{title}</h1>
+              <h1 className={`truncate text-base font-semibold lg:text-xl ${isSns ? 'text-white' : 'text-neutral-900 lg:text-lg'}`}>
+                {title}
+              </h1>
               {pageMeta.subtitle && (
                 <p className="hidden truncate text-xs text-neutral-500 sm:block">{pageMeta.subtitle}</p>
               )}
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            <ActivePersonaContextBar />
             <PersonaSwitcher />
             <StoreSwitcher />
           </div>
         </header>
-        <ActivePersonaContextBar />
-        <div className="relative z-0 flex-1 overflow-auto p-4 pb-24 md:p-6 lg:p-8 lg:pb-8">
+        <div
+          className={`relative z-0 flex-1 ${
+            isSns
+              ? 'flex flex-col overflow-auto p-3 pb-24 lg:overflow-hidden lg:p-3 lg:pb-3'
+              : 'overflow-auto p-4 pb-24 md:p-6 lg:p-8 lg:pb-8'
+          }`}
+        >
           {(location.state as { denied?: boolean } | null)?.denied && (
             <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
               そのページはスタッフ権限では開けません。オーナー・マネージャーにご相談ください。

@@ -598,7 +598,7 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
 
   return (
     <div
-      className={embedded ? 'space-y-4' : 'buzz-page'}
+      className={embedded ? 'flex min-h-0 flex-1 flex-col gap-2 lg:gap-3' : 'buzz-page'}
       onDragOver={(e) => {
         if (draggingId) {
           e.preventDefault();
@@ -620,7 +620,7 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
 
       {!embedded && <DualApprovalSetupBanner compact />}
 
-      {activePersona && (
+      {activePersona && !embedded && (
         <p className="text-xs text-neutral-600">
           表示中の予約・下書きは<strong className="font-semibold text-neutral-800">「{activePersona.name}」</strong>
           だけです。別キャラの予約は右上でキャラを切り替えて表示します。
@@ -644,7 +644,7 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
         </div>
       )}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className={embedded ? 'hidden' : 'flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'}>
         <p className="text-xs text-neutral-500">
           週ビューは時間帯へドロップ。月ビューは日付ドロップ後に時刻を選べます。下書きトレイからも配置できます。
         </p>
@@ -670,9 +670,11 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
         </div>
       </div>
 
-      <section className="border border-neutral-200 bg-white p-3">
-        <p className="mb-2 text-xs font-medium text-neutral-600">おすすめ投稿時刻（ドロップ時の既定・記憶されます）</p>
-        <div className="flex flex-wrap gap-2">
+      <section className={`border border-neutral-200 bg-white ${embedded ? 'flex flex-wrap items-center gap-2 px-3 py-2' : 'p-3'}`}>
+        <p className={`text-sm font-medium text-neutral-700 ${embedded ? '' : 'mb-2'}`}>
+          {embedded ? 'ドロップ時の時刻' : 'おすすめ投稿時刻（ドロップ時の既定・記憶されます）'}
+        </p>
+        <div className="flex flex-wrap gap-1.5">
           <button
             type="button"
             onClick={() => setDropHourPref(null)}
@@ -705,7 +707,7 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
             );
           })}
         </div>
-        {bestHours[0] && (
+        {bestHours[0] && !embedded && (
           <p className="mt-2 text-[11px] text-neutral-500">
             上位: {bestHours.map((h) => `${String(h.hour).padStart(2, '0')}:00（${h.reason}）`).join(' / ')}
           </p>
@@ -772,14 +774,24 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
       )}
 
       {(gapDays.length > 0 || emptyGaps.length > 0) && (
-        <div className="border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+        <div className={`border border-amber-200 bg-amber-50 text-sm text-amber-950 ${embedded ? 'px-3 py-2' : 'p-3'}`}>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="font-medium">空き日の穴埋め</p>
-              <p className="mt-0.5 text-xs text-amber-900/80">
-                直近の空き平日: {emptyGaps.slice(0, 5).map((g) => g.label).join('・') || gapDays.join('・')}
-                {emptyGaps.length > 5 ? ` ほか${emptyGaps.length - 5}日` : ''}
+              <p className="font-medium">
+                空き日の穴埋め
+                {embedded && (
+                  <span className="ml-2 font-normal text-amber-900/80">
+                    {emptyGaps.slice(0, 3).map((g) => g.label).join('・') || gapDays.slice(0, 3).join('・')}
+                    {emptyGaps.length > 3 ? ` ほか${emptyGaps.length - 3}日` : ''}
+                  </span>
+                )}
               </p>
+              {!embedded && (
+                <p className="mt-0.5 text-xs text-amber-900/80">
+                  直近の空き平日: {emptyGaps.slice(0, 5).map((g) => g.label).join('・') || gapDays.join('・')}
+                  {emptyGaps.length > 5 ? ` ほか${emptyGaps.length - 5}日` : ''}
+                </p>
+              )}
             </div>
             <div className="flex flex-wrap gap-2">
               <button
@@ -813,19 +825,29 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
               setViewMode(m);
               saveCalendarViewPref(m);
             }}
-            className={`min-h-[44px] border px-3 text-xs ${
+            className={`border px-3 text-sm ${embedded ? 'min-h-[36px]' : 'min-h-[44px]'} ${
               viewMode === m ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-200 bg-white'
             }`}
           >
             {m === 'week' ? '週次' : '月次'}
           </button>
         ))}
+        {embedded && undoStack.length > 0 && (
+          <button
+            type="button"
+            onClick={() => void undoLastMove()}
+            className="inline-flex min-h-[36px] items-center gap-1 border border-neutral-300 bg-white px-3 text-sm"
+          >
+            <Undo2 className="h-4 w-4" />
+            元に戻す
+          </button>
+        )}
         {(Object.keys(filterLabels) as FilterKey[]).map((key) => (
           <button
             key={key}
             type="button"
             onClick={() => setFilter(key)}
-            className={`border px-3 py-1.5 text-xs ${
+            className={`border px-3 py-1.5 text-sm ${
               filter === key
                 ? 'border-neutral-900 bg-neutral-900 text-white'
                 : 'border-neutral-200 bg-white text-neutral-700 hover:border-neutral-400'
@@ -836,9 +858,15 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
         ))}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-5">
-        <div className="buzz-card-pad lg:col-span-3">
-          <div className="mb-4 flex items-center justify-between">
+      <div className={embedded ? 'grid min-h-0 flex-1 gap-3 lg:grid-cols-5 lg:gap-4' : 'grid gap-6 lg:grid-cols-5'}>
+        <div
+          className={
+            embedded
+              ? 'flex min-h-[420px] flex-col rounded-xl border border-neutral-200/80 bg-white p-3 shadow-sm lg:col-span-3 lg:min-h-0'
+              : 'buzz-card-pad lg:col-span-3'
+          }
+        >
+          <div className={`flex shrink-0 items-center justify-between ${embedded ? 'mb-2' : 'mb-4'}`}>
             <button
               type="button"
               onClick={() => {
@@ -866,7 +894,7 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
                     type="button"
                     disabled={shifting}
                     onClick={() => void shiftVisibleWeek(-7)}
-                    className="inline-flex items-center gap-0.5 border border-neutral-200 px-1.5 py-0.5 text-[10px] disabled:opacity-50"
+                    className="inline-flex items-center gap-0.5 border border-neutral-200 px-1.5 py-0.5 text-xs disabled:opacity-50"
                     title="表示週の予約を1週間前へ"
                   >
                     <ChevronsLeft className="h-3 w-3" />
@@ -876,7 +904,7 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
                     type="button"
                     disabled={shifting}
                     onClick={() => void shiftVisibleWeek(-1)}
-                    className="border border-neutral-200 px-1.5 py-0.5 text-[10px] disabled:opacity-50"
+                    className="border border-neutral-200 px-1.5 py-0.5 text-xs disabled:opacity-50"
                   >
                     日−1
                   </button>
@@ -884,7 +912,7 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
                     type="button"
                     disabled={shifting}
                     onClick={() => void shiftVisibleWeek(1)}
-                    className="border border-neutral-200 px-1.5 py-0.5 text-[10px] disabled:opacity-50"
+                    className="border border-neutral-200 px-1.5 py-0.5 text-xs disabled:opacity-50"
                   >
                     日+1
                   </button>
@@ -892,7 +920,7 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
                     type="button"
                     disabled={shifting}
                     onClick={() => void shiftVisibleWeek(7)}
-                    className="inline-flex items-center gap-0.5 border border-neutral-200 px-1.5 py-0.5 text-[10px] disabled:opacity-50"
+                    className="inline-flex items-center gap-0.5 border border-neutral-200 px-1.5 py-0.5 text-xs disabled:opacity-50"
                     title="表示週の予約を1週間後へ"
                   >
                     週+1
@@ -918,11 +946,11 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
             </button>
           </div>
           {viewMode === 'week' ? (
-            <div className="overflow-x-auto">
-              <div className="min-w-[640px]">
+            <div className={embedded ? 'min-h-0 flex-1 overflow-auto' : 'overflow-x-auto'}>
+              <div className={embedded ? 'flex h-full min-w-[560px] flex-col' : 'min-w-[640px]'}>
                 <div
-                  className="mb-1 grid gap-1 text-center text-[10px] text-neutral-500"
-                  style={{ gridTemplateColumns: '40px repeat(7, 1fr)' }}
+                  className="mb-1 grid gap-1 text-center text-xs text-neutral-600"
+                  style={{ gridTemplateColumns: '48px repeat(7, 1fr)' }}
                 >
                   <div />
                   {Array.from({ length: 7 }).map((_, i) => {
@@ -944,11 +972,11 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
                 {WEEK_HOUR_SLOTS.map((hour) => (
                   <div
                     key={hour}
-                    className="mb-1 grid gap-1"
-                    style={{ gridTemplateColumns: '40px repeat(7, 1fr)' }}
+                    className={`mb-1 grid gap-1 ${embedded ? 'min-h-[40px] flex-1' : ''}`}
+                    style={{ gridTemplateColumns: '48px repeat(7, 1fr)' }}
                   >
                     <div
-                      className={`flex items-start justify-end pr-1 pt-1 text-[10px] ${
+                      className={`flex items-start justify-end pr-1 pt-1 text-xs ${
                         preferredHourList.includes(hour) ? 'font-semibold text-amber-800' : 'text-neutral-400'
                       }`}
                     >
@@ -966,7 +994,7 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
                           key={`${date.toDateString()}-${hour}`}
                           {...dateDropProps(date, hour)}
                           onClick={() => setSelectedDay(date)}
-                          className={`min-h-[52px] cursor-pointer border p-1 transition-colors ${
+                          className={`cursor-pointer overflow-hidden border p-1 transition-colors ${embedded ? 'min-h-[36px]' : 'min-h-[52px]'} ${
                             isDrop
                               ? 'border-neutral-900 bg-amber-50'
                               : preferredHourList.includes(hour) && cellJobs.length === 0
@@ -975,7 +1003,7 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
                           }`}
                         >
                           {isDrop && (
-                            <p className="text-[9px] font-medium text-neutral-700">
+                            <p className="text-xs font-medium text-neutral-700">
                               {draggingId &&
                               findSlotConflicts(
                                 scopedJobs,
@@ -996,7 +1024,7 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
                                   beginDrag(j, e);
                                 }}
                                 onDragEnd={endDrag}
-                                className={`truncate border px-1 py-0.5 text-[9px] ${
+                                className={`truncate border px-1 py-0.5 text-xs ${
                                   j.status === 'failed'
                                     ? 'border-red-200 bg-red-50 text-red-800'
                                     : j.status === 'draft'
@@ -1008,7 +1036,7 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
                               </div>
                             ))}
                             {cellJobs.length > 2 && (
-                              <p className="text-[9px] text-neutral-400">+{cellJobs.length - 2}</p>
+                              <p className="text-xs text-neutral-400">+{cellJobs.length - 2}</p>
                             )}
                           </div>
                         </div>
@@ -1020,7 +1048,7 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
             </div>
           ) : (
             <>
-              <div className="mb-2 grid grid-cols-7 gap-1 text-center text-[10px] text-neutral-500">
+              <div className="mb-2 grid grid-cols-7 gap-1 text-center text-xs text-neutral-600">
                 {['日', '月', '火', '水', '木', '金', '土'].map((d) => (
                   <div key={d}>{d}</div>
                 ))}
@@ -1076,7 +1104,7 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
           )}
         </div>
 
-        <div className="space-y-3 lg:col-span-2">
+        <div className={`space-y-3 lg:col-span-2 ${embedded ? 'lg:min-h-0 lg:overflow-y-auto' : ''}`}>
           <div className="flex items-center justify-between">
             <h3 className="font-semibold">
               {selectedDay
@@ -1114,8 +1142,8 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
                 ))}
               </div>
               {!scopedJobs.some((j) => j.status === 'draft') && (
-                <p className="mt-2 text-[11px] text-neutral-500">
-                  下書きがありません。クリエイターで「下書き保存」するとここに出せます。
+                <p className="mt-2 text-xs text-neutral-500">
+                  下書きがありません。
                 </p>
               )}
             </div>

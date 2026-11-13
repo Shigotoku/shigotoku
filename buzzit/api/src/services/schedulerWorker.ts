@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import {
   claimDueScheduledJobs,
+  recoverStuckScheduledJobs,
   updateScheduledJobStatus,
   getUserSettings,
 } from './firestore';
@@ -28,6 +29,11 @@ async function notifyPublishFailure(
 }
 
 export async function processDueScheduledJobs(): Promise<{ processed: number; errors: number }> {
+  try {
+    await recoverStuckScheduledJobs();
+  } catch (err) {
+    console.error('recoverStuckScheduledJobs failed', err);
+  }
   const jobs = await claimDueScheduledJobs(20);
   let processed = 0;
   let errors = 0;

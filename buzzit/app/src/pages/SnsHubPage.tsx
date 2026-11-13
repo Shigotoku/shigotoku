@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
-import { BarChart3, CalendarDays, RefreshCw, Settings2, Wand2 } from 'lucide-react';
-import { getPlatformCompanion } from '../data/platformCompanions';
+import { RefreshCw, Settings2, Wand2 } from 'lucide-react';
 import { getSnsNavPlatform, jobMatchesSnsPlatform } from '../lib/snsPlatforms';
 import { platformSettingsPath, settingsPath } from '../lib/settingsUrls';
 import {
@@ -26,25 +25,25 @@ function connectionLabel(platformId: string, s: {
     case 'facebook-threads':
       return {
         connected: !!s.metaConnected,
-        label: s.metaConnected ? 'Meta 連携済み' : '未連携（設定で Meta を接続）',
+        label: s.metaConnected ? 'Meta 連携済み' : 'Meta 未連携',
       };
     case 'x':
       return {
         connected: !!s.xConnected,
-        label: s.xConnected ? 'X API 連携済み' : '未連携（設定で X BYOK）',
+        label: s.xConnected ? 'X 連携済み' : 'X 未連携',
       };
     case 'line':
       return {
         connected: !!s.lineChannelAccessToken?.trim(),
-        label: s.lineChannelAccessToken?.trim() ? 'LINE 連携済み' : '未連携（設定でトークン）',
+        label: s.lineChannelAccessToken?.trim() ? 'LINE 連携済み' : 'LINE 未連携',
       };
     case 'gbp':
       return {
         connected: !!(s.gbpConnected || s.gbpLocationName?.trim()),
-        label: s.gbpConnected || s.gbpLocationName?.trim() ? 'GBP 設定済み' : '未設定',
+        label: s.gbpConnected || s.gbpLocationName?.trim() ? 'GBP 設定済み' : 'GBP 未設定',
       };
     default:
-      return { connected: false, label: 'インサイト連携は準備中（予約は利用可）' };
+      return { connected: false, label: '連携は準備中' };
   }
 }
 
@@ -55,14 +54,22 @@ function insightsPlatformKey(platformId: string): string | undefined {
   return undefined;
 }
 
+function Stat({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex min-w-0 items-baseline gap-2 rounded-lg border border-neutral-200/80 bg-white px-3 py-1.5 shadow-sm">
+      <span className="truncate text-sm text-neutral-600">{label}</span>
+      <span className="text-xl font-bold tabular-nums text-neutral-900">{children}</span>
+    </div>
+  );
+}
+
 /**
  * SNS別ハブ: 予約投稿・予定カレンダーを媒体ごとに扱う入口。
- * 既存の CalendarPage / Xシリーズ / 設定を再利用する。
+ * 画面全幅・1画面に収まるレイアウト（タイトルはレイアウトのヘッダーに表示）。
  */
 export default function SnsHubPage() {
   const { platformId = '' } = useParams<{ platformId: string }>();
   const sns = getSnsNavPlatform(platformId);
-  const companion = getPlatformCompanion(platformId);
   const [jobs, setJobs] = useState<ScheduledJob[]>([]);
   const [conn, setConn] = useState({ connected: false, label: '確認中…' });
   const [insights, setInsights] = useState<InsightsSummary | null>(null);
@@ -85,8 +92,9 @@ export default function SnsHubPage() {
       .catch(() => setJobs([]));
     fetchSettings()
       .then((s) => setConn(connectionLabel(platformId, s)))
-      .catch(() => setConn({ connected: false, label: '接続状態を取得できませんでした' }));
+      .catch(() => setConn({ connected: false, label: '接続状態を取得できません' }));
     loadInsights();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [platformId]);
 
   const scoped = useMemo(
@@ -99,7 +107,7 @@ export default function SnsHubPage() {
     const draft = scoped.filter((j) => j.status === 'draft').length;
     const failed = scoped.filter((j) => j.status === 'failed').length;
     const done = scoped.filter((j) => j.status === 'published' || j.status === 'notified').length;
-    return { pending, draft, failed, done, total: scoped.length };
+    return { pending, draft, failed, done };
   }, [scoped]);
 
   if (!sns) {
@@ -108,161 +116,88 @@ export default function SnsHubPage() {
 
   const canSyncInsights = platformId === 'instagram' || platformId === 'x' || platformId === 'facebook-threads';
 
+  const impressionValue = !canSyncInsights
+    ? '—'
+    : insights == null
+      ? '…'
+      : platformId === 'x' && !insights.xInsightsEnabled
+        ? 'オフ'
+        : insights.postCount === 0
+          ? '—'
+          : insights.totalImpressions.toLocaleString();
+
+  const btn =
+    'inline-flex min-h-[36px] items-center gap-1.5 rounded-lg px-3 text-sm font-semibold';
+
   return (
-    <div className="buzz-page space-y-6">
-      <section className="buzz-platform-header overflow-hidden">
-        <div className="px-4 py-4 sm:px-5 sm:py-5" style={{ background: sns.brandGradient }}>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <p className="text-xs font-medium text-white/80">SNS · {sns.shortLabel}</p>
-            <h2 className="mt-1 font-display text-xl font-bold tracking-tight text-white">{sns.name}</h2>
-            <p className="mt-1 max-w-2xl text-sm text-white/90">
-              {companion?.priorityNote ??
-                'この媒体の投稿内容・予約予定・カレンダーをまとめて管理します。'}
-            </p>
-            <p className={`mt-2 text-xs font-medium ${conn.connected ? 'text-emerald-200' : 'text-amber-200'}`}>
-              {conn.label}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link
-              to={`/magic-creator?sns=${encodeURIComponent(platformId)}`}
-              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg bg-white px-3 text-sm font-semibold text-neutral-900 shadow-sm hover:bg-neutral-100"
-            >
-              <Wand2 className="h-4 w-4" />
-              ネタから作る
-            </Link>
-            {platformId === 'x' && (
-              <Link
-                to="/x-series"
-                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-white/30 bg-white/10 px-3 text-sm text-white hover:bg-white/15"
+    <div className="flex min-h-0 flex-1 flex-col gap-2 lg:gap-3">
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <Stat label="予約待ち">{stats.pending}</Stat>
+        <Stat label="下書き">{stats.draft}</Stat>
+        <Stat label="失敗">
+          <span className={stats.failed > 0 ? 'text-red-600' : ''}>{stats.failed}</span>
+        </Stat>
+        <Stat label="完了">{stats.done}</Stat>
+        <Stat label="インプレッション">
+          <span className="inline-flex items-center gap-1.5">
+            {impressionValue}
+            {canSyncInsights && (
+              <button
+                type="button"
+                disabled={syncing}
+                title="今すぐ同期"
+                className="text-neutral-500 hover:text-neutral-900 disabled:opacity-50"
+                onClick={async () => {
+                  setSyncing(true);
+                  try {
+                    await syncInsights(true);
+                    loadInsights();
+                  } catch {
+                    /* ignore */
+                  }
+                  setSyncing(false);
+                }}
               >
-                Xシリーズキュー
-              </Link>
+                <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
+              </button>
             )}
-            <Link
-              to={platformSettingsPath(platformId)}
-              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-white/30 px-3 text-sm text-white hover:bg-white/10"
-            >
-              <Settings2 className="h-4 w-4" />
-              API・連携
-            </Link>
-          </div>
-        </div>
-        </div>
-
-        <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-4">
-          <div className="rounded-xl border border-neutral-100 bg-neutral-50 p-3">
-            <div className="flex items-center gap-2 text-xs font-medium text-neutral-500">
-              <CalendarDays className="h-3.5 w-3.5" />
-              予約・承認待ち
-            </div>
-            <p className="mt-1 text-2xl font-bold tabular-nums">{stats.pending}</p>
-          </div>
-          <div className="rounded-xl border border-neutral-100 bg-neutral-50 p-3">
-            <div className="text-xs font-medium text-neutral-500">下書き</div>
-            <p className="mt-1 text-2xl font-bold tabular-nums">{stats.draft}</p>
-          </div>
-          <div className="rounded-xl border border-neutral-100 bg-neutral-50 p-3">
-            <div className="text-xs font-medium text-neutral-500">失敗 / 完了</div>
-            <p className="mt-1 text-2xl font-bold tabular-nums">
-              {stats.failed}
-              <span className="text-base font-normal text-neutral-400"> / {stats.done}</span>
-            </p>
-          </div>
-          <div className="rounded-xl border border-neutral-100 bg-neutral-50 p-3">
-            <div className="flex items-center justify-between gap-2 text-xs font-medium text-neutral-500">
-              <span className="inline-flex items-center gap-2">
-                <BarChart3 className="h-3.5 w-3.5" />
-                インプレッション
-              </span>
-              {canSyncInsights && (
-                <button
-                  type="button"
-                  disabled={syncing}
-                  title="今すぐ同期"
-                  className="inline-flex items-center gap-1 text-neutral-700 disabled:opacity-50"
-                  onClick={async () => {
-                    setSyncing(true);
-                    try {
-                      await syncInsights(true);
-                      loadInsights();
-                    } catch {
-                      /* ignore */
-                    }
-                    setSyncing(false);
-                  }}
-                >
-                  <RefreshCw className={`h-3.5 w-3.5 ${syncing ? 'animate-spin' : ''}`} />
-                </button>
-              )}
-            </div>
-            {!canSyncInsights ? (
-              <p className="mt-1 text-sm text-neutral-600">この媒体の自動取得は未対応です。</p>
-            ) : insights == null ? (
-              <p className="mt-1 text-sm text-neutral-600">読み込み中…</p>
-            ) : platformId === 'x' && !insights.xInsightsEnabled ? (
-              <p className="mt-1 text-sm text-amber-900">
-                X 取得は費用ガードでオフ。
-                <Link to={settingsPath({ section: 'insights' })} className="ml-1 underline">
-                  設定で有効化
-                </Link>
-              </p>
-            ) : insights.postCount === 0 ? (
-              <p className="mt-1 text-sm text-neutral-600">
-                まだデータがありません。自動投稿済みの投稿から同期されます。
-              </p>
-            ) : (
-              <>
-                <p className="mt-1 text-2xl font-bold tabular-nums">
-                  {insights.totalImpressions.toLocaleString()}
-                </p>
-                <p className="mt-0.5 text-xs text-neutral-500">
-                  {insights.postCount} 投稿
-                  {insights.totalReach > 0 ? ` · リーチ ${insights.totalReach.toLocaleString()}` : ''}
-                  {insights.lastSyncedAt
-                    ? ` · ${new Date(insights.lastSyncedAt).toLocaleString('ja-JP', {
-                        month: 'numeric',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}`
-                    : ''}
-                </p>
-              </>
-            )}
-          </div>
-        </div>
-
-        {insights && insights.recent.length > 0 && canSyncInsights && (
-          <ul className="mt-4 divide-y divide-neutral-100 border border-neutral-200">
-            {insights.recent.slice(0, 5).map((row) => (
-              <li key={row.id} className="flex items-start justify-between gap-3 px-3 py-2 text-sm">
-                <div className="min-w-0">
-                  <p className="truncate text-neutral-800">{row.preview || row.externalId}</p>
-                  {row.lastError ? (
-                    <p className="text-xs text-amber-800">{row.lastError}</p>
-                  ) : (
-                    <p className="text-xs text-neutral-500">
-                      {row.scheduledAt
-                        ? new Date(row.scheduledAt).toLocaleString('ja-JP', {
-                            month: 'numeric',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })
-                        : ''}
-                    </p>
-                  )}
-                </div>
-                <p className="shrink-0 font-medium tabular-nums text-neutral-900">
-                  {(row.impressions || 0).toLocaleString()}
-                </p>
-              </li>
-            ))}
-          </ul>
+          </span>
+        </Stat>
+        {platformId === 'x' && insights && !insights.xInsightsEnabled && (
+          <Link to={settingsPath({ section: 'insights' })} className="text-sm underline">
+            取得を有効化
+          </Link>
         )}
-      </section>
+
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <span
+            className={`rounded-full px-3 py-1 text-sm font-medium ${
+              conn.connected ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-900'
+            }`}
+          >
+            {conn.label}
+          </span>
+          {platformId === 'x' && (
+            <Link to="/x-series" className={`${btn} border border-neutral-300 bg-white text-neutral-800`}>
+              Xシリーズ
+            </Link>
+          )}
+          <Link
+            to={platformSettingsPath(platformId)}
+            className={`${btn} border border-neutral-300 bg-white text-neutral-800 hover:bg-neutral-50`}
+          >
+            <Settings2 className="h-4 w-4" />
+            API・連携
+          </Link>
+          <Link
+            to={`/magic-creator?sns=${encodeURIComponent(platformId)}`}
+            className={`${btn} bg-neutral-900 text-white hover:bg-neutral-800`}
+          >
+            <Wand2 className="h-4 w-4" />
+            ネタから作る
+          </Link>
+        </div>
+      </div>
 
       <CalendarPage platformId={platformId} embedded />
     </div>
