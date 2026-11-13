@@ -27,6 +27,7 @@ import AcceptAccountInvitePage from './pages/AcceptAccountInvitePage';
 import AccountSetupPage from './pages/AccountSetupPage';
 import AccountSetupGate from './components/AccountSetupGate';
 import AdminAccountsPage from './pages/AdminAccountsPage';
+import OAuthAuthorizePage from './pages/OAuthAuthorizePage';
 
 function App() {
   return (
@@ -41,6 +42,7 @@ function App() {
               <Route path="/invite/:token" element={<AcceptInvitePage />} />
               <Route path="/account-invite/:token" element={<AcceptAccountInvitePage />} />
               <Route element={<ProtectedRoute />}>
+                <Route path="/oauth/authorize" element={<OAuthAuthorizePage />} />
                 <Route element={<AccountSetupGate />}>
                   <Route path="/account-setup" element={<AccountSetupPage />} />
                   <Route element={<OnboardingGate />}>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type DragEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   CalendarDays,
   CheckCircle2,
@@ -48,6 +48,7 @@ import { loadCalendarViewPref, loadDropHourPref, saveCalendarViewPref, saveDropH
 import EmptyState from '../components/EmptyState';
 import PostHistoryPanel from '../components/PostHistoryPanel';
 import SimilarPostsCheck from '../components/SimilarPostsCheck';
+import JobMetaFields from '../components/JobMetaFields';
 import CloneStaggerModal from '../components/CloneStaggerModal';
 import PersonaPublishConfirmModal from '../components/PersonaPublishConfirmModal';
 import DualApprovalSetupBanner from '../components/DualApprovalSetupBanner';
@@ -128,9 +129,16 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
   const canApprove = canApprovePosts(userRole);
   const sns = platformId ? getSnsNavPlatform(platformId) : undefined;
   const [jobs, setJobs] = useState<ScheduledJob[]>([]);
-  const [filter, setFilter] = useState<FilterKey>('all');
+  const [searchParams] = useSearchParams();
+  const [filter, setFilter] = useState<FilterKey>(() => {
+    const f = searchParams.get('filter');
+    return f === 'draft' || f === 'failed' || f === 'pending' || f === 'pending_approval' || f === 'done' ? f : 'all';
+  });
   const [viewMode, setViewMode] = useState<ViewMode>(() => (embedded ? 'month' : loadCalendarViewPref()));
   const [alertsOpen, setAlertsOpen] = useState(false);
+  const [editTags, setEditTags] = useState<string[]>([]);
+  const [editTopic, setEditTopic] = useState('');
+  const [editMedia, setEditMedia] = useState<string[]>([]);
   const [rightTab, setRightTab] = useState<'history' | 'day'>('history');
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
@@ -302,6 +310,9 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
     setEditingJob(job);
     setEditDate(local);
     setEditMode(job.publishMode);
+    setEditTags(job.tags ?? []);
+    setEditTopic(job.topic ?? '');
+    setEditMedia(job.mediaUrls ?? []);
     setEditContents(
       job.contents.map((c) => ({
         ...c,
@@ -328,6 +339,9 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
         scheduledAt: new Date(editDate).toISOString(),
         publishMode: editMode,
         contents: editContents,
+        tags: editTags,
+        topic: editTopic,
+        mediaUrls: editMedia,
       });
       setMessage('予約内容を更新しました');
       setEditingJob(null);
@@ -1243,6 +1257,9 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
                     minute: '2-digit',
                   })}{' '}
                   · {job.publishMode}
+                  {job.createdBy === 'ai' && (
+                    <span className="ml-1 rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-800">AI作成</span>
+                  )}
                 </span>
                 <span
                   className={`text-xs ${
@@ -1257,9 +1274,9 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
                 </span>
               </div>
               <div className="flex gap-3">
-                {job.mediaUrls?.[0] && (
+                {job.mediaUrls?.filter((u) => !/\.(mp4|mov|webm)(\?|$)/i.test(u))[0] && (
                   <img
-                    src={job.mediaUrls[0]}
+                    src={job.mediaUrls.filter((u) => !/\.(mp4|mov|webm)(\?|$)/i.test(u))[0]}
                     alt=""
                     className="h-14 w-14 shrink-0 border border-neutral-200 object-cover"
                   />
@@ -1357,6 +1374,18 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
                 >
                   手動用にコピー
                 </button>
+                {job.mediaUrls?.map((u, i) => (
+                  <a
+                    key={u}
+                    href={u}
+                    target="_blank"
+                    rel="noreferrer"
+                    download
+                    className="inline-flex min-h-[44px] items-center border border-neutral-300 px-3 py-1.5 text-xs hover:border-neutral-900"
+                  >
+                    {/\.(mp4|mov|webm)(\?|$)/i.test(u) ? '動画' : '画像'}{job.mediaUrls!.length > 1 ? i + 1 : ''}を保存
+                  </a>
+                ))}
               </div>
             </div>
           ))}
@@ -1455,6 +1484,17 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
                 </label>
               ))}
             </div>
+
+            <JobMetaFields
+              tags={editTags}
+              topic={editTopic}
+              mediaUrls={editMedia}
+              onChange={(v) => {
+                setEditTags(v.tags);
+                setEditTopic(v.topic);
+                setEditMedia(v.mediaUrls);
+              }}
+            />
 
             <SimilarPostsCheck
               text={editContents.map((c) => c.content).join('\n')}

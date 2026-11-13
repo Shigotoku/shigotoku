@@ -3,13 +3,14 @@ import { Bot, Copy, Check, KeyRound, Trash2 } from 'lucide-react';
 import { API_BASE, authFetch } from '../lib/api';
 import { usePersona } from '../store/personaContext';
 
-type Tool = 'cursor' | 'claudeCode' | 'gemini';
+type Tool = 'web' | 'cursor' | 'claudeCode' | 'gemini';
 
 interface KeyRow {
   id: string;
   label: string;
   personaId: string;
   revoked: boolean;
+  lastUsedAt?: string | null;
 }
 
 async function json<T>(res: Response): Promise<T> {
@@ -49,7 +50,7 @@ export default function AiConnectSection() {
   const { activePersona } = usePersona();
   const [keys, setKeys] = useState<KeyRow[]>([]);
   const [newKey, setNewKey] = useState<string | null>(null);
-  const [tool, setTool] = useState<Tool>('cursor');
+  const [tool, setTool] = useState<Tool>('web');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -100,6 +101,11 @@ export default function AiConnectSection() {
   const url = `${base}/v1/agent/mcp`;
   const keyText = newKey ?? '<発行したキー>';
   const configs: Record<Tool, { label: string; where: string; value: string }> = {
+    web: {
+      label: 'ChatGPT / Claude（Web）',
+      where: 'コネクタ（カスタム）の追加でこのURLだけを貼る。ログイン画面で「許可」を押せば完了（キー不要）',
+      value: url,
+    },
     cursor: {
       label: 'Cursor / VS Code',
       where: 'Cursor: Settings → MCP → Add（mcp.json に貼り付け）',
@@ -124,9 +130,11 @@ export default function AiConnectSection() {
       ),
     },
   };
-  const cfg = configs[tool];  const prompt = `あなたは「${name}」のSNS編集長です。Buzzit のツールで投稿を管理します（投稿・承認はできず、必ず下書きまで）。
+  const cfg = configs[tool];
+  const prompt = `あなたは「${name}」のSNS編集長です。Buzzit のツールで投稿を管理します（投稿・承認はできず、必ず下書きまで）。
 手順:
-1) overview と tag_report で、今後の予定・過去の投稿・タグ別の実績を確認
+0) 投稿計画があれば plan_gaps で空き枠（日時・媒体・テーマ）を取得し、その枠を埋める
+1) overview・tag_report・performance_report で、予定・過去の投稿・タグ別の実績・伸びた型を確認
 2) 使用回数の多いタグや直近の内容と被らない切り口を選ぶ
 3) check_duplicate で重複確認
 4) 画像・動画があれば upload_media（URL指定）か get_upload_url で送る
@@ -146,38 +154,50 @@ export default function AiConnectSection() {
         <strong>AIにできるのは「ネタ追加」と「下書き作成」だけ</strong>で、承認・予約・投稿は必ずあなたがバジットで行います。
       </p>
 
-      <ol className="list-decimal space-y-1 pl-5 text-sm text-neutral-700">
-        <li>下のボタンで「{name}」用のキーを発行（キャラごとに別キー）</li>
-        <li>お使いのAIツールを選び、表示された設定を貼り付け（インストール不要・URLとキーだけ）</li>
-        <li>下の依頼文をAIに送れば完了</li>
-      </ol>
+      <div className="space-y-2">
+        <p className="text-xs font-semibold text-neutral-700">① お使いのAIを選ぶ</p>
+        <select
+          value={tool}
+          onChange={(e) => setTool(e.target.value as Tool)}
+          className="rounded-lg border border-neutral-300 bg-white px-2 py-1.5 text-sm"
+        >
+          {(Object.keys(configs) as Tool[]).map((t) => (
+            <option key={t} value={t}>
+              {configs[t].label}
+            </option>
+          ))}
+        </select>
+      </div>
 
-      <button type="button" onClick={issue} disabled={busy} className="buzz-btn-primary disabled:opacity-70">
-        <KeyRound className="mr-1 inline h-4 w-4" />
-        {busy ? '発行中…' : `「${name}」用のAI連携キーを発行`}
-      </button>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-
-      {newKey && (
-        <div className="space-y-3 rounded-xl border border-amber-300 bg-amber-50 p-3">
-          <p className="text-xs text-amber-900">
-            キーは今回しか表示されません。この設定をコピーして保管してください（他人に共有しないでください）。
+      {tool === 'web' ? (
+        <div className="space-y-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+          <p className="text-xs text-emerald-900">
+            キーの発行は不要です。ChatGPT / Claude の「コネクタ（カスタム）」にこのURLを貼り、表示されるバジットのログイン画面で「許可する」を押すだけです。
           </p>
-          <select
-            value={tool}
-            onChange={(e) => setTool(e.target.value as Tool)}
-            className="rounded-lg border border-neutral-300 bg-white px-2 py-1 text-sm"
-          >
-            {(Object.keys(configs) as Tool[]).map((t) => (
-              <option key={t} value={t}>
-                {configs[t].label}
-              </option>
-            ))}
-          </select>
-          <CopyBox label={`${cfg.label} の設定（${cfg.where}）`} value={cfg.value} />
+          <CopyBox label="MCP サーバーURL" value={url} />
         </div>
+      ) : (
+        <>
+          <p className="text-xs font-semibold text-neutral-700">② 「{name}」用のキーを発行して設定に貼る</p>
+          <button type="button" onClick={issue} disabled={busy} className="buzz-btn-primary disabled:opacity-70">
+            <KeyRound className="mr-1 inline h-4 w-4" />
+            {busy ? '発行中…' : `「${name}」用のAI連携キーを発行`}
+          </button>
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          {newKey ? (
+            <div className="space-y-3 rounded-xl border border-amber-300 bg-amber-50 p-3">
+              <p className="text-xs text-amber-900">
+                キーは今回しか表示されません。この設定をコピーして保管してください（他人に共有しないでください）。
+              </p>
+              <CopyBox label={`${cfg.label} の設定（${cfg.where}）`} value={cfg.value} />
+            </div>
+          ) : (
+            <p className="text-xs text-neutral-500">キーを発行すると、{cfg.label} に貼る設定が表示されます。</p>
+          )}
+        </>
       )}
 
+      <p className="text-xs font-semibold text-neutral-700">③ 依頼文をAIに送る</p>
       <CopyBox label="AIに送る依頼文（コピーして貼るだけ）" value={prompt} />
 
       {keys.length > 0 && (
@@ -185,7 +205,12 @@ export default function AiConnectSection() {
           <p className="text-xs font-semibold text-neutral-700">発行済みキー</p>
           {keys.map((k) => (
             <div key={k.id} className="flex items-center justify-between rounded-lg border border-neutral-200 px-3 py-2 text-sm">
-              <span>{k.label}</span>
+              <span>
+                {k.label}
+                <span className="ml-2 text-xs text-neutral-500">
+                  {k.lastUsedAt ? `最終利用 ${new Date(k.lastUsedAt).toLocaleString('ja-JP')}` : '未使用（接続待ち）'}
+                </span>
+              </span>
               <button type="button" onClick={() => revoke(k.id)} className="text-xs text-red-600 hover:underline">
                 <Trash2 className="mr-1 inline h-3 w-3" />
                 無効にする

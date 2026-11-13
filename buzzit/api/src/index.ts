@@ -265,6 +265,7 @@ import {
 import { functionSecrets } from './config/secrets';
 import { agentRouter } from './services/agentApi';
 import './services/mcpRemote';
+import { oauthRouter } from './services/oauthMcp';
 import { checkLoginHintRateLimit, getLoginHint } from './services/loginHint';
 
 if (!getApps().length) initializeApp();
@@ -282,6 +283,7 @@ app.use(
 
 const api = express.Router();
 api.use('/v1/agent', agentRouter);
+api.use(oauthRouter);
 
 api.get('/health', (_req, res) => {
   res.json({
@@ -629,13 +631,16 @@ api.post('/v1/scheduled/:id/draft', requireAuth, async (req: AuthedRequest, res)
 });
 
 api.patch('/v1/scheduled/:id', requireAuth, async (req: AuthedRequest, res) => {
-  const { scheduledAt, contents, publishMode } = req.body as {
+  const { scheduledAt, contents, publishMode, tags, topic, mediaUrls } = req.body as {
     scheduledAt?: string;
     contents?: Array<{ platform: string; label: string; content: string; carouselSlides?: string[] }>;
     publishMode?: PublishMode;
+    tags?: string[];
+    topic?: string;
+    mediaUrls?: string[];
   };
 
-  if (scheduledAt === undefined && contents === undefined && publishMode === undefined) {
+  if (scheduledAt === undefined && contents === undefined && publishMode === undefined && tags === undefined && topic === undefined && mediaUrls === undefined) {
     res.status(400).json({ error: '更新する項目がありません' });
     return;
   }
@@ -683,6 +688,13 @@ api.patch('/v1/scheduled/:id', requireAuth, async (req: AuthedRequest, res) => {
     scheduledAt: normalizedScheduledAt,
     contents,
     publishMode,
+    tags: Array.isArray(tags)
+      ? [...new Set(tags.map((t) => String(t).replace(/^[#＃]/, '').trim().slice(0, 30)).filter(Boolean))].slice(0, 10)
+      : undefined,
+    topic: typeof topic === 'string' ? topic.slice(0, 80) : undefined,
+    mediaUrls: Array.isArray(mediaUrls)
+      ? mediaUrls.filter((u) => typeof u === 'string' && /^https:\/\//.test(u)).slice(0, 6)
+      : undefined,
   });
   if (!job) {
     res.status(404).json({ error: '編集できる予約が見つかりません（処理中・完了済みは編集不可）' });

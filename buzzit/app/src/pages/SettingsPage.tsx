@@ -28,6 +28,7 @@ import {
   type CustomerTag,
 } from '../lib/api';
 import AiConnectSection from '../components/AiConnectSection';
+import PostingPlanSection from '../components/PostingPlanSection';
 import LineCostComparison from '../components/LineCostComparison';
 import StoreBillingSection from '../components/StoreBillingSection';
 import BusinessOverviewSection, { type BusinessEntityType } from '../components/BusinessOverviewSection';
@@ -427,6 +428,12 @@ export default function SettingsPage() {
       {activeTab === 'personas' && (
         <section className="buzz-card-pad space-y-4">
           <AiConnectSection />
+        </section>
+      )}
+
+      {activeTab === 'personas' && (
+        <section className="buzz-card-pad space-y-4">
+          <PostingPlanSection />
         </section>
       )}
 

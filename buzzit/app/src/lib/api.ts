@@ -465,6 +465,7 @@ export interface ScheduledJob {
   mediaUrls?: string[];
   tags?: string[];
   topic?: string;
+  createdBy?: 'ai' | 'user';
   completedMessage?: string;
   errorMessage?: string;
   createdAt: string;
@@ -525,6 +526,9 @@ export function updateScheduledJob(
     scheduledAt?: string;
     contents?: ScheduleApiRequest['contents'];
     publishMode?: PublishMode;
+    tags?: string[];
+    topic?: string;
+    mediaUrls?: string[];
   },
 ) {
   return request<{ success: boolean; job: ScheduledJob }>(`/v1/scheduled/${id}`, {

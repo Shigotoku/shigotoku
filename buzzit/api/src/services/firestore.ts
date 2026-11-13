@@ -508,6 +508,7 @@ export interface CreateScheduledJobInput {
   tags?: string[];
   topic?: string;
   sourceJobId?: string;
+  createdBy?: 'ai' | 'user';
 }
 
 export async function createScheduledJob(uid: string, input: CreateScheduledJobInput): Promise<string> {
@@ -529,6 +530,7 @@ export async function createScheduledJob(uid: string, input: CreateScheduledJobI
     ...(input.tags?.length ? { tags: input.tags } : {}),
     ...(input.topic ? { topic: input.topic } : {}),
     ...(input.sourceJobId ? { sourceJobId: input.sourceJobId } : {}),
+    ...(input.createdBy ? { createdBy: input.createdBy } : {}),
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   });
@@ -545,6 +547,7 @@ export interface ScheduledJobDoc {
   tags?: string[];
   topic?: string;
   sourceJobId?: string;
+  createdBy?: 'ai' | 'user';
   contents: ScheduleContentItem[];
   scheduledAt: string;
   publishMode: PublishMode;
@@ -572,6 +575,7 @@ function mapScheduledDoc(uid: string, id: string, data: FirebaseFirestore.Docume
     tags: data.tags as string[] | undefined,
     topic: data.topic as string | undefined,
     sourceJobId: data.sourceJobId as string | undefined,
+    createdBy: data.createdBy as 'ai' | 'user' | undefined,
     contents: data.contents as ScheduleContentItem[],
     scheduledAt: data.scheduledAt as string,
     publishMode: (data.publishMode as PublishMode) ?? 'notify',
@@ -859,6 +863,9 @@ export async function updateScheduledJob(
     scheduledAt?: string;
     contents?: ScheduleContentItem[];
     publishMode?: PublishMode;
+    tags?: string[];
+    topic?: string;
+    mediaUrls?: string[];
   },
 ): Promise<ScheduledJobDoc | null> {
   const ref = db().collection('users').doc(uid).collection('scheduled').doc(jobId);
@@ -873,6 +880,9 @@ export async function updateScheduledJob(
   };
   if (patch.scheduledAt !== undefined) updates.scheduledAt = patch.scheduledAt;
   if (patch.contents !== undefined) updates.contents = patch.contents;
+  if (patch.tags !== undefined) updates.tags = patch.tags;
+  if (patch.topic !== undefined) updates.topic = patch.topic;
+  if (patch.mediaUrls !== undefined) updates.mediaUrls = patch.mediaUrls;
   if (patch.publishMode !== undefined) {
     updates.publishMode = patch.publishMode;
     if (status === 'draft' || status === 'failed') {
@@ -1061,4 +1071,32 @@ export async function getSharedInsightsReport(token: string): Promise<SharedInsi
   const data = snap.data() as SharedInsightsReportDoc;
   if (new Date(data.expiresAt).getTime() < Date.now()) return null;
   return data;
+}
+
+// ---- 投稿計画（曜日×時刻×媒体×テーマ） ----
+export interface PlanSlot {
+  id: string;
+  weekday: number; // 0=日 ... 6=土
+  time: string; // HH:MM (JST)
+  platform: string;
+  theme: string;
+  tags?: string[];
+}
+
+export async function getPostingPlan(uid: string, personaId: string): Promise<PlanSlot[]> {
+  const snap = await db().collection('users').doc(uid).collection('postingPlans').doc(personaId).get();
+  return ((snap.data()?.slots as PlanSlot[] | undefined) ?? []).slice(0, 60);
+}
+
+export async function savePostingPlan(uid: string, personaId: string, slots: PlanSlot[]): Promise<PlanSlot[]> {
+  const clean = slots.slice(0, 60).map((x, i) => ({
+    id: String(x.id || `s${i}${Date.now()}`).slice(0, 40),
+    weekday: Math.min(6, Math.max(0, Number(x.weekday) || 0)),
+    time: /^\d{2}:\d{2}$/.test(String(x.time)) ? String(x.time) : '12:00',
+    platform: String(x.platform || 'x_thread').slice(0, 30),
+    theme: String(x.theme ?? '').slice(0, 80),
+    tags: (x.tags ?? []).map((t) => String(t).replace(/^[#＃]/, '').trim().slice(0, 30)).filter(Boolean).slice(0, 5),
+  }));
+  await db().collection('users').doc(uid).collection('postingPlans').doc(personaId).set({ slots: clean, updatedAt: FieldValue.serverTimestamp() });
+  return clean;
 }

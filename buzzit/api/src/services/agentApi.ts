@@ -7,7 +7,8 @@ import { createHash, randomBytes } from 'node:crypto';
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { requireAuth, type AuthedRequest } from '../middleware/auth';
-import { createScheduledJob, getScheduledJobs, getScheduledJob, listPostInsights, type ScheduledJobDoc } from './firestore';
+import { createScheduledJob, getScheduledJobs, getScheduledJob, listPostInsights, getPostingPlan, savePostingPlan, getUserSettings, type PlanSlot, type ScheduledJobDoc } from './firestore';
+import { postToSlackWebhook } from './slack';
 import { lookup } from 'node:dns/promises';
 import net from 'node:net';
 import { uploadBufferToGcp, createSignedUploadUrl } from './storage';
@@ -21,6 +22,7 @@ export interface AgentRequest extends Request {
   agent?: { uid: string; personaId: string; keyId: string };
 }
 
+export const APP_ORIGIN = process.env.BUZZIT_APP_ORIGIN ?? 'https://app.buzzit.shigotoku.com';
 const KEY_PREFIX = 'bzk_';
 const sha256 = (v: string) => createHash('sha256').update(v).digest('hex');
 
@@ -28,7 +30,10 @@ export async function requireAgentKey(req: AgentRequest, res: Response, next: Ne
   const header = req.header('authorization');
   const token = header?.startsWith('Bearer ') ? header.slice(7).trim() : '';
   if (!token.startsWith(KEY_PREFIX)) {
-    res.status(401).json({ error: 'APIキーが必要です' });
+    res
+      .status(401)
+      .set('WWW-Authenticate', `Bearer resource_metadata="${APP_ORIGIN}/.well-known/oauth-protected-resource"`)
+      .json({ error: 'APIキーが必要です' });
     return;
   }
   try {
@@ -79,27 +84,33 @@ function similarity(a: string, b: string): number {
 
 export const agentRouter = Router();
 
+/** API キー発行（キー画面・OAuth 共通）。平文は返却時のみ。 */
+export async function issueApiKey(uid: string, personaId: string, label: string) {
+  const key = KEY_PREFIX + randomBytes(24).toString('hex');
+  const ref = await getFirestore()
+    .collection('users')
+    .doc(uid)
+    .collection('apiKeys')
+    .add({
+      hash: sha256(key),
+      label: label.slice(0, 60),
+      personaId,
+      revoked: false,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  await writeAuditLog(uid, 'agent_key.create', `${label} persona=${personaId}`);
+  return { id: ref.id, apiKey: key };
+}
+
 // ---- キー管理（アプリにログインした本人が操作） ----
 agentRouter.post('/keys', requireAuth, async (req: AuthedRequest, res) => {
   const { label, personaId } = req.body as { label?: string; personaId?: string };
   try {
     const pid = personaId ?? (await resolveActivePersonaId(req.uid!));
     await assertPersonaAccess(pid, req.uid!, 'editor');
-    const key = KEY_PREFIX + randomBytes(24).toString('hex');
-    const ref = await getFirestore()
-      .collection('users')
-      .doc(req.uid!)
-      .collection('apiKeys')
-      .add({
-        hash: sha256(key),
-        label: (label ?? 'AI連携').slice(0, 60),
-        personaId: pid,
-        revoked: false,
-        createdAt: FieldValue.serverTimestamp(),
-      });
-    await writeAuditLog(req.uid!, 'agent_key.create', `${label ?? 'AI連携'} persona=${pid}`);
+    const { id, apiKey: key } = await issueApiKey(req.uid!, pid, label ?? 'AI連携');
     res.json({
-      id: ref.id,
+      id,
       personaId: pid,
       apiKey: key,
       note: 'このキーは今回しか表示されません。安全な場所に保存してください。',
@@ -114,7 +125,8 @@ agentRouter.get('/keys', requireAuth, async (req: AuthedRequest, res) => {
   res.json({
     keys: snap.docs.map((d) => {
       const x = d.data();
-      return { id: d.id, label: x.label, personaId: x.personaId, revoked: !!x.revoked };
+      const last = x.lastUsedAt && typeof x.lastUsedAt.toDate === 'function' ? x.lastUsedAt.toDate().toISOString() : null;
+      return { id: d.id, label: x.label, personaId: x.personaId, revoked: !!x.revoked, lastUsedAt: last };
     }),
   });
 });
@@ -454,6 +466,7 @@ export async function opCreateDraft(
     tags?: string[];
     topic?: string;
     sourceJobId?: string;
+    silent?: boolean;
   },
 ) {
   const { contents, scheduledAt } = input;
@@ -491,8 +504,21 @@ export async function opCreateDraft(
     tags: normTags(input.tags),
     topic: input.topic?.slice(0, 80),
     sourceJobId: input.sourceJobId,
+    createdBy: 'ai',
   });
   await writeAuditLog(ctx.uid, 'agent.draft.create', `${items.length}件`, { jobId });
+  if (!input.silent) {
+    getUserSettings(ctx.uid)
+      .then((st) =>
+        st.slackWebhookUrl
+          ? postToSlackWebhook(
+              st.slackWebhookUrl,
+              `🤖 *AIが下書きを作成しました*（${items[0].label}）\n${items[0].content.slice(0, 120)}\n👉 ${APP_ORIGIN}/calendar`,
+            )
+          : undefined,
+      )
+      .catch(() => {});
+  }
   return {
     success: true,
     jobId,
@@ -546,10 +572,89 @@ export async function opAdaptPost(
       tags,
       topic,
       sourceJobId: input.jobId,
+      silent: i > 0,
     });
     created.push({ platform: r.platform, jobId: d.jobId, scheduledAt: at, warnings: [...r.warnings, ...d.warnings] });
   }
   return { success: true, created, message: '各SNS向けの下書きを作成しました。メディア要件などの警告を確認してください。' };
+}
+
+// ---- 投稿計画 ----
+export async function opGetPlan(ctx: AgentCtx) {
+  return { slots: await getPostingPlan(ctx.uid, ctx.personaId) };
+}
+
+const JST = 9 * 3600000;
+function jstParts(ms: number) {
+  const d = new Date(ms + JST);
+  return { date: d.toISOString().slice(0, 10), weekday: d.getUTCDay(), hour: d.getUTCHours() };
+}
+
+/** 投稿計画のうち、まだ投稿・下書きが入っていない枠を返す。AI はこの枠を create_draft で埋める */
+export async function opPlanGaps(ctx: AgentCtx, q: { weeks?: number }) {
+  const weeks = Math.min(8, Math.max(1, q.weeks ?? 2));
+  const slots = await getPostingPlan(ctx.uid, ctx.personaId);
+  if (!slots.length) {
+    return { gaps: [], note: '投稿計画が未設定です。バジットの 設定 → キャラ → 投稿計画 で枠を作ってください。' };
+  }
+  const jobs = (await getScheduledJobs(ctx.uid, undefined, ctx.personaId, 500)).filter((j) => j.status !== 'failed');
+  const used = new Map<string, number>();
+  for (const j of jobs) {
+    const key = `${jstParts(new Date(j.scheduledAt).getTime()).date}|${platformOf(j)}`;
+    used.set(key, (used.get(key) ?? 0) + 1);
+  }
+  const gaps: Array<{ scheduledAt: string; weekday: string; platform: string; theme: string; tags: string[] }> = [];
+  const now = Date.now();
+  const names = ['日', '月', '火', '水', '木', '金', '土'];
+  for (let day = 0; day < weeks * 7; day++) {
+    const dayMs = now + day * 86400000;
+    const { date, weekday } = jstParts(dayMs);
+    const todays = slots.filter((x) => x.weekday === weekday).sort((a, b) => a.time.localeCompare(b.time));
+    const perPlatformUsed = new Map<string, number>();
+    for (const slot of todays) {
+      const key = `${date}|${slot.platform}`;
+      const taken = (used.get(key) ?? 0) - (perPlatformUsed.get(key) ?? 0);
+      if (taken > 0) {
+        perPlatformUsed.set(key, (perPlatformUsed.get(key) ?? 0) + 1);
+        continue;
+      }
+      const at = new Date(`${date}T${slot.time}:00+09:00`);
+      if (at.getTime() <= now) continue;
+      gaps.push({ scheduledAt: at.toISOString(), weekday: names[weekday], platform: slot.platform, theme: slot.theme, tags: slot.tags ?? [] });
+    }
+  }
+  return {
+    count: gaps.length,
+    gaps,
+    note: '各枠の theme と tags に沿って、過去投稿と被らない内容で create_draft してください（scheduledAt はそのまま使う）。',
+  };
+}
+
+// ---- 成果レポート（AIに「伸びた型」を渡す） ----
+export async function opPerformance(ctx: AgentCtx, q: { platform?: string; days?: number }) {
+  const since = Date.now() - (q.days ?? 180) * 86400000;
+  const [jobs, imp] = await Promise.all([getScheduledJobs(ctx.uid, undefined, ctx.personaId, 500), impressionMap(ctx.uid)]);
+  const rows = jobs
+    .filter((j) => (j.status === 'published' || j.status === 'notified') && imp.has(j.id))
+    .filter((j) => !q.platform || platformOf(j) === q.platform)
+    .filter((j) => new Date(j.scheduledAt).getTime() >= since)
+    .map((j) => ({ j, v: imp.get(j.id) ?? 0, p: jstParts(new Date(j.scheduledAt).getTime()) }));
+  const avg = (xs: number[]) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : 0);
+  const group = <K extends string | number>(key: (r: (typeof rows)[number]) => K[]) => {
+    const m = new Map<K, number[]>();
+    for (const r of rows) for (const k of key(r)) m.set(k, [...(m.get(k) ?? []), r.v]);
+    return [...m.entries()].map(([k, v]) => ({ key: k, posts: v.length, avgImpressions: avg(v) })).sort((a, b) => b.avgImpressions - a.avgImpressions);
+  };
+  const names = ['日', '月', '火', '水', '木', '金', '土'];
+  return {
+    measuredPosts: rows.length,
+    overallAvg: avg(rows.map((r) => r.v)),
+    topPosts: [...rows].sort((a, b) => b.v - a.v).slice(0, 5).map((r) => brief(r.j, r.v)),
+    bestTags: group((r) => r.j.tags ?? []).slice(0, 8).map((x) => ({ tag: x.key, ...x, key: undefined })),
+    byWeekday: group((r) => [names[r.p.weekday]]).map((x) => ({ weekday: x.key, posts: x.posts, avgImpressions: x.avgImpressions })),
+    byHour: group((r) => [r.p.hour]).slice(0, 6).map((x) => ({ hourJst: x.key, posts: x.posts, avgImpressions: x.avgImpressions })),
+    guidance: '平均インプレッションが高いタグ・曜日・時間帯を優先し、topPosts の型（書き出し・構成）を参考に、ただし内容が被らないよう check_duplicate で確認すること。',
+  };
 }
 
 // ---- REST（APIキー認証） ----
@@ -589,3 +694,21 @@ agentRouter.post('/similar', requireAuth, async (req: AuthedRequest, res) => {
     res.status(400).json({ error: err instanceof Error ? err.message : '失敗しました' });
   }
 });
+
+// ---- 投稿計画（アプリ画面用・ログインユーザー） ----
+agentRouter.get('/plan', requireAuth, async (req: AuthedRequest, res) => {
+  const personaId = await resolveActivePersonaId(req.uid!);
+  res.json({ personaId, slots: await getPostingPlan(req.uid!, personaId) });
+});
+agentRouter.put('/plan', requireAuth, async (req: AuthedRequest, res) => {
+  const personaId = await resolveActivePersonaId(req.uid!);
+  try {
+    await assertPersonaAccess(personaId, req.uid!, 'editor');
+    const slots = await savePostingPlan(req.uid!, personaId, ((req.body as { slots?: PlanSlot[] }).slots ?? []));
+    res.json({ personaId, slots });
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : '保存に失敗しました' });
+  }
+});
+agentRouter.get('/plan-gaps', requireAgentKey, rest((c, r) => opPlanGaps(c, { weeks: Number(r.query.weeks) || 2 })));
+agentRouter.post('/performance', requireAgentKey, rest((c, r) => opPerformance(c, r.body as Parameters<typeof opPerformance>[1])));

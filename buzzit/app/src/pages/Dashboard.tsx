@@ -145,7 +145,8 @@ export default function Dashboard() {
 
   const byPlatform = insights ? Object.entries(insights.byPlatform) : [];
 
-  const alertCount = (isSample ? 1 : 0) + (failedCount > 0 ? 1 : 0) + (pending.length > 0 ? 1 : 0);
+  const aiDrafts = jobs.filter((j) => j.createdBy === 'ai' && j.status === 'draft').length;
+  const alertCount = (isSample ? 1 : 0) + (failedCount > 0 ? 1 : 0) + (pending.length > 0 ? 1 : 0) + (aiDrafts > 0 ? 1 : 0);
   const card = 'rounded-xl border border-neutral-200/80 bg-white p-3 shadow-sm';
 
   return (
@@ -163,6 +164,16 @@ export default function Dashboard() {
             >
               <AlertTriangle className="h-5 w-5 shrink-0" />
               <span>投稿失敗が {failedCount} 件あります。カレンダーから再試行してください。</span>
+              <ArrowRight className="ml-auto h-4 w-4" />
+            </Link>
+          )}
+          {aiDrafts > 0 && (
+            <Link
+              to="/calendar?filter=draft"
+              className="flex items-center gap-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900 hover:border-sky-300"
+            >
+              <span className="rounded-full bg-sky-600 px-2 py-0.5 text-xs font-bold text-white">AI</span>
+              <span>AIが作成した下書きが {aiDrafts} 件あります。内容を確認して予約してください。</span>
               <ArrowRight className="ml-auto h-4 w-4" />
             </Link>
           )}

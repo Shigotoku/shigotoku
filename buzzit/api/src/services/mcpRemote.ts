@@ -19,6 +19,9 @@ import {
   opListIdeas,
   opListScheduled,
   opOverview,
+  opGetPlan,
+  opPlanGaps,
+  opPerformance,
   opSearchPosts,
   opTagReport,
   opUploadMedia,
@@ -31,7 +34,7 @@ const PLATFORM = z
   .describe('x_thread=X / instagram / facebook / threads / line / gbp=Googleビジネス / youtube_shorts / tiktok');
 
 const INSTRUCTIONS = `バジット(Buzzit)は SNS 投稿の管理アプリです。あなたは「編集長」として下書きを作り、人が確認・承認・予約します（あなたは投稿できません）。
-推奨手順: 1) overview か tag_report で現状と過去のタグ別実績を確認 2) 使用回数の多いタグ・直近の内容と被らない切り口を選ぶ 3) check_duplicate で重複確認 4) 画像/動画があれば upload_media か get_upload_url で送る 5) tags を付けて create_draft 6) 他SNSに展開するなら adapt_post(dryRun で確認→作成)。
+推奨手順: 0) 投稿計画があれば plan_gaps で埋めるべき枠（日時・媒体・テーマ）を取得し、その枠に沿って作る 1) overview か tag_report / performance_report で現状と過去の実績（伸びた型）を確認 2) 使用回数の多いタグ・直近の内容と被らない切り口を選ぶ 3) check_duplicate で重複確認 4) 画像/動画があれば upload_media か get_upload_url で送る 5) tags を付けて create_draft 6) 他SNSに展開するなら adapt_post(dryRun で確認→作成)。
 X は本文280字（スレッドは「---」だけの行で区切る・最大5投稿）。Instagram は画像必須、YouTube Shorts / TikTok は動画必須、Googleビジネスはハッシュタグ不要。`;
 
 function buildServer(ctx: AgentCtx): McpServer {
@@ -98,6 +101,32 @@ function buildServer(ctx: AgentCtx): McpServer {
       },
     },
     (q) => run(() => opTagReport(ctx, q)),
+  );
+
+  server.registerTool(
+    'get_plan',
+    { description: '登録済みの投稿計画（曜日×時刻×媒体×テーマ）を取得する。', inputSchema: {} },
+    () => run(() => opGetPlan(ctx)),
+  );
+
+  server.registerTool(
+    'plan_gaps',
+    {
+      description:
+        '投稿計画のうち、まだ投稿・下書きが入っていない枠（日時・媒体・テーマ・タグ）を返す。各枠を create_draft で埋めれば計画どおりの運用になる。',
+      inputSchema: { weeks: z.number().int().min(1).max(8).default(2) },
+    },
+    ({ weeks }) => run(() => opPlanGaps(ctx, { weeks })),
+  );
+
+  server.registerTool(
+    'performance_report',
+    {
+      description:
+        '成果レポート（ルールベース）: 伸びた投稿 TOP5、平均インプレッションが高いタグ・曜日・時間帯。伸びる領域を増やす企画づくりに使う。',
+      inputSchema: { platform: PLATFORM.optional(), days: z.number().int().positive().default(180) },
+    },
+    (q) => run(() => opPerformance(ctx, q)),
   );
 
   server.registerTool(
