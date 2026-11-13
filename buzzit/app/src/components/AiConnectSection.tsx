@@ -3,7 +3,9 @@ import { Bot, Copy, Check, KeyRound, Trash2 } from 'lucide-react';
 import { API_BASE, authFetch } from '../lib/api';
 import { usePersona } from '../store/personaContext';
 
-type Tool = 'cursor' | 'claudeCode' | 'gemini';\n\ninterface KeyRow {
+type Tool = 'cursor' | 'claudeCode' | 'gemini';
+
+interface KeyRow {
   id: string;
   label: string;
   personaId: string;
