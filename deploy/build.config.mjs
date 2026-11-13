@@ -77,12 +77,12 @@ export const DECKIT_FIREBASE = {
  * 環境変数 PREDECK_FIREBASE_* で渡す（キーをリポジトリに直書きしない）。
  */
 export const PREDECK_FIREBASE = {
-  apiKey: process.env.PREDECK_FIREBASE_API_KEY ?? '',
+  apiKey: process.env.PREDECK_FIREBASE_API_KEY ?? 'AIzaSyAMFVJ0tp6F3R7ThZx4Igj_yhmacOfq2FA',
   authDomain: process.env.PREDECK_FIREBASE_AUTH_DOMAIN ?? 'shigotoku-predeck-prod.firebaseapp.com',
   projectId: process.env.PREDECK_FIREBASE_PROJECT_ID ?? 'shigotoku-predeck-prod',
-  storageBucket: process.env.PREDECK_FIREBASE_STORAGE_BUCKET ?? '',
-  messagingSenderId: process.env.PREDECK_FIREBASE_MESSAGING_SENDER_ID ?? '',
-  appId: process.env.PREDECK_FIREBASE_APP_ID ?? '',
+  storageBucket: process.env.PREDECK_FIREBASE_STORAGE_BUCKET ?? 'shigotoku-predeck-prod.firebasestorage.app',
+  messagingSenderId: process.env.PREDECK_FIREBASE_MESSAGING_SENDER_ID ?? '960489447480',
+  appId: process.env.PREDECK_FIREBASE_APP_ID ?? '1:960489447480:web:9b3c46d10e4d5d539a86cd',
 };
 
 export const projectEnv = {
