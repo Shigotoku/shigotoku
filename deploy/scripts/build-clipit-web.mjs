@@ -48,9 +48,15 @@ const landingPages = [
   },
   {
     name: 'deckit-landing',
-    cwd: join(root, 'Slide_Studio', 'landing-page'),
+    cwd: join(root, 'deckit', 'landing-page'),
     out: join(webOut, 'deckit'),
     env: projectEnv['deckit-landing'],
+  },
+  {
+    name: 'predeck-landing',
+    cwd: join(root, 'PreDeck', 'landing-page'),
+    out: join(webOut, 'predeck'),
+    env: projectEnv['predeck-landing'],
   },
   {
     name: 'raiseit-landing',

@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>プレゼン画面 - プレデキ</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: #0a0a0a;
+      color: #cbd5e1;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    }
+    .presenter-stage {
+      min-height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+      padding-bottom: 64px;
+    }
+    #presenter-img {
+      display: none;
+      max-width: 100%;
+      max-height: calc(100vh - 84px);
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+    .presenter-msg {
+      max-width: 640px;
+      text-align: center;
+      line-height: 1.7;
+      font-size: 14px;
+      padding: 12px;
+      color: #94a3b8;
+    }
+    #presenter-bar {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: rgba(2, 6, 23, 0.86);
+      border-top: 1px solid rgba(148, 163, 184, 0.25);
+      z-index: 3;
+      backdrop-filter: blur(3px);
+      font-size: 13px;
+    }
+    #presenter-bar button {
+      appearance: none;
+      border: 1px solid rgba(148, 163, 184, 0.45);
+      background: rgba(15, 23, 42, 0.95);
+      color: #e2e8f0;
+      border-radius: 6px;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-size: 13px;
+      line-height: 1.25;
+    }
+    #presenter-bar button:hover { background: rgba(30, 41, 59, 0.95); }
+    #presenter-bar button:focus-visible {
+      outline: 2px solid #60a5fa;
+      outline-offset: 2px;
+    }
+    html:fullscreen .presenter-stage,
+    html:-webkit-full-screen .presenter-stage {
+      min-height: 100vh;
+      min-height: 100dvh;
+      padding: 0;
+    }
+    html:fullscreen #presenter-img,
+    html:-webkit-full-screen #presenter-img {
+      max-width: 100vw;
+      max-height: 100vh;
+      max-height: 100dvh;
+    }
+    html:fullscreen #presenter-bar,
+    html:-webkit-full-screen #presenter-bar {
+      opacity: 0;
+      transition: opacity 0.25s ease;
+      background: rgba(2, 6, 23, 0.92);
+    }
+    html:fullscreen #presenter-bar:hover,
+    html:-webkit-full-screen #presenter-bar:hover,
+    html:fullscreen #presenter-bar:focus-within,
+    html:-webkit-full-screen #presenter-bar:focus-within {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="presenter-stage">
+    <div id="presenter-msg" class="presenter-msg">
+      メイン画面（プレデキ）でスライドを開くと、ここに同期表示されます。
+    </div>
+    <img id="presenter-img" alt="" />
+  </div>
+
+  <div id="presenter-bar">
+    <span id="presenter-hint"></span>
+    <button type="button" id="presenter-btn-prev">← 前へ</button>
+    <button type="button" id="presenter-btn-next">次へ →</button>
+    <button type="button" id="presenter-btn-fs">全画面 (F)</button>
+  </div>
+
+  <script>
+    (function () {
+      const DEFAULT_CH = 'prezdeck-presenter-v1';
+      const CH = (() => {
+        try {
+          const p = new URLSearchParams(window.location.search);
+          const raw = (p.get('ch') || '').trim();
+          if (raw && /^[A-Za-z0-9._:-]{1,128}$/.test(raw)) return raw;
+        } catch (_) {}
+        return DEFAULT_CH;
+      })();
+      let bc = null;
+      try {
+        bc = new BroadcastChannel(CH);
+      } catch (_) {}
+
+      let slides = [];
+      let index = 0;
+      let targetScreenObj = null;
+      const img = document.getElementById('presenter-img');
+      const hint = document.getElementById('presenter-hint');
+      const msg = document.getElementById('presenter-msg');
+      const wantsAutoFullscreen = parseAutoFullscreenFlag();
+
+      function parseTargetScreenIndex() {
+        try {
+          const p = new URLSearchParams(window.location.search);
+          const v = p.get('screen');
+          if (v == null) return -1;
+          const n = parseInt(v, 10);
+          return Number.isFinite(n) ? n : -1;
+        } catch (_) {
+          return -1;
+        }
+      }
+
+      function parseAutoFullscreenFlag() {
+        try {
+          const p = new URLSearchParams(window.location.search);
+          return p.get('autofs') === '1';
+        } catch (_) {
+          return false;
+        }
+      }
+
+      function parsePreferredWindowBox() {
+        try {
+          const p = new URLSearchParams(window.location.search);
+          const left = parseInt(p.get('left') || '', 10);
+          const top = parseInt(p.get('top') || '', 10);
+          const width = parseInt(p.get('width') || '', 10);
+          const height = parseInt(p.get('height') || '', 10);
+          if (!Number.isFinite(left) || !Number.isFinite(top) || !Number.isFinite(width) || !Number.isFinite(height)) {
+            return null;
+          }
+          return {
+            left,
+            top,
+            width: Math.max(320, width),
+            height: Math.max(240, height),
+          };
+        } catch (_) {
+          return null;
+        }
+      }
+
+      const preferredWindowBox = parsePreferredWindowBox();
+
+      function getSelfWindowChromeDelta() {
+        const fallback = { dw: 18, dh: 96 };
+        try {
+          const outerW = Number(window.outerWidth) || 0;
+          const innerW = Number(window.innerWidth) || 0;
+          const outerH = Number(window.outerHeight) || 0;
+          const innerH = Number(window.innerHeight) || 0;
+          const dw = Math.max(0, Math.min(240, Math.round(outerW - innerW)));
+          const dh = Math.max(0, Math.min(320, Math.round(outerH - innerH)));
+          return {
+            dw: Number.isFinite(dw) && dw > 0 ? dw : fallback.dw,
+            dh: Number.isFinite(dh) && dh > 0 ? dh : fallback.dh,
+          };
+        } catch (_) {
+          return fallback;
+        }
+      }
+
+      function snapSelfWindowToPreferred() {
+        if (!preferredWindowBox) return;
+        try {
+          const delta = getSelfWindowChromeDelta();
+          const outerW = preferredWindowBox.width + delta.dw;
+          const outerH = preferredWindowBox.height + delta.dh;
+          window.moveTo(preferredWindowBox.left, preferredWindowBox.top);
+          window.resizeTo(outerW, outerH);
+          window.moveTo(preferredWindowBox.left, preferredWindowBox.top);
+        } catch (_) {}
+      }
+
+      function queueSnapToPreferredWindow() {
+        if (!preferredWindowBox) return;
+        [0, 60, 140, 260, 440, 700, 980].forEach((ms) => {
+          setTimeout(() => {
+            snapSelfWindowToPreferred();
+          }, ms);
+        });
+      }
+
+      function focusSelfWindow() {
+        try {
+          window.focus();
+        } catch (_) {}
+      }
+
+      function queueFocusSelfWindow() {
+        [0, 40, 100, 180, 320, 520, 820, 1200, 1700].forEach((ms) => {
+          setTimeout(() => {
+            focusSelfWindow();
+          }, ms);
+        });
+      }
+
+      function sameScreen(a, b) {
+        if (!a || !b) return false;
+        if (a === b) return true;
+        const near = (x, y) => Math.abs(Math.round(Number(x) || 0) - Math.round(Number(y) || 0)) <= 2;
+        return near(a.left, b.left) && near(a.top, b.top) && near(a.width, b.width) && near(a.height, b.height);
+      }
+
+      function isFullscreen() {
+        return !!(document.fullscreenElement || document.webkitFullscreenElement);
+      }
+
+      async function requestFullscreenBestEffort() {
+        if (isFullscreen()) return true;
+        const root = document.documentElement;
+        if (!root || typeof root.requestFullscreen !== 'function') return false;
+        const opts = { navigationUI: 'hide' };
+        if (targetScreenObj) opts.screen = targetScreenObj;
+
+        try {
+          await root.requestFullscreen(opts);
+          return true;
+        } catch (_) {
+          if (!targetScreenObj) return false;
+          try {
+            await root.requestFullscreen();
+            return true;
+          } catch (_) {
+            return false;
+          }
+        }
+      }
+
+      function queueAutoFullscreenTry() {
+        if (!wantsAutoFullscreen) return;
+        void requestFullscreenBestEffort();
+        [0, 80, 220, 480].forEach((ms) => {
+          setTimeout(() => {
+            void requestFullscreenBestEffort();
+          }, ms);
+        });
+      }
+
+      async function prepareTargetScreen() {
+        if (typeof window.getScreenDetails !== 'function') return;
+        try {
+          const sd = await window.getScreenDetails();
+          const idx = parseTargetScreenIndex();
+          if (!sd || !Array.isArray(sd.screens) || sd.screens.length === 0) return;
+
+          if (idx >= 0 && idx < sd.screens.length) {
+            targetScreenObj = sd.screens[idx];
+            return;
+          }
+          if (sd.screens.length >= 2) {
+            const cur = sd.currentScreen;
+            for (let i = 0; i < sd.screens.length; i++) {
+              if (!sameScreen(sd.screens[i], cur)) {
+                targetScreenObj = sd.screens[i];
+                return;
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
+      function render() {
+        if (!slides.length) {
+          img.style.display = 'none';
+          img.removeAttribute('src');
+          msg.style.display = 'block';
+          msg.textContent = 'スライドがありません。メイン画面で PDF / 画像をアップロードしてください。';
+          hint.textContent = '';
+          return;
+        }
+
+        msg.style.display = 'none';
+        index = Math.max(0, Math.min(index, slides.length - 1));
+        img.style.display = 'block';
+        img.src = '/api/slides/' + encodeURIComponent(slides[index]);
+        img.alt = 'スライド ' + (index + 1);
+        hint.textContent =
+          (index + 1) + ' / ' + slides.length +
+          '  ·  ← → Space · Home End · F 全画面 · Esc 解除';
+      }
+
+      function sendToMain() {
+        if (!bc) return;
+        bc.postMessage({ type: 'slide', index: index, source: 'presenter' });
+      }
+
+      function presenterPrev() {
+        if (!slides.length || index <= 0) return;
+        index -= 1;
+        render();
+        sendToMain();
+      }
+
+      function presenterNext() {
+        if (!slides.length || index >= slides.length - 1) return;
+        index += 1;
+        render();
+        sendToMain();
+      }
+
+      function presenterToggleFullscreen() {
+        if (!isFullscreen()) {
+          void requestFullscreenBestEffort();
+        } else if (document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {});
+        }
+      }
+
+      if (bc) {
+        bc.onmessage = function (ev) {
+          const d = ev && ev.data;
+          if (!d || typeof d !== 'object') return;
+
+          if (d.type === 'init') {
+            slides = Array.isArray(d.slides) ? d.slides.slice() : [];
+            index = typeof d.index === 'number' ? d.index : 0;
+            render();
+            queueSnapToPreferredWindow();
+            queueFocusSelfWindow();
+            if (d.autoFullscreen || wantsAutoFullscreen) queueAutoFullscreenTry();
+            return;
+          }
+
+          if (d.type === 'slide' && typeof d.index === 'number') {
+            index = d.index;
+            render();
+            return;
+          }
+
+          if (d.type === 'fullscreen') {
+            queueFocusSelfWindow();
+            void requestFullscreenBestEffort();
+          }
+        };
+      }
+
+      function hello() {
+        if (bc) bc.postMessage({ type: 'hello' });
+      }
+
+      document.getElementById('presenter-btn-prev').onclick = presenterPrev;
+      document.getElementById('presenter-btn-next').onclick = presenterNext;
+      document.getElementById('presenter-btn-fs').onclick = presenterToggleFullscreen;
+
+      document.addEventListener('keydown', function (e) {
+        const t = e.target;
+        if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+
+        if (!isFullscreen() && wantsAutoFullscreen) {
+          void requestFullscreenBestEffort();
+        }
+
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
+          e.preventDefault();
+          presenterNext();
+        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          presenterPrev();
+        } else if (e.key === 'Home') {
+          e.preventDefault();
+          if (slides.length) {
+            index = 0;
+            render();
+            sendToMain();
+          }
+        } else if (e.key === 'End') {
+          e.preventDefault();
+          if (slides.length) {
+            index = slides.length - 1;
+            render();
+            sendToMain();
+          }
+        } else if (e.key === 'f' || e.key === 'F') {
+          e.preventDefault();
+          presenterToggleFullscreen();
+        }
+      });
+
+      document.addEventListener('pointerdown', function () {
+        if (!isFullscreen() && wantsAutoFullscreen) {
+          void requestFullscreenBestEffort();
+        }
+      }, { passive: true });
+
+      window.addEventListener('focus', function () {
+        if (!isFullscreen() && wantsAutoFullscreen) {
+          void requestFullscreenBestEffort();
+        }
+      });
+
+      document.addEventListener('visibilitychange', function () {
+        if (!document.hidden && !isFullscreen() && wantsAutoFullscreen) {
+          void requestFullscreenBestEffort();
+        }
+      });
+
+      window.addEventListener('load', async function () {
+        await prepareTargetScreen();
+        queueSnapToPreferredWindow();
+        queueFocusSelfWindow();
+        queueAutoFullscreenTry();
+      });
+      if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        void (async function () {
+          await prepareTargetScreen();
+          queueSnapToPreferredWindow();
+          queueFocusSelfWindow();
+          queueAutoFullscreenTry();
+        })();
+      }
+
+      hello();
+      setTimeout(hello, 320);
+      setTimeout(hello, 800);
+    })();
+  </script>
+</body>
+</html>
