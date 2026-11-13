@@ -49,15 +49,23 @@ export interface LoginHintResponse {
 
 /** ログイン失敗時に登録済みプロバイダを案内（認証不要） */
 export async function fetchLoginHint(email: string): Promise<LoginHintResponse> {
-  const res = await fetch(`${API_BASE}/v1/auth/login-hint`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: email.trim() }),
-  });
-  if (!res.ok) {
-    return {};
+  // API 無応答でログインボタンが「処理中...」のまま固まらないよう 4 秒で打ち切る
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 4000);
+  try {
+    const res = await fetch(`${API_BASE}/v1/auth/login-hint`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim() }),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      return {};
+    }
+    return (await res.json()) as LoginHintResponse;
+  } finally {
+    clearTimeout(timer);
   }
-  return res.json() as Promise<LoginHintResponse>;
 }
 
 export interface DashboardResponse {
