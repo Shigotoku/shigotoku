@@ -8,7 +8,7 @@
 import { execSync } from 'node:child_process';
 import { cpSync, mkdirSync, existsSync, rmSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { platform } from 'node:os';
+import { platform, tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { projectEnv } from '../build.config.mjs';
 import { writeWebSeo } from './write-web-seo.mjs';
@@ -19,7 +19,9 @@ const root = join(deployDir, '..');
 const webOut = join(deployDir, 'dist', 'web');
 const clipitIconSrc = join(root, 'clipit', 'extension', 'public', 'icon.png');
 const clipitIconPrepared = join(root, 'web-assets', 'corporate', 'products', 'clipit-icon.png');
-const clipitLpCacheDir = join(deployDir, '.cache', 'clipit-lp-build');
+// Desktop 配下だと node_modules のファイルが EPERM でロックされることがあるため、毎回一時フォルダでビルドする
+const buildCacheRoot = join(tmpdir(), `shigotoku-web-build-${Date.now()}`);
+const clipitLpCacheDir = join(buildCacheRoot, 'clipit-lp-build');
 
 const landingPages = [
   {
@@ -112,14 +114,37 @@ function buildClipitLanding(job) {
   console.log(`✓ ${job.name} -> ${job.out}`);
 }
 
+/** Windows で node_modules の権限が壊れている場合: コピー先で依存を入れ直して astro build し、dist のパスを返す */
+function buildAstroInCache(job) {
+  console.warn(`⚠ ${job.name} build failed; retrying in cache dir`);
+  const cache = join(deployDir, '.cache', `${job.name}-build`);
+  mkdirSync(cache, { recursive: true });
+  cpSync(join(job.cwd, 'package.json'), join(cache, 'package.json'));
+  cpSync(join(job.cwd, 'package-lock.json'), join(cache, 'package-lock.json'));
+  run('npm ci', cache, job.env);
+  for (const item of ['astro.config.mjs', 'tsconfig.json', 'src', 'public', 'picture']) {
+    const src = join(job.cwd, item);
+    if (!existsSync(src)) continue;
+    rmSync(join(cache, item), { recursive: true, force: true });
+    cpSync(src, join(cache, item), { recursive: true });
+  }
+  const astroBin = join(cache, 'node_modules', '.bin', platform() === 'win32' ? 'astro.cmd' : 'astro');
+  run(`"${astroBin}" build`, cache, job.env);
+  return join(cache, 'dist');
+}
 function buildStandardLanding(job) {
   if (!existsSync(join(job.cwd, 'node_modules'))) {
     run('npm ci', job.cwd, job.env);
   }
-  run('npm run build', job.cwd, job.env);
+  let distDir = join(job.cwd, 'dist');
+  try {
+    run('npm run build', job.cwd, job.env);
+  } catch {
+    distDir = buildAstroInCache(job);
+  }
   mkdirSync(dirname(job.out), { recursive: true });
   rmSync(job.out, { recursive: true, force: true });
-  cpSync(join(job.cwd, 'dist'), job.out, { recursive: true });
+  cpSync(distDir, job.out, { recursive: true });
 
   if (!existsSync(join(job.out, 'index.html'))) {
     throw new Error(`${job.name} build did not produce index.html`);
@@ -145,9 +170,14 @@ for (const job of jobs) {
     buildClipitLanding(job);
     run('node scripts/patch-clipit-lp-dist.mjs', deployDir);
   } else if (job.name === 'corporate-site') {
-    run('npm run build', job.cwd, job.env);
+    let distDir = join(job.cwd, 'dist');
+    try {
+      run('npm run build', job.cwd, job.env);
+    } catch {
+      distDir = buildAstroInCache(job);
+    }
     mkdirSync(dirname(job.out), { recursive: true });
-    cpSync(join(job.cwd, 'dist'), job.out, { recursive: true });
+    cpSync(distDir, job.out, { recursive: true });
     console.log(`✓ ${job.name} -> ${job.out}`);
   } else {
     buildStandardLanding(job);

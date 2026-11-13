@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { encodePackId } from "../lib/pageKey";
 import { listIssuesRemote, listOrgFeedbackRemote, listPackMetaRemote } from "../lib/cloudStore";
 import { buildFixPacks, splitPackIntoClusters, type FixPack } from "../lib/fixPacks";
-import { encodePackId } from "../lib/pageKey";
 import type { FixPackMeta } from "../lib/packMeta";
 import type { Feedback, Issue } from "../lib/types";
 import { t } from "../lib/i18n";
