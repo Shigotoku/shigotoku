@@ -1,6 +1,7 @@
 /**
  * リモート MCP エンドポイント（Streamable HTTP・ステートレス）。
- * ユーザーは URL と API キーを AI ツールに貼るだけで使える。サーバー常駐不要（Functions の従量課金のみ）。
+ * どの AI（ChatGPT / Claude / Gemini / Cursor 等）でも、URL とキーだけでバジットへ下書きを送れる。
+ * 安全設計: 承認・予約確定・投稿はできない（常に下書きまで）。
  */
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
@@ -10,16 +11,31 @@ import {
   agentRouter,
   requireAgentKey,
   opAddIdea,
+  opAdaptPost,
   opCheckDuplicate,
   opCreateDraft,
+  opGetPost,
+  opGetUploadUrl,
   opListIdeas,
   opListScheduled,
+  opOverview,
+  opSearchPosts,
+  opTagReport,
+  opUploadMedia,
   type AgentCtx,
   type AgentRequest,
 } from './agentApi';
 
+const PLATFORM = z
+  .enum(['x_thread', 'instagram', 'facebook', 'threads', 'line', 'gbp', 'youtube_shorts', 'tiktok'])
+  .describe('x_thread=X / instagram / facebook / threads / line / gbp=Googleビジネス / youtube_shorts / tiktok');
+
+const INSTRUCTIONS = `バジット(Buzzit)は SNS 投稿の管理アプリです。あなたは「編集長」として下書きを作り、人が確認・承認・予約します（あなたは投稿できません）。
+推奨手順: 1) overview か tag_report で現状と過去のタグ別実績を確認 2) 使用回数の多いタグ・直近の内容と被らない切り口を選ぶ 3) check_duplicate で重複確認 4) 画像/動画があれば upload_media か get_upload_url で送る 5) tags を付けて create_draft 6) 他SNSに展開するなら adapt_post(dryRun で確認→作成)。
+X は本文280字（スレッドは「---」だけの行で区切る・最大5投稿）。Instagram は画像必須、YouTube Shorts / TikTok は動画必須、Googleビジネスはハッシュタグ不要。`;
+
 function buildServer(ctx: AgentCtx): McpServer {
-  const server = new McpServer({ name: 'buzzit', version: '0.2.0' });
+  const server = new McpServer({ name: 'buzzit', version: '0.3.0' }, { instructions: INSTRUCTIONS });
   const run = async (fn: () => Promise<unknown>) => {
     try {
       return { content: [{ type: 'text' as const, text: JSON.stringify(await fn(), null, 2) }] };
@@ -29,47 +45,151 @@ function buildServer(ctx: AgentCtx): McpServer {
   };
 
   server.registerTool(
+    'overview',
+    {
+      description: '全体像を取得: 状態別・媒体別の件数、今後の予定、下書き、直近の投稿結果（インプレッション付き）、失敗。まずこれを呼ぶ。',
+      inputSchema: {},
+    },
+    () => run(() => opOverview(ctx)),
+  );
+
+  server.registerTool(
     'list_scheduled',
     {
-      description:
-        'このキャラの投稿予定・下書き・履歴を取得する。新しい原稿を作る前に既出テーマを確認するために使う。status はカンマ区切り（draft,pending,pending_approval,published,failed）。',
+      description: '投稿予定・下書き・履歴の一覧。status はカンマ区切り（draft,pending,pending_approval,published,failed）。',
       inputSchema: { status: z.string().optional() },
     },
     ({ status }) => run(() => opListScheduled(ctx, status)),
   );
+
   server.registerTool(
-    'list_ideas',
-    { description: 'ネタ帳（ネタInbox）の一覧を取得する。', inputSchema: {} },
-    () => run(() => opListIdeas(ctx)),
+    'get_post',
+    {
+      description: '1件の詳細（全文・画像・投稿結果・Xの投稿URL・インプレッション等）。',
+      inputSchema: { jobId: z.string() },
+    },
+    ({ jobId }) => run(() => opGetPost(ctx, jobId)),
   );
+
+  server.registerTool(
+    'search_posts',
+    {
+      description: '過去の投稿をルールベースで検索（キーワード・タグ・媒体・状態・期間）。',
+      inputSchema: {
+        query: z.string().optional(),
+        tags: z.array(z.string()).optional(),
+        platform: PLATFORM.optional(),
+        status: z.string().optional(),
+        days: z.number().int().positive().optional().describe('直近N日'),
+        limit: z.number().int().positive().max(100).optional(),
+      },
+    },
+    (q) => run(() => opSearchPosts(ctx, q)),
+  );
+
+  server.registerTool(
+    'tag_report',
+    {
+      description:
+        'タグ別の投稿実績（回数・最終日・平均インプレッション・直近の例）と、最近使っていないタグ。「同じタイプの投稿を過去にどう作ったか」を確認し、被らない領域の投稿を作るために使う。',
+      inputSchema: {
+        platform: PLATFORM.optional(),
+        days: z.number().int().positive().default(90),
+      },
+    },
+    (q) => run(() => opTagReport(ctx, q)),
+  );
+
   server.registerTool(
     'check_duplicate',
     {
-      description: '案の文章が過去の投稿・予約・ネタと似ていないか確認する。ネタ登録や下書き作成の前に必ず呼ぶ。',
-      inputSchema: { text: z.string().min(1) },
+      description: '案の文章が過去の投稿・予約・ネタと似ていないか確認（ルールベース、0.5以上で重複の可能性大）。下書き作成の前に必ず呼ぶ。',
+      inputSchema: { text: z.string().min(1), platform: PLATFORM.optional(), tags: z.array(z.string()).optional() },
     },
-    ({ text }) => run(() => opCheckDuplicate(ctx, text)),
+    ({ text, platform, tags }) => run(() => opCheckDuplicate(ctx, text, { platform, tags })),
   );
+
+  server.registerTool(
+    'list_ideas',
+    { description: 'ネタ帳（ネタInbox）の一覧。', inputSchema: {} },
+    () => run(() => opListIdeas(ctx)),
+  );
+
   server.registerTool(
     'add_idea',
     { description: 'ネタ帳にネタを追加する（投稿はされない）。', inputSchema: { text: z.string().min(1).max(2000) } },
     ({ text }) => run(() => opAddIdea(ctx, text)),
   );
+
+  server.registerTool(
+    'upload_media',
+    {
+      description:
+        '画像・動画をバジットに保存して公開URL(mediaUrl)を得る。url（https の公開URL）を渡すのが基本。極小の画像（約700KBまで）のみ base64 でも可。大きな動画は get_upload_url を使う。画像10MB・動画50MBまで。',
+      inputSchema: {
+        url: z.string().url().optional(),
+        base64: z.string().optional(),
+        contentType: z.string().optional().describe('例 image/png, image/jpeg, video/mp4（base64 のとき必須）'),
+        fileName: z.string().optional(),
+      },
+    },
+    (a) => run(() => opUploadMedia(ctx, a)),
+  );
+
+  server.registerTool(
+    'get_upload_url',
+    {
+      description: '大きな動画向け。署名付きアップロードURLを返す。AI側が PUT で送信後、mediaUrl を create_draft に渡す。',
+      inputSchema: { fileName: z.string(), contentType: z.string() },
+    },
+    (a) => run(() => opGetUploadUrl(ctx, a)),
+  );
+
   server.registerTool(
     'create_draft',
     {
       description:
-        '投稿の下書きを作る。必ず下書き状態で保存され、人がバジットで確認・承認・予約するまで投稿されない。X用は platform="x_thread"。スレッドは本文を「---」だけの行で区切る（最大5投稿、各280字）。scheduledAt は未来のISO8601（例 2026-11-20T12:00:00+09:00）。',
+        '投稿の下書きを1件作る（必ず下書き。人が承認・予約するまで投稿されない）。媒体ごとに1件ずつ作る。tags（例: ["医療制度","初心者向け"]）と topic を必ず付けると、後で tag_report で被り確認ができる。scheduledAt は未来のISO8601（例 2026-11-20T12:00:00+09:00）。X のスレッドは本文を「---」だけの行で区切る。Instagram・GBP は mediaUrls に画像、YouTube Shorts・TikTok は動画が必要。',
       inputSchema: {
+        platform: PLATFORM,
         scheduledAt: z.string(),
-        platform: z.string().default('x_thread'),
-        label: z.string().default('Xポスト'),
         content: z.string().min(1).max(5000),
+        label: z.string().optional(),
+        mediaUrls: z.array(z.string().url()).max(6).optional(),
+        tags: z.array(z.string()).max(10).optional(),
+        topic: z.string().max(80).optional().describe('この投稿の主題（例: 医療費控除の基本）'),
       },
     },
-    ({ scheduledAt, platform, label, content }) =>
-      run(() => opCreateDraft(ctx, { scheduledAt, contents: [{ platform, label, content }] })),
+    ({ platform, scheduledAt, content, label, mediaUrls, tags, topic }) =>
+      run(() =>
+        opCreateDraft(ctx, {
+          scheduledAt,
+          contents: [{ platform, label: label ?? '投稿', content }],
+          mediaUrls,
+          tags,
+          topic,
+        }),
+      ),
   );
+
+  server.registerTool(
+    'adapt_post',
+    {
+      description:
+        '既存の投稿（jobId）または文章（text）を、他SNS向けの形式（文字数・ハッシュタグ・画像/動画要件）に整えて下書き化する。ルールベース。まず dryRun=true でプレビューと警告を確認し、問題なければ dryRun=false で scheduledAt を付けて作成。例: Xの投稿 → instagram / gbp / line。',
+      inputSchema: {
+        jobId: z.string().optional(),
+        text: z.string().optional(),
+        mediaUrls: z.array(z.string().url()).optional(),
+        targets: z.array(PLATFORM).min(1),
+        scheduledAt: z.string().optional().describe('基準日時。複数媒体は30分ずつずらして作成'),
+        tags: z.array(z.string()).optional(),
+        dryRun: z.boolean().default(true),
+      },
+    },
+    (a) => run(() => opAdaptPost(ctx, a)),
+  );
+
   return server;
 }
 

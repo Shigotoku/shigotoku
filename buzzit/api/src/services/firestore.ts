@@ -505,6 +505,9 @@ export interface CreateScheduledJobInput {
   ayrshareResponse?: unknown;
   personaId?: string;
   dualApprovalRequired?: boolean;
+  tags?: string[];
+  topic?: string;
+  sourceJobId?: string;
 }
 
 export async function createScheduledJob(uid: string, input: CreateScheduledJobInput): Promise<string> {
@@ -523,6 +526,9 @@ export async function createScheduledJob(uid: string, input: CreateScheduledJobI
     ayrshareResponse: input.ayrshareResponse ?? null,
     ...(input.personaId ? { personaId: input.personaId } : {}),
     ...(input.dualApprovalRequired ? { dualApprovalRequired: true } : {}),
+    ...(input.tags?.length ? { tags: input.tags } : {}),
+    ...(input.topic ? { topic: input.topic } : {}),
+    ...(input.sourceJobId ? { sourceJobId: input.sourceJobId } : {}),
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   });
@@ -536,6 +542,9 @@ export interface ScheduledJobDoc {
   dualApprovalRequired?: boolean;
   firstApprovedBy?: string;
   firstApprovedAt?: string;
+  tags?: string[];
+  topic?: string;
+  sourceJobId?: string;
   contents: ScheduleContentItem[];
   scheduledAt: string;
   publishMode: PublishMode;
@@ -560,6 +569,9 @@ function mapScheduledDoc(uid: string, id: string, data: FirebaseFirestore.Docume
     dualApprovalRequired: data.dualApprovalRequired as boolean | undefined,
     firstApprovedBy: data.firstApprovedBy as string | undefined,
     firstApprovedAt: data.firstApprovedAt as string | undefined,
+    tags: data.tags as string[] | undefined,
+    topic: data.topic as string | undefined,
+    sourceJobId: data.sourceJobId as string | undefined,
     contents: data.contents as ScheduleContentItem[],
     scheduledAt: data.scheduledAt as string,
     publishMode: (data.publishMode as PublishMode) ?? 'notify',
@@ -585,13 +597,14 @@ export async function getScheduledJobs(
   uid: string,
   status?: ScheduledJobStatus | ScheduledJobStatus[],
   personaId?: string,
+  max = 100,
 ): Promise<ScheduledJobDoc[]> {
   let query: FirebaseFirestore.Query = db()
     .collection('users')
     .doc(uid)
     .collection('scheduled')
     .orderBy('scheduledAt', 'desc')
-    .limit(100);
+    .limit(Math.min(500, Math.max(1, max)));
 
   if (status) {
     const statuses = Array.isArray(status) ? status : [status];

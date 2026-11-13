@@ -100,6 +100,13 @@ export default function PostHistoryPanel({
               </button>
               {open && (
                 <div className="space-y-2 border-t border-neutral-100 p-2 text-xs">
+                  {job.tags && job.tags.length > 0 && (
+                    <p className="flex flex-wrap gap-1">
+                      {job.tags.map((t) => (
+                        <span key={t} className="rounded-full bg-violet-50 px-2 py-0.5 text-[11px] text-violet-800">#{t}</span>
+                      ))}
+                    </p>
+                  )}
                   <p className="whitespace-pre-wrap text-neutral-800">{body}</p>
                   {job.mediaUrls?.[0] && (
                     <img src={job.mediaUrls[0]} alt="" className="max-h-40 rounded border border-neutral-200" />

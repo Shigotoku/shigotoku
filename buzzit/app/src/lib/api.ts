@@ -463,6 +463,8 @@ export interface ScheduledJob {
   publishMode: PublishMode;
   status: 'pending_approval' | 'pending' | 'processing' | 'published' | 'notified' | 'failed' | 'draft';
   mediaUrls?: string[];
+  tags?: string[];
+  topic?: string;
   completedMessage?: string;
   errorMessage?: string;
   createdAt: string;

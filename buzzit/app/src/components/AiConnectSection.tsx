@@ -124,9 +124,15 @@ export default function AiConnectSection() {
       ),
     },
   };
-  const cfg = configs[tool];  const prompt = `あなたは「${name}」のSNS編集長です。Buzzit のツールを使って投稿を管理してください。
-手順: 1) list_scheduled で今後の予定と過去の投稿を確認 2) 案ごとに check_duplicate で重複確認 3) 問題なければ create_draft で下書き保存（投稿はされません）。
-ネタだけ残す場合は add_idea を使います。承認と予約はバジット上で人が行います。
+  const cfg = configs[tool];  const prompt = `あなたは「${name}」のSNS編集長です。Buzzit のツールで投稿を管理します（投稿・承認はできず、必ず下書きまで）。
+手順:
+1) overview と tag_report で、今後の予定・過去の投稿・タグ別の実績を確認
+2) 使用回数の多いタグや直近の内容と被らない切り口を選ぶ
+3) check_duplicate で重複確認
+4) 画像・動画があれば upload_media（URL指定）か get_upload_url で送る
+5) tags と topic を付けて create_draft（X・Instagram・YouTube Shorts・Googleビジネスなど媒体ごと）
+6) 他SNSへ展開するときは adapt_post（まず dryRun で確認）
+作成後、下書きの一覧と警告（画像/動画が必要など）を報告してください。
 まず来週分（週◯本）の投稿案を提案してください。`;
 
   return (

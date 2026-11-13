@@ -47,6 +47,7 @@ import {
 import { loadCalendarViewPref, loadDropHourPref, saveCalendarViewPref, saveDropHourPref } from '../lib/schedulePrefs';
 import EmptyState from '../components/EmptyState';
 import PostHistoryPanel from '../components/PostHistoryPanel';
+import SimilarPostsCheck from '../components/SimilarPostsCheck';
 import CloneStaggerModal from '../components/CloneStaggerModal';
 import PersonaPublishConfirmModal from '../components/PersonaPublishConfirmModal';
 import DualApprovalSetupBanner from '../components/DualApprovalSetupBanner';
@@ -1269,6 +1270,13 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
                   {job.contents[0]?.content.slice(0, 100)}
                 </p>
               </div>
+              {job.tags && job.tags.length > 0 && (
+                <p className="mt-2 flex flex-wrap gap-1">
+                  {job.tags.map((t) => (
+                    <span key={t} className="rounded-full bg-violet-50 px-2 py-0.5 text-[11px] text-violet-800">#{t}</span>
+                  ))}
+                </p>
+              )}
               {job.errorMessage && (
                 <p className="mt-2 text-xs text-red-700">{job.errorMessage}</p>
               )}
@@ -1447,6 +1455,12 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
                 </label>
               ))}
             </div>
+
+            <SimilarPostsCheck
+              text={editContents.map((c) => c.content).join('\n')}
+              platform={editContents[0]?.platform}
+              excludeId={editingJob?.id}
+            />
 
             {editError && <p className="mb-3 text-sm text-red-700">{editError}</p>}
 
