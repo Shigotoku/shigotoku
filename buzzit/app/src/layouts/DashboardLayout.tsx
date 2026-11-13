@@ -349,6 +349,7 @@ export default function DashboardLayout() {
     ? getSnsNavPlatform(location.pathname.split('/')[2] ?? '')
     : undefined;
   const isSns = !!snsPlatform;
+  const isFullPage = isSns || location.pathname === '/dashboard';
   const roleLabel = userRole ? ROLE_LABELS[userRole] : 'メンバー';
 
   const navEntries = useMemo(() => filterNav(mainNav, isStaffOnly(userRole)), [userRole]);
@@ -456,7 +457,7 @@ export default function DashboardLayout() {
         </header>
         <div
           className={`relative z-0 flex-1 ${
-            isSns
+            isFullPage
               ? 'flex flex-col overflow-auto p-3 pb-24 lg:overflow-hidden lg:p-3 lg:pb-3'
               : 'overflow-auto p-4 pb-24 md:p-6 lg:p-8 lg:pb-8'
           }`}

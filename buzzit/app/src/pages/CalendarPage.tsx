@@ -46,6 +46,7 @@ import {
 } from '../lib/bulkSchedule';
 import { loadCalendarViewPref, loadDropHourPref, saveCalendarViewPref, saveDropHourPref } from '../lib/schedulePrefs';
 import EmptyState from '../components/EmptyState';
+import PostHistoryPanel from '../components/PostHistoryPanel';
 import CloneStaggerModal from '../components/CloneStaggerModal';
 import PersonaPublishConfirmModal from '../components/PersonaPublishConfirmModal';
 import DualApprovalSetupBanner from '../components/DualApprovalSetupBanner';
@@ -127,7 +128,9 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
   const sns = platformId ? getSnsNavPlatform(platformId) : undefined;
   const [jobs, setJobs] = useState<ScheduledJob[]>([]);
   const [filter, setFilter] = useState<FilterKey>('all');
-  const [viewMode, setViewMode] = useState<ViewMode>(() => loadCalendarViewPref());
+  const [viewMode, setViewMode] = useState<ViewMode>(() => (embedded ? 'month' : loadCalendarViewPref()));
+  const [alertsOpen, setAlertsOpen] = useState(false);
+  const [rightTab, setRightTab] = useState<'history' | 'day'>('history');
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [selectedDay, setSelectedDay] = useState<Date | null>(new Date());
@@ -596,6 +599,111 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
     saveDropHourPref(hour);
   };
 
+  const pickDay = (d: Date) => {
+    setSelectedDay(d);
+    if (embedded) setRightTab('day');
+  };
+
+  const alertCount =
+    ((!platformId || platformId === 'x') && connected.x === false ? 1 : 0) +
+    (failedCount > 0 ? 1 : 0) +
+    (approvalCount > 0 ? 1 : 0) +
+    (gapDays.length > 0 || emptyGaps.length > 0 ? 1 : 0);
+
+  const alertBlocks = (
+    <>
+      {(!platformId || platformId === 'x') && connected.x === false && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          <p className="font-medium">
+            「{activePersona?.name ?? 'このキャラ'}」の X（自動投稿）が未連携です
+          </p>
+          <p className="mt-1 text-xs text-amber-900/85">
+            画面上部の紫バーでキャラを確認し、設定で<strong>同じキャラ</strong>用の X API を接続してください。
+          </p>
+          <Link
+            to={settingsPath({ tab: 'sns', section: 'x' })}
+            className="mt-2 inline-flex min-h-[40px] items-center border border-amber-900 bg-amber-900 px-3 text-xs font-medium text-white"
+          >
+            設定 → X 連携を開く
+          </Link>
+        </div>
+      )}
+
+      {(failedCount > 0 || approvalCount > 0) && (
+        <div className="grid gap-3 md:grid-cols-2">
+          {approvalCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setFilter('pending_approval')}
+              className="flex items-center gap-3 border border-neutral-300 bg-white p-4 text-left hover:border-neutral-900"
+            >
+              <Clock className="h-5 w-5 text-neutral-700" />
+              <div>
+                <p className="text-sm font-medium">承認待ち {approvalCount} 件</p>
+                <p className="text-xs text-neutral-500">タップで絞り込み</p>
+              </div>
+            </button>
+          )}
+          {failedCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setFilter('failed')}
+              className="flex items-center gap-3 border border-red-200 bg-red-50 p-4 text-left hover:border-red-400"
+            >
+              <AlertTriangle className="h-5 w-5 text-red-700" />
+              <div>
+                <p className="text-sm font-medium text-red-800">失敗 {failedCount} 件</p>
+                <p className="text-xs text-red-700/80">再試行でリカバリ</p>
+              </div>
+            </button>
+          )}
+        </div>
+      )}
+
+      {(gapDays.length > 0 || emptyGaps.length > 0) && (
+        <div className={`border border-amber-200 bg-amber-50 text-sm text-amber-950 ${embedded ? 'px-3 py-2' : 'p-3'}`}>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-medium">
+                空き日の穴埋め
+                {embedded && (
+                  <span className="ml-2 font-normal text-amber-900/80">
+                    {emptyGaps.slice(0, 3).map((g) => g.label).join('・') || gapDays.slice(0, 3).join('・')}
+                    {emptyGaps.length > 3 ? ` ほか${emptyGaps.length - 3}日` : ''}
+                  </span>
+                )}
+              </p>
+              {!embedded && (
+                <p className="mt-0.5 text-xs text-amber-900/80">
+                  直近の空き平日: {emptyGaps.slice(0, 5).map((g) => g.label).join('・') || gapDays.join('・')}
+                  {emptyGaps.length > 5 ? ` ほか${emptyGaps.length - 5}日` : ''}
+                </p>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={fillingGaps || draftJobs.filter((j) => j.status === 'draft').length === 0}
+                onClick={() => void fillGapsWithDrafts()}
+                className="inline-flex min-h-[40px] items-center gap-1.5 border border-amber-900 bg-amber-900 px-3 text-xs font-medium text-white disabled:opacity-50"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                {fillingGaps ? '配置中...' : '下書きで空き日を埋める'}
+              </button>
+              <Link
+                to={`/magic-creator?idea=${encodeURIComponent(getPostTemplates()[0]?.idea ?? '今週の空き枠を埋める投稿')}`}
+                className="inline-flex min-h-[40px] items-center border border-amber-800 px-3 text-xs"
+              >
+                ネタを作って埋める
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </>
+  );
+
   return (
     <div
       className={embedded ? 'flex min-h-0 flex-1 flex-col gap-2 lg:gap-3' : 'buzz-page'}
@@ -627,22 +735,7 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
         </p>
       )}
 
-      {(!platformId || platformId === 'x') && connected.x === false && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-          <p className="font-medium">
-            「{activePersona?.name ?? 'このキャラ'}」の X（自動投稿）が未連携です
-          </p>
-          <p className="mt-1 text-xs text-amber-900/85">
-            画面上部の紫バーでキャラを確認し、設定で<strong>同じキャラ</strong>用の X API を接続してください。
-          </p>
-          <Link
-            to={settingsPath({ tab: 'sns', section: 'x' })}
-            className="mt-2 inline-flex min-h-[40px] items-center border border-amber-900 bg-amber-900 px-3 text-xs font-medium text-white"
-          >
-            設定 → X 連携を開く
-          </Link>
-        </div>
-      )}
+      {!embedded && alertBlocks}
 
       <div className={embedded ? 'hidden' : 'flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'}>
         <p className="text-xs text-neutral-500">
@@ -742,81 +835,21 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
         </section>
       )}
 
-      {(failedCount > 0 || approvalCount > 0) && (
-        <div className="grid gap-3 md:grid-cols-2">
-          {approvalCount > 0 && (
-            <button
-              type="button"
-              onClick={() => setFilter('pending_approval')}
-              className="flex items-center gap-3 border border-neutral-300 bg-white p-4 text-left hover:border-neutral-900"
-            >
-              <Clock className="h-5 w-5 text-neutral-700" />
-              <div>
-                <p className="text-sm font-medium">承認待ち {approvalCount} 件</p>
-                <p className="text-xs text-neutral-500">タップで絞り込み</p>
-              </div>
-            </button>
-          )}
-          {failedCount > 0 && (
-            <button
-              type="button"
-              onClick={() => setFilter('failed')}
-              className="flex items-center gap-3 border border-red-200 bg-red-50 p-4 text-left hover:border-red-400"
-            >
-              <AlertTriangle className="h-5 w-5 text-red-700" />
-              <div>
-                <p className="text-sm font-medium text-red-800">失敗 {failedCount} 件</p>
-                <p className="text-xs text-red-700/80">再試行でリカバリ</p>
-              </div>
-            </button>
-          )}
-        </div>
-      )}
-
-      {(gapDays.length > 0 || emptyGaps.length > 0) && (
-        <div className={`border border-amber-200 bg-amber-50 text-sm text-amber-950 ${embedded ? 'px-3 py-2' : 'p-3'}`}>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="font-medium">
-                空き日の穴埋め
-                {embedded && (
-                  <span className="ml-2 font-normal text-amber-900/80">
-                    {emptyGaps.slice(0, 3).map((g) => g.label).join('・') || gapDays.slice(0, 3).join('・')}
-                    {emptyGaps.length > 3 ? ` ほか${emptyGaps.length - 3}日` : ''}
-                  </span>
-                )}
-              </p>
-              {!embedded && (
-                <p className="mt-0.5 text-xs text-amber-900/80">
-                  直近の空き平日: {emptyGaps.slice(0, 5).map((g) => g.label).join('・') || gapDays.join('・')}
-                  {emptyGaps.length > 5 ? ` ほか${emptyGaps.length - 5}日` : ''}
-                </p>
-              )}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                disabled={fillingGaps || draftJobs.filter((j) => j.status === 'draft').length === 0}
-                onClick={() => void fillGapsWithDrafts()}
-                className="inline-flex min-h-[40px] items-center gap-1.5 border border-amber-900 bg-amber-900 px-3 text-xs font-medium text-white disabled:opacity-50"
-              >
-                <Sparkles className="h-3.5 w-3.5" />
-                {fillingGaps ? '配置中...' : '下書きで空き日を埋める'}
-              </button>
-              <Link
-                to={`/magic-creator?idea=${encodeURIComponent(getPostTemplates()[0]?.idea ?? '今週の空き枠を埋める投稿')}`}
-                className="inline-flex min-h-[40px] items-center border border-amber-800 px-3 text-xs"
-              >
-                ネタを作って埋める
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
-
       {message && <p className="buzz-alert buzz-alert-info text-sm">{message}</p>}
 
       <div className="flex flex-wrap gap-2">
+        {embedded && (
+          <button
+            type="button"
+            onClick={() => setAlertsOpen((v) => !v)}
+            className={`inline-flex min-h-[36px] items-center gap-1.5 border px-3 text-sm font-medium ${
+              alertCount > 0 ? 'border-amber-600 bg-amber-50 text-amber-900' : 'border-neutral-200 bg-white text-neutral-500'
+            }`}
+          >
+            <AlertTriangle className="h-4 w-4" />
+            注意{alertCount > 0 ? ` (${alertCount})` : ''}
+          </button>
+        )}
         {(['week', 'month'] as ViewMode[]).map((m) => (
           <button
             key={m}
@@ -857,6 +890,12 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
           </button>
         ))}
       </div>
+
+      {embedded && alertsOpen && (
+        <div className="max-h-[45vh] shrink-0 space-y-2 overflow-auto rounded-xl border border-amber-200 bg-white p-2 shadow-sm">
+          {alertCount === 0 ? <p className="p-2 text-sm text-neutral-500">注意事項はありません。</p> : alertBlocks}
+        </div>
+      )}
 
       <div className={embedded ? 'grid min-h-0 flex-1 gap-3 lg:grid-cols-5 lg:gap-4' : 'grid gap-6 lg:grid-cols-5'}>
         <div
@@ -961,7 +1000,7 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
                       <button
                         key={date.toISOString()}
                         type="button"
-                        onClick={() => setSelectedDay(date)}
+                        onClick={() => pickDay(date)}
                         className={`truncate py-1 ${selected ? 'font-bold text-neutral-900' : ''}`}
                       >
                         {date.toLocaleDateString('ja-JP', { weekday: 'short', day: 'numeric' })}
@@ -993,7 +1032,7 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
                         <div
                           key={`${date.toDateString()}-${hour}`}
                           {...dateDropProps(date, hour)}
-                          onClick={() => setSelectedDay(date)}
+                          onClick={() => pickDay(date)}
                           className={`cursor-pointer overflow-hidden border p-1 transition-colors ${embedded ? 'min-h-[36px]' : 'min-h-[52px]'} ${
                             isDrop
                               ? 'border-neutral-900 bg-amber-50'
@@ -1053,7 +1092,7 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
                   <div key={d}>{d}</div>
                 ))}
               </div>
-              <div className="grid grid-cols-7 gap-1">
+              <div className={`grid grid-cols-7 gap-1 ${embedded ? 'min-h-0 flex-1 auto-rows-fr' : ''}`}>
                 {calendarCells.map((cell, i) => {
                   if (!cell.date) return <div key={`pad-${i}`} className="min-h-[64px]" />;
                   const selected = selectedDay && sameDay(cell.date, selectedDay);
@@ -1063,7 +1102,7 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
                     <button
                       key={cell.date.toISOString()}
                       type="button"
-                      onClick={() => setSelectedDay(cell.date)}
+                      onClick={() => cell.date && pickDay(cell.date)}
                       {...dateDropProps(cell.date, undefined, true)}
                       className={`min-h-[64px] border p-1.5 text-left transition-colors ${
                         isDrop
@@ -1105,6 +1144,25 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
         </div>
 
         <div className={`space-y-3 lg:col-span-2 ${embedded ? 'lg:min-h-0 lg:overflow-y-auto' : ''}`}>
+          {embedded && (
+            <div className="flex gap-1">
+              {([['history', '投稿履歴'], ['day', '選択した日']] as const).map(([k, label]) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setRightTab(k)}
+                  className={`border px-3 py-1 text-sm ${rightTab === k ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-200 bg-white'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+          {embedded && rightTab === 'history' && (
+            <PostHistoryPanel jobs={scopedJobs} platformId={platformId} day={null} onClearDay={() => {}} />
+          )}
+          {(!embedded || rightTab === 'day') && (
+            <>
           <div className="flex items-center justify-between">
             <h3 className="font-semibold">
               {selectedDay
@@ -1294,6 +1352,8 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
               </div>
             </div>
           ))}
+            </>
+          )}
         </div>
       </div>
 
