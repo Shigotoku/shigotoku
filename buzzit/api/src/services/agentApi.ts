@@ -9,6 +9,7 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { requireAuth, type AuthedRequest } from '../middleware/auth';
 import { createScheduledJob, getScheduledJobs, getScheduledJob, listPostInsights, getPostingPlan, savePostingPlan, getUserSettings, type PlanSlot, type ScheduledJobDoc } from './firestore';
 import { postToSlackWebhook } from './slack';
+import { lintPost } from './postLint';
 import { lookup } from 'node:dns/promises';
 import net from 'node:net';
 import { uploadBufferToGcp, createSignedUploadUrl } from './storage';
@@ -157,6 +158,7 @@ export async function opListIdeas(ctx: AgentCtx) {
 export async function opAddIdea(ctx: AgentCtx, text: string) {
   if (!text?.trim()) throw new Error('text が必要です');
   const idea = await addIdeaInbox(ctx.uid, { text: text.slice(0, 2000), author: 'AI', authorRole: 'ai' });
+  await writeAuditLog(ctx.uid, 'agent.idea.add', text.slice(0, 60));
   return { idea };
 }
 
@@ -467,6 +469,7 @@ export async function opCreateDraft(
     topic?: string;
     sourceJobId?: string;
     silent?: boolean;
+    aiGeneratedMedia?: boolean;
   },
 ) {
   const { contents, scheduledAt } = input;
@@ -494,6 +497,11 @@ export async function opCreateDraft(
   const kind = items[0].platform;
   if ((kind === 'instagram' || kind === 'gbp') && !mediaUrls.length) warnings.push('この媒体は画像が必要です。upload_media で追加してください。');
   if ((kind === 'youtube_shorts' || kind === 'tiktok') && !mediaUrls.length) warnings.push('動画が必要です。get_upload_url / upload_media で追加してください。');
+  for (const it of items) {
+    for (const i of lintPost(it.content, { platform: it.platform, mediaUrls })) {
+      warnings.push(`[${i.rule}] ${i.message}`);
+    }
+  }
   const jobId = await createScheduledJob(ctx.uid, {
     contents: items,
     scheduledAt: when.toISOString(),
@@ -505,6 +513,7 @@ export async function opCreateDraft(
     topic: input.topic?.slice(0, 80),
     sourceJobId: input.sourceJobId,
     createdBy: 'ai',
+    aiGeneratedMedia: input.aiGeneratedMedia === true,
   });
   await writeAuditLog(ctx.uid, 'agent.draft.create', `${items.length}件`, { jobId });
   if (!input.silent) {
@@ -577,6 +586,13 @@ export async function opAdaptPost(
     created.push({ platform: r.platform, jobId: d.jobId, scheduledAt: at, warnings: [...r.warnings, ...d.warnings] });
   }
   return { success: true, created, message: '各SNS向けの下書きを作成しました。メディア要件などの警告を確認してください。' };
+}
+
+/** 投稿文のルールベース簡易チェック（医療広告・景表法で問題になりやすい表現、媒体仕様） */
+export async function opLintPost(_ctx: AgentCtx, input: { text: string; platform?: string; mediaUrls?: string[] }) {
+  if (!input.text?.trim()) throw new Error('text が必要です');
+  const issues = lintPost(input.text, { platform: input.platform, mediaUrls: input.mediaUrls });
+  return { ok: !issues.some((i) => i.level === 'warn'), issues, note: '参考情報です。法的判断ではないため、最終確認は人が行ってください。' };
 }
 
 // ---- 投稿計画 ----
@@ -689,7 +705,9 @@ agentRouter.post('/similar', requireAuth, async (req: AuthedRequest, res) => {
   try {
     const personaId = await resolveActivePersonaId(req.uid!);
     const b = req.body as { text?: string; platform?: string; tags?: string[] };
-    res.json(await opCheckDuplicate({ uid: req.uid!, personaId }, b.text ?? '', { platform: b.platform, tags: b.tags }));
+    const ctx = { uid: req.uid!, personaId };
+    const dup = await opCheckDuplicate(ctx, b.text ?? '', { platform: b.platform, tags: b.tags });
+    res.json({ ...dup, lint: lintPost(b.text ?? '', { platform: b.platform }) });
   } catch (err) {
     res.status(400).json({ error: err instanceof Error ? err.message : '失敗しました' });
   }

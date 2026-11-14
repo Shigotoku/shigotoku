@@ -25,7 +25,7 @@ const STATUS: Record<string, string> = {
 /** 作成・編集中の文章と似た過去投稿を、ボタン1つで表示（ルールベース・AI不使用） */
 export default function SimilarPostsCheck({ text, platform, excludeId }: { text: string; platform?: string; excludeId?: string }) {
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<{ duplicate: boolean; matches: Match[] } | null>(null);
+  const [result, setResult] = useState<{ duplicate: boolean; matches: Match[]; lint?: Array<{ level: string; rule: string; match?: string; message: string }> } | null>(null);
   const [error, setError] = useState('');
 
   const run = async () => {
@@ -56,11 +56,19 @@ export default function SimilarPostsCheck({ text, platform, excludeId }: { text:
         className="inline-flex items-center gap-1.5 border border-neutral-300 px-3 py-1.5 text-xs font-medium hover:border-neutral-900 disabled:opacity-50"
       >
         <Search className="h-3.5 w-3.5" />
-        {busy ? '確認中…' : '過去の類似投稿を確認'}
+        {busy ? '確認中…' : '過去の類似投稿・表現を確認'}
       </button>
       {error && <p className="text-xs text-red-700">{error}</p>}
       {result && (
         <div className="space-y-1.5">
+          {(result.lint ?? []).map((l, i) => (
+            <p key={i} className={`rounded border px-2 py-1 text-xs ${l.level === 'warn' ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-neutral-200 bg-neutral-50 text-neutral-700'}`}>
+              <b>{l.rule}</b>{l.match ? `「${l.match}」` : ''}: {l.message}
+            </p>
+          ))}
+          {(result.lint ?? []).some((l) => l.level === 'warn') && (
+            <p className="text-[11px] text-neutral-500">※ ルールによる簡易チェックです。法的判断ではないため、最終確認は必ず人が行ってください。</p>
+          )}
           <p className={`text-xs font-medium ${result.matches.some((m) => m.score >= 0.5) ? 'text-red-700' : 'text-emerald-700'}`}>
             {result.matches.length === 0
               ? '似た過去の投稿は見つかりませんでした。'

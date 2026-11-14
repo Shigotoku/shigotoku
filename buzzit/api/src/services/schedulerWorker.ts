@@ -48,6 +48,7 @@ export async function processDueScheduledJobs(): Promise<{ processed: number; er
         job.contents,
         job.scheduledAt,
         job.mediaUrls,
+        job.aiGeneratedMedia,
       );
 
       const finalStatus =

@@ -65,6 +65,21 @@ function isEditableStatus(status: ScheduledJob['status']): status is EditableSta
   return status === 'pending' || status === 'pending_approval' || status === 'draft' || status === 'failed';
 }
 
+const PLATFORM_LIMITS: Record<string, number> = { x_thread: 280, threads: 500, instagram: 2200, reels: 2200, carousel: 2200, facebook: 5000, line: 500, gbp: 1500, tiktok: 2200, youtube_shorts: 5000 };
+
+function CharCount({ platform, text }: { platform: string; text: string }) {
+  const limit = PLATFORM_LIMITS[platform];
+  const len = [...text].length;
+  if (!limit) return <span className="text-neutral-400">{len}字</span>;
+  const perPost = platform === 'x_thread' ? Math.max(...text.split(/\n---\n/).map((p) => [...p.trim()].length), 0) : len;
+  const over = perPost > limit;
+  return (
+    <span className={over ? 'text-red-700' : 'text-neutral-400'}>
+      {platform === 'x_thread' ? `最長 ${perPost}/${limit}字` : `${len}/${limit}字`}
+    </span>
+  );
+}
+
 type FilterKey = 'all' | 'pending_approval' | 'pending' | 'failed' | 'done' | 'draft';
 type ViewMode = 'month' | 'week';
 
@@ -139,6 +154,8 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
   const [editTags, setEditTags] = useState<string[]>([]);
   const [editTopic, setEditTopic] = useState('');
   const [editMedia, setEditMedia] = useState<string[]>([]);
+  const [editAi, setEditAi] = useState(false);
+  const [search, setSearch] = useState('');
   const [rightTab, setRightTab] = useState<'history' | 'day'>('history');
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
@@ -211,12 +228,17 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
   }, [jobs, platformId]);
 
   const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
     return scopedJobs.filter((j) => {
+      if (q) {
+        const hay = [...j.contents.map((c) => c.content), ...(j.tags ?? []), j.topic ?? ''].join('\n').toLowerCase();
+        if (!hay.includes(q.replace(/^#/, ''))) return false;
+      }
       if (filter === 'all') return true;
       if (filter === 'done') return j.status === 'published' || j.status === 'notified';
       return j.status === filter;
     });
-  }, [scopedJobs, filter]);
+  }, [scopedJobs, filter, search]);
 
   const gapDays = useMemo(() => {
     const start = viewMode === 'week' ? weekStart : startOfWeek(new Date());
@@ -313,6 +335,7 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
     setEditTags(job.tags ?? []);
     setEditTopic(job.topic ?? '');
     setEditMedia(job.mediaUrls ?? []);
+    setEditAi(job.aiGeneratedMedia === true);
     setEditContents(
       job.contents.map((c) => ({
         ...c,
@@ -342,6 +365,7 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
         tags: editTags,
         topic: editTopic,
         mediaUrls: editMedia,
+        aiGeneratedMedia: editAi,
       });
       setMessage('予約内容を更新しました');
       setEditingJob(null);
@@ -904,6 +928,12 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
             {filterLabels[key]}
           </button>
         ))}
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="本文・#タグで検索"
+          className="ml-auto w-44 border border-neutral-200 bg-white px-3 py-1.5 text-sm focus:border-neutral-900 focus:outline-none"
+        />
       </div>
 
       {embedded && alertsOpen && (
@@ -1470,7 +1500,10 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
             <div className="mb-4 space-y-3">
               {editContents.map((item, idx) => (
                 <label key={`${item.platform}-${idx}`} className="block">
-                  <span className="mb-1 block text-xs font-medium text-neutral-700">{item.label}</span>
+                  <span className="mb-1 flex items-center justify-between text-xs font-medium text-neutral-700">
+                    <span>{item.label}</span>
+                    <CharCount platform={item.platform} text={item.content} />
+                  </span>
                   <textarea
                     value={item.content}
                     onChange={(e) => {
@@ -1489,6 +1522,8 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
               tags={editTags}
               topic={editTopic}
               mediaUrls={editMedia}
+              aiGeneratedMedia={editAi}
+              onAiChange={setEditAi}
               onChange={(v) => {
                 setEditTags(v.tags);
                 setEditTopic(v.topic);

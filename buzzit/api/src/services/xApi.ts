@@ -179,11 +179,13 @@ async function postSingleTweet(
   bodyText: string,
   mediaIds: string[],
   replyTo?: string,
+  madeWithAi?: boolean,
 ): Promise<XPublishResult> {
   const tweetUrl = 'https://api.x.com/2/tweets';
   const payload: Record<string, unknown> = { text: bodyText };
   if (mediaIds.length > 0) payload.media = { media_ids: mediaIds };
   if (replyTo) payload.reply = { in_reply_to_tweet_id: replyTo };
+  if (madeWithAi && mediaIds.length > 0) payload.made_with_ai = true;
 
   const auth = oauthHeader('POST', tweetUrl, creds);
   const res = await fetch(tweetUrl, {
@@ -223,6 +225,7 @@ export async function postTweetWithXApi(
   text: string,
   mediaUrls?: string[],
   mediaAltTexts?: string[],
+  madeWithAi?: boolean,
 ): Promise<XPublishResult> {
   const parts = splitThreadParts(text);
   if (!parts.length) {
@@ -245,6 +248,7 @@ export async function postTweetWithXApi(
         parts[i],
         i === 0 ? mediaIds : [],
         replyTo,
+        madeWithAi,
       );
       if (!result.success) {
         if (i === 0) return result;

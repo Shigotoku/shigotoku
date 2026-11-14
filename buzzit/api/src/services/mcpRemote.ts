@@ -17,6 +17,7 @@ import {
   opGetPost,
   opGetUploadUrl,
   opListIdeas,
+  opLintPost,
   opListScheduled,
   opOverview,
   opGetPlan,
@@ -34,7 +35,7 @@ const PLATFORM = z
   .describe('x_thread=X / instagram / facebook / threads / line / gbp=Googleビジネス / youtube_shorts / tiktok');
 
 const INSTRUCTIONS = `バジット(Buzzit)は SNS 投稿の管理アプリです。あなたは「編集長」として下書きを作り、人が確認・承認・予約します（あなたは投稿できません）。
-推奨手順: 0) 投稿計画があれば plan_gaps で埋めるべき枠（日時・媒体・テーマ）を取得し、その枠に沿って作る 1) overview か tag_report / performance_report で現状と過去の実績（伸びた型）を確認 2) 使用回数の多いタグ・直近の内容と被らない切り口を選ぶ 3) check_duplicate で重複確認 4) 画像/動画があれば upload_media か get_upload_url で送る 5) tags を付けて create_draft 6) 他SNSに展開するなら adapt_post(dryRun で確認→作成)。
+推奨手順: 0) 投稿計画があれば plan_gaps で埋めるべき枠（日時・媒体・テーマ）を取得し、その枠に沿って作る 1) overview か tag_report / performance_report で現状と過去の実績（伸びた型）を確認 2) 使用回数の多いタグ・直近の内容と被らない切り口を選ぶ 3) check_duplicate で重複確認 / lint_post で表現チェック 4) 画像/動画があれば upload_media か get_upload_url で送る 5) tags を付けて create_draft 6) 他SNSに展開するなら adapt_post(dryRun で確認→作成)。
 X は本文280字（スレッドは「---」だけの行で区切る・最大5投稿）。Instagram は画像必須、YouTube Shorts / TikTok は動画必須、Googleビジネスはハッシュタグ不要。`;
 
 function buildServer(ctx: AgentCtx): McpServer {
@@ -139,6 +140,16 @@ function buildServer(ctx: AgentCtx): McpServer {
   );
 
   server.registerTool(
+    'lint_post',
+    {
+      description:
+        '投稿文のルールベース簡易チェック。医療広告ガイドライン・景表法で問題になりやすい表現（効果の保証・最上級・体験談・ビフォーアフター等）や媒体仕様（InstagramはJPEGのみ等）を警告する。下書き作成前に使う。法的判断ではない。',
+      inputSchema: { text: z.string().min(1), platform: PLATFORM.optional(), mediaUrls: z.array(z.string()).optional() },
+    },
+    (a) => run(() => opLintPost(ctx, a)),
+  );
+
+  server.registerTool(
     'list_ideas',
     { description: 'ネタ帳（ネタInbox）の一覧。', inputSchema: {} },
     () => run(() => opListIdeas(ctx)),
@@ -187,9 +198,10 @@ function buildServer(ctx: AgentCtx): McpServer {
         mediaUrls: z.array(z.string().url()).max(6).optional(),
         tags: z.array(z.string()).max(10).optional(),
         topic: z.string().max(80).optional().describe('この投稿の主題（例: 医療費控除の基本）'),
+        aiGeneratedMedia: z.boolean().optional().describe('画像・動画をAIで生成/大幅加工した場合 true（X・Instagramの公式AIラベルを付けて投稿される）'),
       },
     },
-    ({ platform, scheduledAt, content, label, mediaUrls, tags, topic }) =>
+    ({ platform, scheduledAt, content, label, mediaUrls, tags, topic, aiGeneratedMedia }) =>
       run(() =>
         opCreateDraft(ctx, {
           scheduledAt,
@@ -197,6 +209,7 @@ function buildServer(ctx: AgentCtx): McpServer {
           mediaUrls,
           tags,
           topic,
+          aiGeneratedMedia,
         }),
       ),
   );

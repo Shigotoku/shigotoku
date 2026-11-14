@@ -466,6 +466,7 @@ export interface ScheduledJob {
   tags?: string[];
   topic?: string;
   createdBy?: 'ai' | 'user';
+  aiGeneratedMedia?: boolean;
   completedMessage?: string;
   errorMessage?: string;
   createdAt: string;
@@ -529,6 +530,7 @@ export function updateScheduledJob(
     tags?: string[];
     topic?: string;
     mediaUrls?: string[];
+    aiGeneratedMedia?: boolean;
   },
 ) {
   return request<{ success: boolean; job: ScheduledJob }>(`/v1/scheduled/${id}`, {

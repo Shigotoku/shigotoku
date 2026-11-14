@@ -509,6 +509,7 @@ export interface CreateScheduledJobInput {
   topic?: string;
   sourceJobId?: string;
   createdBy?: 'ai' | 'user';
+  aiGeneratedMedia?: boolean;
 }
 
 export async function createScheduledJob(uid: string, input: CreateScheduledJobInput): Promise<string> {
@@ -531,6 +532,7 @@ export async function createScheduledJob(uid: string, input: CreateScheduledJobI
     ...(input.topic ? { topic: input.topic } : {}),
     ...(input.sourceJobId ? { sourceJobId: input.sourceJobId } : {}),
     ...(input.createdBy ? { createdBy: input.createdBy } : {}),
+    ...(input.aiGeneratedMedia ? { aiGeneratedMedia: true } : {}),
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   });
@@ -548,6 +550,7 @@ export interface ScheduledJobDoc {
   topic?: string;
   sourceJobId?: string;
   createdBy?: 'ai' | 'user';
+  aiGeneratedMedia?: boolean;
   contents: ScheduleContentItem[];
   scheduledAt: string;
   publishMode: PublishMode;
@@ -576,6 +579,7 @@ function mapScheduledDoc(uid: string, id: string, data: FirebaseFirestore.Docume
     topic: data.topic as string | undefined,
     sourceJobId: data.sourceJobId as string | undefined,
     createdBy: data.createdBy as 'ai' | 'user' | undefined,
+    aiGeneratedMedia: data.aiGeneratedMedia === true ? true : undefined,
     contents: data.contents as ScheduleContentItem[],
     scheduledAt: data.scheduledAt as string,
     publishMode: (data.publishMode as PublishMode) ?? 'notify',
@@ -866,6 +870,7 @@ export async function updateScheduledJob(
     tags?: string[];
     topic?: string;
     mediaUrls?: string[];
+    aiGeneratedMedia?: boolean;
   },
 ): Promise<ScheduledJobDoc | null> {
   const ref = db().collection('users').doc(uid).collection('scheduled').doc(jobId);
@@ -883,6 +888,7 @@ export async function updateScheduledJob(
   if (patch.tags !== undefined) updates.tags = patch.tags;
   if (patch.topic !== undefined) updates.topic = patch.topic;
   if (patch.mediaUrls !== undefined) updates.mediaUrls = patch.mediaUrls;
+  if (patch.aiGeneratedMedia !== undefined) updates.aiGeneratedMedia = patch.aiGeneratedMedia;
   if (patch.publishMode !== undefined) {
     updates.publishMode = patch.publishMode;
     if (status === 'draft' || status === 'failed') {

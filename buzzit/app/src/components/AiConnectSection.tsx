@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Bot, Copy, Check, KeyRound, Trash2 } from 'lucide-react';
-import { API_BASE, authFetch } from '../lib/api';
+import { API_BASE, authFetch, fetchAuditLogs } from '../lib/api';
 import { usePersona } from '../store/personaContext';
 
 type Tool = 'web' | 'cursor' | 'claudeCode' | 'gemini';
@@ -63,8 +63,12 @@ export default function AiConnectSection() {
     }
   }, []);
 
+  const [logs, setLogs] = useState<Array<{ id: string; action: string; detail: string; createdAt: string }>>([]);
   useEffect(() => {
     load();
+    fetchAuditLogs()
+      .then((r) => setLogs(r.logs.filter((l) => l.action.startsWith('agent')).slice(0, 8)))
+      .catch(() => undefined);
   }, [load]);
 
   if (!activePersona) return null;
@@ -217,6 +221,20 @@ export default function AiConnectSection() {
               </button>
             </div>
           ))}
+        </div>
+      )}
+
+      {logs.length > 0 && (
+        <div className="space-y-1">
+          <p className="text-xs font-semibold text-neutral-700">AIの操作履歴（直近）</p>
+          {logs.map((l) => (
+            <p key={l.id} className="rounded-lg border border-neutral-100 px-3 py-1.5 text-xs text-neutral-700">
+              <span className="text-neutral-400">{new Date(l.createdAt).toLocaleString('ja-JP')}</span>{' '}
+              {l.action === 'agent.draft.create' ? '下書きを作成' : l.action === 'agent.idea.add' ? 'ネタを追加' : l.action === 'agent_key.create' ? 'キーを発行' : l.action === 'agent_key.revoke' ? 'キーを無効化' : l.action}
+              {l.detail ? ` · ${l.detail}` : ''}
+            </p>
+          ))}
+          <p className="text-[11px] text-neutral-500">AIは下書きとネタの追加しかできません。予約・承認・投稿は必ずあなたが行います。</p>
         </div>
       )}
     </div>

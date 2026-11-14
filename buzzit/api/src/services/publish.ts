@@ -40,6 +40,7 @@ export async function executePublish(
   contents: ScheduleContentItem[],
   scheduledAt: string,
   mediaUrls?: string[],
+  aiGeneratedMedia?: boolean,
 ): Promise<PublishOutcome> {
   const effectiveMode = mode === 'auto' ? resolveAutoMode(settings) : mode;
 
@@ -53,7 +54,7 @@ export async function executePublish(
         const fallback = await notifyUser(settings, contents, scheduledAt);
         return { ...fallback, message: `Meta 未連携のため通知に切替: ${fallback.message}` };
       }
-      const results = await publishToMeta(conn, contents, mediaUrls);
+      const results = await publishToMeta(conn, contents, mediaUrls, aiGeneratedMedia);
       const anyOk = results.some((r) => r.success);
       if (anyOk) {
         return {
@@ -107,7 +108,7 @@ export async function executePublish(
         };
       }
       const text = pickXPostText(contents);
-      const result = await postTweetWithXApi(creds, text, mediaUrls);
+      const result = await postTweetWithXApi(creds, text, mediaUrls, undefined, aiGeneratedMedia);
       if (result.success) {
         const count = await incrementXApiPostCount(uid);
         return {

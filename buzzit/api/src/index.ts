@@ -631,16 +631,17 @@ api.post('/v1/scheduled/:id/draft', requireAuth, async (req: AuthedRequest, res)
 });
 
 api.patch('/v1/scheduled/:id', requireAuth, async (req: AuthedRequest, res) => {
-  const { scheduledAt, contents, publishMode, tags, topic, mediaUrls } = req.body as {
+  const { scheduledAt, contents, publishMode, tags, topic, mediaUrls, aiGeneratedMedia } = req.body as {
     scheduledAt?: string;
     contents?: Array<{ platform: string; label: string; content: string; carouselSlides?: string[] }>;
     publishMode?: PublishMode;
     tags?: string[];
     topic?: string;
     mediaUrls?: string[];
+    aiGeneratedMedia?: boolean;
   };
 
-  if (scheduledAt === undefined && contents === undefined && publishMode === undefined && tags === undefined && topic === undefined && mediaUrls === undefined) {
+  if (scheduledAt === undefined && contents === undefined && publishMode === undefined && tags === undefined && topic === undefined && mediaUrls === undefined && aiGeneratedMedia === undefined) {
     res.status(400).json({ error: '更新する項目がありません' });
     return;
   }
@@ -692,6 +693,7 @@ api.patch('/v1/scheduled/:id', requireAuth, async (req: AuthedRequest, res) => {
       ? [...new Set(tags.map((t) => String(t).replace(/^[#＃]/, '').trim().slice(0, 30)).filter(Boolean))].slice(0, 10)
       : undefined,
     topic: typeof topic === 'string' ? topic.slice(0, 80) : undefined,
+    aiGeneratedMedia: typeof aiGeneratedMedia === 'boolean' ? aiGeneratedMedia : undefined,
     mediaUrls: Array.isArray(mediaUrls)
       ? mediaUrls.filter((u) => typeof u === 'string' && /^https:\/\//.test(u)).slice(0, 6)
       : undefined,

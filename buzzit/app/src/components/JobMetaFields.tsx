@@ -11,11 +11,15 @@ export default function JobMetaFields({
   topic,
   mediaUrls,
   onChange,
+  aiGeneratedMedia,
+  onAiChange,
 }: {
   tags: string[];
   topic: string;
   mediaUrls: string[];
   onChange: (v: { tags: string[]; topic: string; mediaUrls: string[] }) => void;
+  aiGeneratedMedia?: boolean;
+  onAiChange?: (v: boolean) => void;
 }) {
   const [tagInput, setTagInput] = useState('');
   const [busy, setBusy] = useState(false);
@@ -145,6 +149,14 @@ export default function JobMetaFields({
           />
         </div>
         {error && <p className="mt-1 text-xs text-red-700">{error}</p>}
+        {onAiChange && (
+          <label className="mt-2 flex items-start gap-2 text-xs text-neutral-700">
+            <input type="checkbox" checked={!!aiGeneratedMedia} onChange={(e) => onAiChange(e.target.checked)} className="mt-0.5" />
+            <span>
+              画像・動画をAIで生成/大幅加工している（X・Instagram の公式「AI生成」ラベルを付けて投稿します。リアルな人物・出来事の表現では特に推奨）
+            </span>
+          </label>
+        )}
       </div>
     </div>
   );

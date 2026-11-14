@@ -87,16 +87,41 @@ export async function resolveMetaAccounts(accessToken: string): Promise<{
   };
 }
 
+const isVideoUrl = (u: string) => /\.(mp4|mov|webm)(\?|$)/i.test(u);
+
+async function waitContainerReady(containerId: string, token: string): Promise<string | null> {
+  for (let i = 0; i < 10; i++) {
+    const url = `https://graph.facebook.com/v21.0/${containerId}?fields=status_code&access_token=${encodeURIComponent(token)}`;
+    try {
+      const res = await fetch(url);
+      const data = (await res.json()) as { status_code?: string };
+      if (data.status_code === 'FINISHED') return null;
+      if (data.status_code === 'ERROR' || data.status_code === 'EXPIRED') return `動画の処理に失敗しました (${data.status_code})`;
+    } catch {
+      /* retry */
+    }
+    await new Promise((r) => setTimeout(r, 4000));
+  }
+  return '動画の処理が時間内に終わりませんでした。まだ投稿されていません。しばらくして再試行してください';
+}
+
 async function publishInstagramImage(
   igUserId: string,
   token: string,
   imageUrl: string,
   caption: string,
+  aiGenerated?: boolean,
 ): Promise<MetaPublishResult> {
+  const video = isVideoUrl(imageUrl);
   const container = await graphPost(`/${igUserId}/media`, token, {
-    image_url: imageUrl,
+    ...(video ? { media_type: 'REELS', video_url: imageUrl } : { image_url: imageUrl }),
     caption: caption.slice(0, 2200),
+    ...(aiGenerated ? { is_ai_generated: true } : {}),
   });
+  if (container.ok && container.data?.id && video) {
+    const waitErr = await waitContainerReady(String(container.data.id), token);
+    if (waitErr) return { platform: 'instagram', success: false, message: waitErr };
+  }
   if (!container.ok || !container.data?.id) {
     return { platform: 'instagram', success: false, message: container.error ?? 'IG container failed' };
   }
@@ -180,6 +205,7 @@ export async function publishToMeta(
   connection: MetaConnection,
   contents: ScheduleContentItem[],
   mediaUrls?: string[],
+  aiGenerated?: boolean,
 ): Promise<MetaPublishResult[]> {
   const results: MetaPublishResult[] = [];
   const igToken = connection.pageAccessToken ?? connection.accessToken;
@@ -190,10 +216,11 @@ export async function publishToMeta(
     const media = pickMediaUrl(mediaUrls, i);
 
     switch (item.platform) {
+      case 'instagram':
       case 'reels':
       case 'carousel':
         if (connection.igUserId && media) {
-          results.push(await publishInstagramImage(connection.igUserId, igToken, media, item.content));
+          results.push(await publishInstagramImage(connection.igUserId, igToken, media, item.content, aiGenerated));
         } else if (connection.igUserId) {
           results.push({
             platform: item.platform,
