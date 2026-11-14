@@ -3,6 +3,7 @@ import {
   createUserWithEmailAndPassword,
   getAuth,
   GoogleAuthProvider,
+  sendEmailVerification,
   sendPasswordResetEmail,
   signInAnonymously,
   signInWithEmailAndPassword,
@@ -85,6 +86,10 @@ export async function signInWithGoogle() {
   }
 }
 
+export async function resendVerification(user: Parameters<typeof sendEmailVerification>[0]) {
+  await sendEmailVerification(user);
+}
+
 export async function signInDemo() {
   return signInAnonymously(auth);
 }
@@ -102,6 +107,7 @@ export async function signUpWithEmailPassword(
   if (displayName?.trim()) {
     await updateProfile(cred.user, { displayName: displayName.trim() });
   }
+  await sendEmailVerification(cred.user).catch(() => undefined);
   return cred;
 }
 

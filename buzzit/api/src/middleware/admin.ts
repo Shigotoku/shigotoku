@@ -21,7 +21,7 @@ export async function requireAdmin(req: AuthedRequest, res: Response, next: Next
   try {
     const user = await getAuth().getUser(req.uid);
     const email = user.email?.toLowerCase();
-    if (!email || !adminEmails().includes(email)) {
+    if (!email || !user.emailVerified || !adminEmails().includes(email)) {
       res.status(403).json({ error: '管理者権限が必要です' });
       return;
     }

@@ -29,6 +29,8 @@ export function isDevEmail(email: string | null | undefined): boolean {
 export async function getEmailForUid(uid: string): Promise<string | null> {
   try {
     const user = await getAuth().getUser(uid);
+    // メール未確認のアカウントは社員扱いにしない（メールアドレスの詐称による権限昇格を防ぐ）
+    if (!user.emailVerified) return null;
     return user.email?.toLowerCase() ?? null;
   } catch {
     return null;
