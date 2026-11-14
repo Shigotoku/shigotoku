@@ -51,6 +51,8 @@ export interface XSeriesItem {
   approved: boolean;
   status: XSeriesItemStatus;
   publishedAt?: string;
+  /** 投稿予定時刻（ISO）。指定があればその時刻以降に自動投稿 */
+  scheduledAt?: string;
   tweetId?: string;
   errorMessage?: string;
   createdAt: string;
@@ -73,6 +75,13 @@ export interface XScheduleRule {
 function tsToIso(value: unknown): string {
   if (value instanceof Timestamp) return value.toDate().toISOString();
   return new Date().toISOString();
+}
+
+/** 空 or 不正 → ''（未指定）。それ以外は ISO 文字列 */
+function normalizeScheduledAt(value: unknown): string {
+  if (typeof value !== 'string' || !value.trim()) return '';
+  const t = new Date(value).getTime();
+  return Number.isNaN(t) ? '' : new Date(t).toISOString();
 }
 
 export async function listXSeries(uid: string, personaId?: string): Promise<XSeries[]> {
@@ -209,6 +218,7 @@ function mapItem(seriesId: string, id: string, data: FirebaseFirestore.DocumentD
     approved: !!data.approved,
     status: (data.status as XSeriesItemStatus) ?? 'pending',
     publishedAt: data.publishedAt as string | undefined,
+    scheduledAt: (data.scheduledAt as string | undefined) || undefined,
     tweetId: data.tweetId as string | undefined,
     errorMessage: data.errorMessage as string | undefined,
     createdAt: tsToIso(data.createdAt),
@@ -227,6 +237,7 @@ export async function addXSeriesItems(
     imageUrl?: string;
     imageAlt?: string;
     approved?: boolean;
+    scheduledAt?: string;
   }>,
 ): Promise<XSeriesItem[]> {
   const seriesRef = col(uid, 'xSeries').doc(seriesId);
@@ -249,6 +260,7 @@ export async function addXSeriesItems(
       imageUrl: item.imageUrl?.trim() ?? '',
       imageAlt: item.imageAlt?.trim() ?? '',
       approved: item.approved === true,
+      scheduledAt: normalizeScheduledAt(item.scheduledAt),
       status: 'pending' as const,
       sortOrder,
       createdAt: FieldValue.serverTimestamp(),
@@ -265,6 +277,7 @@ export async function addXSeriesItems(
       imageUrl: payload.imageUrl,
       imageAlt: payload.imageAlt,
       approved: payload.approved,
+      scheduledAt: payload.scheduledAt || undefined,
       status: 'pending',
       createdAt: new Date().toISOString(),
       sortOrder,
@@ -288,6 +301,7 @@ export async function updateXSeriesItem(
     imageAlt: string;
     approved: boolean;
     status: XSeriesItemStatus;
+    scheduledAt: string;
   }>,
 ): Promise<XSeriesItem | null> {
   const ref = col(uid, 'xSeries').doc(seriesId).collection('items').doc(itemId);
@@ -297,6 +311,7 @@ export async function updateXSeriesItem(
   for (const key of ['text', 'tags', 'title', 'linkUrl', 'imageUrl', 'imageAlt', 'approved', 'status'] as const) {
     if (patch[key] !== undefined) updates[key] = patch[key];
   }
+  if (patch.scheduledAt !== undefined) updates.scheduledAt = normalizeScheduledAt(patch.scheduledAt);
   await ref.update(updates);
   const after = await ref.get();
   return mapItem(seriesId, itemId, after.data()!);
@@ -490,7 +505,9 @@ async function claimPendingItems(
   uid: string,
   seriesId: string,
   take: number,
+  mode: 'rule' | 'due' = 'rule',
 ): Promise<Array<{ id: string; data: FirebaseFirestore.DocumentData }>> {
+  const nowMs = Date.now();
   // status のみで取得し approved はアプリ側フィルタ（複合インデックス不要）
   const snap = await col(uid, 'xSeries')
     .doc(seriesId)
@@ -500,7 +517,14 @@ async function claimPendingItems(
     .limit(Math.max(20, take * 10))
     .get();
 
-  const candidates = snap.docs.filter((d) => d.data().approved === true);
+  const candidates = snap.docs.filter((d) => {
+    const data = d.data();
+    if (data.approved !== true) return false;
+    const at = data.scheduledAt ? new Date(String(data.scheduledAt)).getTime() : NaN;
+    if (mode === 'due') return !Number.isNaN(at) && at <= nowMs;
+    // ルール消化: 未来の投稿時刻が指定されたネタは、その時刻まで取っておく
+    return Number.isNaN(at) || at <= nowMs;
+  });
   const claimed: Array<{ id: string; data: FirebaseFirestore.DocumentData }> = [];
   for (const doc of candidates) {
     if (claimed.length >= take) break;
@@ -694,6 +718,32 @@ export async function processXSeriesSchedules(opts?: {
         );
         if (result.ok) posted++;
         else errors++;
+      }
+    }
+  }
+
+  // 投稿時刻（scheduledAt）が指定されたネタを、時刻が来たら投稿
+  if (!opts?.force) {
+    const seriesSnap = await db().collectionGroup('xSeries').limit(300).get();
+    for (const sdoc of seriesSnap.docs) {
+      const uid = sdoc.ref.parent.parent?.id;
+      if (!uid) continue;
+      if (opts?.onlyUid && uid !== opts.onlyUid) continue;
+      if (sdoc.data().enabled === false) continue;
+      try {
+        const claimed = await claimPendingItems(uid, sdoc.id, 5, 'due');
+        if (!claimed.length) continue;
+        const settings = await getEffectiveSettings(uid, sdoc.data().personaId as string | undefined);
+        const mode = credentialsFromSettings(settings) ? 'x_free' : 'notify';
+        for (const item of claimed) {
+          const result = await publishSeriesItem(uid, settings, sdoc.id, item.id, item.data, mode);
+          fired++;
+          if (result.ok) posted++;
+          else errors++;
+        }
+      } catch (err) {
+        console.error('[xSeries] scheduledAt処理エラー', err);
+        errors++;
       }
     }
   }

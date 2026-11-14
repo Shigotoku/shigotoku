@@ -1,4 +1,4 @@
-import type { DragEvent } from 'react';
+import { useState, type DragEvent } from 'react';
 import { CalendarDays, CalendarPlus, CheckCircle2, CopyPlus, GripVertical, Pencil, RefreshCw } from 'lucide-react';
 import type { ScheduledJob } from '../../lib/api';
 import type { suggestOpenSlotsForDay } from '../../lib/bulkSchedule';
@@ -60,8 +60,9 @@ export default function DayPanel({
   handleDraft,
   setMessage,
 }: Props) {
+  const [historyByDay, setHistoryByDay] = useState(false);
   return (
-    <div className={`space-y-3 lg:col-span-2 ${embedded ? 'lg:min-h-0 lg:overflow-y-auto' : ''}`}>
+    <div className={`min-w-0 space-y-3 ${embedded ? 'lg:min-h-0 lg:overflow-y-auto' : ''}`}>
       {embedded && (
         <div className="flex gap-1">
           {([['history', '投稿履歴'], ['day', '選択した日']] as const).map(([k, label]) => (
@@ -77,7 +78,26 @@ export default function DayPanel({
         </div>
       )}
       {embedded && rightTab === 'history' && (
-        <PostHistoryPanel jobs={scopedJobs} platformId={platformId} day={null} onClearDay={() => {}} />
+        <>
+          <label className="flex items-center gap-2 text-xs text-neutral-600">
+            <input type="checkbox" checked={historyByDay} onChange={(e) => setHistoryByDay(e.target.checked)} />
+            カレンダーで選んだ日だけ表示
+            {selectedDay && historyByDay && (
+              <span className="text-neutral-500">
+                （{selectedDay.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric', weekday: 'short' })}）
+              </span>
+            )}
+          </label>
+          <PostHistoryPanel
+            jobs={scopedJobs}
+            platformId={platformId}
+            day={historyByDay ? selectedDay : null}
+            onClearDay={() => setHistoryByDay(false)}
+            onClone={setCloneJob}
+            onRetry={handleRetry}
+            busyId={busyId}
+          />
+        </>
       )}
       {(!embedded || rightTab === 'day') && (
         <>

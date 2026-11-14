@@ -748,9 +748,9 @@ api.get('/v1/insights/summary', requireAuth, async (req: AuthedRequest, res) => 
 
 api.get('/v1/insights/posts', requireAuth, async (req: AuthedRequest, res) => {
   try {
-    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 40));
+    const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 40));
     const platform = typeof req.query.platform === 'string' ? req.query.platform : undefined;
-    let posts = await listPostInsights(req.uid!, { limit: 200 });
+    let posts = await listPostInsights(req.uid!, { limit: 500 });
     if (platform) {
       const want = platform.toLowerCase();
       posts = posts.filter((p) => {
@@ -1244,7 +1244,7 @@ api.get('/v1/x/series/:id/items', requireAuth, async (req: AuthedRequest, res) =
 
 api.post('/v1/x/series/:id/items', requireAuth, async (req: AuthedRequest, res) => {
   try {
-    const { items, text, tags, title, linkUrl, imageUrl, imageAlt, approved } = req.body as {
+    const { items, text, tags, title, linkUrl, imageUrl, imageAlt, approved, scheduledAt } = req.body as {
       items?: Array<{
         text: string;
         tags?: string;
@@ -1253,6 +1253,7 @@ api.post('/v1/x/series/:id/items', requireAuth, async (req: AuthedRequest, res) 
         imageUrl?: string;
         imageAlt?: string;
         approved?: boolean;
+        scheduledAt?: string;
       }>;
       text?: string;
       tags?: string;
@@ -1261,11 +1262,12 @@ api.post('/v1/x/series/:id/items', requireAuth, async (req: AuthedRequest, res) 
       imageUrl?: string;
       imageAlt?: string;
       approved?: boolean;
+      scheduledAt?: string;
     };
     const list =
       items ??
       (text
-        ? [{ text, tags, title, linkUrl, imageUrl, imageAlt, approved }]
+        ? [{ text, tags, title, linkUrl, imageUrl, imageAlt, approved, scheduledAt }]
         : []);
     const created = await addXSeriesItems(req.uid!, String(req.params.id), list);
     res.json({ items: created });

@@ -1165,6 +1165,7 @@ export interface XSeriesItem {
   approved: boolean;
   status: string;
   publishedAt?: string;
+  scheduledAt?: string;
   tweetId?: string;
   errorMessage?: string;
   createdAt: string;
@@ -1221,7 +1222,7 @@ export function fetchXSeriesItems(seriesId: string, status?: string) {
 export function addXSeriesItems(
   seriesId: string,
   body:
-    | { text: string; tags?: string; title?: string; linkUrl?: string; imageUrl?: string; imageAlt?: string; approved?: boolean }
+    | { text: string; tags?: string; title?: string; linkUrl?: string; imageUrl?: string; imageAlt?: string; approved?: boolean; scheduledAt?: string }
     | {
         items: Array<{
           text: string;
@@ -1259,6 +1260,7 @@ export function updateXSeriesItem(
     imageAlt: string;
     approved: boolean;
     status: string;
+    scheduledAt: string;
   }>,
 ) {
   return request<{ item: XSeriesItem }>(`/v1/x/series/${seriesId}/items/${itemId}`, {

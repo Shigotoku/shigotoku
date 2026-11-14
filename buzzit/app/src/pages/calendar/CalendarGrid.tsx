@@ -177,7 +177,10 @@ export default function CalendarGrid({
                   >
                     {cell.date.getDate()}
                   </span>
-                  <div className="mt-1 flex flex-wrap gap-0.5">
+                  <div className="mt-1 flex flex-wrap items-center gap-0.5" title={cell.jobs.length ? `${cell.jobs.length}件` : undefined}>
+                    {cell.jobs.length > 3 && (
+                      <span className="order-last text-[10px] leading-none text-neutral-500">+{cell.jobs.length - 3}</span>
+                    )}
                     {cell.jobs.slice(0, 3).map((j) => (
                       <span
                         key={j.id}

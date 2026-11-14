@@ -1,3 +1,5 @@
+import { useCallback, useRef, useState } from 'react';
+import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, GripVertical, Undo2, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import FlowProgressBar from '../components/FlowProgressBar';
@@ -15,7 +17,62 @@ import TempoCopyModal from './calendar/TempoCopyModal';
 import { isEditableStatus, statusLabel } from './calendar/calendarUtils';
 import { useCalendarState, type CalendarPageProps } from './calendar/useCalendarState';
 
+const SPLIT_KEY = 'buzzit.calendar.splitPct';
+const SPLIT_MIN = 20;
+const SPLIT_MAX = 80;
+const SPLIT_DEFAULT = 60;
+
+function clampSplit(n: number) {
+  return Math.min(SPLIT_MAX, Math.max(SPLIT_MIN, n));
+}
+
 export default function CalendarPage({ platformId, embedded }: CalendarPageProps = {}) {
+  // カレンダー幅(%)。ドラッグで変更でき、localStorage に記憶する
+  const [splitPct, setSplitPct] = useState<number>(() => {
+    try {
+      const v = Number(localStorage.getItem(SPLIT_KEY));
+      return Number.isFinite(v) && v > 0 ? clampSplit(v) : SPLIT_DEFAULT;
+    } catch {
+      return SPLIT_DEFAULT;
+    }
+  });
+  const gridRef = useRef<HTMLDivElement>(null);
+  const saveSplit = useCallback((v: number) => {
+    try { localStorage.setItem(SPLIT_KEY, String(Math.round(v))); } catch { /* noop */ }
+  }, []);
+  const onSplitPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const grid = gridRef.current;
+    if (!grid) return;
+    e.preventDefault();
+    const target = e.currentTarget;
+    target.setPointerCapture(e.pointerId);
+    const rect = grid.getBoundingClientRect();
+    let latest = splitPct;
+    const move = (ev: PointerEvent) => {
+      latest = clampSplit(((ev.clientX - rect.left) / rect.width) * 100);
+      setSplitPct(latest);
+    };
+    const up = () => {
+      target.removeEventListener('pointermove', move);
+      target.removeEventListener('pointerup', up);
+      target.removeEventListener('pointercancel', up);
+      saveSplit(latest);
+    };
+    target.addEventListener('pointermove', move);
+    target.addEventListener('pointerup', up);
+    target.addEventListener('pointercancel', up);
+  };
+  const onSplitKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    let next: number | null = null;
+    if (e.key === 'ArrowLeft') next = clampSplit(splitPct - 3);
+    else if (e.key === 'ArrowRight') next = clampSplit(splitPct + 3);
+    else if (e.key === 'Home') next = SPLIT_MIN;
+    else if (e.key === 'End') next = SPLIT_MAX;
+    if (next == null) return;
+    e.preventDefault();
+    setSplitPct(next);
+    saveSplit(next);
+  };
   const { activePersona, canApprove, sns, filter, setFilter, viewMode, setViewMode, alertsOpen, setAlertsOpen, search, setSearch, rightTab, setRightTab, month, setMonth, weekStart, setWeekStart, selectedDay, busyId, message, setMessage, loading, editingJob, setEditingJob, draggingId, dropDateKey, dragGhost, cloneJob, setCloneJob, connected, shifting, dropHour, monthDropPicker, setMonthDropPicker, undoStack, tempoJob, setTempoJob, tempoWeeks, setTempoWeeks, tempoBusy, approveConfirmJob, setApproveConfirmJob, load, scopedJobs, jobsByDay, calendarCells, dayJobs, handleApprove, handleRetry, handleDraft, openEdit, draftJobs, createHref, bestHours, preferredHourList, dayOpenSlots, placeJobAt, undoLastMove, shiftVisibleWeek, runTempoCopy, onDragMove, slotKey, dateDropProps, quickPlaceDraftOnSelected, beginDrag, endDrag, setDropHourPref, pickDay, alertCount, alertBlocks } = useCalendarState({ platformId, embedded });
 
   return (
@@ -175,12 +232,34 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
         </div>
       )}
 
-      <div className={embedded ? 'grid min-h-0 flex-1 gap-3 lg:grid-cols-5 lg:gap-4' : 'grid gap-6 lg:grid-cols-5'}>
+      <div className="hidden items-center justify-end gap-1 text-xs lg:flex">
+        <span className="mr-1 text-neutral-500">表示幅:</span>
+        {([
+          ['カレンダー重視', 75],
+          ['均等', 50],
+          ['履歴重視', 30],
+          ['カレンダー最小化', SPLIT_MIN],
+        ] as const).map(([label, pct]) => (
+          <button
+            key={label}
+            type="button"
+            onClick={() => { setSplitPct(pct); saveSplit(pct); }}
+            className={`border px-2 py-1 ${Math.round(splitPct) === pct ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-200 bg-white hover:border-neutral-400'}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <div
+        ref={gridRef}
+        style={{ '--cal-cols': `minmax(0,${splitPct}fr) 12px minmax(0,${100 - splitPct}fr)` } as CSSProperties}
+        className={`${embedded ? 'grid min-h-0 flex-1 gap-3' : 'grid gap-6'} lg:gap-0 lg:[grid-template-columns:var(--cal-cols)]`}
+      >
         <div
           className={
             embedded
-              ? 'flex min-h-[420px] flex-col rounded-xl border border-neutral-200/80 bg-white p-3 shadow-sm lg:col-span-3 lg:min-h-0'
-              : 'buzz-card-pad lg:col-span-3'
+              ? 'flex min-h-[420px] min-w-0 flex-col rounded-xl border border-neutral-200/80 bg-white p-3 shadow-sm lg:min-h-0'
+              : 'buzz-card-pad min-w-0'
           }
         >
           <div className={`flex shrink-0 items-center justify-between ${embedded ? 'mb-2' : 'mb-4'}`}>
@@ -279,6 +358,23 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
             beginDrag={beginDrag}
             endDrag={endDrag}
           />
+        </div>
+
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="カレンダーと投稿履歴の幅を変更（ドラッグ、または左右キー）"
+          aria-valuemin={SPLIT_MIN}
+          aria-valuemax={SPLIT_MAX}
+          aria-valuenow={Math.round(splitPct)}
+          tabIndex={0}
+          title="ドラッグで幅を変更 / ダブルクリックで元に戻す"
+          onPointerDown={onSplitPointerDown}
+          onKeyDown={onSplitKeyDown}
+          onDoubleClick={() => { setSplitPct(SPLIT_DEFAULT); saveSplit(SPLIT_DEFAULT); }}
+          className="group hidden cursor-col-resize touch-none items-center justify-center outline-none lg:flex"
+        >
+          <span className="h-16 w-1 rounded-full bg-neutral-300 transition group-hover:bg-neutral-500 group-focus-visible:bg-neutral-700" />
         </div>
 
         <DayPanel

@@ -1,96 +1,403 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Eye, ExternalLink, X } from 'lucide-react';
-import { fetchInsightsPosts, type PostInsight, type ScheduledJob } from '../lib/api';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { CopyPlus, Download, ExternalLink, Eye, RefreshCw, RotateCcw, Search, X } from 'lucide-react';
+import { fetchInsightsPosts, syncInsights, type PostInsight, type ScheduledJob } from '../lib/api';
 
 const INSIGHT_PLATFORMS = new Set(['x', 'instagram', 'facebook-threads']);
+const PAGE_SIZE = 30;
+const DENSITY_KEY = 'buzzit.history.density';
+
+type StatusKey = 'posted' | 'failed' | 'scheduled' | 'all';
+type SortKey = 'new' | 'old' | 'imp' | 'likes';
+type Density = 'compact' | 'normal' | 'detail';
+
+const STATUS_TABS: Array<[StatusKey, string]> = [
+  ['posted', '投稿済み'],
+  ['failed', '失敗'],
+  ['scheduled', '予約中'],
+  ['all', 'すべて'],
+];
+
+const SORTS: Array<[SortKey, string]> = [
+  ['new', '新しい順'],
+  ['old', '古い順'],
+  ['imp', 'インプレッション順'],
+  ['likes', 'いいね順'],
+];
+
+const DENSITIES: Array<[Density, string]> = [
+  ['compact', '1行'],
+  ['normal', '標準'],
+  ['detail', '詳細'],
+];
 
 function dayLabel(iso: string) {
   return new Date(iso).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric', weekday: 'short' });
 }
 
+function matchesStatus(job: ScheduledJob, key: StatusKey) {
+  switch (key) {
+    case 'posted':
+      return job.status === 'published' || job.status === 'notified';
+    case 'failed':
+      return job.status === 'failed';
+    case 'scheduled':
+      return job.status === 'pending' || job.status === 'pending_approval' || job.status === 'draft';
+    default:
+      return true;
+  }
+}
+
+function statusChip(job: ScheduledJob) {
+  switch (job.status) {
+    case 'published':
+    case 'notified':
+      return { label: '投稿済み', cls: 'bg-emerald-50 text-emerald-700' };
+    case 'failed':
+      return { label: '失敗', cls: 'bg-red-50 text-red-700' };
+    case 'pending_approval':
+      return { label: '承認待ち', cls: 'bg-amber-50 text-amber-700' };
+    case 'draft':
+      return { label: '下書き', cls: 'bg-neutral-100 text-neutral-600' };
+    default:
+      return { label: '予約中', cls: 'bg-sky-50 text-sky-700' };
+  }
+}
+
+function csvCell(v: unknown) {
+  const s = String(v ?? '').replace(/"/g, '""');
+  return `"${s}"`;
+}
+
+function toInputDate(d: Date) {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
 /**
- * これまでに投稿した内容の一覧。行を押すと全文とインプレッション等が見られる。
- * 日付で絞り込み（カレンダーの日付クリック連動）にも対応。
+ * 投稿履歴。絞り込み（状態・期間・キーワード・タグ・日付）、並び替え、表示密度の切替、
+ * ページ送り、CSV出力、インプレッション同期、複製・再送に対応する。
  */
 export default function PostHistoryPanel({
   jobs,
   platformId,
   day,
   onClearDay,
+  onClone,
+  onRetry,
+  busyId,
 }: {
   jobs: ScheduledJob[];
   platformId?: string;
   day: Date | null;
   onClearDay: () => void;
+  onClone?: (job: ScheduledJob) => void;
+  onRetry?: (id: string) => void;
+  busyId?: string | null;
 }) {
   const [insights, setInsights] = useState<Record<string, PostInsight>>({});
-  const [openId, setOpenId] = useState<string | null>(null);
-
-  useEffect(() => {
-    const key = platformId === 'facebook-threads' ? undefined : platformId;
-    if (platformId && !INSIGHT_PLATFORMS.has(platformId)) {
-      setInsights({});
-      return;
+  const [openIds, setOpenIds] = useState<Set<string>>(new Set());
+  const [status, setStatus] = useState<StatusKey>('posted');
+  const [sort, setSort] = useState<SortKey>('new');
+  const [density, setDensity] = useState<Density>(() => {
+    try {
+      const v = localStorage.getItem(DENSITY_KEY);
+      return v === 'compact' || v === 'normal' || v === 'detail' ? v : 'normal';
+    } catch {
+      return 'normal';
     }
-    fetchInsightsPosts({ platform: key, limit: 100 })
+  });
+  const [query, setQuery] = useState('');
+  const [tag, setTag] = useState('');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [visible, setVisible] = useState(PAGE_SIZE);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState<string | null>(null);
+
+  const insightsSupported = !platformId || INSIGHT_PLATFORMS.has(platformId);
+
+  const loadInsights = useCallback(() => {
+    const key = platformId === 'facebook-threads' ? undefined : platformId;
+    if (!insightsSupported) {
+      setInsights({});
+      return Promise.resolve();
+    }
+    return fetchInsightsPosts({ platform: key, limit: 500 })
       .then((r) => setInsights(Object.fromEntries(r.posts.map((p) => [p.jobId, p]))))
       .catch(() => setInsights({}));
-  }, [platformId]);
+  }, [platformId, insightsSupported]);
 
-  const posted = useMemo(
-    () =>
-      jobs
-        .filter((j) => j.status === 'published' || j.status === 'notified')
-        .sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime()),
-    [jobs],
-  );
+  useEffect(() => {
+    void loadInsights();
+  }, [loadInsights]);
 
-  const list = day
-    ? posted.filter((j) => new Date(j.scheduledAt).toDateString() === day.toDateString())
-    : posted;
+  const changeDensity = (d: Density) => {
+    setDensity(d);
+    try { localStorage.setItem(DENSITY_KEY, d); } catch { /* noop */ }
+  };
+
+  const lastFetchedAt = useMemo(() => {
+    const times = Object.values(insights)
+      .map((i) => new Date(i.fetchedAt).getTime())
+      .filter((n) => Number.isFinite(n));
+    return times.length ? new Date(Math.max(...times)) : null;
+  }, [insights]);
+
+  const runSync = async () => {
+    setSyncing(true);
+    setSyncMsg(null);
+    try {
+      await syncInsights(true);
+      await loadInsights();
+      setSyncMsg('同期しました');
+    } catch (e) {
+      setSyncMsg(e instanceof Error ? `同期に失敗: ${e.message}` : '同期に失敗しました');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const allTags = useMemo(() => {
+    const s = new Set<string>();
+    jobs.forEach((j) => j.tags?.forEach((t) => s.add(t)));
+    return [...s].sort();
+  }, [jobs]);
+
+  const list = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const fromT = from ? new Date(`${from}T00:00:00`).getTime() : null;
+    const toT = to ? new Date(`${to}T23:59:59`).getTime() : null;
+    const t = (j: ScheduledJob) => new Date(j.scheduledAt).getTime();
+    const filtered = jobs.filter((j) => {
+      if (!matchesStatus(j, status)) return false;
+      if (day && new Date(j.scheduledAt).toDateString() !== day.toDateString()) return false;
+      if (fromT != null && t(j) < fromT) return false;
+      if (toT != null && t(j) > toT) return false;
+      if (tag && !j.tags?.includes(tag)) return false;
+      if (q) {
+        const hay = `${j.contents.map((c) => `${c.label} ${c.content}`).join(' ')} ${(j.tags ?? []).join(' ')}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+    const num = (j: ScheduledJob, k: 'impressions' | 'likes') => insights[j.id]?.[k] ?? -1;
+    const sorted = [...filtered];
+    sorted.sort((a, b) => {
+      switch (sort) {
+        case 'old':
+          return t(a) - t(b);
+        case 'imp':
+          return num(b, 'impressions') - num(a, 'impressions') || t(b) - t(a);
+        case 'likes':
+          return num(b, 'likes') - num(a, 'likes') || t(b) - t(a);
+        default:
+          return t(b) - t(a);
+      }
+    });
+    return sorted;
+  }, [jobs, status, day, from, to, tag, query, sort, insights]);
+
+  // 絞り込みが変わったら先頭に戻す
+  useEffect(() => {
+    setVisible(PAGE_SIZE);
+  }, [status, day, from, to, tag, query, sort, jobs]);
+
+  const shown = list.slice(0, visible);
+  const isOpen = (id: string) => density === 'detail' || openIds.has(id);
+  const allOpen = shown.length > 0 && shown.every((j) => openIds.has(j.id));
+  const toggle = (id: string) =>
+    setOpenIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const toggleAll = () => setOpenIds(allOpen ? new Set() : new Set(shown.map((j) => j.id)));
+
+  const hasFilter = Boolean(query || tag || from || to || day);
+  const resetFilters = () => {
+    setQuery('');
+    setTag('');
+    setFrom('');
+    setTo('');
+    if (day) onClearDay();
+  };
+
+  const exportCsv = () => {
+    const header = ['日時', 'SNS', '状態', '本文', 'タグ', 'インプレッション', 'リーチ', 'いいね', '返信', 'リポスト'];
+    const rows = list.map((j) => {
+      const ins = insights[j.id];
+      return [
+        new Date(j.scheduledAt).toLocaleString('ja-JP'),
+        j.contents.map((c) => c.label).join(' / '),
+        statusChip(j).label,
+        j.contents.map((c) => c.content).join('\n---\n'),
+        (j.tags ?? []).join(' '),
+        ins?.impressions ?? '',
+        ins?.reach ?? '',
+        ins?.likes ?? '',
+        ins?.replies ?? '',
+        ins?.reposts ?? '',
+      ].map(csvCell).join(',');
+    });
+    const csv = '\uFEFF' + [header.map(csvCell).join(','), ...rows].join('\r\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `post-history-${toInputDate(new Date())}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const chipBtn = (active: boolean) =>
+    `border px-2 py-1 text-xs ${active ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-200 bg-white hover:border-neutral-400'}`;
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">
           投稿履歴 <span className="font-normal text-neutral-500">（{list.length}件）</span>
         </h3>
-        {day && (
+        <div className="flex flex-wrap items-center gap-1">
+          {day && (
+            <button
+              type="button"
+              onClick={onClearDay}
+              className="inline-flex items-center gap-1 rounded-full border border-neutral-300 px-2 py-0.5 text-xs text-neutral-700 hover:bg-neutral-100"
+            >
+              {dayLabel(day.toISOString())} のみ
+              <X className="h-3 w-3" />
+            </button>
+          )}
           <button
             type="button"
-            onClick={onClearDay}
-            className="inline-flex items-center gap-1 rounded-full border border-neutral-300 px-2 py-0.5 text-xs text-neutral-700 hover:bg-neutral-100"
+            onClick={exportCsv}
+            disabled={list.length === 0}
+            className="inline-flex items-center gap-1 border border-neutral-200 px-2 py-1 text-xs hover:border-neutral-400 disabled:opacity-40"
+            title="表示中の履歴をCSVで保存"
           >
-            {dayLabel(day.toISOString())} のみ
-            <X className="h-3 w-3" />
+            <Download className="h-3 w-3" />
+            CSV
           </button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-1">
+        {STATUS_TABS.map(([k, label]) => (
+          <button key={k} type="button" onClick={() => setStatus(k)} className={chipBtn(status === k)}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1.5">
+        <label className="relative min-w-[140px] flex-1">
+          <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-neutral-400" />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="本文・タグで検索"
+            className="w-full border border-neutral-200 py-1 pl-6 pr-2 text-xs"
+          />
+        </label>
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value as SortKey)}
+          className="border border-neutral-200 bg-white px-1.5 py-1 text-xs"
+          aria-label="並び替え"
+        >
+          {SORTS.map(([k, label]) => (
+            <option key={k} value={k}>{label}</option>
+          ))}
+        </select>
+        {allTags.length > 0 && (
+          <select
+            value={tag}
+            onChange={(e) => setTag(e.target.value)}
+            className="max-w-[140px] border border-neutral-200 bg-white px-1.5 py-1 text-xs"
+            aria-label="タグで絞り込み"
+          >
+            <option value="">タグ: すべて</option>
+            {allTags.map((t) => (
+              <option key={t} value={t}>#{t}</option>
+            ))}
+          </select>
         )}
       </div>
 
+      <div className="flex flex-wrap items-center gap-1.5 text-xs text-neutral-600">
+        <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="border border-neutral-200 px-1.5 py-0.5" aria-label="開始日" />
+        <span>〜</span>
+        <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="border border-neutral-200 px-1.5 py-0.5" aria-label="終了日" />
+        {hasFilter && (
+          <button type="button" onClick={resetFilters} className="underline hover:text-neutral-900">
+            絞り込みを解除
+          </button>
+        )}
+        <span className="ml-auto flex items-center gap-1">
+          {DENSITIES.map(([k, label]) => (
+            <button key={k} type="button" onClick={() => changeDensity(k)} className={chipBtn(density === k)}>
+              {label}
+            </button>
+          ))}
+          {density !== 'detail' && (
+            <button type="button" onClick={toggleAll} className={chipBtn(false)} disabled={shown.length === 0}>
+              {allOpen ? 'すべて閉じる' : 'すべて開く'}
+            </button>
+          )}
+        </span>
+      </div>
+
+      {insightsSupported && (
+        <div className="flex flex-wrap items-center gap-2 text-[11px] text-neutral-500">
+          <span>
+            インプレッション最終同期:{' '}
+            {lastFetchedAt ? lastFetchedAt.toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '未同期'}
+          </span>
+          <button
+            type="button"
+            onClick={() => void runSync()}
+            disabled={syncing}
+            className="inline-flex items-center gap-1 border border-neutral-200 px-1.5 py-0.5 hover:border-neutral-400 disabled:opacity-50"
+          >
+            <RefreshCw className={`h-3 w-3 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? '同期中...' : '今すぐ同期'}
+          </button>
+          {syncMsg && <span>{syncMsg}</span>}
+        </div>
+      )}
+
       {list.length === 0 && (
         <p className="rounded-lg border border-dashed border-neutral-300 p-4 text-center text-xs text-neutral-500">
-          {day ? 'この日の投稿履歴はありません。' : 'まだ投稿履歴がありません。'}
+          {hasFilter ? '条件に合う履歴はありません。' : 'まだ該当する履歴がありません。'}
         </p>
       )}
 
       <ul className="space-y-1.5">
-        {list.map((job) => {
+        {shown.map((job) => {
           const ins = insights[job.id];
-          const open = openId === job.id;
+          const open = isOpen(job.id);
           const body = job.contents.map((c) => c.content).join('\n\n---\n\n');
+          const chip = statusChip(job);
           return (
             <li key={job.id} className="rounded-lg border border-neutral-200 bg-white">
               <button
                 type="button"
-                onClick={() => setOpenId(open ? null : job.id)}
-                className="flex w-full items-start gap-2 p-2 text-left"
+                onClick={() => toggle(job.id)}
+                className={`flex w-full items-start gap-2 text-left ${density === 'compact' ? 'p-1.5' : 'p-2'}`}
               >
                 <span className="w-14 shrink-0 text-[11px] leading-tight text-neutral-500">
                   {dayLabel(job.scheduledAt)}
                   <br />
                   {new Date(job.scheduledAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
                 </span>
-                <span className={`min-w-0 flex-1 text-xs text-neutral-800 ${open ? '' : 'line-clamp-2'}`}>
+                <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${chip.cls}`}>{chip.label}</span>
+                <span
+                  className={`min-w-0 flex-1 text-xs text-neutral-800 ${
+                    open ? '' : density === 'compact' ? 'truncate' : 'line-clamp-2'
+                  }`}
+                >
                   {open ? '' : (job.contents[0]?.content ?? '')}
                 </span>
                 <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-medium tabular-nums text-neutral-700">
@@ -108,9 +415,10 @@ export default function PostHistoryPanel({
                     </p>
                   )}
                   <p className="whitespace-pre-wrap text-neutral-800">{body}</p>
-                  {job.mediaUrls?.[0] && (
+                  {job.mediaUrls?.[0] && !/\.(mp4|mov|webm)(\?|$)/i.test(job.mediaUrls[0]) && (
                     <img src={job.mediaUrls[0]} alt="" className="max-h-40 rounded border border-neutral-200" />
                   )}
+                  {job.errorMessage && <p className="text-red-700">{job.errorMessage}</p>}
                   {ins ? (
                     <p className="flex flex-wrap gap-x-3 gap-y-1 text-neutral-600">
                       <span>表示 {ins.impressions.toLocaleString()}</span>
@@ -120,25 +428,60 @@ export default function PostHistoryPanel({
                       {ins.reposts != null && <span>リポスト {ins.reposts}</span>}
                     </p>
                   ) : (
-                    <p className="text-neutral-400">インプレッション未取得（同期後に表示されます）</p>
+                    <p className="text-neutral-400">
+                      {insightsSupported ? 'インプレッション未取得（「今すぐ同期」で取得できます）' : 'このSNSはインプレッション取得に未対応です'}
+                    </p>
                   )}
-                  {ins?.source === 'x' && ins.externalId && (
-                    <a
-                      href={`https://x.com/i/status/${ins.externalId}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1 text-violet-700 underline"
-                    >
-                      <ExternalLink className="h-3 w-3" />
-                      Xで開く
-                    </a>
-                  )}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {onClone && job.contents[0] && (
+                      <button
+                        type="button"
+                        onClick={() => onClone(job)}
+                        className="inline-flex items-center gap-1 border border-neutral-300 px-2 py-1 hover:border-neutral-900"
+                      >
+                        <CopyPlus className="h-3 w-3" />
+                        他SNSへずらして複製
+                      </button>
+                    )}
+                    {onRetry && job.status === 'failed' && (
+                      <button
+                        type="button"
+                        disabled={busyId === job.id}
+                        onClick={() => onRetry(job.id)}
+                        className="inline-flex items-center gap-1 border border-red-300 bg-red-50 px-2 py-1 text-red-800 disabled:opacity-60"
+                      >
+                        <RotateCcw className="h-3 w-3" />
+                        再送
+                      </button>
+                    )}
+                    {ins?.source === 'x' && ins.externalId && (
+                      <a
+                        href={`https://x.com/i/status/${ins.externalId}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-violet-700 underline"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        Xで開く
+                      </a>
+                    )}
+                  </div>
                 </div>
               )}
             </li>
           );
         })}
       </ul>
+
+      {list.length > visible && (
+        <button
+          type="button"
+          onClick={() => setVisible((v) => v + PAGE_SIZE)}
+          className="w-full border border-neutral-200 py-1.5 text-xs hover:border-neutral-400"
+        >
+          もっと見る（残り {list.length - visible} 件）
+        </button>
+      )}
     </div>
   );
 }
