@@ -1,9 +1,7 @@
+import { aiFetch, aiKey } from './aiClient';
 import { FieldValue, getFirestore, Timestamp, type DocumentSnapshot } from 'firebase-admin/firestore';
 import { generateTrackingToken, trackingClickUrl } from './tracking';
 import { createTrackingLink, getUserSettings } from './firestore';
-
-const GEMINI_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
 export interface AbVariant {
   label: string;
@@ -32,7 +30,7 @@ function db() {
 }
 
 async function generateVariants(idea: string, platform: string): Promise<{ variantA: AbVariant; variantB: AbVariant }> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = aiKey();
   const fallback = {
     variantA: {
       label: '感情フック型',
@@ -50,7 +48,7 @@ async function generateVariants(idea: string, platform: string): Promise<{ varia
   if (!apiKey) return fallback;
 
   try {
-    const res = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
+    const res = await aiFetch({
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

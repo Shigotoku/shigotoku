@@ -3,9 +3,7 @@
  */
 import { generateRepurposeWithGemini } from './gemini';
 import { getMetrics, getPosts, getUserSettings } from './firestore';
-
-const GEMINI_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+import { aiFetch, aiKey } from './aiClient';
 
 export interface AgentMessage {
   role: 'user' | 'assistant';
@@ -30,7 +28,7 @@ LINE友だち: ${metrics.funnel.lineSignups}
 直近ベスト投稿: ${topPost?.title ?? 'なし'}（リーチ ${topPost?.reach ?? 0})
 `;
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = aiKey();
   const lastUser = messages.filter((m) => m.role === 'user').pop()?.content ?? '今日のSNS戦略を教えて';
 
   if (!apiKey) {
@@ -62,7 +60,7 @@ ${history}
 }`;
 
   try {
-    const res = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
+    const res = await aiFetch({
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

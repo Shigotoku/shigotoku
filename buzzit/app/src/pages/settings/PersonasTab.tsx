@@ -1,4 +1,5 @@
 import AiConnectSection from '../../components/AiConnectSection';
+import AiEngineSection from '../../components/AiEngineSection';
 import PostingPlanSection from '../../components/PostingPlanSection';
 import PersonaManagementSection from '../../components/PersonaManagementSection';
 import AccountLedgerSection from '../../components/AccountLedgerSection';
@@ -11,6 +12,9 @@ export default function PersonasTab() {
       </section>
       <section className="buzz-card-pad space-y-3">
         <AiConnectSection />
+      </section>
+      <section className="buzz-card-pad space-y-3">
+        <AiEngineSection />
       </section>
       <section className="buzz-card-pad space-y-3">
         <PostingPlanSection />

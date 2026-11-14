@@ -1,7 +1,5 @@
+import { aiFetch, aiKey } from './aiClient';
 import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore';
-
-const GEMINI_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
 export interface TrendTopic {
   id: string;
@@ -27,11 +25,11 @@ function db() {
 }
 
 async function generateTrendsWithGemini(industry: string): Promise<Omit<TrendTopic, 'id' | 'createdAt' | 'status'>[]> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = aiKey();
   if (!apiKey) return FALLBACK_TRENDS;
 
   try {
-    const res = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
+    const res = await aiFetch({
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

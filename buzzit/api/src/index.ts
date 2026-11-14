@@ -204,7 +204,8 @@ import {
   voiceToXSeriesBatch,
 } from './services/xSeriesExtras';
 import { saveOAuthState, consumeOAuthState } from './services/schedulerWorker';
-import { assertPostQuota, incrementPostQuota, getPostsThisMonth, freePostLimitForPlan, consumeAiQuota, AiQuotaError } from './services/planLimits';
+import { assertPostQuota, incrementPostQuota, getPostsThisMonth, freePostLimitForPlan, consumeAiQuota, AiQuotaError, getAiUsage } from './services/planLimits';
+import { getAiSettings, saveAiSettings, deleteAiKey, AI_PROVIDERS } from './services/aiClient';
 import {
   getGoogleOAuthUrl,
   exchangeGoogleCode,
@@ -1793,6 +1794,43 @@ api.get('/v1/trends', requireAuth, async (req: AuthedRequest, res) => {
   }
 });
 
+// --- AI 設定（運営AI / 自分のAIキー の切り替え） ---
+api.get('/v1/ai/settings', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const settings = await getUserSettingsWithDevBoost(req.uid!);
+    res.json({
+      ...(await getAiSettings(req.uid!)),
+      providers: Object.entries(AI_PROVIDERS).map(([id, p]) => ({ id, label: p.label, defaultModel: p.defaultModel })),
+      platformUsage: await getAiUsage(req.uid!, settings.plan),
+      plan: settings.plan,
+    });
+  } catch {
+    res.status(500).json({ error: 'AI設定の取得に失敗しました' });
+  }
+});
+
+api.put('/v1/ai/settings', requireAuth, async (req: AuthedRequest, res) => {
+  const b = (req.body ?? {}) as { mode?: string; provider?: string; model?: string; apiKey?: string };
+  if (b.mode !== 'platform' && b.mode !== 'own') {
+    res.status(400).json({ error: 'mode は platform か own を指定してください' });
+    return;
+  }
+  try {
+    const out = await saveAiSettings(req.uid!, {
+      mode: b.mode,
+      provider: b.provider as 'gemini' | 'openai' | 'anthropic' | undefined,
+      model: b.model,
+      apiKey: b.apiKey,
+    });
+    res.json(out);
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : '保存に失敗しました' });
+  }
+});
+
+api.delete('/v1/ai/key', requireAuth, async (req: AuthedRequest, res) => {
+  res.json(await deleteAiKey(req.uid!));
+});
 api.post('/v1/trends/refresh', requireAuth, async (req: AuthedRequest, res) => {
   try {
     const settings = await getUserSettingsWithDevBoost(req.uid!);

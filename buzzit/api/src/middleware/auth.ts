@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { getAuth } from 'firebase-admin/auth';
+import { withUserAi } from '../services/aiClient';
 
 export interface AuthedRequest extends Request {
   uid?: string;
@@ -36,7 +37,7 @@ export async function requireAuth(req: AuthedRequest, res: Response, next: NextF
       return;
     }
     req.uid = decoded.uid;
-    next();
+    await withUserAi(decoded.uid, () => next());
   } catch {
     res.status(401).json({ error: '認証トークンが無効です' });
   }

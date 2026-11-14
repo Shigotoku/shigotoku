@@ -1,6 +1,7 @@
 /** Firebase Functions v2 にバインドする Secret Manager キー */
 export const functionSecrets = [
   'GEMINI_API_KEY',
+  'AI_KEY_SECRET',
   'AYRSHARE_API_KEY',
   'SLACK_SIGNING_SECRET',
   'META_APP_ID',
