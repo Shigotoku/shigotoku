@@ -149,12 +149,16 @@ export default function MagicCreator() {
     fetchSettings()
       .then((s) => {
         if (s.defaultPublishMode) setPublishMode(s.defaultPublishMode);
+        else if (s.xConnected) setPublishMode('x_free');
         setBrandProfile(s.brandProfile?.trim() ?? '');
         setConnected({
           x: !!s.xConnected,
           meta: !!s.metaConnected,
           line: !!s.lineChannelAccessToken?.trim(),
         });
+        if (searchParams.get('sns') === 'x' && s.xConnected) setPublishMode('x_free');
+        if (searchParams.get('sns') === 'instagram' && s.metaConnected) setPublishMode('meta');
+        if (searchParams.get('sns') === 'line' && s.lineChannelAccessToken) setPublishMode('line');
       })
       .catch(() => {});
     fetchXSeries()

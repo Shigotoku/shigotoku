@@ -30,7 +30,7 @@ export default function PostPreview({ platform, content, imageUrl, label, classN
           <div className="flex items-center gap-2 border-b border-neutral-100 px-3 py-2">
             <div className="h-8 w-8 rounded-full bg-neutral-900" />
             <div>
-              <p className="text-xs font-bold text-neutral-900">あなた�E店�E</p>
+              <p className="text-xs font-bold text-neutral-900">あなたの店舗</p>
               <p className="text-[10px] text-neutral-500">@yourstore</p>
             </div>
           </div>
@@ -85,7 +85,7 @@ export default function PostPreview({ platform, content, imageUrl, label, classN
           <div
             className="flex aspect-[4/5] w-full items-center justify-center bg-neutral-100 text-xs text-neutral-400"
           >
-            画像�Eレビュー
+            画像プレビュー
           </div>
         )}
         <div className="flex gap-3 px-3 py-2 text-neutral-800">

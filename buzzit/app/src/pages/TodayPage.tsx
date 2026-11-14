@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Check, Copy, Download, ExternalLink } from 'lucide-react';
-import { fetchScheduledJobs, markScheduledPosted, updateScheduledJob, type ScheduledJob } from '../lib/api';
+import { fetchScheduledJobs, fetchSettings, markScheduledPosted, updateScheduledJob, type ScheduledJob } from '../lib/api';
 import { usePersona } from '../store/personaContext';
 import PlatformBadge from '../components/PlatformBadge';
 
@@ -44,7 +44,21 @@ function CopyButton({ text, label = 'コピー' }: { text: string; label?: strin
   );
 }
 
-function DraftConfirmRow({ job, onDone }: { job: ScheduledJob; onDone: () => void }) {
+function DraftConfirmRow({
+  job,
+  onDone,
+  xConnected,
+  selected,
+  onToggle,
+}: {
+  job: ScheduledJob;
+  onDone: () => void;
+  xConnected: boolean;
+  selected: boolean;
+  onToggle: () => void;
+}) {
+  const hasX = job.contents.some((c) => c.platform === 'x_thread');
+  const [mode, setMode] = useState<'notify' | 'x_free'>(xConnected && hasX ? 'x_free' : 'notify');
   const [when, setWhen] = useState(() => toLocalInput(job.scheduledAt));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -61,7 +75,7 @@ function DraftConfirmRow({ job, onDone }: { job: ScheduledJob; onDone: () => voi
     setBusy(true);
     setError('');
     try {
-      await updateScheduledJob(job.id, { scheduledAt: at.toISOString(), publishMode: 'notify' });
+      await updateScheduledJob(job.id, { scheduledAt: at.toISOString(), publishMode: mode });
       onDone();
     } catch (e) {
       setError(e instanceof Error ? e.message : '予約に失敗しました');
@@ -73,6 +87,7 @@ function DraftConfirmRow({ job, onDone }: { job: ScheduledJob; onDone: () => voi
   return (
     <div className="rounded-xl border border-neutral-200 bg-white p-3">
       <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-neutral-500">
+        <input type="checkbox" checked={selected} onChange={onToggle} aria-label="選択" />
         {job.contents.map((c) => (
           <PlatformBadge key={c.platform} platformId={c.platform} showLabel />
         ))}
@@ -89,6 +104,12 @@ function DraftConfirmRow({ job, onDone }: { job: ScheduledJob; onDone: () => voi
           onChange={(e) => setWhen(e.target.value)}
           className="border border-neutral-300 px-2 py-1 text-sm"
         />
+        {hasX && xConnected && (
+          <select value={mode} onChange={(e) => setMode(e.target.value as 'notify' | 'x_free')} className="border border-neutral-300 px-2 py-1 text-xs">
+            <option value="x_free">Xへ自動投稿</option>
+            <option value="notify">通知のみ（手動投稿）</option>
+          </select>
+        )}
         <button
           type="button"
           disabled={busy}
@@ -205,6 +226,13 @@ export default function TodayPage() {
   const { activePersonaId } = usePersona();
   const [jobs, setJobs] = useState<ScheduledJob[] | null>(null);
   const [error, setError] = useState('');
+  const [xConnected, setXConnected] = useState(false);
+  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [bulkMsg, setBulkMsg] = useState('');
+
+  useEffect(() => {
+    fetchSettings().then((st) => setXConnected(!!st.xConnected)).catch(() => undefined);
+  }, []);
 
   const load = useCallback(() => {
     if (!activePersonaId) return;
@@ -225,6 +253,42 @@ export default function TodayPage() {
     })
     .sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt));
   const drafts = (jobs ?? []).filter((j) => j.status === 'draft').sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt));
+  const toggle = (id: string) =>
+    setSel((p) => {
+      const n = new Set(p);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  const picked = drafts.filter((j) => sel.has(j.id));
+  const bulk = async (kind: 'reserve' | 'shift' | 'tag') => {
+    if (picked.length === 0) return;
+    setBulkMsg('');
+    try {
+      if (kind === 'reserve') {
+        const ok = picked.filter((j) => new Date(j.scheduledAt).getTime() > Date.now());
+        if (ok.length === 0) return setBulkMsg('未来の日時の下書きがありません。日時をずらしてください');
+        const range = ok.map((j) => new Date(j.scheduledAt).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })).join('\n');
+        if (!window.confirm(`次の ${ok.length} 件を、それぞれの日時で予約します（通知モード）。\n\n${range}`)) return;
+        for (const j of ok) await updateScheduledJob(j.id, { publishMode: xConnected && j.contents.some((c) => c.platform === 'x_thread') ? 'x_free' : 'notify' });
+        setBulkMsg(`${ok.length}件を予約しました${ok.length < picked.length ? `（過去日時の ${picked.length - ok.length} 件は除外）` : ''}`);
+      } else if (kind === 'shift') {
+        const d = Number(window.prompt('何日ずらしますか？（例: 1 / -1）', '1'));
+        if (!d || Number.isNaN(d)) return;
+        for (const j of picked) await updateScheduledJob(j.id, { scheduledAt: new Date(new Date(j.scheduledAt).getTime() + d * 86400000).toISOString() });
+        setBulkMsg(`${picked.length}件の日時を${d}日ずらしました`);
+      } else {
+        const t = (window.prompt('追加するタグ（空白区切り）') ?? '').split(/[\s,、]+/).map((x) => x.replace(/^[#＃]/, '')).filter(Boolean);
+        if (t.length === 0) return;
+        for (const j of picked) await updateScheduledJob(j.id, { tags: [...new Set([...(j.tags ?? []), ...t])].slice(0, 10) });
+        setBulkMsg(`${picked.length}件にタグを追加しました`);
+      }
+      setSel(new Set());
+      load();
+    } catch (e) {
+      setBulkMsg(e instanceof Error ? e.message : '一括操作に失敗しました');
+    }
+  };
   const upcoming = (jobs ?? []).filter((j) => j.status === 'pending' && new Date(j.scheduledAt).getTime() >= endToday).length;
 
   return (
@@ -254,9 +318,19 @@ export default function TodayPage() {
       {drafts.length > 0 && (
         <section className="space-y-2">
           <h2 className="text-sm font-semibold text-neutral-800">日時の確定待ちの下書き（{drafts.length}件）</h2>
-          <p className="text-xs text-neutral-500">日時を確認して「予約する」を押すと、その時刻に通知が届きます（自動投稿はされません）。</p>
+          <p className="text-xs text-neutral-500">日時を確認して「予約する」を押すと予約されます。Xは「Xへ自動投稿」を選ぶと指定時刻に自動で投稿、それ以外は時刻に通知が届きます。</p>
+          <div className="flex flex-wrap items-center gap-2 rounded-lg bg-neutral-50 px-3 py-2 text-xs">
+            <label className="flex items-center gap-1.5">
+              <input type="checkbox" checked={picked.length === drafts.length} onChange={(e) => setSel(e.target.checked ? new Set(drafts.map((d) => d.id)) : new Set())} />
+              すべて選択（{picked.length}/{drafts.length}）
+            </label>
+            <button type="button" disabled={!picked.length} onClick={() => bulk('reserve')} className="border border-neutral-900 px-2.5 py-1 font-medium disabled:opacity-40">選択を一括予約</button>
+            <button type="button" disabled={!picked.length} onClick={() => bulk('shift')} className="border border-neutral-300 px-2.5 py-1 disabled:opacity-40">日付をずらす</button>
+            <button type="button" disabled={!picked.length} onClick={() => bulk('tag')} className="border border-neutral-300 px-2.5 py-1 disabled:opacity-40">タグ追加</button>
+            {bulkMsg && <span className="text-neutral-700">{bulkMsg}</span>}
+          </div>
           {drafts.map((j) => (
-            <DraftConfirmRow key={j.id} job={j} onDone={load} />
+            <DraftConfirmRow key={j.id} job={j} onDone={load} xConnected={xConnected} selected={sel.has(j.id)} onToggle={() => toggle(j.id)} />
           ))}
         </section>
       )}

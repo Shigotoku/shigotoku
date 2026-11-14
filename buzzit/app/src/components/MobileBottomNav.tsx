@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Wand2, Inbox, CalendarDays, Menu } from 'lucide-react';
+import { LayoutDashboard, Wand2, CheckCircle2, CalendarDays, Menu } from 'lucide-react';
 
 export default function MobileBottomNav({ onOpenMenu }: { onOpenMenu: () => void }) {
   const location = useLocation();
@@ -10,7 +10,7 @@ export default function MobileBottomNav({ onOpenMenu }: { onOpenMenu: () => void
     accent?: boolean;
   }> = [
     { to: '/dashboard', label: 'ホーム', icon: LayoutDashboard },
-    { to: '/inbox', label: 'ネタ溜め', icon: Inbox },
+    { to: '/today', label: '今日', icon: CheckCircle2 },
     { to: '/magic-creator', label: '投稿を作る', icon: Wand2, accent: true },
     { to: '/calendar', label: 'カレンダー', icon: CalendarDays },
   ];

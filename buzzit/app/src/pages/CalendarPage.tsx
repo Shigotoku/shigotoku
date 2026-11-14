@@ -48,6 +48,7 @@ import { loadCalendarViewPref, loadDropHourPref, saveCalendarViewPref, saveDropH
 import EmptyState from '../components/EmptyState';
 import PostHistoryPanel from '../components/PostHistoryPanel';
 import SimilarPostsCheck from '../components/SimilarPostsCheck';
+import PostPreview from '../components/PostPreview';
 import JobMetaFields from '../components/JobMetaFields';
 import CloneStaggerModal from '../components/CloneStaggerModal';
 import PersonaPublishConfirmModal from '../components/PersonaPublishConfirmModal';
@@ -589,6 +590,10 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
     setMessage(null);
     try {
       const n = Math.min(drafts.length, emptyGaps.length);
+      if (!window.confirm(`下書き ${n} 件を、空き日のおすすめ時刻に予約します。よろしいですか？（日時はあとから変更できます）`)) {
+        setFillingGaps(false);
+        return;
+      }
       const hours = preferredHourList.length ? preferredHourList : [12, 18, 20];
       for (let i = 0; i < n; i++) {
         const hour = hours[i % hours.length] ?? 12;
@@ -932,7 +937,7 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="本文・#タグで検索"
-          className="ml-auto w-44 border border-neutral-200 bg-white px-3 py-1.5 text-sm focus:border-neutral-900 focus:outline-none"
+          className="ml-auto w-full border sm:w-44 border border-neutral-200 bg-white px-3 py-1.5 text-sm focus:border-neutral-900 focus:outline-none"
         />
       </div>
 
@@ -1514,6 +1519,12 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
                     rows={5}
                     className="w-full resize-y border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm focus:border-neutral-900 focus:outline-none"
                   />
+                  <details className="mt-1">
+                    <summary className="cursor-pointer text-xs text-neutral-500">見え方のプレビュー</summary>
+                    <div className="mt-1">
+                      <PostPreview platform={item.platform as never} content={item.content} imageUrl={editMedia.find((u) => !/\.(mp4|mov|webm)(\?|$)/i.test(u))} label={item.label} />
+                    </div>
+                  </details>
                 </label>
               ))}
             </div>
