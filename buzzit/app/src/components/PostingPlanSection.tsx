@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CalendarRange, ChevronDown, ChevronRight, Plus, Trash2, Wand2 } from 'lucide-react';
+import { CalendarRange, ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import { authFetch } from '../lib/api';
 import { usePersona } from '../store/personaContext';
 
@@ -34,19 +34,6 @@ const PLATFORMS: Array<[string, string]> = [
   ['tiktok', 'TikTok'],
 ];
 
-/** メディトくん用の初期9枠（読み込むだけで保存はしない。確認して「計画を保存」で登録） */
-const MEDITO_PRESET: Array<Omit<Slot, 'id' | 'tags'>> = [
-  { weekday: 1, time: '12:20', platform: 'x_thread', seriesName: '月曜のムダ発見', theme: '月曜のムダ発見', purpose: '共感・認知拡大' },
-  { weekday: 2, time: '12:20', platform: 'x_thread', seriesName: '3分でわかる医療制度', theme: '3分でわかる医療制度', purpose: '専門性・保存' },
-  { weekday: 2, time: '20:45', platform: 'x_thread', seriesName: '医療制度の深掘り', theme: '医療制度の深掘り', purpose: '実務知識' },
-  { weekday: 3, time: '12:20', platform: 'x_thread', seriesName: 'メディトくんの開発日誌', theme: 'メディトくんの開発日誌', purpose: '製品認知', product: 'メディト' },
-  { weekday: 4, time: '12:20', platform: 'x_thread', seriesName: '院内AI研究室', theme: '院内AI研究室', purpose: 'AI・医療DX' },
-  { weekday: 4, time: '20:45', platform: 'x_thread', seriesName: 'AI・ローカルLLM実験メモ', theme: 'AI・ローカルLLM実験メモ', purpose: '技術情報' },
-  { weekday: 5, time: '12:20', platform: 'x_thread', seriesName: 'メディトくん劇場', theme: 'メディトくん劇場', purpose: '4コマ・ファン化', mediaKind: '4コマ漫画（画像）' },
-  { weekday: 6, time: '10:00', platform: 'x_thread', seriesName: '明日から使えるクリニック改善', theme: '明日から使えるクリニック改善', purpose: '実務Tips' },
-  { weekday: 0, time: '20:30', platform: 'x_thread', seriesName: 'クリニックの困りごと会議', theme: 'クリニックの困りごと会議', purpose: '読者参加' },
-];
-
 const inputCls = 'rounded border border-neutral-300 px-2 py-1';
 
 /** 投稿計画（投稿シリーズ）: 曜日×時刻×媒体の枠に、シリーズ名・目的・トーン・ルールを持たせる。AIが空き枠だけを埋める（plan_gaps） */
@@ -74,21 +61,6 @@ export default function PostingPlanSection() {
       else n.add(id);
       return n;
     });
-
-  const loadPreset = () => {
-    const have = new Set(slots.map((s) => `${s.seriesName ?? s.theme}|${s.weekday}|${s.time}`));
-    const add = MEDITO_PRESET.filter((p) => !have.has(`${p.seriesName}|${p.weekday}|${p.time}`)).map((p, i) => ({
-      ...p,
-      id: `p${Date.now()}${i}`,
-      tags: [],
-    }));
-    setSlots((l) => [...l, ...add]);
-    setMsg(
-      add.length
-        ? `${add.length}件の枠を読み込みました（まだ保存していません）。内容と、上の「${activePersona.name}」が対象で合っているか確認して「計画を保存」を押してください。下書きや投稿予約は作られません。`
-        : '初期の枠はすべて登録済みです。',
-    );
-  };
 
   const save = async () => {
     setBusy(true);
@@ -208,10 +180,6 @@ export default function PostingPlanSection() {
         >
           <Plus className="mr-1 inline h-4 w-4" />
           枠を追加
-        </button>
-        <button type="button" onClick={loadPreset} className="buzz-btn-secondary !px-3 !py-1.5 text-sm" title="メディトくんの9つのシリーズ枠を読み込み（保存はしません）">
-          <Wand2 className="mr-1 inline h-4 w-4" />
-          メディトくんの初期9枠を読み込む
         </button>
         <button type="button" onClick={save} disabled={busy} className="buzz-btn-primary !px-4 !py-1.5 text-sm disabled:opacity-70">
           {busy ? '保存中…' : '計画を保存'}
