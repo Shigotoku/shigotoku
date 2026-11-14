@@ -51,61 +51,8 @@ import {
   type SettingsResponse,
 } from '../lib/api';
 import { useStore } from '../store/storeContext';
-
-type MainTab = 'journey' | 'industry' | 'platforms' | 'playbook' | 'rhythm';
-
-const mainTabs: Array<{ key: MainTab; label: string }> = [
-  { key: 'journey', label: '30日ジャーニー' },
-  { key: 'industry', label: '業種別テンプレ' },
-  { key: 'platforms', label: 'SNS伴走ガイド' },
-  { key: 'playbook', label: 'ばずらせ方' },
-  { key: 'rhythm', label: '週間リズム・FAQ' },
-];
-
-function loadCompanionDone(): Record<string, string[]> {
-  try {
-    const raw = localStorage.getItem(COMPANION_STORAGE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as Record<string, string[]>;
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-function loadDone(): Set<string> {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return new Set();
-    const parsed = JSON.parse(raw) as string[];
-    return new Set(Array.isArray(parsed) ? parsed : []);
-  } catch {
-    return new Set();
-  }
-}
-
-function loadIndustry(): IndustryId | null {
-  try {
-    const raw = localStorage.getItem(INDUSTRY_STORAGE_KEY);
-    if (!raw) return null;
-    if (industryTemplates.some((t) => t.id === raw)) return raw as IndustryId;
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-function emptySnapshot(): ConnectionSnapshot {
-  return {
-    metaConnected: false,
-    lineConnected: false,
-    slackConnected: false,
-    publishModeReady: false,
-    hasTeam: false,
-    hasLineStep: false,
-    hasDestinationUrl: false,
-  };
-}
+import { mainTabs, loadCompanionDone, loadDone, loadIndustry, emptySnapshot, type MainTab } from './roadmap/roadmapHelpers';
+import { isRecommendedPlatform, InfoTile, GuideBlock } from './roadmap/RoadmapParts';
 
 export default function RoadmapPage() {
   const { stores, activeStoreId, refreshStores } = useStore();
@@ -1013,69 +960,6 @@ export default function RoadmapPage() {
           </section>
         </div>
       )}
-    </div>
-  );
-}
-
-function isRecommendedPlatform(
-  platformId: string,
-  platformName: string,
-  primary: string[],
-): boolean {
-  return primary.some((name) => {
-    const n = name.toLowerCase();
-    if (platformId === 'gbp' && (n.includes('google') || n.includes('マップ') || n.includes('gbp'))) {
-      return true;
-    }
-    if (platformId === 'youtube-shorts' && (n.includes('youtube') || n.includes('shorts'))) {
-      return true;
-    }
-    if (platformId === 'facebook-threads' && (n.includes('facebook') || n.includes('threads'))) {
-      return true;
-    }
-    return platformName.toLowerCase().includes(n) || n.includes(platformName.toLowerCase().slice(0, 4));
-  });
-}
-
-function InfoTile({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="border border-neutral-200 bg-neutral-50 p-4">
-      <p className="text-[11px] font-semibold tracking-wider text-neutral-400 uppercase">{label}</p>
-      <p className="mt-2 text-sm leading-relaxed text-neutral-800">{value}</p>
-    </div>
-  );
-}
-
-function GuideBlock({
-  title,
-  items,
-  accent,
-  muted,
-}: {
-  title: string;
-  items: string[];
-  accent?: boolean;
-  muted?: boolean;
-}) {
-  return (
-    <div
-      className={`border p-5 ${
-        accent
-          ? 'border-[#6b4a3a]/25 bg-[#faf6f2]'
-          : muted
-            ? 'border-neutral-200 bg-neutral-50'
-            : 'border-neutral-200 bg-white'
-      }`}
-    >
-      <h4 className="mb-3 text-sm font-bold">{title}</h4>
-      <ul className="space-y-2.5">
-        {items.map((item) => (
-          <li key={item} className="flex gap-2.5 text-sm leading-relaxed text-neutral-700">
-            <Check className="mt-0.5 h-4 w-4 shrink-0 text-neutral-400" />
-            {item}
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }

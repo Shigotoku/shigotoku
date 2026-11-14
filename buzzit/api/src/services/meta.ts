@@ -245,7 +245,9 @@ export async function publishToMeta(
 
       case 'threads':
         if (connection.igUserId) {
-          results.push(await publishThreads(connection.igUserId, igToken, item.content, media));
+          // Threads は専用API(graph.threads.net)と専用トークンが必要。未対応のため誤投稿せず案内する
+          void publishThreads;
+          results.push({ platform: 'threads', success: false, message: 'Threads の自動投稿は未対応です。予約モード「通知」で「今日の投稿」から投稿してください' });
         } else {
           results.push({ platform: 'threads', success: false, message: 'Threads/IG 未連携' });
         }
