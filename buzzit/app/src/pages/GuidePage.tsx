@@ -138,7 +138,22 @@ export default function GuidePage() {
               <p><span className="font-semibold">⑤ 依頼する。</span>ChatGPT で新しいチャットを開き、追加した BuzzIt を有効にして、AI連携画面の「AIに送る依頼文」を貼ります。「X向けに来週分3本の下書きを作って」のように一言添えると、バジットに下書きが作られます。内容はカレンダーで確認し、承認・予約はご自身で行います。</p>
             </li>
           </ol>
-          <p className="mt-4 text-xs text-neutral-500">
+          <div className="mt-4 space-y-2 rounded-lg border border-neutral-200 bg-neutral-50 p-3 text-sm text-neutral-700">
+            <p className="font-semibold text-neutral-900">バジットが新機能を追加したときは（ChatGPT側の更新）</p>
+            <p>
+              ChatGPT は接続したときのツール一覧を覚えているため、バジットに新しいAI連携機能が増えても、そのままでは反映されないことがあります。
+              「新しい機能が見当たらない」ときは、ChatGPT のプラグイン画面で BuzzIt を開き、「更新（再読み込み）」を押してください。接続の設定やデータは消えません。
+              更新しても直らない場合は、BuzzIt のプラグインを削除して追加し直します（承認画面でキャラを選び直します）。
+            </p>
+            <p className="font-semibold text-neutral-900">間違った人・キャラに書き込まないために</p>
+            <ul className="list-disc space-y-1 pl-5">
+              <li>接続は、承認したユーザーの、選んだ1人のキャラ専用です。他のユーザーのデータには触れません。</li>
+              <li>AIへの依頼文には、最初に「接続中のユーザーとキャラが想定どおりか確認する」手順が入っています。違う場合は何も書き込まず中止します。</li>
+              <li>AIができるのは下書きまでです。投稿・承認・予約確定は、必ずご自身が画面で行います。</li>
+              <li>承認画面には、ログイン中のアカウントと接続先のアプリが表示されます。心当たりのないアプリは許可しないでください。</li>
+              <li>接続はいつでも「設定 → AI連携」から解除できます。</li>
+            </ul>
+          </div>          <p className="mt-4 text-xs text-neutral-500">
             ChatGPT の画面に「カスタム MCP サーバーを追加」が見つからない場合は、Cursor・Claude Code・Gemini CLI（キーを発行して設定を貼る方式）をご利用ください。接続はいつでも「設定 → AI連携」から解除できます。
           </p>
         </div>

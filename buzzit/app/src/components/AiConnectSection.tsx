@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Bot, Copy, Check, KeyRound, Trash2 } from 'lucide-react';
 import { API_BASE, authFetch, fetchAuditLogs } from '../lib/api';
+import { useAuth } from '../store/authContext';
 import { usePersona } from '../store/personaContext';
 
 type Tool = 'web' | 'cursor' | 'claudeCode' | 'gemini';
@@ -48,6 +49,8 @@ function CopyBox({ label, value }: { label: string; value: string }) {
 /** AI（Cursor / Claude など）とバジットをつなぐ設定。キャラごとにキーを発行する。 */
 export default function AiConnectSection() {
   const { activePersona } = usePersona();
+  const { user } = useAuth();
+  const who = user?.displayName || user?.email || 'ご自身のアカウント';
   const [keys, setKeys] = useState<KeyRow[]>([]);
   const [newKey, setNewKey] = useState<string | null>(null);
   const [tool, setTool] = useState<Tool>('web');
@@ -137,7 +140,7 @@ export default function AiConnectSection() {
   const cfg = configs[tool];
   const prompt = `あなたは「${name}」のSNS編集長です。Buzzit のツールで投稿を管理します（投稿・承認はできず、必ず下書きまで）。
 手順:
-まず whoami で接続中のキャラとSNSアカウントを確認し、「${name}」であることを確かめてください（違う場合は中止して私に知らせてください）。
+まず whoami を呼び、次の2点を確認してください。①user（承認したBuzzItユーザー）が「${who}」であること ②character が「${name}」であること。どちらか一方でも違う場合は、何も書き込まず、すぐ私に知らせて中止してください。
 投稿計画（シリーズ）が未登録なら list_series で確認し、upsert_plan は必ず dryRun=true のプレビューを見せてください（保存は私が確認してから）。実績が無い項目の成果や理由は創作しないでください。
 0) 投稿計画があれば plan_gaps で空き枠（日時・媒体・テーマ）を取得し、その枠を埋める
 1) overview・tag_report・performance_report で、予定・過去の投稿・タグ別の実績・伸びた型を確認

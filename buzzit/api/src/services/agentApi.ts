@@ -27,6 +27,22 @@ export const APP_ORIGIN = process.env.BUZZIT_APP_ORIGIN ?? 'https://app.buzzit.s
 const KEY_PREFIX = 'bzk_';
 const sha256 = (v: string) => createHash('sha256').update(v).digest('hex');
 
+const accessCache = new Map<string, number>();
+/** キー発行後にチーム権限を失った・キャラが削除された場合に、古いキーで操作できないよう60秒ごとに再確認する */
+async function stillAllowed(uid: string, personaId: string): Promise<boolean> {
+  const k = `${uid}|${personaId}`;
+  const hit = accessCache.get(k);
+  if (hit && Date.now() - hit < 60_000) return true;
+  try {
+    await assertPersonaAccess(personaId, uid, 'editor');
+    accessCache.set(k, Date.now());
+    return true;
+  } catch {
+    accessCache.delete(k);
+    return false;
+  }
+}
+
 export async function requireAgentKey(req: AgentRequest, res: Response, next: NextFunction) {
   const header = req.header('authorization');
   const token = header?.startsWith('Bearer ') ? header.slice(7).trim() : '';
@@ -53,7 +69,12 @@ export async function requireAgentKey(req: AgentRequest, res: Response, next: Ne
       res.status(401).json({ error: 'APIキーが無効です' });
       return;
     }
-    req.agent = { uid, personaId: String(doc.data().personaId), keyId: doc.id };
+    const personaId = String(doc.data().personaId);
+    if (!(await stillAllowed(uid, personaId))) {
+      res.status(403).json({ error: 'この接続のキャラへのアクセス権がなくなりました。設定のAI連携で接続を解除し、接続し直してください' });
+      return;
+    }
+    req.agent = { uid, personaId, keyId: doc.id };
     doc.ref.update({ lastUsedAt: FieldValue.serverTimestamp() }).catch(() => {});
     next();
   } catch (err) {

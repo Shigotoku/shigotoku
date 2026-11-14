@@ -8,6 +8,7 @@
  */
 import { createHash } from 'node:crypto';
 import { Router } from 'express';
+import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { requireAuth, type AuthedRequest } from '../middleware/auth';
 import {
@@ -23,7 +24,7 @@ import {
   type PostInsightDoc,
   type ScheduledJobDoc,
 } from './firestore';
-import { assertPersonaAccess, getPersona, listPersonasForUser, resolveActivePersonaId } from './personas';
+import { assertPersonaAccess, getPersona, getUserRoleInPersona, listPersonasForUser, resolveActivePersonaId } from './personas';
 import { listAuditLogs, writeAuditLog } from './productExtras';
 import { lintPost } from './postLint';
 import { brief, externalUrl, jobText, jstParts, normTags, platformOf, type AgentCtx } from './agentApi';
@@ -60,17 +61,25 @@ function accountsOf(p: PersonaRecord) {
   return { accounts: list, ledger };
 }
 
+function maskEmail(e?: string | null): string | undefined {
+  if (!e) return undefined;
+  const [l, d] = e.split('@');
+  return `${l.slice(0, 2)}***@${d ?? ''}`;
+}
+
 export async function opWhoAmI(ctx: AgentCtx) {
   const p = await getPersona(ctx.personaId);
   if (!p) throw new Error('接続中のキャラが見つかりません');
   const { accounts } = accountsOf(p);
+  const u = await getAuth().getUser(ctx.uid).catch(() => null);
+  const role = await getUserRoleInPersona(ctx.personaId, ctx.uid).catch(() => null);
   return {
-    character: { id: p.id, name: p.name, slug: p.slug, type: p.type },
+    user: { displayName: u?.displayName ?? null, emailMasked: maskEmail(u?.email) },
+    character: { id: p.id, name: p.name, slug: p.slug, type: p.type, yourRole: role },
     accounts: accounts.map((a) => ({ ...a })),
-    note: 'この接続は上記のキャラ専用です。読み書きはすべてこのキャラのデータだけが対象です。別のキャラを使うには、そのキャラを選んで再接続してください。',
+    note: 'user は、この接続を承認したBuzzItのログインユーザーです。まずユーザー名・キャラ名が依頼者の想定と一致するか確認してください。一致しない場合は何も書き込まず、依頼者に知らせてください。この接続は上記のキャラ専用で、読み書きはそのキャラのデータだけが対象です。',
   };
 }
-
 export async function opListCharacters(ctx: AgentCtx) {
   const list = await listPersonasForUser(ctx.uid);
   return {

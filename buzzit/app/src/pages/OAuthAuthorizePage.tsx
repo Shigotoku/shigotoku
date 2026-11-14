@@ -3,10 +3,14 @@ import { useSearchParams } from 'react-router-dom';
 import { Bot, ShieldCheck } from 'lucide-react';
 import { authFetch } from '../lib/api';
 import { usePersona } from '../store/personaContext';
+import { useAuth } from '../store/authContext';
+
+const KNOWN_HOSTS = ['chatgpt.com', 'chat.openai.com', 'claude.ai', 'claude.com', 'localhost', '127.0.0.1'];
 
 /** ChatGPT / Claude などが「バジットに接続」するときの許可画面 */
 export default function OAuthAuthorizePage() {
   const [params] = useSearchParams();
+  const { user } = useAuth();
   const { personas, activePersonaId, refreshPersonas } = usePersona();
   const [clientName, setClientName] = useState('');
   const [personaId, setPersonaId] = useState('');
@@ -15,6 +19,13 @@ export default function OAuthAuthorizePage() {
 
   const clientId = params.get('client_id') ?? '';
   const redirectUri = params.get('redirect_uri') ?? '';
+  let host = '';
+  try {
+    host = new URL(redirectUri).hostname;
+  } catch {
+    host = '';
+  }
+  const knownHost = KNOWN_HOSTS.some((h) => host === h || host.endsWith(`.${h}`));
 
   useEffect(() => {
     refreshPersonas().catch(() => {});
@@ -82,7 +93,20 @@ export default function OAuthAuthorizePage() {
         <p className="text-sm text-neutral-700">
           <strong>{clientName || '…'}</strong> が Buzzit に接続しようとしています。
         </p>
-        <label className="block text-sm">
+        <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 text-xs text-neutral-700">
+          <p>
+            ログイン中のBuzzItアカウント: <strong>{user?.displayName || user?.email || '—'}</strong>
+            {user?.displayName && user?.email ? `（${user.email}）` : ''}
+          </p>
+          <p className="mt-1">
+            接続先のアプリ: <strong>{host || '不明'}</strong>
+          </p>
+        </div>
+        {!knownHost && (
+          <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+            このアプリは、ChatGPT・Claude 以外の接続先です。心当たりがない場合は「キャンセル」してください。許可すると、選んだキャラの予定・履歴の閲覧と下書き作成ができるようになります。
+          </p>
+        )}        <label className="block text-sm">
           <span className="mb-1 block text-xs font-medium text-neutral-600">接続する配信キャラ</span>
           <select value={personaId} onChange={(e) => setPersonaId(e.target.value)} className="w-full rounded border border-neutral-300 px-3 py-2">
             {personas.map((p) => (

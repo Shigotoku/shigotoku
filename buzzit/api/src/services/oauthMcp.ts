@@ -55,7 +55,21 @@ oauthRouter.get('/.well-known/oauth-authorization-server', authServer);
 oauthRouter.get('/.well-known/oauth-authorization-server/*path', authServer);
 
 // ---- 動的クライアント登録 ----
+const regHits = new Map<string, number[]>();
+/** 動的クライアント登録の乱用対策（IPごと 1時間20件。インスタンス単位の簡易制限） */
+function regLimited(ip: string): boolean {
+  const now = Date.now();
+  const hits = (regHits.get(ip) ?? []).filter((t) => now - t < 3_600_000);
+  hits.push(now);
+  regHits.set(ip, hits);
+  return hits.length > 20;
+}
+
 oauthRouter.post('/oauth/register', async (req, res) => {
+  if (regLimited(req.ip ?? 'unknown')) {
+    res.status(429).json({ error: 'too_many_requests' });
+    return;
+  }
   const body = req.body as { client_name?: string; redirect_uris?: string[] };
   const uris = (body.redirect_uris ?? []).filter((u) => typeof u === 'string');
   if (!uris.length || !uris.every(validRedirect)) {
