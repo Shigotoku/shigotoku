@@ -118,7 +118,13 @@ export interface PostInsightDoc {
   bookmarks?: number;
   saved?: number;
   fetchedAt: string;
-  source: 'meta' | 'x';
+  source: 'meta' | 'x' | 'manual';
+  /** 手入力・CSV取込で追加できる指標（未取得は undefined のまま。0 と区別する） */
+  profileClicks?: number;
+  urlClicks?: number;
+  newFollows?: number;
+  shares?: number;
+  snapshots?: Array<{ label: string; capturedAt: string; impressions: number; likes?: number; reposts?: number; replies?: number; bookmarks?: number; urlClicks?: number; profileClicks?: number }>;
   lastError?: string;
   scheduledAt?: string;
   preview?: string;
@@ -1087,11 +1093,40 @@ export interface PlanSlot {
   platform: string;
   theme: string;
   tags?: string[];
+  /** 投稿シリーズ（枠 = シリーズの1回分）。未設定でも従来どおり動く */
+  seriesName?: string;
+  purpose?: string;
+  audience?: string;
+  category?: string;
+  tone?: string;
+  mediaKind?: string;
+  rules?: string;
+  ngRules?: string;
+  product?: string;
+  active?: boolean;
 }
 
 export async function getPostingPlan(uid: string, personaId: string): Promise<PlanSlot[]> {
   const snap = await db().collection('users').doc(uid).collection('postingPlans').doc(personaId).get();
   return ((snap.data()?.slots as PlanSlot[] | undefined) ?? []).slice(0, 60);
+}
+
+/** シリーズ関連の任意項目（空文字は保存しない・Firestore は undefined 不可） */
+function planExtras(x: PlanSlot): Partial<PlanSlot> {
+  const s = (v: unknown, n: number) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, n) : undefined);
+  const out: Partial<PlanSlot> = {
+    seriesName: s(x.seriesName, 60),
+    purpose: s(x.purpose, 200),
+    audience: s(x.audience, 100),
+    category: s(x.category, 60),
+    tone: s(x.tone, 200),
+    mediaKind: s(x.mediaKind, 60),
+    rules: s(x.rules, 600),
+    ngRules: s(x.ngRules, 600),
+    product: s(x.product, 80),
+    active: x.active === false ? false : undefined,
+  };
+  return Object.fromEntries(Object.entries(out).filter(([, v]) => v !== undefined)) as Partial<PlanSlot>;
 }
 
 export async function savePostingPlan(uid: string, personaId: string, slots: PlanSlot[]): Promise<PlanSlot[]> {
@@ -1102,6 +1137,7 @@ export async function savePostingPlan(uid: string, personaId: string, slots: Pla
     platform: String(x.platform || 'x_thread').slice(0, 30),
     theme: String(x.theme ?? '').slice(0, 80),
     tags: (x.tags ?? []).map((t) => String(t).replace(/^[#＃]/, '').trim().slice(0, 30)).filter(Boolean).slice(0, 5),
+    ...planExtras(x),
   }));
   await db().collection('users').doc(uid).collection('postingPlans').doc(personaId).set({ slots: clean, updatedAt: FieldValue.serverTimestamp() });
   return clean;

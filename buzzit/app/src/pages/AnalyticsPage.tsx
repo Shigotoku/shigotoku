@@ -18,6 +18,8 @@ import {
   type AbTestRecord,
   type TrendTopic,
   type WeeklyReport,
+  fetchMetricsBreakdown,
+  type MetricsBreakdown,
   type InsightsSummary,
 } from '../lib/api';
 import EmptyState from '../components/EmptyState';
@@ -131,7 +133,12 @@ export default function AnalyticsPage() {
     { key: 'revenue', label: kpiLabels.revenue, value: `¥${metrics.estimatedRevenue.toLocaleString()}`, icon: DollarSign },
   ];
 
-  const [subTab, setSubTab] = useState<'trend' | 'ab'>('trend');
+  const [subTab, setSubTab] = useState<'trend' | 'ab' | 'series'>('trend');
+  const [breakdown, setBreakdown] = useState<MetricsBreakdown | null>(null);
+  const [bdDim, setBdDim] = useState<'bySeries' | 'byWeekday' | 'byHour' | 'byMedia' | 'byUrl' | 'byFormat' | 'byTag'>('bySeries');
+  useEffect(() => {
+    if (subTab === 'series' && !breakdown) fetchMetricsBreakdown(90).then(setBreakdown).catch(() => {});
+  }, [subTab, breakdown]);
   const card = 'flex min-h-[260px] min-w-0 flex-col overflow-hidden rounded-xl border border-neutral-200/80 bg-white p-3 shadow-sm lg:min-h-0';
   const body = 'mt-2 min-h-0 flex-1 overflow-y-auto';
   const statBox = 'border border-neutral-200 bg-neutral-50 px-2.5 py-1.5';
@@ -205,7 +212,7 @@ export default function AnalyticsPage() {
                   </div>
                   <div className={statBox}>
                     <p className="text-[11px] text-neutral-500">X取得</p>
-                    <p className="text-xs font-medium">{insights.xInsightsEnabled ? 'オン' : 'オフ'}</p>
+                    <p className="text-xs font-medium">{insights.xInsightsEnabled ? 'オン' : 'オフ（手入力/CSV）'}</p>
                   </div>
                 </div>
                 {insights.recent.length > 0 && (
@@ -338,8 +345,16 @@ export default function AnalyticsPage() {
               <FlaskConical className="h-3.5 w-3.5" />
               A/Bテスト
             </button>
+            <button
+              type="button"
+              onClick={() => setSubTab('series')}
+              className={`inline-flex items-center gap-1 border px-2.5 py-1 text-xs ${subTab === 'series' ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-200 bg-white'}`}
+            >
+              <BarChart3 className="h-3.5 w-3.5" />
+              シリーズ別
+            </button>
             <span className="ml-auto">
-              {subTab === 'trend' ? (
+              {subTab === 'series' ? null : subTab === 'trend' ? (
                 <button type="button" disabled={busy} onClick={handleRefreshTrends} className="inline-flex items-center gap-1 text-xs underline-offset-2 hover:underline disabled:opacity-60">
                   <RefreshCw className="h-3.5 w-3.5" />
                   更新
@@ -352,7 +367,74 @@ export default function AnalyticsPage() {
             </span>
           </div>
 
-          {subTab === 'trend' ? (
+          {subTab === 'series' ? (
+            <div className={`${body} space-y-2`}>
+              {!breakdown ? (
+                <p className="text-xs text-neutral-500">読み込み中…</p>
+              ) : (
+                <>
+                  <div className="flex flex-wrap gap-1">
+                    {([
+                      ['bySeries', 'シリーズ'],
+                      ['byWeekday', '曜日'],
+                      ['byHour', '時刻'],
+                      ['byMedia', '画像/動画'],
+                      ['byUrl', 'URL'],
+                      ['byFormat', '形式'],
+                      ['byTag', 'タグ'],
+                    ] as const).map(([k, label]) => (
+                      <button
+                        key={k}
+                        type="button"
+                        onClick={() => setBdDim(k)}
+                        className={`border px-2 py-0.5 text-[11px] ${bdDim === k ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-200 bg-white'}`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-neutral-500">
+                    直近{breakdown.periodDays}日 · 集計対象 {breakdown.coverage.measuredPosts} / 投稿 {breakdown.coverage.publishedPosts}件
+                    {breakdown.coverage.unmeasuredPosts > 0 && `（実績未登録 ${breakdown.coverage.unmeasuredPosts}件は含めていません）`}
+                  </p>
+                  {breakdown[bdDim].length === 0 ? (
+                    <p className="text-xs text-neutral-500">
+                      集計できる実績がありません。投稿履歴の「実績を入力」か、Xのアナリティクスの「CSV取り込み」で実績を登録すると表示されます（API費用はかかりません）。
+                    </p>
+                  ) : (
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-neutral-200 text-left text-neutral-500">
+                          <th className="py-1 pr-1">区分</th>
+                          <th className="px-1 text-right">件数</th>
+                          <th className="px-1 text-right">平均表示</th>
+                          <th className="px-1 text-right">中央値</th>
+                          <th className="pl-1 text-right" title="1,000表示あたりのいいね">♡/1k</th>
+                          <th className="pl-1 text-right" title="1,000表示あたりのURLクリック">URL/1k</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {breakdown[bdDim].map((g) => (
+                          <tr key={g.key} className="border-b border-neutral-100">
+                            <td className="py-1 pr-1">
+                              {g.key}
+                              {g.lowSample && <span className="ml-1 rounded bg-amber-50 px-1 text-[10px] text-amber-800">少数</span>}
+                            </td>
+                            <td className="px-1 text-right tabular-nums">{g.posts}</td>
+                            <td className="px-1 text-right tabular-nums">{g.avgImpressions.toLocaleString()}</td>
+                            <td className="px-1 text-right tabular-nums">{g.medianImpressions.toLocaleString()}</td>
+                            <td className="pl-1 text-right tabular-nums">{g.per1000.likes ?? '—'}</td>
+                            <td className="pl-1 text-right tabular-nums">{g.per1000.urlClicks ?? '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                  <p className="text-[10px] text-neutral-400">「少数」は5件未満で傾向を断定できません。「—」は未取得（0ではありません）。</p>
+                </>
+              )}
+            </div>
+          ) : subTab === 'trend' ? (
             <div className={`${body} space-y-2`}>
               {trends.length === 0 ? (
                 <EmptyState

@@ -19,6 +19,8 @@ const RULES: Array<{ re: RegExp; rule: string; message: string }> = [
   { re: /(患者様?の声|口コミ|体験談|お客様の声)/, rule: '体験談・口コミ', message: '体験談・口コミの掲載は医療広告ガイドラインで原則禁止です。' },
   { re: /(今だけ|期間限定|キャンペーン|割引|無料(相談|カウンセリング)?|モニター)/, rule: '誘引表現', message: '自由診療の割引・キャンペーン表現は、料金・リスク等の併記が必要です。' },
   { re: /(副作用(は)?(ありません|なし|ゼロ)|リスク(は)?(ありません|なし|ゼロ)|痛みなし|ダウンタイムなし)/, rule: 'リスクの否定', message: 'リスクや副作用がないとする表現は不適切です。' },
+  { re: /(患者|カルテ|診察券|受診者)\s*(番号|ID|No\.?)\s*[:：]?\s*[A-Za-z0-9-]{3,}/i, rule: '患者情報', message: '患者・カルテ番号など個人を特定できる情報が含まれていないか確認してください。' },
+  { re: /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|0\d{1,4}-\d{1,4}-\d{3,4}/, rule: '個人情報', message: 'メールアドレス・電話番号が含まれています。公開してよいものか確認してください。' },
   { re: /(承認(済み)?|認可)(された)?(薬|治療|機器)/, rule: '承認の誤認', message: '未承認医薬品・機器を扱う場合は、その旨とリスクの記載が必要です。' },
 ];
 
@@ -27,6 +29,9 @@ export function lintPost(text: string, ctx: { platform?: string; mediaUrls?: str
   for (const r of RULES) {
     const m = text.match(r.re);
     if (m) issues.push({ level: 'warn', rule: r.rule, match: m[0], message: r.message });
+  }
+  if (/(診療報酬|改定|施行|通知|ガイドライン|制度|算定|施設基準)/.test(text) && !/https?:\/\/|出典|厚労省|厚生労働省|厚生局/.test(text)) {
+    issues.push({ level: 'info', rule: '出典', message: '制度・報酬に関する内容です。厚労省など一次情報の出典（URL・発表日）を確認し、必要なら明記してください。情報が古くなっていないかも確認してください。' });
   }
   const urls = ctx.mediaUrls ?? [];
   if (ctx.platform === 'instagram') {

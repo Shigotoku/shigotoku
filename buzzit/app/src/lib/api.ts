@@ -157,7 +157,7 @@ export interface PostInsight {
   replies?: number;
   reposts?: number;
   fetchedAt: string;
-  source: 'meta' | 'x';
+  source: 'meta' | 'x' | 'manual';
   lastError?: string;
   scheduledAt?: string;
   preview?: string;
@@ -567,6 +567,52 @@ export interface WeeklyReport {
 
 export function fetchWeeklyReport() {
   return request<{ report: WeeklyReport }>('/v1/reports/weekly');
+}
+
+export interface BreakdownGroup {
+  key: string;
+  posts: number;
+  avgImpressions: number;
+  medianImpressions: number;
+  per1000: { likes: number | null; reposts: number | null; bookmarks: number | null; urlClicks: number | null };
+  lowSample: boolean;
+}
+
+export interface MetricsBreakdown {
+  periodDays: number;
+  coverage: { publishedPosts: number; measuredPosts: number; unmeasuredPosts: number; note: string };
+  overall: { avgImpressions: number; medianImpressions: number } | null;
+  bySeries: BreakdownGroup[];
+  byWeekday: BreakdownGroup[];
+  byHour: BreakdownGroup[];
+  byMedia: BreakdownGroup[];
+  byUrl: BreakdownGroup[];
+  byFormat: BreakdownGroup[];
+  byTag: BreakdownGroup[];
+  caution: string;
+}
+
+export function fetchMetricsBreakdown(days = 90) {
+  return request<MetricsBreakdown>(`/v1/metrics/breakdown?days=${days}`);
+}
+
+/** 実績の手入力（X API を使わない・費用ゼロ）。未入力の項目は保存されない */
+export function saveManualMetrics(jobId: string, metrics: Record<string, number | undefined>) {
+  return request<{ success: boolean; label: string }>('/v1/metrics/manual', {
+    method: 'POST',
+    body: JSON.stringify({ jobId, metrics }),
+  });
+}
+
+/** X のアナリティクスCSVを取り込む */
+export function importMetricsCsv(csv: string) {
+  return request<{
+    success: boolean;
+    matched: number;
+    unmatched: number;
+    total: number;
+    unmatchedSamples: Array<{ text: string; reason: string }>;
+  }>('/v1/metrics/import-csv', { method: 'POST', body: JSON.stringify({ csv }) });
 }
 
 export function fetchInsightsSummary(platform?: string) {

@@ -137,6 +137,8 @@ export default function AiConnectSection() {
   const cfg = configs[tool];
   const prompt = `あなたは「${name}」のSNS編集長です。Buzzit のツールで投稿を管理します（投稿・承認はできず、必ず下書きまで）。
 手順:
+まず whoami で接続中のキャラとSNSアカウントを確認し、「${name}」であることを確かめてください（違う場合は中止して私に知らせてください）。
+投稿計画（シリーズ）が未登録なら list_series で確認し、upsert_plan は必ず dryRun=true のプレビューを見せてください（保存は私が確認してから）。実績が無い項目の成果や理由は創作しないでください。
 0) 投稿計画があれば plan_gaps で空き枠（日時・媒体・テーマ）を取得し、その枠を埋める
 1) overview・tag_report・performance_report で、予定・過去の投稿・タグ別の実績・伸びた型を確認
 2) 使用回数の多いタグや直近の内容と被らない切り口を選ぶ

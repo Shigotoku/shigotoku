@@ -16,7 +16,7 @@ import { uploadBufferToGcp, createSignedUploadUrl } from './storage';
 import { ACCEPTED_TYPES, MAX_IMAGE_BYTES, MAX_VIDEO_BYTES } from './repurpose';
 import { TARGET_PLATFORMS, parseSource, adaptForPlatform, type TargetPlatform } from './crosspostRules';
 import { addIdeaInbox, listIdeaInbox, writeAuditLog } from './productExtras';
-import { assertPersonaAccess, resolveActivePersonaId } from './personas';
+import { assertPersonaAccess, getPersona, resolveActivePersonaId } from './personas';
 import type { ScheduledJobStatus } from '../types/schedule';
 
 export interface AgentRequest extends Request {
@@ -178,28 +178,28 @@ export async function opListScheduled(ctx: AgentCtx, statusParam?: string) {
 }
 
 // ---- ヘルパー ----
-function normTags(tags?: string[]): string[] {
+export function normTags(tags?: string[]): string[] {
   return [...new Set((tags ?? []).map((t) => String(t).replace(/^[#＃]/, '').trim().slice(0, 30)).filter(Boolean))].slice(0, 10);
 }
 
-function platformOf(job: ScheduledJobDoc): string {
+export function platformOf(job: ScheduledJobDoc): string {
   const p = job.contents[0]?.platform;
   if (p && (TARGET_PLATFORMS as string[]).includes(p)) return p;
   const map: Record<string, string> = { x_free: 'x_thread', meta: 'instagram', line: 'line', gbp: 'gbp' };
   return p || map[job.publishMode] || 'other';
 }
 
-function externalUrl(job: ScheduledJobDoc): string | undefined {
+export function externalUrl(job: ScheduledJobDoc): string | undefined {
   const r = job.publishResults?.find((x) => x.success && x.externalId);
   if (!r) return undefined;
   return r.platform.startsWith('x') ? `https://x.com/i/status/${r.externalId}` : undefined;
 }
 
-function jobText(j: ScheduledJobDoc): string {
-  return j.contents.map((c) => c.content).join('\n');
+export function jobText(j: ScheduledJobDoc): string {
+  return j.contents.map((c) => c.content).join('');
 }
 
-function brief(j: ScheduledJobDoc, impressions?: number) {
+export function brief(j: ScheduledJobDoc, impressions?: number) {
   return {
     id: j.id,
     platform: platformOf(j),
@@ -215,7 +215,7 @@ function brief(j: ScheduledJobDoc, impressions?: number) {
   };
 }
 
-async function impressionMap(uid: string): Promise<Map<string, number>> {
+export async function impressionMap(uid: string): Promise<Map<string, number>> {
   try {
     const list = await listPostInsights(uid, { limit: 200 });
     return new Map(list.map((p) => [p.jobId, p.impressions]));
@@ -440,7 +440,11 @@ export async function opOverview(ctx: AgentCtx) {
     byPlatform[p] = (byPlatform[p] ?? 0) + 1;
   }
   const now = Date.now();
+  const persona = await getPersona(ctx.personaId).catch(() => null);
   return {
+    character: { id: ctx.personaId, name: persona?.name ?? null },
+    totalJobs: jobs.length,
+    note: jobs.length === 0 ? `このキャラ「${persona?.name ?? ctx.personaId}」にはまだ投稿・下書きがありません。意図したキャラか whoami / list_characters で確認してください（別のキャラで接続している可能性があります）。` : undefined,
     byStatus,
     byPlatform,
     upcoming: jobs
@@ -522,7 +526,7 @@ export async function opCreateDraft(
         st.slackWebhookUrl
           ? postToSlackWebhook(
               st.slackWebhookUrl,
-              `🤖 *AIが下書きを作成しました*（${items[0].label}）\n${items[0].content.slice(0, 120)}\n👉 ${APP_ORIGIN}/calendar`,
+              `🤖 *AIが下書きを作成しました*（${items[0].label}）${items[0].content.slice(0, 120)}👉 ${APP_ORIGIN}/calendar`,
             )
           : undefined,
       )
@@ -601,7 +605,7 @@ export async function opGetPlan(ctx: AgentCtx) {
 }
 
 const JST = 9 * 3600000;
-function jstParts(ms: number) {
+export function jstParts(ms: number) {
   const d = new Date(ms + JST);
   return { date: d.toISOString().slice(0, 10), weekday: d.getUTCDay(), hour: d.getUTCHours() };
 }
@@ -609,9 +613,9 @@ function jstParts(ms: number) {
 /** 投稿計画のうち、まだ投稿・下書きが入っていない枠を返す。AI はこの枠を create_draft で埋める */
 export async function opPlanGaps(ctx: AgentCtx, q: { weeks?: number }) {
   const weeks = Math.min(8, Math.max(1, q.weeks ?? 2));
-  const slots = await getPostingPlan(ctx.uid, ctx.personaId);
+  const slots = (await getPostingPlan(ctx.uid, ctx.personaId)).filter((x) => x.active !== false);
   if (!slots.length) {
-    return { gaps: [], note: '投稿計画が未設定です。バジットの 設定 → キャラ → 投稿計画 で枠を作ってください。' };
+    return { gaps: [], note: '有効な投稿計画がありません。バジットの 設定 → 配信キャラ → 投稿計画 で枠を作るか、upsert_plan で登録してください（whoami で接続中のキャラを確認できます）。' };
   }
   const jobs = (await getScheduledJobs(ctx.uid, undefined, ctx.personaId, 500)).filter((j) => j.status !== 'failed');
   const used = new Map<string, number>();
@@ -619,7 +623,7 @@ export async function opPlanGaps(ctx: AgentCtx, q: { weeks?: number }) {
     const key = `${jstParts(new Date(j.scheduledAt).getTime()).date}|${platformOf(j)}`;
     used.set(key, (used.get(key) ?? 0) + 1);
   }
-  const gaps: Array<{ scheduledAt: string; weekday: string; platform: string; theme: string; tags: string[] }> = [];
+  const gaps: Array<Record<string, unknown>> = [];
   const now = Date.now();
   const names = ['日', '月', '火', '水', '木', '金', '土'];
   for (let day = 0; day < weeks * 7; day++) {
@@ -636,7 +640,7 @@ export async function opPlanGaps(ctx: AgentCtx, q: { weeks?: number }) {
       }
       const at = new Date(`${date}T${slot.time}:00+09:00`);
       if (at.getTime() <= now) continue;
-      gaps.push({ scheduledAt: at.toISOString(), weekday: names[weekday], platform: slot.platform, theme: slot.theme, tags: slot.tags ?? [] });
+      gaps.push({ slotId: slot.id, scheduledAt: at.toISOString(), weekday: names[weekday], platform: slot.platform, theme: slot.theme, tags: slot.tags ?? [], seriesName: slot.seriesName, purpose: slot.purpose, audience: slot.audience, tone: slot.tone, mediaKind: slot.mediaKind, rules: slot.rules, ngRules: slot.ngRules });
     }
   }
   return {

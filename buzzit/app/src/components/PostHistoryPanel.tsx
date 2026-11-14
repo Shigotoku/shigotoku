@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CopyPlus, Download, ExternalLink, Eye, RefreshCw, RotateCcw, Search, X } from 'lucide-react';
-import { fetchInsightsPosts, syncInsights, type PostInsight, type ScheduledJob } from '../lib/api';
+import { CopyPlus, Download, ExternalLink, Eye, FileUp, PencilLine, RefreshCw, RotateCcw, Search, X } from 'lucide-react';
+import { fetchInsightsPosts, importMetricsCsv, saveManualMetrics, syncInsights, type PostInsight, type ScheduledJob } from '../lib/api';
 
 const INSIGHT_PLATFORMS = new Set(['x', 'instagram', 'facebook-threads']);
 const PAGE_SIZE = 30;
@@ -116,6 +116,25 @@ export default function PostHistoryPanel({
 
   const insightsSupported = !platformId || INSIGHT_PLATFORMS.has(platformId);
 
+  // 実績の手入力・CSV取り込み（X API を使わず費用ゼロ）
+  const [csvOpen, setCsvOpen] = useState(false);
+  const [csvText, setCsvText] = useState('');
+  const [csvMsg, setCsvMsg] = useState<string | null>(null);
+  const [csvBusy, setCsvBusy] = useState(false);
+  const [formFor, setFormFor] = useState<string | null>(null);
+  const [form, setForm] = useState<Record<string, string>>({});
+  const [formMsg, setFormMsg] = useState<string | null>(null);
+  const METRIC_FIELDS: Array<[string, string]> = [
+    ['impressions', 'インプレッション*'],
+    ['likes', 'いいね'],
+    ['reposts', 'リポスト'],
+    ['replies', '返信'],
+    ['bookmarks', 'ブックマーク'],
+    ['urlClicks', 'URLクリック'],
+    ['profileClicks', 'プロフィール'],
+    ['newFollows', 'フォロー増'],
+  ];
+
   const loadInsights = useCallback(() => {
     const key = platformId === 'facebook-threads' ? undefined : platformId;
     if (!insightsSupported) {
@@ -154,6 +173,55 @@ export default function PostHistoryPanel({
       setSyncMsg(e instanceof Error ? `同期に失敗: ${e.message}` : '同期に失敗しました');
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const runCsvImport = async () => {
+    setCsvBusy(true);
+    setCsvMsg(null);
+    try {
+      const r = await importMetricsCsv(csvText);
+      setCsvMsg(
+        `${r.matched}件の実績を取り込みました` +
+          (r.unmatched ? `（${r.unmatched}件はバジットの投稿履歴と一致せず未取込）` : ''),
+      );
+      setCsvText('');
+      await loadInsights();
+    } catch (e) {
+      setCsvMsg(e instanceof Error ? e.message : '取り込みに失敗しました');
+    } finally {
+      setCsvBusy(false);
+    }
+  };
+
+  const openForm = (jobId: string, ins?: PostInsight) => {
+    setFormFor(jobId);
+    setFormMsg(null);
+    setForm({
+      impressions: ins ? String(ins.impressions) : '',
+      likes: ins?.likes != null ? String(ins.likes) : '',
+      reposts: ins?.reposts != null ? String(ins.reposts) : '',
+      replies: ins?.replies != null ? String(ins.replies) : '',
+    });
+  };
+
+  const submitForm = async (jobId: string) => {
+    const metrics: Record<string, number | undefined> = {};
+    for (const [k] of METRIC_FIELDS) {
+      const raw = (form[k] ?? '').trim();
+      if (raw !== '') metrics[k] = Number(raw.replace(/,/g, ''));
+    }
+    if (metrics.impressions === undefined || Number.isNaN(metrics.impressions)) {
+      setFormMsg('インプレッションを入力してください');
+      return;
+    }
+    try {
+      await saveManualMetrics(jobId, metrics);
+      setFormMsg('保存しました');
+      setFormFor(null);
+      await loadInsights();
+    } catch (e) {
+      setFormMsg(e instanceof Error ? e.message : '保存に失敗しました');
     }
   };
 
@@ -368,6 +436,50 @@ export default function PostHistoryPanel({
         </div>
       )}
 
+      {(!platformId || platformId === 'x') && (
+        <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-2 text-xs">
+          <button type="button" onClick={() => setCsvOpen((v) => !v)} className="inline-flex items-center gap-1 font-medium text-neutral-800">
+            <FileUp className="h-3.5 w-3.5" />
+            Xの実績をCSVで取り込む（API費用なし）
+          </button>
+          {csvOpen && (
+            <div className="mt-2 space-y-2">
+              <p className="text-neutral-600">
+                X（PC版）の「アナリティクス」→「投稿」→ 期間を選んで「エクスポート（CSV）」で保存したファイルを選ぶか、中身を貼り付けてください。
+                バジットで投稿した履歴と自動で突き合わせ、インプレッション・いいね・リポスト等を保存します（週1回程度で十分です）。
+              </p>
+              <input
+                type="file"
+                accept=".csv,text/csv"
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  if (f) setCsvText(await f.text());
+                }}
+                className="block w-full text-xs"
+              />
+              <textarea
+                value={csvText}
+                onChange={(e) => setCsvText(e.target.value)}
+                rows={3}
+                placeholder="CSVの中身を貼り付け"
+                className="w-full border border-neutral-200 p-1.5 font-mono text-[11px]"
+              />
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={csvBusy || !csvText.trim()}
+                  onClick={() => void runCsvImport()}
+                  className="border border-neutral-900 bg-neutral-900 px-3 py-1 text-white disabled:opacity-50"
+                >
+                  {csvBusy ? '取り込み中…' : '取り込む'}
+                </button>
+                {csvMsg && <span className="text-neutral-700">{csvMsg}</span>}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {list.length === 0 && (
         <p className="rounded-lg border border-dashed border-neutral-300 p-4 text-center text-xs text-neutral-500">
           {hasFilter ? '条件に合う履歴はありません。' : 'まだ該当する履歴がありません。'}
@@ -429,8 +541,44 @@ export default function PostHistoryPanel({
                     </p>
                   ) : (
                     <p className="text-neutral-400">
-                      {insightsSupported ? 'インプレッション未取得（「今すぐ同期」で取得できます）' : 'このSNSはインプレッション取得に未対応です'}
+                      {insightsSupported ? '実績が未登録です（0ではありません）。Xは「実績を入力」かCSV取込、Instagram等は「今すぐ同期」で取得できます' : 'このSNSはインプレッション取得に未対応です'}
                     </p>
+                  )}
+                  {(job.status === 'published' || job.status === 'notified') && (
+                    <div className="space-y-1.5">
+                      {formFor === job.id ? (
+                        <div className="rounded border border-neutral-200 bg-neutral-50 p-2">
+                          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+                            {METRIC_FIELDS.map(([k, label]) => (
+                              <label key={k} className="block">
+                                <span className="text-[10px] text-neutral-500">{label}</span>
+                                <input
+                                  inputMode="numeric"
+                                  value={form[k] ?? ''}
+                                  onChange={(e) => setForm((f) => ({ ...f, [k]: e.target.value }))}
+                                  className="w-full border border-neutral-200 px-1.5 py-1 text-xs"
+                                />
+                              </label>
+                            ))}
+                          </div>
+                          <p className="mt-1 text-[10px] text-neutral-500">空欄の項目は「未取得」として保存されます（0にはなりません）。</p>
+                          <div className="mt-1.5 flex items-center gap-2">
+                            <button type="button" onClick={() => void submitForm(job.id)} className="border border-neutral-900 bg-neutral-900 px-2.5 py-1 text-white">保存</button>
+                            <button type="button" onClick={() => setFormFor(null)} className="border border-neutral-300 px-2.5 py-1">閉じる</button>
+                            {formMsg && <span className="text-neutral-600">{formMsg}</span>}
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => openForm(job.id, ins)}
+                          className="inline-flex items-center gap-1 border border-neutral-300 px-2 py-1 hover:border-neutral-900"
+                        >
+                          <PencilLine className="h-3 w-3" />
+                          {ins ? '実績を修正・追記' : '実績を入力'}
+                        </button>
+                      )}
+                    </div>
                   )}
                   <div className="flex flex-wrap items-center gap-2">
                     {onClone && job.contents[0] && (
