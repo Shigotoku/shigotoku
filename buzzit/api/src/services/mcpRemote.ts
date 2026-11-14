@@ -29,6 +29,7 @@ import {
   type AgentCtx,
   type AgentRequest,
 } from './agentApi';
+import { listXSeries, createXSeriesChecked, addXSeriesItems } from './xSeries';
 
 const PLATFORM = z
   .enum(['x_thread', 'instagram', 'facebook', 'threads', 'line', 'gbp', 'youtube_shorts', 'tiktok'])
@@ -36,6 +37,7 @@ const PLATFORM = z
 
 const INSTRUCTIONS = `バジット(Buzzit)は SNS 投稿の管理アプリです。あなたは「編集長」として下書きを作り、人が確認・承認・予約します（あなたは投稿できません）。
 推奨手順: 0) 投稿計画があれば plan_gaps で埋めるべき枠（日時・媒体・テーマ）を取得し、その枠に沿って作る 1) overview か tag_report / performance_report で現状と過去の実績（伸びた型）を確認 2) 使用回数の多いタグ・直近の内容と被らない切り口を選ぶ 3) check_duplicate で重複確認 / lint_post で表現チェック 4) 画像/動画があれば upload_media か get_upload_url で送る 5) tags を付けて create_draft 6) 他SNSに展開するなら adapt_post(dryRun で確認→作成)。
+X自動投稿のシリーズ（カテゴリ別の在庫）は x_series_list → x_series_create → x_series_add_items で自由に作れる（投稿OKは人が画面で付ける）。
 X は本文280字（スレッドは「---」だけの行で区切る・最大5投稿）。Instagram は画像必須、YouTube Shorts / TikTok は動画必須、Googleビジネスはハッシュタグ不要。`;
 
 function buildServer(ctx: AgentCtx): McpServer {
@@ -230,6 +232,58 @@ function buildServer(ctx: AgentCtx): McpServer {
       },
     },
     (a) => run(() => opAdaptPost(ctx, a)),
+  );
+
+  server.registerTool(
+    'x_series_list',
+    {
+      description:
+        'X自動投稿の「シリーズ」（論文・医療ニュース等のカテゴリ在庫）一覧と、各シリーズの在庫件数。シリーズを作る前に必ず呼んで、既存と被らないか確認する。',
+      inputSchema: {},
+    },
+    () => run(() => listXSeries(ctx.uid, ctx.personaId)),
+  );
+
+  server.registerTool(
+    'x_series_create',
+    {
+      description:
+        'X自動投稿のシリーズを新規作成する（同名があればそれを返す）。例: name="C_医療あるある"。作成後は x_series_add_items でネタを入れる。',
+      inputSchema: { name: z.string().min(1).max(40), description: z.string().max(200).optional() },
+    },
+    ({ name, description }) =>
+      run(() => createXSeriesChecked(ctx.uid, { name, description, personaId: ctx.personaId })),
+  );
+
+  server.registerTool(
+    'x_series_add_items',
+    {
+      description:
+        'シリーズの在庫にツイート案を追加する。必ず「未承認」で入り、人がバジット画面で「投稿OK」にするまで投稿されない。text=ツイート本文（280字以内・スレッドは「---」行で区切る）、tags=ハッシュタグ文字列、imageUrl は upload_media で得た公開URL。scheduledAt を付けるとその時刻に投稿（人の承認後）。',
+      inputSchema: {
+        seriesId: z.string(),
+        items: z
+          .array(
+            z.object({
+              text: z.string().min(1).max(1200),
+              tags: z.string().max(200).optional(),
+              imageUrl: z.string().url().optional(),
+              scheduledAt: z.string().optional().describe('ISO8601。例 2026-11-20T07:30:00+09:00'),
+            }),
+          )
+          .min(1)
+          .max(50),
+      },
+    },
+    ({ seriesId, items }) =>
+      run(async () => {
+        const created = await addXSeriesItems(
+          ctx.uid,
+          seriesId,
+          items.map((i) => ({ ...i, approved: false })),
+        );
+        return { added: created.length, note: '未承認で追加しました。バジットの画面で「投稿OK」にすると投稿されます。', items: created };
+      }),
   );
 
   return server;

@@ -1166,6 +1166,8 @@ export interface XSeriesItem {
   status: string;
   publishedAt?: string;
   scheduledAt?: string;
+  /** 全シリーズ一覧のときのみ */
+  seriesName?: string;
   tweetId?: string;
   errorMessage?: string;
   createdAt: string;
@@ -1217,6 +1219,15 @@ export function deleteXSeries(id: string) {
 export function fetchXSeriesItems(seriesId: string, status?: string) {
   const q = status ? `?status=${encodeURIComponent(status)}` : '';
   return request<{ items: XSeriesItem[] }>(`/v1/x/series/${seriesId}/items${q}`);
+}
+
+/** 全シリーズ横断の一覧。status はカンマ区切り（pending,published 等） */
+export function fetchAllXSeriesItems(status?: string, limit?: number) {
+  const q = new URLSearchParams();
+  if (status) q.set('status', status);
+  if (limit) q.set('limit', String(limit));
+  const qs = q.toString();
+  return request<{ items: XSeriesItem[] }>(`/v1/x/items${qs ? `?${qs}` : ''}`);
 }
 
 export function addXSeriesItems(

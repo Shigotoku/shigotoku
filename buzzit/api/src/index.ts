@@ -176,6 +176,7 @@ import {
   updateXSeries,
   deleteXSeries,
   listXSeriesItems,
+  listAllXSeriesItems,
   addXSeriesItems,
   updateXSeriesItem,
   deleteXSeriesItem,
@@ -1232,6 +1233,13 @@ api.delete('/v1/x/series/:id', requireAuth, async (req: AuthedRequest, res) => {
     return;
   }
   res.json({ success: true });
+});
+
+api.get('/v1/x/items', requireAuth, async (req: AuthedRequest, res) => {
+  const personaId = await resolveActivePersonaId(req.uid!);
+  const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+  const limit = Number(req.query.limit) || undefined;
+  res.json({ items: await listAllXSeriesItems(req.uid!, personaId, { status, limit }) });
 });
 
 api.get('/v1/x/series/:id/items', requireAuth, async (req: AuthedRequest, res) => {

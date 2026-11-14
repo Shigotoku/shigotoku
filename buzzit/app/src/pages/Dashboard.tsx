@@ -12,6 +12,7 @@ import {
   type InsightsSummary,
 } from '../lib/api';
 import { mockMetrics } from '../data/mockDashboard';
+import { SplitHandle, useSplitPane } from '../components/SplitPane';
 import DemoDataBanner from '../components/DemoDataBanner';
 import { useSetupSignals } from '../hooks/useSetupSignals';
 import PersonaPublishConfirmModal from '../components/PersonaPublishConfirmModal';
@@ -46,6 +47,7 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
 }
 
 export default function Dashboard() {
+  const split = useSplitPane('buzzit.dashboard.splitPct', 72);
   const { isSample } = useSetupSignals();
   const { activePersonaId, activePersona } = usePersona();
   const [metrics, setMetrics] = useState(mockMetrics);
@@ -209,9 +211,13 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_420px]">
+      <div
+        ref={split.ref}
+        style={split.gridStyle}
+        className="grid min-h-0 flex-1 gap-3 lg:gap-0 lg:[grid-template-columns:var(--split-cols)]"
+      >
         {/* 左: 投稿予定カレンダー（大きく） */}
-        <section className={`${card} flex min-h-[420px] flex-col gap-2 lg:min-h-0`}>
+        <section className={`${card} flex min-h-[420px] min-w-0 flex-col gap-2 lg:min-h-0`}>
           <div className="flex shrink-0 items-center justify-between gap-2">
             <div>
               <p className="buzz-section-label">投稿予定カレンダー</p>
@@ -284,8 +290,10 @@ export default function Dashboard() {
           </div>
         </section>
 
+        <SplitHandle pct={split.pct} handleProps={split.handleProps} />
+
         {/* 右: 数字 + 選択日の予定（1画面に収める） */}
-        <div className="flex min-h-0 flex-col gap-3 lg:overflow-y-auto">
+        <div className="flex min-h-0 min-w-0 flex-col gap-3 lg:overflow-y-auto">
           <section className={`${card} shrink-0`}>
             <div className="flex items-center justify-between">
               <p className="buzz-section-label">インプレッション・成果</p>

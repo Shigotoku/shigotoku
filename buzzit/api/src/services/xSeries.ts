@@ -17,6 +17,8 @@ import {
 } from './xApi';
 import { getXApiPostsThisMonth, incrementXApiPostCount } from './firestore';
 import { executePublish } from './publish';
+import { getUserSettingsWithDevBoost } from './devAccess';
+import { xSeriesCapabilities } from './xSeriesFeatures';
 
 function db() {
   return getFirestore();
@@ -142,6 +144,22 @@ export async function createXSeries(
   };
 }
 
+/** プラン上限チェック付きのシリーズ作成（画面・AI(MCP) 共通） */
+export async function createXSeriesChecked(
+  uid: string,
+  input: { name: string; description?: string; personaId?: string },
+): Promise<XSeries> {
+  const settings = await getUserSettingsWithDevBoost(uid);
+  const caps = xSeriesCapabilities(settings.plan);
+  const existing = await listXSeries(uid, input.personaId);
+  if (existing.length >= caps.maxSeries) {
+    throw new Error(`シリーズは最大 ${caps.maxSeries} 件まで（${settings.plan}）。${caps.upgradeHint ?? ''}`);
+  }
+  const dup = existing.find((s) => s.name === input.name.trim());
+  if (dup) return dup;
+  return createXSeries(uid, input);
+}
+
 export async function updateXSeries(
   uid: string,
   seriesId: string,
@@ -203,6 +221,30 @@ export async function listXSeriesItems(
   let items = snap.docs.map((d) => mapItem(seriesId, d.id, d.data()));
   if (opts?.status) items = items.filter((i) => i.status === opts.status);
   return items.slice(0, limit);
+}
+
+/** 全シリーズ横断の一覧（履歴・一括確認用）。status はカンマ区切り可 */
+export async function listAllXSeriesItems(
+  uid: string,
+  personaId: string | undefined,
+  opts?: { status?: string; limit?: number },
+): Promise<Array<XSeriesItem & { seriesName: string }>> {
+  const limit = Math.min(1000, opts?.limit ?? 400);
+  const statuses = opts?.status ? opts.status.split(',').map((s) => s.trim()) : null;
+  const seriesList = await listXSeries(uid, personaId);
+  const out: Array<XSeriesItem & { seriesName: string }> = [];
+  for (const s of seriesList) {
+    const items = await listXSeriesItems(uid, s.id, { limit: 400 });
+    for (const it of items) {
+      if (statuses && !statuses.includes(it.status)) continue;
+      out.push({ ...it, seriesName: s.name });
+    }
+  }
+  const time = (i: XSeriesItem) =>
+    new Date(i.publishedAt ?? i.scheduledAt ?? i.createdAt).getTime() || 0;
+  const historyOnly = statuses?.every((s) => s === 'published' || s === 'failed');
+  out.sort((a, b) => (historyOnly ? time(b) - time(a) : time(a) - time(b)));
+  return out.slice(0, limit);
 }
 
 function mapItem(seriesId: string, id: string, data: FirebaseFirestore.DocumentData): XSeriesItem {

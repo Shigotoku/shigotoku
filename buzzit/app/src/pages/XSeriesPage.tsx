@@ -11,6 +11,7 @@ import {
   ImagePlus,
   X as XIcon,
   ChevronDown,
+  Sparkles,
 } from 'lucide-react';
 import { settingsPath } from '../lib/settingsUrls';
 import {
@@ -19,6 +20,9 @@ import {
   seedDefaultXSeries,
   deleteXSeries,
   fetchXSeriesItems,
+  fetchAllXSeriesItems,
+  updateXSeries,
+  generateXSeriesBatch,
   addXSeriesItems,
   updateXSeriesItem,
   deleteXSeriesItem,
@@ -51,6 +55,9 @@ function fromLocalInput(v: string): string {
   const d = new Date(v);
   return Number.isNaN(d.getTime()) ? '' : d.toISOString();
 }
+
+/** 「すべてのシリーズ」を表す選択ID */
+const ALL = '__all__';
 
 const STATUS_LABEL: Record<string, string> = {
   pending: '待機',
@@ -178,6 +185,11 @@ export default function XSeriesPage() {
   const [series, setSeries] = useState<XSeries[]>([]);
   const [rules, setRules] = useState<XScheduleRule[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [view, setView] = useState<'queue' | 'history' | 'all'>('queue');
+  const [draftSeriesId, setDraftSeriesId] = useState('');
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiName, setAiName] = useState('');
+  const [aiThemes, setAiThemes] = useState('');
   const [items, setItems] = useState<XSeriesItem[]>([]);
   const [xConnected, setXConnected] = useState(false);
   const [xPosts, setXPosts] = useState(0);
@@ -215,7 +227,7 @@ export default function XSeriesPage() {
   }, [selectedId]);
 
   const loadItems = useCallback(async (id: string) => {
-    const r = await fetchXSeriesItems(id);
+    const r = id === ALL ? await fetchAllXSeriesItems() : await fetchXSeriesItems(id);
     setItems(r.items);
   }, []);
 
@@ -227,8 +239,29 @@ export default function XSeriesPage() {
     if (selectedId) loadItems(selectedId).catch(() => setItems([]));
   }, [selectedId, loadItems]);
 
-  const selected = series.find((s) => s.id === selectedId) ?? null;
+  const isAll = selectedId === ALL;
+  const selected = isAll ? null : (series.find((s) => s.id === selectedId) ?? null);
   const seriesRules = rules.filter((r) => r.seriesId === selectedId);
+  const seriesNameOf = (id: string) => series.find((s) => s.id === id)?.name ?? '';
+
+  const isHistory = (i: XSeriesItem) => i.status === 'published';
+  const queueCount = items.filter((i) => !isHistory(i)).length;
+  const historyCount = items.filter(isHistory).length;
+  const shownItems = (() => {
+    const list = items.filter((i) =>
+      view === 'all' ? true : view === 'history' ? isHistory(i) : !isHistory(i),
+    );
+    const t = (i: XSeriesItem) => new Date(i.publishedAt ?? i.scheduledAt ?? i.createdAt).getTime() || 0;
+    if (view === 'history') return [...list].sort((a, b) => t(b) - t(a));
+    if (isAll) {
+      // 全シリーズ: 予定時刻のあるものを時系列、他はシリーズ順
+      return [...list].sort((a, b) => {
+        if (isHistory(a) !== isHistory(b)) return isHistory(a) ? 1 : -1;
+        return (a.seriesName ?? '').localeCompare(b.seriesName ?? '') || a.sortOrder - b.sortOrder;
+      });
+    }
+    return list;
+  })();
 
   const refresh = async () => {
     await loadMeta();
@@ -263,10 +296,43 @@ export default function XSeriesPage() {
       if (pack.series[0]) setSelectedId(pack.series[0].id);
     }, 'テンプレ作成に失敗しました');
 
+  const targetSeriesId = isAll ? draftSeriesId || series[0]?.id || '' : (selectedId ?? '');
+
+  /** AIでシリーズ作成: シリーズを作り、テーマ(1行1件)から案を自動生成（未承認で投入） */
+  const handleAiCreate = () =>
+    run(async () => {
+      const name = aiName.trim();
+      if (!name || !aiThemes.trim()) return;
+      const { series: created } = await createXSeries({ name });
+      const r = await generateXSeriesBatch(created.id, {
+        source: aiThemes,
+        approved: false,
+        seriesHint: name,
+      });
+      setAiOpen(false);
+      setAiName('');
+      setAiThemes('');
+      setSelectedId(created.id);
+      setView('queue');
+      setMessage(
+        `「${created.name}」を作成し、AIが ${r.generated} 件の案を追加しました${r.usedGemini ? '' : '（オフラインモード）'}。内容を確認して「投稿OK」を付けてください。`,
+      );
+      await refresh();
+    }, 'AI作成に失敗しました');
+
+  const handleRenameSeries = (s: XSeries) =>
+    run(async () => {
+      const name = prompt('シリーズ名を変更', s.name)?.trim();
+      if (!name || name === s.name) return;
+      await updateXSeries(s.id, { name });
+      await refresh();
+    }, '名前の変更に失敗しました');
+
   const handleAddItem = () =>
     run(async () => {
-      if (!selectedId || !draftText.trim()) return;
-      await addXSeriesItems(selectedId, {
+      const sid = targetSeriesId;
+      if (!sid || !draftText.trim()) return;
+      await addXSeriesItems(sid, {
         text: draftText.trim(),
         tags: draftTags.trim() || undefined,
         imageUrl: draftImage || undefined,
@@ -277,23 +343,22 @@ export default function XSeriesPage() {
       setDraftTags('');
       setDraftImage('');
       setDraftAt('');
-      await loadItems(selectedId);
+      await loadItems(selectedId ?? sid);
       await loadMeta();
     }, '追加に失敗しました');
 
   const handleCsv = (file: File | null) =>
     run(async () => {
-      if (!file || !selectedId) return;
+      if (!file || !selectedId || isAll) return;
       const r = await importXSeriesCsv(selectedId, await file.text());
       setMessage(`${r.imported} 件をインポートしました`);
       await refresh();
     }, 'CSVインポートに失敗しました');
 
   const patchItem = async (item: XSeriesItem, patch: Parameters<typeof updateXSeriesItem>[2]) => {
-    if (!selectedId) return;
     try {
-      const { item: next } = await updateXSeriesItem(selectedId, item.id, patch);
-      setItems((prev) => prev.map((i) => (i.id === item.id ? next : i)));
+      const { item: next } = await updateXSeriesItem(item.seriesId, item.id, patch);
+      setItems((prev) => prev.map((i) => (i.id === item.id ? { ...next, seriesName: i.seriesName } : i)));
     } catch (e) {
       setMessage(e instanceof Error ? e.message : '保存に失敗しました');
     }
@@ -301,7 +366,7 @@ export default function XSeriesPage() {
 
   const handleRunNow = () =>
     run(async () => {
-      if (!selectedId) return;
+      if (!selectedId || isAll) return;
       const r = await runXSeriesNow({
         seriesId: selectedId,
         take: 1,
@@ -315,7 +380,7 @@ export default function XSeriesPage() {
 
   const handleAddRule = () =>
     run(async () => {
-      if (!selectedId) return;
+      if (!selectedId || isAll) return;
       await createXScheduleRule({
         seriesId: selectedId,
         days: ruleDays.trim(),
@@ -335,11 +400,24 @@ export default function XSeriesPage() {
       {/* 上部バー: シリーズ切替 + 操作 */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setSelectedId(ALL)}
+            className={`inline-flex items-center gap-1.5 rounded-t border border-b-0 px-3 py-1.5 text-xs ${
+              isAll
+                ? 'border-violet-700 bg-violet-700 font-semibold text-white'
+                : 'border-violet-300 bg-violet-50 text-violet-900 hover:bg-violet-100'
+            }`}
+          >
+            <Layers className="h-3.5 w-3.5" />
+            すべて
+          </button>
           {series.map((s) => (
             <button
               key={s.id}
               type="button"
               onClick={() => setSelectedId(s.id)}
+              onDoubleClick={() => void handleRenameSeries(s)}
               className={`group inline-flex items-center gap-1.5 rounded-t border border-b-0 px-3 py-1.5 text-xs ${
                 selectedId === s.id
                   ? 'border-neutral-900 bg-neutral-900 font-semibold text-white'
@@ -385,6 +463,15 @@ export default function XSeriesPage() {
             >
               <Plus className="h-4 w-4" />
             </button>
+            <button
+              type="button"
+              onClick={() => setAiOpen((v) => !v)}
+              className="inline-flex items-center gap-1 rounded border border-violet-400 bg-violet-50 px-2 py-1.5 text-xs font-semibold text-violet-900"
+              title="テーマを書くだけでAIがシリーズと投稿案を作ります"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              AIで作る
+            </button>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -414,44 +501,96 @@ export default function XSeriesPage() {
         </p>
       )}
 
-      {!selected ? (
+      {aiOpen && (
+        <div className="space-y-2 rounded-lg border border-violet-300 bg-violet-50/60 p-3 text-xs">
+          <p className="font-semibold text-violet-900">AIでシリーズを作る（案は未承認で入ります。確認して「投稿OK」を付けてください）</p>
+          <div className="grid gap-2 md:grid-cols-[14rem_1fr_auto]">
+            <input
+              className="buzz-input !py-1 text-xs"
+              placeholder="シリーズ名（例: C_医療あるある）"
+              value={aiName}
+              onChange={(e) => setAiName(e.target.value)}
+            />
+            <textarea
+              className="buzz-input h-20 resize-none !py-1 text-xs"
+              placeholder={'テーマ・論文URLを1行1件で（例）\nGLP-1と消化器がん\nhttps://pubmed.ncbi.nlm.nih.gov/...'}
+              value={aiThemes}
+              onChange={(e) => setAiThemes(e.target.value)}
+            />
+            <button
+              type="button"
+              disabled={busy || !aiName.trim() || !aiThemes.trim()}
+              onClick={() => void handleAiCreate()}
+              className="inline-flex items-center justify-center gap-1 rounded bg-violet-700 px-4 py-2 font-semibold text-white disabled:opacity-50"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              {busy ? '作成中…' : '作成'}
+            </button>
+          </div>
+          <p className="text-neutral-500">
+            ChatGPT / Claude / Cursor など外部のAIからも、バジットのMCP連携（設定 → AI連携）の
+            <code className="mx-1 rounded bg-white px-1">x_series_create</code>・
+            <code className="mx-1 rounded bg-white px-1">x_series_add_items</code>で自由にシリーズを作って案を入れられます。
+          </p>
+        </div>
+      )}
+
+      {!selected && !isAll ? (
         <EmptyState
           icon={Layers}
           title="シリーズを選択"
-          description="上のタブからシリーズを選ぶか、新規作成してください。"
+          description="上のタブからシリーズを選ぶか、「AIで作る」「新しいシリーズ名」から作成してください。"
           primaryLabel="設定で X API を連携"
           primaryTo={settingsPath({ section: 'x' })}
         />
       ) : (
         <>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-xs text-neutral-500">
-              スプレッドシートと同じ感覚で一覧編集できます。セルを直接書き換えてフォーカスを外すと保存。
-              画像はセルへ<strong>ドロップ</strong>するだけで自動でURL化されてXへ送られます。
-            </p>
+            <div className="inline-flex overflow-hidden rounded border border-neutral-300 text-xs">
+              {(
+                [
+                  ['queue', `待機・予定 ${queueCount}`],
+                  ['history', `投稿済み（履歴） ${historyCount}`],
+                  ['all', `すべて ${items.length}`],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setView(id)}
+                  className={`px-3 py-1.5 ${view === id ? 'bg-neutral-900 font-semibold text-white' : 'bg-white text-neutral-700 hover:bg-neutral-50'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
             <div className="flex flex-wrap gap-2">
-              <label className="inline-flex cursor-pointer items-center gap-1 rounded border border-neutral-300 px-2.5 py-1.5 text-xs">
-                <Upload className="h-3.5 w-3.5" />
-                CSV取込
-                <input
-                  type="file"
-                  accept=".csv,text/csv"
-                  className="hidden"
-                  onChange={(e) => {
-                    void handleCsv(e.target.files?.[0] ?? null);
-                    e.target.value = '';
-                  }}
-                />
-              </label>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void handleRunNow()}
-                className="inline-flex items-center gap-1 rounded bg-neutral-900 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
-              >
-                <Play className="h-3.5 w-3.5" />
-                1件すぐ投稿
-              </button>
+              {!isAll && (
+                <label className="inline-flex cursor-pointer items-center gap-1 rounded border border-neutral-300 px-2.5 py-1.5 text-xs">
+                  <Upload className="h-3.5 w-3.5" />
+                  CSV取込
+                  <input
+                    type="file"
+                    accept=".csv,text/csv"
+                    className="hidden"
+                    onChange={(e) => {
+                      void handleCsv(e.target.files?.[0] ?? null);
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
+              )}
+              {!isAll && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void handleRunNow()}
+                  className="inline-flex items-center gap-1 rounded bg-neutral-900 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+                >
+                  <Play className="h-3.5 w-3.5" />
+                  1件すぐ投稿
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => void refresh()}
@@ -469,6 +608,7 @@ export default function XSeriesPage() {
               <colgroup>
                 <col className="w-14" />
                 <col className="w-14" />
+                {isAll && <col className="w-32" />}
                 <col />
                 <col className="w-44" />
                 <col className="w-20" />
@@ -477,7 +617,16 @@ export default function XSeriesPage() {
               </colgroup>
               <thead className="sticky top-0 z-10 bg-neutral-100 text-xs text-neutral-600">
                 <tr>
-                  {['投稿OK', '状態', 'ツイートのコメント', 'タグ', '画像', '投稿時刻', ''].map((h, i) => (
+                  {[
+                    '投稿OK',
+                    '状態',
+                    ...(isAll ? ['シリーズ'] : []),
+                    'ツイートのコメント',
+                    'タグ',
+                    '画像',
+                    view === 'history' ? '投稿日時' : '投稿時刻',
+                    '',
+                  ].map((h, i) => (
                     <th key={i} className="border-b border-r border-neutral-300 px-2 py-1.5 font-semibold last:border-r-0">
                       {h}
                     </th>
@@ -486,7 +635,7 @@ export default function XSeriesPage() {
               </thead>
               <tbody>
                 {/* 入力行 */}
-                <tr className="bg-amber-50/60">
+                <tr className={`bg-amber-50/60 ${view === 'history' ? 'hidden' : ''}`}>
                   <td className={`${cell} text-center`}>
                     <input
                       type="checkbox"
@@ -496,6 +645,21 @@ export default function XSeriesPage() {
                     />
                   </td>
                   <td className={`${cell} text-[10px] text-neutral-500`}>新規</td>
+                  {isAll && (
+                    <td className={cell}>
+                      <select
+                        className="w-full rounded border border-neutral-300 bg-white px-1 py-1 text-xs"
+                        value={targetSeriesId}
+                        onChange={(e) => setDraftSeriesId(e.target.value)}
+                      >
+                        {series.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                  )}
                   <td className={cell}>
                     <textarea
                       rows={2}
@@ -528,7 +692,7 @@ export default function XSeriesPage() {
                   <td className={`${cell} text-center`}>
                     <button
                       type="button"
-                      disabled={busy || !draftText.trim()}
+                      disabled={busy || !draftText.trim() || !targetSeriesId}
                       onClick={() => void handleAddItem()}
                       className="rounded bg-neutral-900 p-1.5 text-white disabled:opacity-40"
                       aria-label="追加"
@@ -538,15 +702,17 @@ export default function XSeriesPage() {
                   </td>
                 </tr>
 
-                {items.length === 0 && (
+                {shownItems.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-3 py-6 text-center text-sm text-neutral-500">
-                      まだネタがありません。上の入力行から追加するか、CSVを取り込んでください。
+                    <td colSpan={isAll ? 8 : 7} className="px-3 py-6 text-center text-sm text-neutral-500">
+                      {view === 'history'
+                        ? 'まだ投稿済みのネタはありません。'
+                        : 'ネタがありません。上の入力行から追加するか、「AIで作る」・CSV取込をお使いください。'}
                     </td>
                   </tr>
                 )}
 
-                {items.map((item) => {
+                {shownItems.map((item) => {
                   const editable = item.status === 'pending' || item.status === 'failed';
                   return (
                     <tr
@@ -575,6 +741,18 @@ export default function XSeriesPage() {
                           {STATUS_LABEL[item.status] ?? item.status}
                         </span>
                       </td>
+                      {isAll && (
+                        <td className={`${cell} text-xs`}>
+                          <button
+                            type="button"
+                            className="truncate text-left font-medium text-violet-800 hover:underline"
+                            onClick={() => setSelectedId(item.seriesId)}
+                            title="このシリーズだけ表示"
+                          >
+                            {item.seriesName ?? seriesNameOf(item.seriesId)}
+                          </button>
+                        </td>
+                      )}
                       <td className={cell}>
                         <InlineText
                           multiline
@@ -609,6 +787,16 @@ export default function XSeriesPage() {
                         {item.status === 'published' ? (
                           <span className="px-1 text-xs">
                             {item.publishedAt ? new Date(item.publishedAt).toLocaleString('ja-JP') : ''}
+                            {item.tweetId && (
+                              <a
+                                href={`https://x.com/i/status/${item.tweetId}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="ml-1 text-violet-700 underline"
+                              >
+                                Xで見る
+                              </a>
+                            )}
                           </span>
                         ) : (
                           <input
@@ -626,7 +814,7 @@ export default function XSeriesPage() {
                           type="button"
                           onClick={() => {
                             if (!selectedId) return;
-                            void deleteXSeriesItem(selectedId, item.id).then(() => loadItems(selectedId));
+                            void deleteXSeriesItem(item.seriesId, item.id).then(() => loadItems(selectedId));
                           }}
                           className="p-1 text-neutral-400 hover:text-red-700"
                           aria-label="削除"
@@ -642,7 +830,7 @@ export default function XSeriesPage() {
           </div>
 
           {/* スケジュールルール（折りたたみ） */}
-          <details className="shrink-0 rounded-lg border border-neutral-200 bg-white text-xs">
+          <details className={`shrink-0 rounded-lg border border-neutral-200 bg-white text-xs ${isAll ? 'hidden' : ''}`}>
             <summary className="flex cursor-pointer items-center gap-2 px-3 py-2 font-semibold">
               <Clock className="h-4 w-4" />
               自動投稿ルール（投稿時刻が空欄のネタに適用）
