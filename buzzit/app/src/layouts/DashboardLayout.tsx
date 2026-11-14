@@ -350,24 +350,23 @@ function SidebarContent({
             使い方ガイド
           </NavLink>
         </div>
-        <div className="flex items-center gap-1.5">
-          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10 text-[10px] font-bold text-white">
-            {displayName.slice(0, 1)}
+        <div className="rounded-lg bg-white/15 px-3 py-2.5">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-sm font-bold text-neutral-900">
+              {displayName.slice(0, 1)}
+            </div>
+            <div className="min-w-0 flex-1" title={`${displayName} · ${roleLabel} (${planLabels[plan]})`}>
+              <p className="truncate text-sm font-bold text-white">{displayName}</p>
+              <p className="truncate text-xs text-neutral-300">{roleLabel}</p>
+            </div>
           </div>
-          <p
-            className="min-w-0 flex-1 truncate text-[11px] text-neutral-400"
-            title={`${displayName} · ${roleLabel} (${planLabels[plan]})`}
-          >
-            <span className="font-medium text-neutral-200">{displayName}</span>
-            <span className="text-neutral-500"> · {roleLabel}</span>
-          </p>
           <button
             type="button"
             onClick={onLogout}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-neutral-500 transition-colors hover:bg-white/10 hover:text-white"
-            title="ログアウト"
+            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-md border border-white/30 px-2 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white hover:text-neutral-900"
           >
             <LogOut className="h-3.5 w-3.5" />
+            ログアウト
           </button>
         </div>
       </div>
@@ -389,7 +388,7 @@ export default function DashboardLayout() {
     ? getSnsNavPlatform(location.pathname.split('/')[2] ?? '')
     : undefined;
   const isSns = !!snsPlatform;
-  const isFullPage = isSns || location.pathname === '/dashboard' || location.pathname.startsWith('/settings');
+  const isFullPage = isSns || location.pathname === '/dashboard' || location.pathname.startsWith('/settings') || location.pathname.startsWith('/x-series');
   const roleLabel = userRole ? ROLE_LABELS[userRole] : 'メンバー';
 
   const navEntries = useMemo(() => filterNav(mainNav, isStaffOnly(userRole)), [userRole]);
