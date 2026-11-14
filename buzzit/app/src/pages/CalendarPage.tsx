@@ -1,19 +1,13 @@
 import { useEffect, useMemo, useState, type DragEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
-  CalendarDays,
-  CheckCircle2,
   AlertTriangle,
   Clock,
-  RefreshCw,
   ChevronLeft,
   ChevronRight,
-  Pencil,
   GripVertical,
-  CopyPlus,
   Sparkles,
   Undo2,
-  CalendarPlus,
   ChevronsLeft,
   ChevronsRight,
 } from 'lucide-react';
@@ -41,9 +35,7 @@ import {
   suggestBestHours,
   suggestOpenSlotsForDay,
 } from '../lib/bulkSchedule';
-import { loadCalendarViewPref, loadDropHourPref, saveCalendarViewPref, saveDropHourPref } from '../lib/schedulePrefs';
-import EmptyState from '../components/EmptyState';
-import PostHistoryPanel from '../components/PostHistoryPanel';
+import { loadCalendarViewPref, loadDropHourPref, saveDropHourPref } from '../lib/schedulePrefs';
 import CloneStaggerModal from '../components/CloneStaggerModal';
 import PersonaPublishConfirmModal from '../components/PersonaPublishConfirmModal';
 import DualApprovalSetupBanner from '../components/DualApprovalSetupBanner';
@@ -55,9 +47,10 @@ import { getPostTemplates } from '../data/postTemplates';
 import { settingsPath } from '../lib/settingsUrls';
 import EditJobModal from './calendar/EditJobModal';
 import CalendarGrid from './calendar/CalendarGrid';
+import DayPanel from './calendar/DayPanel';
+import CalendarToolbar from './calendar/CalendarToolbar';
 import {
   isEditableStatus,
-  filterLabels,
   statusLabel,
   startOfWeek,
   startOfMonth,
@@ -757,65 +750,19 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
 
       {message && <p className="buzz-alert buzz-alert-info text-sm">{message}</p>}
 
-      <div className="flex flex-wrap gap-2">
-        {embedded && (
-          <button
-            type="button"
-            onClick={() => setAlertsOpen((v) => !v)}
-            className={`inline-flex min-h-[36px] items-center gap-1.5 border px-3 text-sm font-medium ${
-              alertCount > 0 ? 'border-amber-600 bg-amber-50 text-amber-900' : 'border-neutral-200 bg-white text-neutral-500'
-            }`}
-          >
-            <AlertTriangle className="h-4 w-4" />
-            注意{alertCount > 0 ? ` (${alertCount})` : ''}
-          </button>
-        )}
-        {(['week', 'month'] as ViewMode[]).map((m) => (
-          <button
-            key={m}
-            type="button"
-            onClick={() => {
-              setViewMode(m);
-              saveCalendarViewPref(m);
-            }}
-            className={`border px-3 text-sm ${embedded ? 'min-h-[36px]' : 'min-h-[44px]'} ${
-              viewMode === m ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-200 bg-white'
-            }`}
-          >
-            {m === 'week' ? '週次' : '月次'}
-          </button>
-        ))}
-        {embedded && undoStack.length > 0 && (
-          <button
-            type="button"
-            onClick={() => void undoLastMove()}
-            className="inline-flex min-h-[36px] items-center gap-1 border border-neutral-300 bg-white px-3 text-sm"
-          >
-            <Undo2 className="h-4 w-4" />
-            元に戻す
-          </button>
-        )}
-        {(Object.keys(filterLabels) as FilterKey[]).map((key) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setFilter(key)}
-            className={`border px-3 py-1.5 text-sm ${
-              filter === key
-                ? 'border-neutral-900 bg-neutral-900 text-white'
-                : 'border-neutral-200 bg-white text-neutral-700 hover:border-neutral-400'
-            }`}
-          >
-            {filterLabels[key]}
-          </button>
-        ))}
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="本文・#タグで検索"
-          className="ml-auto w-full border sm:w-44 border border-neutral-200 bg-white px-3 py-1.5 text-sm focus:border-neutral-900 focus:outline-none"
-        />
-      </div>
+      <CalendarToolbar
+        embedded={embedded}
+        alertCount={alertCount}
+        setAlertsOpen={setAlertsOpen}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        undoCount={undoStack.length}
+        undoLastMove={undoLastMove}
+        filter={filter}
+        setFilter={setFilter}
+        search={search}
+        setSearch={setSearch}
+      />
 
       {embedded && alertsOpen && (
         <div className="max-h-[45vh] shrink-0 space-y-2 overflow-auto rounded-xl border border-amber-200 bg-white p-2 shadow-sm">
@@ -929,240 +876,32 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
           />
         </div>
 
-        <div className={`space-y-3 lg:col-span-2 ${embedded ? 'lg:min-h-0 lg:overflow-y-auto' : ''}`}>
-          {embedded && (
-            <div className="flex gap-1">
-              {([['history', '投稿履歴'], ['day', '選択した日']] as const).map(([k, label]) => (
-                <button
-                  key={k}
-                  type="button"
-                  onClick={() => setRightTab(k)}
-                  className={`border px-3 py-1 text-sm ${rightTab === k ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-200 bg-white'}`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
-          {embedded && rightTab === 'history' && (
-            <PostHistoryPanel jobs={scopedJobs} platformId={platformId} day={null} onClearDay={() => {}} />
-          )}
-          {(!embedded || rightTab === 'day') && (
-            <>
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold">
-              {selectedDay
-                ? selectedDay.toLocaleDateString('ja-JP', {
-                    month: 'long',
-                    day: 'numeric',
-                    weekday: 'short',
-                  })
-                : '日付を選択'}
-            </h3>
-            <button
-              type="button"
-              onClick={load}
-              className="inline-flex items-center gap-1 text-xs text-neutral-600 hover:text-neutral-900"
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              更新
-            </button>
-          </div>
-
-          {selectedDay && dayOpenSlots.length > 0 && (
-            <div className="border border-neutral-200 bg-neutral-50 p-3">
-              <p className="mb-2 text-xs font-medium text-neutral-600">この日の空きおすすめ枠（ワンタップ配置）</p>
-              <div className="flex flex-wrap gap-2">
-                {dayOpenSlots.map((slot) => (
-                  <button
-                    key={slot.hour}
-                    type="button"
-                    disabled={busyId != null || !scopedJobs.some((j) => j.status === 'draft')}
-                    onClick={() => void quickPlaceDraftOnSelected(slot.hour)}
-                    className="border border-neutral-300 bg-white px-2.5 py-1.5 text-xs hover:border-neutral-900 disabled:opacity-50"
-                  >
-                    {slot.label} に下書き1件
-                  </button>
-                ))}
-              </div>
-              {!scopedJobs.some((j) => j.status === 'draft') && (
-                <p className="mt-2 text-xs text-neutral-500">
-                  下書きがありません。
-                </p>
-              )}
-            </div>
-          )}
-
-          {loading && <p className="text-sm text-neutral-500">読み込み中...</p>}
-
-          {!loading && dayJobs.length === 0 && (
-            <EmptyState
-              icon={CalendarDays}
-              title="この日の予約はありません"
-              description="ネタクリエイターで台本を作り「かんたん一括予約」するか、下書きを日付へドラッグして配置できます。"
-              primaryLabel="投稿を作る"
-              primaryTo="/magic-creator"
-            />
-          )}
-
-          {dayJobs.map((job) => (
-            <div
-              key={job.id}
-              draggable={isEditableStatus(job.status)}
-              onDragStart={(e) => {
-                if (!isEditableStatus(job.status)) return;
-                beginDrag(job, e);
-              }}
-              onDragEnd={endDrag}
-              className={`border border-neutral-200 bg-white p-4 ${
-                isEditableStatus(job.status) ? 'cursor-grab active:cursor-grabbing' : ''
-              } ${draggingId === job.id ? 'opacity-50' : ''}`}
-            >
-              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1 text-sm font-medium">
-                  {isEditableStatus(job.status) && (
-                    <GripVertical className="h-3.5 w-3.5 text-neutral-400" aria-hidden />
-                  )}
-                  {new Date(job.scheduledAt).toLocaleTimeString('ja-JP', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}{' '}
-                  · {job.publishMode}
-                  {job.createdBy === 'ai' && (
-                    <span className="ml-1 rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-800">AI作成</span>
-                  )}
-                </span>
-                <span
-                  className={`text-xs ${
-                    job.status === 'failed'
-                      ? 'text-red-700'
-                      : job.status === 'pending_approval'
-                        ? 'text-amber-700'
-                        : 'text-neutral-600'
-                  }`}
-                >
-                  {statusLabel(job.status, job)}
-                </span>
-              </div>
-              <div className="flex gap-3">
-                {job.mediaUrls?.filter((u) => !/\.(mp4|mov|webm)(\?|$)/i.test(u))[0] && (
-                  <img
-                    src={job.mediaUrls.filter((u) => !/\.(mp4|mov|webm)(\?|$)/i.test(u))[0]}
-                    alt=""
-                    className="h-14 w-14 shrink-0 border border-neutral-200 object-cover"
-                  />
-                )}
-                <p className="line-clamp-3 text-sm text-neutral-600">
-                  {job.contents.map((c) => c.label).join(' / ')}
-                  {' — '}
-                  {job.contents[0]?.content.slice(0, 100)}
-                </p>
-              </div>
-              {job.tags && job.tags.length > 0 && (
-                <p className="mt-2 flex flex-wrap gap-1">
-                  {job.tags.map((t) => (
-                    <span key={t} className="rounded-full bg-violet-50 px-2 py-0.5 text-[11px] text-violet-800">#{t}</span>
-                  ))}
-                </p>
-              )}
-              {job.errorMessage && (
-                <p className="mt-2 text-xs text-red-700">{job.errorMessage}</p>
-              )}
-              <div className="mt-3 flex flex-wrap gap-2">
-                {isEditableStatus(job.status) && (
-                  <button
-                    type="button"
-                    onClick={() => openEdit(job)}
-                    className="inline-flex min-h-[44px] items-center gap-1 border border-neutral-900 bg-neutral-900 px-3 py-1.5 text-xs text-white"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                    編集
-                  </button>
-                )}
-                {job.contents[0] && (
-                  <button
-                    type="button"
-                    onClick={() => setCloneJob(job)}
-                    className="inline-flex min-h-[44px] items-center gap-1 border border-neutral-300 px-3 py-1.5 text-xs hover:border-neutral-900"
-                  >
-                    <CopyPlus className="h-3.5 w-3.5" />
-                    他SNSへずらして複製
-                  </button>
-                )}
-                {(job.status === 'pending' || job.status === 'draft' || job.status === 'pending_approval') && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTempoJob(job);
-                      setTempoWeeks(4);
-                    }}
-                    className="inline-flex min-h-[44px] items-center gap-1 border border-neutral-300 px-3 py-1.5 text-xs hover:border-neutral-900"
-                  >
-                    <CalendarPlus className="h-3.5 w-3.5" />
-                    毎週同じ枠に複製
-                  </button>
-                )}
-                {job.status === 'pending_approval' && canApprove && (
-                  <button
-                    type="button"
-                    disabled={busyId === job.id}
-                    onClick={() => setApproveConfirmJob(job)}
-                    className="buzz-btn-primary min-h-[44px] px-3 py-1.5 text-xs disabled:opacity-60"
-                  >
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    {busyId === job.id ? '承認中...' : '承認'}
-                  </button>
-                )}
-                {job.status === 'failed' && (
-                  <button
-                    type="button"
-                    disabled={busyId === job.id}
-                    onClick={() => handleRetry(job.id)}
-                    className="inline-flex min-h-[44px] items-center gap-1 border border-red-300 bg-red-50 px-3 py-1.5 text-xs text-red-800 disabled:opacity-60"
-                  >
-                    <RefreshCw className="h-3.5 w-3.5" />
-                    再送
-                  </button>
-                )}
-                {(job.status === 'failed' || job.status === 'pending_approval' || job.status === 'pending') && (
-                  <button
-                    type="button"
-                    disabled={busyId === job.id}
-                    onClick={() => handleDraft(job.id)}
-                    className="min-h-[44px] border border-neutral-300 px-3 py-1.5 text-xs"
-                  >
-                    下書きに戻す
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    const text = job.contents.map((c) => `【${c.label}】\n${c.content}`).join('\n\n---\n\n');
-                    navigator.clipboard?.writeText(text);
-                    setMessage('手動投稿用に全文をコピーしました');
-                  }}
-                  className="min-h-[44px] border border-neutral-300 px-3 py-1.5 text-xs hover:border-neutral-900"
-                >
-                  手動用にコピー
-                </button>
-                {job.mediaUrls?.map((u, i) => (
-                  <a
-                    key={u}
-                    href={u}
-                    target="_blank"
-                    rel="noreferrer"
-                    download
-                    className="inline-flex min-h-[44px] items-center border border-neutral-300 px-3 py-1.5 text-xs hover:border-neutral-900"
-                  >
-                    {/\.(mp4|mov|webm)(\?|$)/i.test(u) ? '動画' : '画像'}{job.mediaUrls!.length > 1 ? i + 1 : ''}を保存
-                  </a>
-                ))}
-              </div>
-            </div>
-          ))}
-            </>
-          )}
-        </div>
+        <DayPanel
+          embedded={embedded}
+          platformId={platformId}
+          rightTab={rightTab}
+          setRightTab={setRightTab}
+          scopedJobs={scopedJobs}
+          selectedDay={selectedDay}
+          load={load}
+          loading={loading}
+          dayJobs={dayJobs}
+          dayOpenSlots={dayOpenSlots}
+          busyId={busyId}
+          draggingId={draggingId}
+          canApprove={canApprove}
+          quickPlaceDraftOnSelected={quickPlaceDraftOnSelected}
+          beginDrag={beginDrag}
+          endDrag={endDrag}
+          openEdit={openEdit}
+          setCloneJob={setCloneJob}
+          setTempoJob={setTempoJob}
+          setTempoWeeks={setTempoWeeks}
+          setApproveConfirmJob={setApproveConfirmJob}
+          handleRetry={handleRetry}
+          handleDraft={handleDraft}
+          setMessage={setMessage}
+        />
       </div>
 
       {editingJob && (
