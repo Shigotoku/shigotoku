@@ -33,6 +33,7 @@ import {
   approveScheduledJob,
   retryScheduledJob,
   revertScheduledJobToDraft,
+  updateScheduledJobStatus,
   updateScheduledJob,
   trackMetricEvent,
   createTrackingLink,
@@ -202,7 +203,7 @@ import {
   voiceToXSeriesBatch,
 } from './services/xSeriesExtras';
 import { saveOAuthState, consumeOAuthState } from './services/schedulerWorker';
-import { assertPostQuota, incrementPostQuota, getPostsThisMonth, freePostLimitForPlan } from './services/planLimits';
+import { assertPostQuota, incrementPostQuota, getPostsThisMonth, freePostLimitForPlan, consumeAiQuota, AiQuotaError } from './services/planLimits';
 import {
   getGoogleOAuthUrl,
   exchangeGoogleCode,
@@ -370,6 +371,7 @@ api.post('/v1/repurpose', requireAuth, async (req: AuthedRequest, res) => {
 
   try {
     const settings = await assertPostQuota(req.uid!);
+    await consumeAiQuota(req.uid!, settings.plan);
     const effectivePlan = plan ?? settings.plan;
     const safety = checkBrandSafety(idea);
     const { results, usedGemini } = await generateRepurposeWithGemini(idea, effectivePlan, mediaUrls);
@@ -586,6 +588,22 @@ api.post('/v1/scheduled/:id/approve', requireAuth, async (req: AuthedRequest, re
   }
 
   res.json({ success: true, job: result.job, message: '承認しました。予約キューに入りました。' });
+});
+
+api.post('/v1/scheduled/:id/mark-posted', requireAuth, async (req: AuthedRequest, res) => {
+  const jobId = String(req.params.id);
+  const existing = await getScheduledJob(req.uid!, jobId);
+  if (!existing) {
+    res.status(404).json({ error: '予約が見つかりません' });
+    return;
+  }
+  if (!['notified', 'pending', 'failed'].includes(existing.status)) {
+    res.status(400).json({ error: 'この状態の予約は「投稿済み」にできません' });
+    return;
+  }
+  await updateScheduledJobStatus(req.uid!, jobId, { status: 'published', completedMessage: '手動で投稿済みにしました' });
+  await writeAuditLog(req.uid!, 'schedule.mark_posted', jobId);
+  res.json({ success: true });
 });
 
 api.post('/v1/scheduled/:id/retry', requireAuth, async (req: AuthedRequest, res) => {
@@ -1770,6 +1788,7 @@ api.post('/v1/trends/refresh', requireAuth, async (req: AuthedRequest, res) => {
       res.status(403).json({ error: 'Pro プラン以上が必要です' });
       return;
     }
+    await consumeAiQuota(req.uid!, settings.plan);
     const trends = await refreshTrends(req.uid!, settings.industry);
     res.json({ trends });
   } catch (err) {
@@ -1952,6 +1971,7 @@ api.post('/v1/voice-draft', requireAuth, async (req: AuthedRequest, res) => {
   }
   try {
     const settings = await assertPostQuota(req.uid!);
+    await consumeAiQuota(req.uid!, settings.plan);
     const { transcript, results, usedGemini } = await voiceDraftWithGemini(
       audioBase64,
       mimeType || 'audio/webm',
@@ -2508,6 +2528,16 @@ api.post('/v1/agent/chat', requireAuth, async (req: AuthedRequest, res) => {
   if (!messages?.length) {
     res.status(400).json({ error: 'messages が必要です' });
     return;
+  }
+  try {
+    const st = await getUserSettingsWithDevBoost(req.uid!);
+    await consumeAiQuota(req.uid!, st.plan);
+  } catch (err) {
+    if (err instanceof AiQuotaError) {
+      res.status(429).json({ error: err.message });
+      return;
+    }
+    throw err;
   }
   const result = await runStrategyAgent(req.uid!, messages);
   res.json(result);
@@ -3434,7 +3464,6 @@ export const buzzitApi = onRequest({ ...functionOptions, secrets: [...functionSe
 export {
   buzzitScheduler,
   buzzitPublishWorker,
-  buzzitLineStepWorker,
   buzzitWeeklyReport,
 } from './scheduler';
 

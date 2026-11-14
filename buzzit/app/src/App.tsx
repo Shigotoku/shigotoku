@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider } from './store/appContext';
 import { AuthProvider } from './store/authContext';
@@ -8,25 +9,26 @@ import OnboardingGate from './components/OnboardingGate';
 import HeadlineFitRoot from './components/HeadlineFitRoot';
 import DashboardLayout from './layouts/DashboardLayout';
 import Dashboard from './pages/Dashboard';
-import GuidePage from './pages/GuidePage';
+import TodayPage from './pages/TodayPage';
+const GuidePage = lazy(() => import('./pages/GuidePage'));
 import LoginPage from './pages/LoginPage';
-import MagicCreator from './pages/MagicCreator';
-import AnalyticsPage from './pages/AnalyticsPage';
-import LineCrmPage from './pages/LineCrmPage';
-import SettingsPage from './pages/SettingsPage';
-import RoadmapPage from './pages/RoadmapPage';
-import CalendarPage from './pages/CalendarPage';
-import FunnelBuilderPage from './pages/FunnelBuilderPage';
-import InboxPage from './pages/InboxPage';
-import ContentCalendarPage from './pages/ContentCalendarPage';
-import XSeriesPage from './pages/XSeriesPage';
-import SnsHubPage from './pages/SnsHubPage';
+const MagicCreator = lazy(() => import('./pages/MagicCreator'));
+const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'));
+const LineCrmPage = lazy(() => import('./pages/LineCrmPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const RoadmapPage = lazy(() => import('./pages/RoadmapPage'));
+const CalendarPage = lazy(() => import('./pages/CalendarPage'));
+const FunnelBuilderPage = lazy(() => import('./pages/FunnelBuilderPage'));
+const InboxPage = lazy(() => import('./pages/InboxPage'));
+const ContentCalendarPage = lazy(() => import('./pages/ContentCalendarPage'));
+const XSeriesPage = lazy(() => import('./pages/XSeriesPage'));
+const SnsHubPage = lazy(() => import('./pages/SnsHubPage'));
 import OnboardingPage from './pages/OnboardingPage';
 import AcceptInvitePage from './pages/AcceptInvitePage';
 import AcceptAccountInvitePage from './pages/AcceptAccountInvitePage';
 import AccountSetupPage from './pages/AccountSetupPage';
 import AccountSetupGate from './components/AccountSetupGate';
-import AdminAccountsPage from './pages/AdminAccountsPage';
+const AdminAccountsPage = lazy(() => import('./pages/AdminAccountsPage'));
 import OAuthAuthorizePage from './pages/OAuthAuthorizePage';
 
 function App() {
@@ -37,7 +39,8 @@ function App() {
           <PersonaProvider>
           <BrowserRouter>
             <HeadlineFitRoot />
-            <Routes>
+            <Suspense fallback={<div className="p-6 text-sm text-neutral-500">読み込み中…</div>}>
+<Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/invite/:token" element={<AcceptInvitePage />} />
               <Route path="/account-invite/:token" element={<AcceptAccountInvitePage />} />
@@ -50,6 +53,7 @@ function App() {
                   <Route path="/" element={<DashboardLayout />}>
                     <Route index element={<Navigate to="/dashboard" replace />} />
                     <Route path="dashboard" element={<Dashboard />} />
+<Route path="today" element={<TodayPage />} />
                     <Route path="guide" element={<GuidePage />} />
                     <Route path="roadmap" element={<RoadmapPage />} />
                     <Route path="magic-creator" element={<MagicCreator />} />
@@ -69,6 +73,7 @@ function App() {
                 </Route>
               </Route>
             </Routes>
+</Suspense>
           </BrowserRouter>
           </PersonaProvider>
         </StoreProvider>

@@ -30,7 +30,9 @@ export const buzzitScheduler = onSchedule(
 
     await sendStrategicNotifications(slot);
     if (slot === 'morning') {
-      await refreshTrendsForAllUsers();
+      // トレンド更新(Gemini)は週2回のみ（月・木）
+      const dow = new Date(Date.now() + 9 * 3600 * 1000).getUTCDay();
+      if (dow === 1 || dow === 4) await refreshTrendsForAllUsers();
       await runAutoModeForAllUsers();
       const users = await getAllUsersWithSlack();
       for (const user of users) {
@@ -64,23 +66,10 @@ export const buzzitPublishWorker = onSchedule(
   async () => {
     const result = await processDueScheduledJobs();
     const series = await processXSeriesSchedules();
-    console.log('buzzitPublishWorker:', result, 'xSeries:', series);
-  },
-);
-
-/** 5分ごと: LINE ステップ配信の due 進捗を処理 */
-export const buzzitLineStepWorker = onSchedule(
-  {
-    schedule: '*/5 * * * *',
-    timeZone: 'Asia/Tokyo',
-    region: 'asia-northeast1',
-    serviceAccount: 'firebase-adminsdk-fbsvc@shigotoku-prod.iam.gserviceaccount.com',
-    secrets: [...functionSecrets],
-  },
-  async () => {
-    const result = await processDueStepProgress();
+    // LINE ステップ配信も同じ5分ジョブで処理（Cloud Scheduler のジョブ数を減らす）
+    const line = await processDueStepProgress();
     const richMenu = await processRichMenuSegmentSwitch();
-    console.log('buzzitLineStepWorker:', result, 'richMenu:', richMenu);
+    console.log('buzzitPublishWorker:', result, 'xSeries:', series, 'line:', line, 'richMenu:', richMenu);
   },
 );
 

@@ -151,11 +151,10 @@ export async function markTrendUsed(uid: string, trendId: string): Promise<Trend
 
 export async function refreshTrendsForAllUsers(): Promise<number> {
   const { getFirestore } = await import('firebase-admin/firestore');
-  const snap = await getFirestore().collection('users').get();
+  // 有料プランのみ読む（全ユーザー読み取りによる Firestore 課金を避ける）
+  const snap = await getFirestore().collection('users').where('plan', 'in', ['pro', 'team', 'growth']).get();
   let count = 0;
   for (const doc of snap.docs) {
-    const plan = doc.data().plan as string;
-    if (!['pro', 'team', 'growth'].includes(plan)) continue;
     try {
       await refreshTrends(doc.id, doc.data().industry as string | undefined);
       count++;

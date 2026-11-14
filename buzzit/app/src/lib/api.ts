@@ -509,6 +509,10 @@ export function approveScheduledJob(id: string) {
   });
 }
 
+export function markScheduledPosted(id: string) {
+  return request<{ success: boolean }>(`/v1/scheduled/${id}/mark-posted`, { method: 'POST' });
+}
+
 export function retryScheduledJob(id: string) {
   return request<{ success: boolean; job: ScheduledJob }>(`/v1/scheduled/${id}/retry`, {
     method: 'POST',

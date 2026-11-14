@@ -15,6 +15,8 @@ import {
   BookOpen,
   ChevronDown,
   Share2,
+  Bot,
+  CheckCircle2,
   PenLine,
 } from 'lucide-react';
 import { BRAND_NAME } from '../constants/brand';
@@ -80,9 +82,10 @@ type NavEntry = NavLinkItem | NavGroupItem | NavDivider;
 
 const mainNav: NavEntry[] = [
   { kind: 'link', name: 'ダッシュボード', path: '/dashboard', icon: LayoutDashboard, staffOk: true },
+  { kind: 'link', name: '今日の投稿', path: '/today', icon: CheckCircle2, staffOk: true },
   { kind: 'divider', label: 'つくる' },
-  { kind: 'link', name: '① ネタを溜める', path: '/inbox', icon: Inbox, staffOk: true },
-  { kind: 'link', name: '② 投稿を作る', path: '/magic-creator', icon: Wand2, staffOk: true },
+  { kind: 'link', name: 'ネタを溜める', path: '/inbox', icon: Inbox, staffOk: true },
+  { kind: 'link', name: '投稿を作る', path: '/magic-creator', icon: Wand2, staffOk: true },
   { kind: 'link', name: 'まとめて作る', path: '/content-calendar', icon: PenLine, staffOk: true, match: ['/content-calendar', '/x-series'] },
   { kind: 'divider', label: '予約・確認' },
   { kind: 'link', name: '投稿カレンダー', path: '/calendar', icon: CalendarDays, staffOk: true },
@@ -104,6 +107,7 @@ const mainNav: NavEntry[] = [
   { kind: 'link', name: '集客（LINE・導線）', path: '/line-crm', icon: MessageCircle, managerOnly: true, match: ['/line-crm', '/funnel'] },
   { kind: 'link', name: '分析・売上', path: '/analytics', icon: BarChart3, managerOnly: true },
   { kind: 'divider', label: '設定・ヘルプ' },
+  { kind: 'link', name: 'AI連携（ChatGPT等）', path: '/settings?tab=personas', icon: Bot, managerOnly: true },
   { kind: 'link', name: '設定', path: '/settings', icon: Settings, managerOnly: true },
   { kind: 'link', name: '使い方の手順', path: '/guide', icon: BookOpen, staffOk: true, match: ['/guide', '/roadmap'] },
 ];
@@ -147,7 +151,15 @@ function SectionTabs({ pathname }: { pathname: string }) {
   );
 }
 
+function dropEmptyDividers(list: NavEntry[]): NavEntry[] {
+  return list.filter((e, i) => e.kind !== 'divider' || (list[i + 1] !== undefined && list[i + 1].kind !== 'divider'));
+}
+
 function filterNav(entries: NavEntry[], staffOnly: boolean): NavEntry[] {
+  return dropEmptyDividers(filterNavRaw(entries, staffOnly));
+}
+
+function filterNavRaw(entries: NavEntry[], staffOnly: boolean): NavEntry[] {
   const out: NavEntry[] = [];
   for (const entry of entries) {
     if (entry.kind === 'divider') {
@@ -289,7 +301,12 @@ function SidebarContent({
               to={entry.path}
               onClick={onNavigate}
               className={({ isActive }) => {
-                const on = isActive || !!entry.match?.some((m) => location.pathname.startsWith(m));
+                const aiTab = location.pathname === '/settings' && location.search.includes('tab=personas');
+                const on = entry.path.includes('tab=personas')
+                  ? aiTab
+                  : entry.path === '/settings'
+                    ? location.pathname === '/settings' && !aiTab
+                    : isActive || !!entry.match?.some((m) => location.pathname.startsWith(m));
                 return `buzz-nav-link ${on ? 'buzz-nav-link-active' : 'buzz-nav-link-inactive'}`;
               }}
             >
