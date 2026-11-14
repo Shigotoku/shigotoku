@@ -19,6 +19,13 @@ const MORNING = [
   { label: 'ネタを1つ足す', hint: 'ネタInbox に今日気づいたことを1行メモします' },
 ];
 
+const AI_STEPS = [
+  { label: '配信キャラを選ぶ', hint: '左下でAIに任せたいキャラ（例: 徳永龍馬）に切り替えます' },
+  { label: 'AI連携のURLをコピー', hint: '設定 → 配信キャラ → AI連携で「ChatGPT / Claude（Web）」を選び、URLをコピーします' },
+  { label: 'AI側に登録して許可', hint: 'AIのコネクタ（カスタム/MCP）にURLを貼り、バジットのログイン画面でキャラを選んで「許可」を押します' },
+  { label: '依頼文を送る', hint: '同じ画面の依頼文をAIに貼ると、下書きが作られます。内容はカレンダーで確認してから承認します' },
+];
+
 export default function GuidePage() {
   const { signals, isSample } = useSetupSignals();
 
@@ -76,6 +83,28 @@ export default function GuidePage() {
           もっと詳しく進めたい場合は上のタブの{' '}
           <Link to="/roadmap" className="underline-offset-2 hover:underline">成長ロードマップ</Link>、または{' '}
           <a href={landingPath('/guide/')} target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:underline">使い方説明書（外部サイト）</a> を参考にしてください。
+        </p>
+      </section>
+
+      <section className="buzz-card-pad !p-4 sm:!p-5">
+        <p className="buzz-section-label">AIにつなぐ（ChatGPT・Claude・Cursor）</p>
+        <p className="mt-2 text-sm text-neutral-600">
+          AIがネタや下書きをバジットに直接書き込みます。AIにできるのは「ネタ追加」と「下書き作成」だけで、承認・予約・投稿は必ずご自身で行います。
+        </p>
+        <ol className="mt-3 grid gap-3 md:grid-cols-4">
+          {AI_STEPS.map((s, i) => (
+            <li key={s.label} className="border-l-2 border-violet-500 pl-3">
+              <p className="text-xs text-neutral-500">STEP {i + 1}</p>
+              <p className="text-sm font-semibold text-neutral-900">{s.label}</p>
+              <p className="mt-0.5 text-xs text-neutral-500">{s.hint}</p>
+            </li>
+          ))}
+        </ol>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Link to="/settings?tab=personas" className="buzz-btn-secondary !px-3 !py-2 text-sm">設定 → 配信キャラ → AI連携を開く</Link>
+        </div>
+        <p className="mt-3 text-xs text-neutral-500">
+          ChatGPT の画面にコネクタ／アプリの追加が見つからない場合は、Cursor・Claude Code・Gemini CLI（キーを発行して設定を貼る方式）をご利用ください。
         </p>
       </section>
     </div>
