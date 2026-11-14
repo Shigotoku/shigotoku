@@ -42,6 +42,11 @@
 @layer components {
   .buzz-page { @apply mx-auto max-w-6xl space-y-6; }
   .buzz-page-narrow { @apply mx-auto max-w-4xl space-y-6; }
+  /* 設定画面: 余白と文字を詰めて 1 画面に収める */
+  .settings-compact .buzz-card-pad { @apply p-3 md:p-3; }
+  .settings-compact .text-sm { font-size: 0.8125rem; line-height: 1.15rem; }
+  .settings-compact .text-xs { font-size: 0.6875rem; line-height: 1rem; }
+  .settings-compact .space-y-6 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.75rem; }
   .buzz-section-label { @apply text-xs font-medium text-neutral-500; }
 
   .buzz-card { @apply rounded-xl border border-neutral-200/80 bg-white shadow-sm; }

@@ -5,6 +5,7 @@ import { usePersona } from '../store/personaContext';
 import { useStore } from '../store/storeContext';
 import { fetchAccountMembers, fetchStoreMembers } from '../lib/api';
 import { settingsPath } from '../lib/settingsUrls';
+import HeaderNotice from './HeaderNotice';
 
 type Props = {
   /** ダッシュボード等で余白を抑える */
@@ -71,6 +72,7 @@ export default function DualApprovalSetupBanner({ compact }: Props) {
   const inviteHref = staffTab ? settingsPath({ tab: 'staff' }) : settingsPath({ tab: 'staff' });
 
   return (
+    <HeaderNotice label="2人承認が必要">
     <div className="rounded-xl border-2 border-amber-300 bg-amber-50 px-4 py-4 text-sm text-amber-950">
       <p className="flex items-center gap-2 font-semibold">
         <ShieldCheck className="h-5 w-5 shrink-0" />
@@ -105,5 +107,6 @@ export default function DualApprovalSetupBanner({ compact }: Props) {
         <ArrowRight className="h-4 w-4" />
       </Link>
     </div>
+    </HeaderNotice>
   );
 }

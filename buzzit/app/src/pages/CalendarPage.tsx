@@ -4,6 +4,7 @@ import FlowProgressBar from '../components/FlowProgressBar';
 import { WEEK_HOUR_SLOTS } from '../lib/bulkSchedule';
 import CloneStaggerModal from '../components/CloneStaggerModal';
 import PersonaPublishConfirmModal from '../components/PersonaPublishConfirmModal';
+import HeaderNotice from '../components/HeaderNotice';
 import DualApprovalSetupBanner from '../components/DualApprovalSetupBanner';
 import EditJobModal from './calendar/EditJobModal';
 import CalendarGrid from './calendar/CalendarGrid';
@@ -48,7 +49,11 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
         </p>
       )}
 
-      {!embedded && alertBlocks}
+      {!embedded && alertCount > 0 && (
+        <HeaderNotice label="注意" count={alertCount}>
+          {alertBlocks}
+        </HeaderNotice>
+      )}
 
       <div className={embedded ? 'hidden' : 'flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'}>
         <p className="text-xs text-neutral-500">

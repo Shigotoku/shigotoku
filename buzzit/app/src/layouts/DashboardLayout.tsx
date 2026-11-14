@@ -15,7 +15,6 @@ import {
   BookOpen,
   ChevronDown,
   Share2,
-  Bot,
   CheckCircle2,
   PenLine,
 } from 'lucide-react';
@@ -34,6 +33,7 @@ import OnboardingTour from '../components/OnboardingTour';
 import PersonaSelectGate from '../components/PersonaSelectGate';
 import PersonaChangeToast from '../components/PersonaChangeToast';
 import ActivePersonaContextBar from '../components/ActivePersonaContextBar';
+import { HeaderNoticeSlotContext } from '../components/HeaderNotice';
 import BrandMark from '../components/BrandMark';
 import { ROLE_LABELS, canEditSettings, canManageLineCrm, isStaffOnly } from '../lib/permissions';
 import { getPageMeta } from '../lib/pageMeta';
@@ -107,8 +107,6 @@ const mainNav: NavEntry[] = [
   { kind: 'link', name: '集客（LINE・導線）', path: '/line-crm', icon: MessageCircle, managerOnly: true, match: ['/line-crm', '/funnel'] },
   { kind: 'link', name: '分析・売上', path: '/analytics', icon: BarChart3, managerOnly: true },
   { kind: 'divider', label: '設定・ヘルプ' },
-  { kind: 'link', name: 'AI連携（ChatGPT等）', path: '/settings?tab=personas', icon: Bot, managerOnly: true },
-  { kind: 'link', name: '設定', path: '/settings', icon: Settings, managerOnly: true },
   { kind: 'link', name: '使い方の手順', path: '/guide', icon: BookOpen, staffOk: true, match: ['/guide', '/roadmap'] },
 ];
 
@@ -201,6 +199,7 @@ function SidebarContent({
   displayName,
   plan,
   roleLabel,
+  canSettings,
   navEntries,
   onNavigate,
   onLogout,
@@ -208,6 +207,7 @@ function SidebarContent({
   displayName: string;
   plan: keyof typeof planLabels;
   roleLabel: string;
+  canSettings: boolean;
   navEntries: NavEntry[];
   onNavigate?: () => void;
   onLogout: () => void;
@@ -317,16 +317,38 @@ function SidebarContent({
         })}
       </nav>
       <div className="shrink-0 space-y-1.5 border-t border-white/10 px-2.5 py-2">
-        <div className="flex items-center gap-2 text-[11px] text-neutral-500">
+        {canSettings && (
+          <NavLink
+            to="/settings"
+            onClick={onNavigate}
+            className={({ isActive }) =>
+              `flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-bold transition-colors ${
+                isActive ? 'bg-white text-neutral-900' : 'bg-white/15 text-white hover:bg-white/25'
+              }`
+            }
+          >
+            <Settings className="h-4 w-4" />
+            設定
+          </NavLink>
+        )}
+        <div className="grid grid-cols-2 gap-1.5">
           <a
             href={landingPath('/')}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-0.5 underline-offset-2 hover:text-white hover:underline"
+            className="inline-flex items-center justify-center gap-1 rounded-lg border border-white/20 bg-white/5 px-2 py-2 text-xs font-semibold text-neutral-100 transition-colors hover:bg-white/15 hover:text-white"
           >
             サイト
             <ExternalLink className="h-3 w-3" />
           </a>
+          <NavLink
+            to="/guide"
+            onClick={onNavigate}
+            className="inline-flex items-center justify-center gap-1 rounded-lg border border-white/20 bg-white/5 px-2 py-2 text-xs font-semibold text-neutral-100 transition-colors hover:bg-white/15 hover:text-white"
+          >
+            <BookOpen className="h-3 w-3" />
+            使い方ガイド
+          </NavLink>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10 text-[10px] font-bold text-white">
@@ -354,6 +376,7 @@ function SidebarContent({
 }
 
 export default function DashboardLayout() {
+  const [noticeSlot, setNoticeSlot] = useState<HTMLElement | null>(null);
   const { plan, setPlan } = useApp();
   const { user, logout } = useAuth();
   const { userRole, refreshStores } = useStore();
@@ -366,7 +389,7 @@ export default function DashboardLayout() {
     ? getSnsNavPlatform(location.pathname.split('/')[2] ?? '')
     : undefined;
   const isSns = !!snsPlatform;
-  const isFullPage = isSns || location.pathname === '/dashboard';
+  const isFullPage = isSns || location.pathname === '/dashboard' || location.pathname.startsWith('/settings');
   const roleLabel = userRole ? ROLE_LABELS[userRole] : 'メンバー';
 
   const navEntries = useMemo(() => filterNav(mainNav, isStaffOnly(userRole)), [userRole]);
@@ -432,6 +455,7 @@ export default function DashboardLayout() {
           displayName={displayName}
           plan={plan}
           roleLabel={roleLabel}
+          canSettings={!isStaffOnly(userRole)}
           navEntries={navEntries}
           onNavigate={() => setNavOpen(false)}
           onLogout={() => logout()}
@@ -467,6 +491,7 @@ export default function DashboardLayout() {
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            <div ref={setNoticeSlot} className="flex items-center gap-1.5" />
             <ActivePersonaContextBar />
             <PersonaSwitcher />
             <StoreSwitcher />
@@ -485,7 +510,9 @@ export default function DashboardLayout() {
             </p>
           )}
           <SectionTabs pathname={location.pathname} />
-          <Outlet />
+          <HeaderNoticeSlotContext.Provider value={noticeSlot}>
+            <Outlet />
+          </HeaderNoticeSlotContext.Provider>
         </div>
         <MobileBottomNav onOpenMenu={() => setNavOpen(true)} />
         <PersonaSelectGate />
