@@ -389,7 +389,7 @@ export default function DashboardLayout() {
     ? getSnsNavPlatform(location.pathname.split('/')[2] ?? '')
     : undefined;
   const isSns = !!snsPlatform;
-  const isFullPage = isSns || location.pathname === '/dashboard' || location.pathname.startsWith('/settings') || location.pathname.startsWith('/x-series');
+  const isFullPage = isSns || location.pathname === '/dashboard' || location.pathname === '/analytics' || location.pathname.startsWith('/settings') || location.pathname.startsWith('/x-series');
   const roleLabel = userRole ? ROLE_LABELS[userRole] : 'メンバー';
 
   const navEntries = useMemo(() => filterNav(mainNav, isStaffOnly(userRole)), [userRole]);

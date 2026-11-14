@@ -20,6 +20,13 @@ import DualApprovalSetupBanner from '../components/DualApprovalSetupBanner';
 import { usePersona } from '../store/personaContext';
 import { SNS_NAV_PLATFORMS, detectJobPlatformId, getSnsNavPlatform } from '../lib/snsPlatforms';
 
+/** SNS id → インサイトの platform キー */
+const INSIGHT_KEYS: Record<string, string[]> = {
+  x: ['x'],
+  instagram: ['instagram'],
+  'facebook-threads': ['facebook', 'threads'],
+};
+
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
 function dayKey(d: Date) {
@@ -48,6 +55,7 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
 
 export default function Dashboard() {
   const split = useSplitPane('buzzit.dashboard.splitPct', 72);
+  const [snsFilter, setSnsFilter] = useState<string>('all');
   const { isSample } = useSetupSignals();
   const { activePersonaId, activePersona } = usePersona();
   const [metrics, setMetrics] = useState(mockMetrics);
@@ -102,19 +110,50 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePersonaId]);
 
+  // SNSボタンでの絞り込み（'all' = すべて）
+  const viewJobs = useMemo(
+    () => (snsFilter === 'all' ? jobs : jobs.filter((j) => detectJobPlatformId(j) === snsFilter)),
+    [jobs, snsFilter],
+  );
+  const snsStats = useMemo(() => {
+    const keys = snsFilter === 'all' ? null : (INSIGHT_KEYS[snsFilter] ?? []);
+    let impressions = 0;
+    let reach = 0;
+    let measured = 0;
+    let supported = true;
+    if (snsFilter !== 'all' && keys && keys.length === 0) supported = false;
+    if (insights) {
+      for (const [name, v] of Object.entries(insights.byPlatform)) {
+        if (keys && !keys.includes(name)) continue;
+        impressions += v.impressions;
+        reach += v.reach;
+        measured += v.postCount;
+      }
+    }
+    return {
+      impressions,
+      reach,
+      measured,
+      supported,
+      published: viewJobs.filter((j) => j.status === 'published' || j.status === 'notified').length,
+      scheduled: viewJobs.filter((j) => ['pending', 'pending_approval', 'processing'].includes(j.status)).length,
+      draft: viewJobs.filter((j) => j.status === 'draft').length,
+      failed: viewJobs.filter((j) => j.status === 'failed').length,
+      total: viewJobs.length,
+    };
+  }, [viewJobs, insights, snsFilter]);
+
   const jobsByDay = useMemo(() => {
     const map = new Map<string, ScheduledJob[]>();
-    for (const j of jobs) {
+    for (const j of viewJobs) {
       const k = dayKey(new Date(j.scheduledAt));
       map.set(k, [...(map.get(k) ?? []), j]);
     }
     return map;
-  }, [jobs]);
+  }, [viewJobs]);
 
   const pending = jobs.filter((j) => j.status === 'pending_approval');
   const failedCount = jobs.filter((j) => j.status === 'failed').length;
-  const upcoming = jobs.filter((j) => ['pending', 'pending_approval', 'processing'].includes(j.status)).length;
-
   const cells = useMemo(() => {
     const first = new Date(month.getFullYear(), month.getMonth(), 1);
     const start = new Date(first);
@@ -299,17 +338,54 @@ export default function Dashboard() {
               <p className="buzz-section-label">インプレッション・成果</p>
               <Link to="/analytics" className="text-xs underline-offset-2 hover:underline">詳しく →</Link>
             </div>
-            <div className="mt-2 grid grid-cols-4 gap-2 lg:grid-cols-2 xl:grid-cols-4">
-              <Stat label="表示" value={insights ? insights.totalImpressions.toLocaleString() : '—'} />
-              <Stat label="リーチ" value={insights ? insights.totalReach.toLocaleString() : '—'} />
-              <Stat label="計測投稿" value={insights ? `${insights.postCount}件` : '—'} />
-              <Stat label="今後の予定" value={`${upcoming}件`} />
-              <Stat label="健康スコア" value={String(metrics.healthScore)} sub={`${metrics.healthTrend >= 0 ? '+' : ''}${metrics.healthTrend}%`} />
-              <Stat label="総リーチ" value={metrics.reach.toLocaleString()} />
-              <Stat label="LINE友だち" value={String(metrics.lineFriends)} sub={`CVR ${metrics.lineCvr}%`} />
-              <Stat label="推定売上" value={`¥${metrics.estimatedRevenue.toLocaleString()}`} />
+            <div className="mt-2 flex flex-wrap gap-1">
+              {[{ id: 'all', name: 'すべて', color: '#111827' }, ...SNS_NAV_PLATFORMS.map((p) => ({ id: p.id, name: p.shortLabel, color: p.brandColor }))].map((p) => {
+                const active = snsFilter === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setSnsFilter(p.id)}
+                    title={p.id === 'all' ? 'すべてのSNS' : getSnsNavPlatform(p.id)?.name}
+                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition ${
+                      active ? 'border-transparent text-white' : 'border-neutral-200 bg-white text-neutral-700 hover:border-neutral-400'
+                    }`}
+                    style={active ? { backgroundColor: p.color } : undefined}
+                  >
+                    {!active && p.id !== 'all' && <span className="h-2 w-2 rounded-full" style={{ backgroundColor: p.color }} />}
+                    {p.name}
+                  </button>
+                );
+              })}
             </div>
-            {byPlatform.length > 0 && (
+            {snsFilter !== 'all' && (
+              <p className="mt-1.5 text-xs font-semibold text-neutral-700">{getSnsNavPlatform(snsFilter)?.name} の成果</p>
+            )}
+            <div className="mt-2 grid grid-cols-4 gap-2 lg:grid-cols-2 xl:grid-cols-4">
+              <Stat label="表示" value={!insights ? '—' : snsFilter === 'all' ? insights.totalImpressions.toLocaleString() : snsStats.supported ? snsStats.impressions.toLocaleString() : '—'} />
+              <Stat label="リーチ" value={!insights ? '—' : snsFilter === 'all' ? insights.totalReach.toLocaleString() : snsStats.supported ? snsStats.reach.toLocaleString() : '—'} />
+              <Stat label="計測投稿" value={!insights ? '—' : snsFilter === 'all' ? `${insights.postCount}件` : snsStats.supported ? `${snsStats.measured}件` : '—'} />
+              <Stat label="累計投稿" value={`${snsStats.published}件`} sub={`全${snsStats.total}件中`} />
+              <Stat label="予約待ち" value={`${snsStats.scheduled}件`} />
+              <Stat label="下書き" value={`${snsStats.draft}件`} />
+              <Stat label="失敗" value={`${snsStats.failed}件`} />
+              {snsFilter === 'all' ? (
+                <Stat label="健康スコア" value={String(metrics.healthScore)} sub={`${metrics.healthTrend >= 0 ? '+' : ''}${metrics.healthTrend}%`} />
+              ) : (
+                <Stat label="今後の予定" value={`${snsStats.scheduled}件`} />
+              )}
+              {snsFilter === 'all' && (
+                <>
+                  <Stat label="総リーチ" value={metrics.reach.toLocaleString()} />
+                  <Stat label="LINE友だち" value={String(metrics.lineFriends)} sub={`CVR ${metrics.lineCvr}%`} />
+                  <Stat label="推定売上" value={`¥${metrics.estimatedRevenue.toLocaleString()}`} />
+                </>
+              )}
+            </div>
+            {snsFilter !== 'all' && !snsStats.supported && (
+              <p className="mt-1 text-[11px] text-neutral-500">このSNSはインプレッション自動取得に未対応です（投稿数のみ表示）。</p>
+            )}
+            {snsFilter === 'all' && byPlatform.length > 0 && (
               <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-600">
                 {byPlatform.map(([name, v]) => (
                   <li key={name}>
