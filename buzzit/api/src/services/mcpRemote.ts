@@ -8,6 +8,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { z } from 'zod';
 import type { Response } from 'express';
 import {
+  APP_ORIGIN,
   agentRouter,
   requireAgentKey,
   opAddIdea,
@@ -41,7 +42,17 @@ X自動投稿のシリーズ（カテゴリ別の在庫）は x_series_list → 
 X は本文280字（スレッドは「---」だけの行で区切る・最大5投稿）。Instagram は画像必須、YouTube Shorts / TikTok は動画必須、Googleビジネスはハッシュタグ不要。`;
 
 function buildServer(ctx: AgentCtx): McpServer {
-  const server = new McpServer({ name: 'buzzit', version: '0.3.0' }, { instructions: INSTRUCTIONS });
+  const server = new McpServer(
+    {
+      name: 'buzzit',
+      title: 'BuzzIt',
+      version: '0.3.0',
+      websiteUrl: APP_ORIGIN,
+      icons: [
+        { src: `${APP_ORIGIN}/icon-256.png`, mimeType: 'image/png', sizes: ['256x256'] },
+        { src: `${APP_ORIGIN}/favicon.svg`, mimeType: 'image/svg+xml', sizes: ['any'] },
+      ],
+    }, { instructions: INSTRUCTIONS });
   const run = async (fn: () => Promise<unknown>) => {
     try {
       return { content: [{ type: 'text' as const, text: JSON.stringify(await fn(), null, 2) }] };

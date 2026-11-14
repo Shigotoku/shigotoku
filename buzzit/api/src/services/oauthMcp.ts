@@ -30,6 +30,8 @@ function validRedirect(u: string): boolean {
 const protectedResource = (_req: express.Request, res: express.Response) => {
   res.json({
     resource: `${APP_ORIGIN}/api/v1/agent/mcp`,
+    resource_name: 'BuzzIt',
+    logo_uri: `${APP_ORIGIN}/icon-256.png`,
     authorization_servers: [APP_ORIGIN],
     bearer_methods_supported: ['header'],
   });

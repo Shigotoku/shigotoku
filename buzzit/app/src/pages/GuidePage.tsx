@@ -103,9 +103,45 @@ export default function GuidePage() {
         <div className="mt-3 flex flex-wrap gap-2">
           <Link to="/settings?tab=personas" className="buzz-btn-secondary !px-3 !py-2 text-sm">設定 → 配信キャラ → AI連携を開く</Link>
         </div>
-        <p className="mt-3 text-xs text-neutral-500">
-          ChatGPT の画面にコネクタ／アプリの追加が見つからない場合は、Cursor・Claude Code・Gemini CLI（キーを発行して設定を貼る方式）をご利用ください。
-        </p>
+
+        <div className="mt-5 border-t border-neutral-100 pt-4">
+          <p className="text-sm font-semibold text-neutral-900">ChatGPT での登録手順（Plus 以上）</p>
+          <ol className="mt-3 space-y-5 text-sm text-neutral-700">
+            <li>
+              <p><span className="font-semibold">① URL をコピーする。</span>バジットで「設定 → 配信キャラ → AI連携」を開き、「ChatGPT / Claude（Web）」を選んで MCP サーバー URL をコピーします。</p>
+            </li>
+            <li>
+              <p><span className="font-semibold">② ChatGPT でカスタム MCP サーバーを追加する。</span>ChatGPT の「プラグイン」画面（chatgpt.com/plugins）の右上メニューから「カスタム MCP サーバーを追加」を選び、次のように入力して「プラグインとして作成」を押します。</p>
+              <ul className="mt-1 list-disc space-y-0.5 pl-5 text-xs text-neutral-600">
+                <li>名前: 「BuzzIt ○○」など分かりやすい名前</li>
+                <li>接続タイプ: サーバーURL ／ URL: ①でコピーしたもの</li>
+                <li>認証: <strong>OAuth</strong></li>
+                <li>「理解したうえで続けます」にチェック</li>
+                <li>アイコン（任意）: 画面右の「アイコン画像」をダウンロードして設定すると、一覧にバジットのロゴが出ます（PNG・10KB以内）</li>
+              </ul>
+              <div className="mt-2 flex flex-wrap items-start gap-4">
+                <img src="/guide/ai-connect-1.png" alt="カスタムMCPサーバーの追加画面" className="w-full max-w-sm rounded-lg border border-neutral-200" />
+                <div className="text-xs text-neutral-500">
+                  <img src="/icon-256.png" alt="BuzzIt アイコン" className="h-16 w-16 rounded-xl border border-neutral-200" />
+                  <a href="/icon-256.png" download="buzzit-icon.png" className="mt-1 inline-block underline-offset-2 hover:underline">アイコン画像をダウンロード</a>
+                </div>
+              </div>
+            </li>
+            <li>
+              <p><span className="font-semibold">③ 「接続」を押す。</span>「○○ を接続する」の確認が出たら、青／黒の「接続」ボタンを押します。バジットのログイン画面が開きます。</p>
+            </li>
+            <li>
+              <p><span className="font-semibold">④ バジットで「許可する」。</span>ログインし、<strong>AIに任せたい配信キャラ</strong>を選んで「許可する」を押します。下書きはここで選んだキャラの名義で作られます。</p>
+              <img src="/guide/ai-connect-2.png" alt="AIアプリの接続を許可する画面" className="mt-2 w-full max-w-sm rounded-lg border border-neutral-200" />
+            </li>
+            <li>
+              <p><span className="font-semibold">⑤ 依頼する。</span>ChatGPT で新しいチャットを開き、追加した BuzzIt を有効にして、AI連携画面の「AIに送る依頼文」を貼ります。「X向けに来週分3本の下書きを作って」のように一言添えると、バジットに下書きが作られます。内容はカレンダーで確認し、承認・予約はご自身で行います。</p>
+            </li>
+          </ol>
+          <p className="mt-4 text-xs text-neutral-500">
+            ChatGPT の画面に「カスタム MCP サーバーを追加」が見つからない場合は、Cursor・Claude Code・Gemini CLI（キーを発行して設定を貼る方式）をご利用ください。接続はいつでも「設定 → AI連携」から解除できます。
+          </p>
+        </div>
       </section>
     </div>
   );

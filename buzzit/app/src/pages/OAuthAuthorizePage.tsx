@@ -71,6 +71,10 @@ export default function OAuthAuthorizePage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-neutral-50 p-4">
       <div className="w-full max-w-md space-y-4 rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
+        <div className="flex items-center justify-center gap-2">
+          <img src="/icon-256.png" alt="BuzzIt" className="h-12 w-12 rounded-xl" />
+          <span className="text-lg font-bold">BuzzIt</span>
+        </div>
         <h1 className="flex items-center gap-2 text-lg font-bold">
           <Bot className="h-5 w-5" />
           AIアプリの接続を許可しますか？
