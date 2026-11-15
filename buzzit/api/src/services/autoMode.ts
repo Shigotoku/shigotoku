@@ -1,3 +1,4 @@
+import { withUserAi } from './aiClient';
 import { generateMissionAdvice, generateRepurposeWithGemini } from './gemini';
 import {
   addPost,
@@ -19,7 +20,11 @@ function nextAutoScheduleAt(): string {
   return d.toISOString();
 }
 
-export async function runAutoModeForUser(uid: string): Promise<{ mission: { title: string; description: string } }> {
+export function runAutoModeForUser(uid: string): Promise<{ mission: { title: string; description: string } }> {
+  return withUserAi(uid, () => runAutoModeInner(uid));
+}
+
+async function runAutoModeInner(uid: string): Promise<{ mission: { title: string; description: string } }> {
   const settings = await getUserSettings(uid);
   const metrics = await getMetrics(uid);
   const ideas = await getSlackIdeas(uid);

@@ -16,6 +16,13 @@ export interface UserSettings {
   ayrshareProfileKey?: string;
   autoModeEnabled?: boolean;
   industry?: string;
+  /** 事業者区分: corporate=法人 / individual=個人事業主 */
+  businessEntityType?: 'corporate' | 'individual';
+  /** 事業所番号（社内管理用） */
+  officeNumber?: string;
+  /** 登録カード（表示用。カード番号は保持しない） */
+  cardBrand?: string;
+  cardLast4?: string;
   /** 事業所の特徴・トーン（投稿文生成に反映） */
   brandProfile?: string;
   slackTeamId?: string;
@@ -111,7 +118,13 @@ export interface PostInsightDoc {
   bookmarks?: number;
   saved?: number;
   fetchedAt: string;
-  source: 'meta' | 'x';
+  source: 'meta' | 'x' | 'manual';
+  /** 手入力・CSV取込で追加できる指標（未取得は undefined のまま。0 と区別する） */
+  profileClicks?: number;
+  urlClicks?: number;
+  newFollows?: number;
+  shares?: number;
+  snapshots?: Array<{ label: string; capturedAt: string; impressions: number; likes?: number; reposts?: number; replies?: number; bookmarks?: number; urlClicks?: number; profileClicks?: number }>;
   lastError?: string;
   scheduledAt?: string;
   preview?: string;
@@ -498,6 +511,11 @@ export interface CreateScheduledJobInput {
   ayrshareResponse?: unknown;
   personaId?: string;
   dualApprovalRequired?: boolean;
+  tags?: string[];
+  topic?: string;
+  sourceJobId?: string;
+  createdBy?: 'ai' | 'user';
+  aiGeneratedMedia?: boolean;
 }
 
 export async function createScheduledJob(uid: string, input: CreateScheduledJobInput): Promise<string> {
@@ -516,6 +534,11 @@ export async function createScheduledJob(uid: string, input: CreateScheduledJobI
     ayrshareResponse: input.ayrshareResponse ?? null,
     ...(input.personaId ? { personaId: input.personaId } : {}),
     ...(input.dualApprovalRequired ? { dualApprovalRequired: true } : {}),
+    ...(input.tags?.length ? { tags: input.tags } : {}),
+    ...(input.topic ? { topic: input.topic } : {}),
+    ...(input.sourceJobId ? { sourceJobId: input.sourceJobId } : {}),
+    ...(input.createdBy ? { createdBy: input.createdBy } : {}),
+    ...(input.aiGeneratedMedia ? { aiGeneratedMedia: true } : {}),
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   });
@@ -529,6 +552,11 @@ export interface ScheduledJobDoc {
   dualApprovalRequired?: boolean;
   firstApprovedBy?: string;
   firstApprovedAt?: string;
+  tags?: string[];
+  topic?: string;
+  sourceJobId?: string;
+  createdBy?: 'ai' | 'user';
+  aiGeneratedMedia?: boolean;
   contents: ScheduleContentItem[];
   scheduledAt: string;
   publishMode: PublishMode;
@@ -553,6 +581,11 @@ function mapScheduledDoc(uid: string, id: string, data: FirebaseFirestore.Docume
     dualApprovalRequired: data.dualApprovalRequired as boolean | undefined,
     firstApprovedBy: data.firstApprovedBy as string | undefined,
     firstApprovedAt: data.firstApprovedAt as string | undefined,
+    tags: data.tags as string[] | undefined,
+    topic: data.topic as string | undefined,
+    sourceJobId: data.sourceJobId as string | undefined,
+    createdBy: data.createdBy as 'ai' | 'user' | undefined,
+    aiGeneratedMedia: data.aiGeneratedMedia === true ? true : undefined,
     contents: data.contents as ScheduleContentItem[],
     scheduledAt: data.scheduledAt as string,
     publishMode: (data.publishMode as PublishMode) ?? 'notify',
@@ -578,13 +611,14 @@ export async function getScheduledJobs(
   uid: string,
   status?: ScheduledJobStatus | ScheduledJobStatus[],
   personaId?: string,
+  max = 100,
 ): Promise<ScheduledJobDoc[]> {
   let query: FirebaseFirestore.Query = db()
     .collection('users')
     .doc(uid)
     .collection('scheduled')
     .orderBy('scheduledAt', 'desc')
-    .limit(100);
+    .limit(Math.min(500, Math.max(1, max)));
 
   if (status) {
     const statuses = Array.isArray(status) ? status : [status];
@@ -659,6 +693,35 @@ export async function updateScheduledJobStatus(
     ...patch,
     updatedAt: FieldValue.serverTimestamp(),
   });
+}
+
+/**
+ * 'processing' のまま 15 分以上止まったジョブ（関数タイムアウト等）を failed にする。
+ * 二重投稿を避けるため自動再投稿はせず、SNS側で実際に投稿されたか確認のうえ手動で再試行する。
+ */
+export async function recoverStuckScheduledJobs(staleMinutes = 15): Promise<number> {
+  const now = new Date().toISOString();
+  const snap = await db()
+    .collectionGroup('scheduled')
+    .where('status', '==', 'processing')
+    .where('scheduledAt', '<=', now)
+    .limit(50)
+    .get();
+  const cutoff = Date.now() - staleMinutes * 60 * 1000;
+  let recovered = 0;
+  for (const doc of snap.docs) {
+    const updated = doc.data().updatedAt;
+    const ms = updated instanceof Timestamp ? updated.toMillis() : 0;
+    if (ms > cutoff) continue;
+    await doc.ref.update({
+      status: 'failed',
+      errorMessage:
+        '処理が途中で止まりました。実際に投稿されたかSNS側で確認してから「再試行」してください（二重投稿防止のため自動再投稿しません）',
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    recovered++;
+  }
+  return recovered;
 }
 
 export async function claimDueScheduledJobs(limit = 20): Promise<ScheduledJobDoc[]> {
@@ -810,6 +873,10 @@ export async function updateScheduledJob(
     scheduledAt?: string;
     contents?: ScheduleContentItem[];
     publishMode?: PublishMode;
+    tags?: string[];
+    topic?: string;
+    mediaUrls?: string[];
+    aiGeneratedMedia?: boolean;
   },
 ): Promise<ScheduledJobDoc | null> {
   const ref = db().collection('users').doc(uid).collection('scheduled').doc(jobId);
@@ -824,6 +891,10 @@ export async function updateScheduledJob(
   };
   if (patch.scheduledAt !== undefined) updates.scheduledAt = patch.scheduledAt;
   if (patch.contents !== undefined) updates.contents = patch.contents;
+  if (patch.tags !== undefined) updates.tags = patch.tags;
+  if (patch.topic !== undefined) updates.topic = patch.topic;
+  if (patch.mediaUrls !== undefined) updates.mediaUrls = patch.mediaUrls;
+  if (patch.aiGeneratedMedia !== undefined) updates.aiGeneratedMedia = patch.aiGeneratedMedia;
   if (patch.publishMode !== undefined) {
     updates.publishMode = patch.publishMode;
     if (status === 'draft' || status === 'failed') {
@@ -1012,4 +1083,62 @@ export async function getSharedInsightsReport(token: string): Promise<SharedInsi
   const data = snap.data() as SharedInsightsReportDoc;
   if (new Date(data.expiresAt).getTime() < Date.now()) return null;
   return data;
+}
+
+// ---- 投稿計画（曜日×時刻×媒体×テーマ） ----
+export interface PlanSlot {
+  id: string;
+  weekday: number; // 0=日 ... 6=土
+  time: string; // HH:MM (JST)
+  platform: string;
+  theme: string;
+  tags?: string[];
+  /** 投稿シリーズ（枠 = シリーズの1回分）。未設定でも従来どおり動く */
+  seriesName?: string;
+  purpose?: string;
+  audience?: string;
+  category?: string;
+  tone?: string;
+  mediaKind?: string;
+  rules?: string;
+  ngRules?: string;
+  product?: string;
+  active?: boolean;
+}
+
+export async function getPostingPlan(uid: string, personaId: string): Promise<PlanSlot[]> {
+  const snap = await db().collection('users').doc(uid).collection('postingPlans').doc(personaId).get();
+  return ((snap.data()?.slots as PlanSlot[] | undefined) ?? []).slice(0, 60);
+}
+
+/** シリーズ関連の任意項目（空文字は保存しない・Firestore は undefined 不可） */
+function planExtras(x: PlanSlot): Partial<PlanSlot> {
+  const s = (v: unknown, n: number) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, n) : undefined);
+  const out: Partial<PlanSlot> = {
+    seriesName: s(x.seriesName, 60),
+    purpose: s(x.purpose, 200),
+    audience: s(x.audience, 100),
+    category: s(x.category, 60),
+    tone: s(x.tone, 200),
+    mediaKind: s(x.mediaKind, 60),
+    rules: s(x.rules, 600),
+    ngRules: s(x.ngRules, 600),
+    product: s(x.product, 80),
+    active: x.active === false ? false : undefined,
+  };
+  return Object.fromEntries(Object.entries(out).filter(([, v]) => v !== undefined)) as Partial<PlanSlot>;
+}
+
+export async function savePostingPlan(uid: string, personaId: string, slots: PlanSlot[]): Promise<PlanSlot[]> {
+  const clean = slots.slice(0, 60).map((x, i) => ({
+    id: String(x.id || `s${i}${Date.now()}`).slice(0, 40),
+    weekday: Math.min(6, Math.max(0, Number(x.weekday) || 0)),
+    time: /^\d{2}:\d{2}$/.test(String(x.time)) ? String(x.time) : '12:00',
+    platform: String(x.platform || 'x_thread').slice(0, 30),
+    theme: String(x.theme ?? '').slice(0, 80),
+    tags: (x.tags ?? []).map((t) => String(t).replace(/^[#＃]/, '').trim().slice(0, 30)).filter(Boolean).slice(0, 5),
+    ...planExtras(x),
+  }));
+  await db().collection('users').doc(uid).collection('postingPlans').doc(personaId).set({ slots: clean, updatedAt: FieldValue.serverTimestamp() });
+  return clean;
 }

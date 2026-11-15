@@ -15,12 +15,14 @@ const projects = [
   { name: 'buzzit-landing', cwd: join(root, 'buzzit/landing-page'), out: join(out, 'web/buzzit') },
   { name: 'clipit-landing', cwd: join(root, 'clipit/landing-page'), out: join(out, 'web/clipit') },
   { name: 'shapeit-landing', cwd: join(root, 'shapeit/landing-page'), out: join(out, 'web/shapeit') },
-  { name: 'deckit-landing', cwd: join(root, 'Slide_Studio/landing-page'), out: join(out, 'web/deckit') },
+  { name: 'deckit-landing', cwd: join(root, 'deckit/landing-page'), out: join(out, 'web/deckit') },
+  { name: 'predeck-landing', cwd: join(root, 'PreDeck/landing-page'), out: join(out, 'web/predeck') },
   { name: 'raiseit-landing', cwd: join(root, 'raiseit/landing-page'), out: join(out, 'web/raiseit') },
   { name: 'runwith-app', cwd: join(root, 'runwith/app'), out: join(out, 'runwith-app') },
   { name: 'buzzit-app', cwd: join(root, 'buzzit/app'), out: join(out, 'buzzit-app') },
   { name: 'clipit-app', cwd: join(root, 'clipit/app'), out: join(out, 'clipit-app') },
   { name: 'shapeit-app', cwd: join(root, 'shapeit/app'), out: join(out, 'shapeit-app') },
+  { name: 'predeck-app', cwd: join(root, 'PreDeck/app'), out: join(out, 'predeck-app') },
 ];
 
 function run(command, cwd, env = {}) {

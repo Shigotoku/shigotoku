@@ -6,20 +6,16 @@ import {
   BarChart3,
   MessageCircle,
   Settings,
-  Bell,
   ExternalLink,
   LogOut,
   Menu,
   X,
-  Map,
   CalendarDays,
   Inbox,
-  Route,
-  CalendarRange,
   BookOpen,
-  Layers,
   ChevronDown,
   Share2,
+  CheckCircle2,
   PenLine,
 } from 'lucide-react';
 import { BRAND_NAME } from '../constants/brand';
@@ -37,10 +33,11 @@ import OnboardingTour from '../components/OnboardingTour';
 import PersonaSelectGate from '../components/PersonaSelectGate';
 import PersonaChangeToast from '../components/PersonaChangeToast';
 import ActivePersonaContextBar from '../components/ActivePersonaContextBar';
+import { HeaderNoticeSlotContext } from '../components/HeaderNotice';
 import BrandMark from '../components/BrandMark';
 import { ROLE_LABELS, canEditSettings, canManageLineCrm, isStaffOnly } from '../lib/permissions';
 import { getPageMeta } from '../lib/pageMeta';
-import { SNS_NAV_PLATFORMS } from '../lib/snsPlatforms';
+import { SNS_NAV_PLATFORMS, getSnsNavPlatform } from '../lib/snsPlatforms';
 
 const planLabels = {
   free: 'Free',
@@ -62,6 +59,8 @@ type NavLinkItem = {
   icon: IconType;
   staffOk?: boolean;
   managerOnly?: boolean;
+  /** このパス配下のときもアクティブ表示にする */
+  match?: string[];
 };
 
 type NavGroupItem = {
@@ -83,21 +82,17 @@ type NavEntry = NavLinkItem | NavGroupItem | NavDivider;
 
 const mainNav: NavEntry[] = [
   { kind: 'link', name: 'ダッシュボード', path: '/dashboard', icon: LayoutDashboard, staffOk: true },
-  {
-    kind: 'group',
-    id: 'ideas',
-    name: 'ネタ作成',
-    icon: PenLine,
-    staffOk: true,
-    children: [
-      { kind: 'link', name: 'ネタInbox', path: '/inbox', icon: Inbox, staffOk: true },
-      { kind: 'link', name: 'ネタクリエイター', path: '/magic-creator', icon: Wand2, staffOk: true },
-    ],
-  },
+  { kind: 'link', name: '今日の投稿', path: '/today', icon: CheckCircle2, staffOk: true },
+  { kind: 'divider', label: 'つくる' },
+  { kind: 'link', name: 'ネタを溜める', path: '/inbox', icon: Inbox, staffOk: true },
+  { kind: 'link', name: '投稿を作る', path: '/magic-creator', icon: Wand2, staffOk: true },
+  { kind: 'link', name: 'まとめて作る', path: '/content-calendar', icon: PenLine, staffOk: true, match: ['/content-calendar', '/x-series'] },
+  { kind: 'divider', label: '予約・確認' },
+  { kind: 'link', name: '投稿カレンダー', path: '/calendar', icon: CalendarDays, staffOk: true },
   {
     kind: 'group',
     id: 'sns',
-    name: 'SNS',
+    name: 'SNSごとの管理',
     icon: Share2,
     staffOk: true,
     children: SNS_NAV_PLATFORMS.map((p) => ({
@@ -108,18 +103,61 @@ const mainNav: NavEntry[] = [
       staffOk: true,
     })),
   },
-  { kind: 'link', name: '投稿カレンダー', path: '/calendar', icon: CalendarDays, staffOk: true },
-  { kind: 'link', name: '導線ビルダー', path: '/funnel', icon: Route, managerOnly: true },
-  { kind: 'link', name: 'LINE CRM', path: '/line-crm', icon: MessageCircle, managerOnly: true },
-  { kind: 'link', name: '設定', path: '/settings', icon: Settings, managerOnly: true },
-  { kind: 'divider', label: 'その他の機能' },
-  { kind: 'link', name: '成長ロードマップ', path: '/roadmap', icon: Map, staffOk: true },
-  { kind: 'link', name: '30本カレンダー', path: '/content-calendar', icon: CalendarRange, staffOk: true },
-  { kind: 'link', name: 'Xシリーズ', path: '/x-series', icon: Layers, staffOk: true },
+  { kind: 'divider', label: '増やす' },
+  { kind: 'link', name: '集客（LINE・導線）', path: '/line-crm', icon: MessageCircle, managerOnly: true, match: ['/line-crm', '/funnel'] },
   { kind: 'link', name: '分析・売上', path: '/analytics', icon: BarChart3, managerOnly: true },
+  { kind: 'divider', label: '設定・ヘルプ' },
+  { kind: 'link', name: '使い方の手順', path: '/guide', icon: BookOpen, staffOk: true, match: ['/guide', '/roadmap'] },
 ];
 
+/** サイドバー1項目に対応する複数ページを、ページ上部のタブで切り替える */
+const SECTION_TABS: Record<string, Array<{ path: string; label: string }>> = {
+  bulk: [
+    { path: '/content-calendar', label: '30日分をまとめて作る' },
+    { path: '/x-series', label: 'Xシリーズ（自動投稿キュー）' },
+  ],
+  growth: [
+    { path: '/line-crm', label: 'LINE CRM（友だち管理）' },
+    { path: '/funnel', label: '導線ビルダー（SNS→LINE→予約）' },
+  ],
+  help: [
+    { path: '/guide', label: '使い方の手順' },
+    { path: '/roadmap', label: '成長ロードマップ' },
+  ],
+};
+
+function SectionTabs({ pathname }: { pathname: string }) {
+  const tabs = Object.values(SECTION_TABS).find((g) => g.some((t) => pathname.startsWith(t.path)));
+  if (!tabs) return null;
+  return (
+    <div className="mb-4 flex flex-wrap gap-1 border-b border-neutral-200">
+      {tabs.map((t) => {
+        const active = pathname.startsWith(t.path);
+        return (
+          <NavLink
+            key={t.path}
+            to={t.path}
+            className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${
+              active ? 'border-violet-600 text-violet-700' : 'border-transparent text-neutral-500 hover:text-neutral-800'
+            }`}
+          >
+            {t.label}
+          </NavLink>
+        );
+      })}
+    </div>
+  );
+}
+
+function dropEmptyDividers(list: NavEntry[]): NavEntry[] {
+  return list.filter((e, i) => e.kind !== 'divider' || (list[i + 1] !== undefined && list[i + 1].kind !== 'divider'));
+}
+
 function filterNav(entries: NavEntry[], staffOnly: boolean): NavEntry[] {
+  return dropEmptyDividers(filterNavRaw(entries, staffOnly));
+}
+
+function filterNavRaw(entries: NavEntry[], staffOnly: boolean): NavEntry[] {
   const out: NavEntry[] = [];
   for (const entry of entries) {
     if (entry.kind === 'divider') {
@@ -161,6 +199,7 @@ function SidebarContent({
   displayName,
   plan,
   roleLabel,
+  canSettings,
   navEntries,
   onNavigate,
   onLogout,
@@ -168,14 +207,14 @@ function SidebarContent({
   displayName: string;
   plan: keyof typeof planLabels;
   roleLabel: string;
+  canSettings: boolean;
   navEntries: NavEntry[];
   onNavigate?: () => void;
   onLogout: () => void;
 }) {
   const location = useLocation();
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => ({
-    ideas: true,
-    sns: true,
+    sns: false,
   }));
 
   useEffect(() => {
@@ -261,9 +300,15 @@ function SidebarContent({
               key={entry.path}
               to={entry.path}
               onClick={onNavigate}
-              className={({ isActive }) =>
-                `buzz-nav-link ${isActive ? 'buzz-nav-link-active' : 'buzz-nav-link-inactive'}`
-              }
+              className={({ isActive }) => {
+                const aiTab = location.pathname === '/settings' && location.search.includes('tab=personas');
+                const on = entry.path.includes('tab=personas')
+                  ? aiTab
+                  : entry.path === '/settings'
+                    ? location.pathname === '/settings' && !aiTab
+                    : isActive || !!entry.match?.some((m) => location.pathname.startsWith(m));
+                return `buzz-nav-link ${on ? 'buzz-nav-link-active' : 'buzz-nav-link-inactive'}`;
+              }}
             >
               <entry.icon className="h-4 w-4 shrink-0" />
               {entry.name}
@@ -272,62 +317,66 @@ function SidebarContent({
         })}
       </nav>
       <div className="shrink-0 space-y-1.5 border-t border-white/10 px-2.5 py-2">
-        <div className="flex items-center gap-2 text-[11px] text-neutral-500">
+        {canSettings && (
           <NavLink
-            to="/onboarding?edit=1"
+            to="/settings"
             onClick={onNavigate}
-            className="underline-offset-2 hover:text-white hover:underline"
-            title="業種・目的の見直し"
+            className={({ isActive }) =>
+              `flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-bold transition-colors ${
+                isActive ? 'bg-white text-neutral-900' : 'bg-white/15 text-white hover:bg-white/25'
+              }`
+            }
           >
-            はじめに
+            <Settings className="h-4 w-4" />
+            設定
           </NavLink>
-          <span className="text-neutral-600">|</span>
+        )}
+        <div className="grid grid-cols-2 gap-1.5">
           <a
             href={landingPath('/')}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-0.5 underline-offset-2 hover:text-white hover:underline"
+            className="inline-flex items-center justify-center gap-1 rounded-lg border border-white/20 bg-white/5 px-2 py-2 text-xs font-semibold text-neutral-100 transition-colors hover:bg-white/15 hover:text-white"
           >
             サイト
             <ExternalLink className="h-3 w-3" />
           </a>
+          <NavLink
+            to="/guide"
+            onClick={onNavigate}
+            className="inline-flex items-center justify-center gap-1 rounded-lg border border-white/20 bg-white/5 px-2 py-2 text-xs font-semibold text-neutral-100 transition-colors hover:bg-white/15 hover:text-white"
+          >
+            <BookOpen className="h-3 w-3" />
+            使い方ガイド
+          </NavLink>
         </div>
-        <div className="flex items-center gap-1.5">
-          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10 text-[10px] font-bold text-white">
-            {displayName.slice(0, 1)}
+        <div className="rounded-lg bg-white/15 px-3 py-2">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-sm font-bold text-neutral-900">
+              {displayName.slice(0, 1)}
+            </div>
+            <div className="min-w-0 flex-1 text-center" title={`${displayName} · ${roleLabel} (${planLabels[plan]})`}>
+              <p className="truncate text-sm font-bold text-white">{displayName}</p>
+              <p className="truncate text-xs text-neutral-300">{roleLabel}</p>
+            </div>
+            <button
+              type="button"
+              onClick={onLogout}
+              title="ログアウト"
+              aria-label="ログアウト"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-white/30 text-white transition-colors hover:bg-white hover:text-neutral-900"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
           </div>
-          <p
-            className="min-w-0 flex-1 truncate text-[11px] text-neutral-400"
-            title={`${displayName} · ${roleLabel} (${planLabels[plan]})`}
-          >
-            <span className="font-medium text-neutral-200">{displayName}</span>
-            <span className="text-neutral-500"> · {roleLabel}</span>
-          </p>
-          <button
-            type="button"
-            onClick={onLogout}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-neutral-500 transition-colors hover:bg-white/10 hover:text-white"
-            title="ログアウト"
-          >
-            <LogOut className="h-3.5 w-3.5" />
-          </button>
         </div>
-        <a
-          href={landingPath('/guide/')}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex h-8 w-full items-center justify-center gap-1.5 rounded-lg bg-white/10 text-xs font-semibold text-white transition-colors hover:bg-white/15"
-        >
-          <BookOpen className="h-3.5 w-3.5 shrink-0" />
-          使い方説明書
-          <ExternalLink className="h-3 w-3 shrink-0 opacity-70" />
-        </a>
       </div>
     </div>
   );
 }
 
 export default function DashboardLayout() {
+  const [noticeSlot, setNoticeSlot] = useState<HTMLElement | null>(null);
   const { plan, setPlan } = useApp();
   const { user, logout } = useAuth();
   const { userRole, refreshStores } = useStore();
@@ -336,6 +385,11 @@ export default function DashboardLayout() {
   const displayName = user?.displayName ?? user?.email ?? 'デモユーザー';
   const pageMeta = getPageMeta(location.pathname);
   const title = pageMeta.title;
+  const snsPlatform = location.pathname.startsWith('/sns/')
+    ? getSnsNavPlatform(location.pathname.split('/')[2] ?? '')
+    : undefined;
+  const isSns = !!snsPlatform;
+  const isFullPage = isSns || location.pathname === '/dashboard' || location.pathname === '/analytics' || location.pathname.startsWith('/settings') || location.pathname.startsWith('/x-series');
   const roleLabel = userRole ? ROLE_LABELS[userRole] : 'メンバー';
 
   const navEntries = useMemo(() => filterNav(mainNav, isStaffOnly(userRole)), [userRole]);
@@ -363,13 +417,13 @@ export default function DashboardLayout() {
 
   if (isStaffOnly(userRole)) {
     if (location.pathname.startsWith('/settings') && !canEditSettings(userRole)) {
-      return <Navigate to="/inbox" replace />;
+      return <Navigate to="/inbox" replace state={{ denied: true }} />;
     }
     if (location.pathname.startsWith('/line-crm') && !canManageLineCrm(userRole)) {
-      return <Navigate to="/inbox" replace />;
+      return <Navigate to="/inbox" replace state={{ denied: true }} />;
     }
     if (location.pathname.startsWith('/funnel') || location.pathname.startsWith('/analytics')) {
-      return <Navigate to="/inbox" replace />;
+      return <Navigate to="/inbox" replace state={{ denied: true }} />;
     }
   }
 
@@ -401,6 +455,7 @@ export default function DashboardLayout() {
           displayName={displayName}
           plan={plan}
           roleLabel={roleLabel}
+          canSettings={!isStaffOnly(userRole)}
           navEntries={navEntries}
           onNavigate={() => setNavOpen(false)}
           onLogout={() => logout()}
@@ -408,11 +463,18 @@ export default function DashboardLayout() {
       </aside>
 
       <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="relative z-30 flex min-h-14 shrink-0 items-center justify-between gap-3 border-b border-neutral-200/80 bg-white/95 px-4 py-2 backdrop-blur-sm lg:min-h-16 lg:px-8">
+        <header
+          className={`relative z-30 flex min-h-14 shrink-0 items-center justify-between gap-3 border-b px-4 py-2 lg:min-h-14 ${
+            isSns ? 'border-transparent lg:px-4' : 'border-neutral-200/80 bg-white/95 backdrop-blur-sm lg:min-h-16 lg:px-8'
+          }`}
+          style={isSns ? { background: snsPlatform?.brandGradient } : undefined}
+        >
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
-              className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg text-neutral-600 hover:bg-neutral-100 lg:hidden"
+              className={`flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg lg:hidden ${
+                isSns ? 'text-white hover:bg-white/15' : 'text-neutral-600 hover:bg-neutral-100'
+              }`}
               aria-label="メニューを開く"
               aria-expanded={navOpen}
               onClick={() => setNavOpen(true)}
@@ -420,28 +482,37 @@ export default function DashboardLayout() {
               <Menu className="h-5 w-5" />
             </button>
             <div className="min-w-0">
-              <h1 className="truncate text-base font-semibold text-neutral-900 lg:text-lg">{title}</h1>
+              <h1 className={`truncate text-base font-semibold lg:text-xl ${isSns ? 'text-white' : 'text-neutral-900 lg:text-lg'}`}>
+                {title}
+              </h1>
               {pageMeta.subtitle && (
                 <p className="hidden truncate text-xs text-neutral-500 sm:block">{pageMeta.subtitle}</p>
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
+            <div ref={setNoticeSlot} className="flex items-center gap-1.5" />
+            <ActivePersonaContextBar />
             <PersonaSwitcher />
             <StoreSwitcher />
-            <button
-              type="button"
-              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700"
-              title="通知（準備中）"
-              aria-label="通知（準備中）"
-            >
-              <Bell className="h-5 w-5" />
-            </button>
           </div>
         </header>
-        <ActivePersonaContextBar />
-        <div className="relative z-0 flex-1 overflow-auto p-4 pb-24 md:p-6 lg:p-8 lg:pb-8">
-          <Outlet />
+        <div
+          className={`relative z-0 flex-1 ${
+            isFullPage
+              ? 'flex flex-col overflow-auto p-3 pb-24 lg:overflow-hidden lg:p-3 lg:pb-3'
+              : 'overflow-auto p-4 pb-24 md:p-6 lg:p-8 lg:pb-8'
+          }`}
+        >
+          {(location.state as { denied?: boolean } | null)?.denied && (
+            <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              そのページはスタッフ権限では開けません。オーナー・マネージャーにご相談ください。
+            </p>
+          )}
+          <SectionTabs pathname={location.pathname} />
+          <HeaderNoticeSlotContext.Provider value={noticeSlot}>
+            <Outlet />
+          </HeaderNoticeSlotContext.Provider>
         </div>
         <MobileBottomNav onOpenMenu={() => setNavOpen(true)} />
         <PersonaSelectGate />

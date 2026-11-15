@@ -38,7 +38,19 @@ export interface PersonaSnsSettings {
   insightsLastSyncedAt?: string;
 }
 
+/** キャラごとの SNS アカウント台帳（ID・メール・パスワード・URL の控え） */
+export interface AccountLedgerEntry {
+  id: string;
+  service: string;
+  handle?: string;
+  email?: string;
+  password?: string;
+  url?: string;
+  memo?: string;
+}
+
 export interface PersonaRecord extends PersonaSnsSettings {
+  accountLedger?: AccountLedgerEntry[];
   id: string;
   name: string;
   slug: string;

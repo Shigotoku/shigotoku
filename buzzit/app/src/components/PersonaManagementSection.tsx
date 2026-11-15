@@ -93,7 +93,7 @@ export default function PersonaManagementSection() {
         <h3 className="text-sm font-semibold text-neutral-900">配信キャラ（ペルソナ）</h3>
         <p className="mt-1 text-xs text-neutral-500">
           公式・院長・キャラクターなど、投稿主体ごとに SNS 連携とトーンを分けて管理できます。
-          下のフォームから<strong className="text-neutral-700">名前を入力して「ペルソナを追加」</strong>してください。
+          下のフォームから<strong className="text-neutral-700">名前を入力して「配信キャラを追加」</strong>してください。
           {limits && (
             <span className="ml-1 text-neutral-600">（{limits.label}）</span>
           )}
@@ -174,14 +174,14 @@ export default function PersonaManagementSection() {
             className="inline-flex items-center gap-1.5 rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-            ペルソナを追加
+            配信キャラを追加
           </button>
         </div>
       )}
 
       {!limits?.canAdd && (
         <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-          ペルソナ上限に達しています。プランタブで「追加ペルソナ枠」を購入するか、管理者に連絡してください（¥980/月/体）。
+          配信キャラの上限に達しています。プランタブで「追加キャラ枠」を購入するか、管理者に連絡してください（¥980/月/体）。
         </p>
       )}
 

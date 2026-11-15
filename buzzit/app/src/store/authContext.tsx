@@ -12,6 +12,7 @@ import {
   auth,
   getIdToken,
   signInDemo,
+  resendVerification,
   signInWithGoogle,
   signInWithEmailPassword,
   signUpWithEmailPassword,
@@ -47,6 +48,8 @@ function syncUserProfile(u: User) {
     // API 未接続でもログイン自体は継続
   });
 }
+
+class UnverifiedEmailError extends Error {}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -111,9 +114,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSubmitting(true);
     try {
       const cred = await signInWithEmailPassword(email, password);
+      if (!cred.user.emailVerified) {
+        await resendVerification(cred.user).catch(() => undefined);
+        await signOut(auth);
+        throw new UnverifiedEmailError('メールアドレスが未確認です。確認メールを再送しました。メールのリンクを開いてから、もう一度ログインしてください。');
+      }
       setUser(cred.user);
       syncUserProfile(cred.user);
     } catch (err) {
+      if (err instanceof UnverifiedEmailError) {
+        setAuthError(err.message);
+        throw err;
+      }
       const resolved = await resolveAuthError(err, email, fetchLoginHint);
       setAuthError(resolved.message);
       setLoginHint(resolved.hint ?? null);
@@ -128,10 +140,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoginHint(null);
     setSubmitting(true);
     try {
-      const cred = await signUpWithEmailPassword(email, password, displayName);
-      setUser(cred.user);
-      syncUserProfile(cred.user);
+      await signUpWithEmailPassword(email, password, displayName);
+      await signOut(auth);
+      throw new UnverifiedEmailError('確認メールを送信しました。メールのリンクを開いてメールアドレスを確認してから、ログインしてください。');
     } catch (err) {
+      if (err instanceof UnverifiedEmailError) {
+        setAuthError(err.message);
+        throw err;
+      }
       const resolved = await resolveAuthError(err, email, fetchLoginHint);
       setAuthError(resolved.message);
       setLoginHint(resolved.hint ?? null);

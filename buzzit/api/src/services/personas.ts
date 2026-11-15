@@ -62,6 +62,7 @@ export const PERSONA_SETTINGS_ALLOWLIST = [
   'avatarUrl',
   'brandSafetyLevel',
   'status',
+  'accountLedger',
 ] as const;
 
 function db() {
@@ -346,6 +347,26 @@ export async function updatePersona(
     }
   }
 
+  if ('accountLedger' in safe) {
+    const existing = (await getPersona(personaId))?.accountLedger ?? [];
+    const raw = Array.isArray(safe.accountLedger) ? safe.accountLedger : [];
+    const s = (v: unknown, max = 500) => String(v ?? '').trim().slice(0, max);
+    safe.accountLedger = raw.slice(0, 50).map((e: Record<string, unknown>) => {
+      const id = s(e.id, 64) || randomBytes(6).toString('hex');
+      const prev = existing.find((x) => x.id === id);
+      const pw = String(e.password ?? '');
+      return {
+        id,
+        service: s(e.service, 60),
+        handle: s(e.handle, 200),
+        email: s(e.email, 200),
+        password: pw === '***' ? (prev?.password ?? '') : pw.slice(0, 200),
+        url: s(e.url, 500),
+        memo: s(e.memo, 1000),
+      };
+    });
+  }
+
   if ('name' in safe && typeof safe.name === 'string') {
     const trimmed = safe.name.trim();
     if (!trimmed) throw new Error('ペルソナ名が必要です');
@@ -572,6 +593,7 @@ export async function resolvePersonaLimits(
 
 export function safePersonaForClient(persona: PersonaRecord) {
   const safe = { ...persona } as Record<string, unknown>;
+  delete safe.accountLedger; // 台帳は専用エンドポイントでのみ返す
   for (const key of PERSONA_SECRET_KEYS) {
     if (safe[key]) safe[key] = '***';
   }

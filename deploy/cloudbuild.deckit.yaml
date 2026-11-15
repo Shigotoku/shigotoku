@@ -14,7 +14,7 @@ steps:
     args:
       - build
       - -f
-      - Slide_Studio/Dockerfile
+      - deckit/Dockerfile
       - -t
       - ${_IMAGE}
       - --build-arg

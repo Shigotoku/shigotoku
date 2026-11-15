@@ -1,5 +1,5 @@
 ---
-description: 徳永（r.tokunaga）がこのリポジトリから push するときの Git ブランチ命名
+description: 徳永（r.tokunaga）がこのリポジトリから push するときの Git 運用（main 直 push）
 globs:
 alwaysApply: true
 ---
@@ -8,19 +8,18 @@ alwaysApply: true
 
 このワークスペースから **コミット・push する前**に、次を守る。
 
-1. **`main` へ直接 push しない**（PR 経由で merge）
-2. ブランチ名は **`r.tokunaga-YYYY-MM-DD`**（push する日の日付、例: `r.tokunaga-2026-06-03`）
-3. 同じ日に2本目以降なら **`r.tokunaga-YYYY-MM-DD-2`** のように連番
-4. 担当者向けの `runwith/` `buzzit/` ブランチは、ランウィズ・バジット担当の作業用。徳永の横断変更（`clipit/`、`deploy/`、`corporate-site/`、`docs/` など）は **`r.tokunaga-日付`** を使う
+1. **作業ブランチは `main`**
+2. **push 先は `origin/main`（main へ直接 push）**
+3. push の前に **`git pull origin main`** で最新を取り込む
+4. 日付ブランチ `r.tokunaga-YYYY-MM-DD` は **使わない**（徳永の横断変更も main 上で行う）
 
 手順:
 
 ```bash
 git checkout main
 git pull origin main
-git checkout -b r.tokunaga-YYYY-MM-DD
 # コミット後
-git push -u origin r.tokunaga-YYYY-MM-DD
+git push origin main
 ```
 
-詳細: `docs/GIT-TEAM-WORKFLOW.md` §5
+担当者向けの `runwith/` `buzzit/` ブランチや、チーム全体の PR 運用は `docs/GIT-TEAM-WORKFLOW.md` を参照。徳永の Cursor 上での push は上記（main 直 push）に従う。

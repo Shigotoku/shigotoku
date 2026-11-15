@@ -1,0 +1,1328 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>プレデキ - 話すだけで、プレゼンできてく。</title>
+  <link rel="icon" type="image/png" href="/static/logo.png" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+<div id="app">
+
+  <!-- ========== ヘッダー ========== -->
+  <header class="app-header">
+    <div class="header-left">
+      <img src="/static/logo.png" class="app-logo-img" alt="プレデキ" />
+      <span class="app-title">プレデキ<span class="app-title-sub"> (PreDeck)</span></span>
+    </div>
+    <div class="header-right">
+      <span id="strict-local-badge" class="strict-local-badge strict-on" title="すべてローカル処理。外部送信なし。">🔒 Strict Local</span>
+      <button class="btn btn-ghost" id="btn-home" onclick="showHome()">🏠 ホーム</button>
+      <button class="btn btn-ghost" onclick="showSettings()">⚙️ 設定</button>
+    </div>
+  </header>
+
+  <!-- ========== メインコンテンツ ========== -->
+  <main class="app-main">
+
+    <!-- ログイン画面 -->
+    <div id="screen-login" class="screen active">
+      <div class="login-container">
+        <div class="login-box">
+          <img src="/static/logo.png" class="login-logo" alt="プレデキ" />
+          <h2>ログイン</h2>
+          <div class="form-group">
+            <label class="form-label">ID</label>
+            <input type="text" id="login-id" class="input-field" placeholder="IDを入力 (テスト用: test)" onkeydown="if(event.key==='Enter')handleLogin()" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">パスワード</label>
+            <input type="password" id="login-pass" class="input-field" placeholder="パスワードを入力 (テスト用: test)" onkeydown="if(event.key==='Enter')handleLogin()" />
+          </div>
+          <button class="btn btn-primary btn-large" style="width: 100%" onclick="handleLogin()">ログイン</button>
+          <div id="login-error" style="color: red; margin-top: 10px; display: none;">IDまたはパスワードが間違っています。</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ホーム画面 -->
+    <div id="screen-home" class="screen">
+      <div class="home-container">
+        <div class="home-hero">
+          <div class="hero-brand">
+            <img src="/static/logo.png" class="hero-logo-img" alt="プレデキ" />
+            <span class="hero-brand-name">プレデキ</span>
+          </div>
+          <h2>話すだけで、プレゼンできてく。</h2>
+          <p>スライドをアップロード → 録音 → AIで原稿改善 → 再練習<br>
+             このサイクルで「通せる」プレゼン原稿を完成させます</p>
+          <div class="hero-features">
+            <span class="hero-feat">🤖 AI原稿改善</span>
+            <span class="hero-feat">📊 WPM解析</span>
+            <span class="hero-feat">💪 弱気ワード検出</span>
+            <span class="hero-feat">🎯 ピッチスコア</span>
+          </div>
+          <button class="btn btn-primary btn-large" onclick="createNewSession()">
+            ✨ 新しいセッションを開始
+          </button>
+        </div>
+
+        <div class="session-list-section">
+          <h3>📋 過去のセッション</h3>
+          <div id="session-list" class="session-list">
+            <div class="empty-state">セッションがまだありません</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 作業画面 -->
+    <div id="screen-work" class="screen">
+
+      <!-- ステップインジケーター -->
+      <div class="step-bar">
+        <div class="step-item active" id="step-dot-1" onclick="goToStep(1)" title="①スライドへ移動">
+          <div class="step-dot">1</div>
+          <div class="step-label">スライド</div>
+        </div>
+        <div class="step-line"></div>
+        <div class="step-item" id="step-dot-2" onclick="goToStep(2)" title="②録音へ移動">
+          <div class="step-dot">2</div>
+          <div class="step-label">録音</div>
+        </div>
+        <div class="step-line"></div>
+        <div class="step-item" id="step-dot-3" onclick="goToStep(3)" title="③文字おこしへ移動">
+          <div class="step-dot">3</div>
+          <div class="step-label">文字おこし</div>
+        </div>
+        <div class="step-line"></div>
+        <div class="step-item" id="step-dot-4" onclick="goToStep(4)" title="④原稿改善へ移動">
+          <div class="step-dot">4</div>
+          <div class="step-label">原稿改善</div>
+        </div>
+        <div class="step-line"></div>
+        <div class="step-item" id="step-dot-5" onclick="goToStep(5)" title="⑤練習へ移動">
+          <div class="step-dot">5</div>
+          <div class="step-label">練習</div>
+        </div>
+      </div>
+
+      <!-- 作業エリア（左: スライド / 右: コンテンツ） -->
+      <div class="work-area">
+
+        <!-- 左パネル: スライドビューアー -->
+        <div class="slide-panel">
+          <div class="panel-header">
+            <span class="panel-title" id="slide-panel-title">スライド</span>
+            <div class="slide-panel-actions">
+              <label class="presenter-monitor-label">
+                <span class="presenter-monitor-label-text">出力先</span>
+                <select id="presenter-display-select" class="presenter-display-select"
+                        title="解像度は Windows の「拡大縮小」適用後（論理）と、取得できるときは換算値を併記します。開く位置を合わせるには 🔄 かここで項目を変更してから試してください。">
+                  <option value="auto">自動（プレデキとは別モニタ）</option>
+                </select>
+              </label>
+              <button type="button" class="btn btn-sm btn-ghost" id="btn-presenter-screens-refresh"
+                      onclick="refreshPresenterScreensList(true)"
+                      title="ディスプレイ一覧を読み込み／更新します（初回や接続変更時／Edgeはウィンドウ管理の許可が必要です）">
+                🔄
+              </button>
+              <!-- 別モニター用プレゼン窓（スライド同期） -->
+              <button class="btn btn-sm btn-secondary" id="btn-open-presenter"
+                      type="button" onclick="openPresenterWindow()"
+                      title="選択したモニタでプレゼン画面を最大化・全画面表示します。ずれる場合は先に 🔄 を押してください。">
+                🖥️ プレゼン画面
+              </button>
+              <!-- PowerPoint並列起動ボタン（PPTXアップロード時のみ表示） -->
+              <button class="btn btn-sm btn-pptx" id="btn-open-pptx"
+                      onclick="openPptx()" style="display:none"
+                      title="PowerPointで開いてアニメーション付きで発表できます">
+                <span>📊</span> PowerPointで開く
+              </button>
+            </div>
+            <div class="slide-nav" id="slide-nav">
+              <button class="btn btn-icon" id="btn-prev" onclick="prevSlide()" disabled title="前のスライド（キーボード ← ↑ Home）">◀</button>
+              <span id="slide-counter" class="slide-counter">－</span>
+              <button class="btn btn-icon" id="btn-next" onclick="nextSlide()" disabled title="次のスライド（キーボード → ↓ End）">▶</button>
+            </div>
+          </div>
+
+          <!-- PowerPoint並列起動バナー -->
+          <div id="pptx-parallel-banner" class="pptx-parallel-banner" style="display:none">
+            <div class="ppb-left">
+              <span class="ppb-icon">📊</span>
+              <div class="ppb-text">
+                <span class="ppb-title">PowerPoint 並列起動中</span>
+                <span class="ppb-sub">PowerPointでアニメーション付きプレゼン → PreDeckで録音・原稿管理</span>
+              </div>
+            </div>
+            <div class="ppb-tips">
+              <span class="ppb-tip">💡 スライドを切り替えたら <kbd>→</kbd> を押して同期</span>
+            </div>
+            <button class="ppb-close" onclick="closePptxBanner()" title="閉じる">✕</button>
+          </div>
+
+          <div class="slide-viewer" id="slide-viewer">
+            <!-- アップロードエリア -->
+            <div class="upload-area" id="upload-area">
+              <div class="upload-icon">📎</div>
+              <p>スライドをここにドロップ</p>
+              <p class="upload-sub">または</p>
+              <label class="btn btn-secondary" for="slide-file-input">ファイルを選択</label>
+              <input type="file" id="slide-file-input" accept=".pdf,.png,.jpg,.jpeg,.pptx,.ppt"
+                     style="display:none" onchange="handleSlideUpload(event)" />
+              <p class="upload-hint">PDF / PNG / JPG / <strong>PPTX</strong> 対応</p>
+              <p class="upload-skip">
+                <a href="#" onclick="goToStep(2); return false;">スライドなしで録音に進む →</a>
+              </p>
+            </div>
+
+            <!-- スライド画像（PDF変換後のプレビュー） -->
+            <img id="slide-image" class="slide-image" style="display:none" alt="スライド" />
+
+            <!-- 変換中スピナー -->
+            <div id="slide-converting" class="slide-converting" style="display:none">
+              <div class="spinner"></div>
+              <p id="slide-converting-label">変換中...</p>
+            </div>
+          </div>
+
+          <!-- 練習モード: 原稿表示 -->
+          <div class="practice-script-panel" id="practice-script-panel" style="display:none">
+            <div class="panel-subheader">📖 発表原稿（参考）</div>
+            <div class="practice-script-text" id="practice-script-text"></div>
+          </div>
+        </div>
+
+        <!-- 右パネル: ステップごとのコンテンツ -->
+        <div class="content-panel">
+
+          <!-- ステップ1: スライド設定 -->
+          <div class="step-content active" id="content-1">
+            <div class="step-header">
+              <h2>① スライドをセットする</h2>
+              <div class="step-nav-btns">
+                <button class="step-nav-btn next" onclick="goToStep(2)">②録音 →</button>
+              </div>
+            </div>
+            <p>発表に使うスライドをアップロードしてください。<br>PDFは自動でページ画像に変換されます。</p>
+
+            <div class="form-group">
+              <label class="form-label">セッション名</label>
+              <input type="text" id="session-title" class="input-field"
+                     placeholder="例：製品紹介プレゼン、自己紹介LT など"
+                     onchange="saveSessionTitleFromInput()" />
+            </div>
+
+            <!-- ⚡ クイックスタート（プリセット） -->
+            <div class="form-group">
+              <label class="form-label">⚡ クイックスタート（プリセット）</label>
+              <div class="preset-grid">
+                <button class="preset-btn" data-preset="vc" onclick="applyPreset('vc')">
+                  <span class="preset-icon">💰</span>
+                  <span class="preset-name">VCピッチ</span>
+                  <span class="preset-desc">5分・投資家向け</span>
+                </button>
+                <button class="preset-btn" data-preset="ringi" onclick="applyPreset('ringi')">
+                  <span class="preset-icon">🏢</span>
+                  <span class="preset-name">社内稟議</span>
+                  <span class="preset-desc">10分・役員向け</span>
+                </button>
+                <button class="preset-btn" data-preset="academic" onclick="applyPreset('academic')">
+                  <span class="preset-icon">🎓</span>
+                  <span class="preset-name">学会発表</span>
+                  <span class="preset-desc">15分・研究者向け</span>
+                </button>
+                <button class="preset-btn" data-preset="interview" onclick="applyPreset('interview')">
+                  <span class="preset-icon">👔</span>
+                  <span class="preset-name">面接対策</span>
+                  <span class="preset-desc">3分・面接官向け</span>
+                </button>
+                <button class="preset-btn" data-preset="lt" onclick="applyPreset('lt')">
+                  <span class="preset-icon">⚡</span>
+                  <span class="preset-name">LT発表</span>
+                  <span class="preset-desc">5分・コミュニティ向け</span>
+                </button>
+              </div>
+              <div id="preset-hint" class="preset-hint" style="display:none"></div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">🎯 発表の目的・想定聴衆</label>
+              <div class="target-type-grid" id="target-type-grid">
+                <button class="target-btn active" data-type="general" onclick="selectTargetType(this)">
+                  <span class="target-icon">📢</span>
+                  <span>一般プレゼン</span>
+                </button>
+                <button class="target-btn" data-type="vc" onclick="selectTargetType(this)">
+                  <span class="target-icon">💰</span>
+                  <span>VCピッチ</span>
+                </button>
+                <button class="target-btn" data-type="ringi" onclick="selectTargetType(this)">
+                  <span class="target-icon">🏢</span>
+                  <span>社内稟議</span>
+                </button>
+                <button class="target-btn" data-type="academic" onclick="selectTargetType(this)">
+                  <span class="target-icon">🎓</span>
+                  <span>学会発表</span>
+                </button>
+                <button class="target-btn" data-type="interview" onclick="selectTargetType(this)">
+                  <span class="target-icon">👔</span>
+                  <span>面接対策</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">⏱ 目標発表時間</label>
+              <div class="duration-row">
+                <input type="number" id="target-minutes" class="input-field duration-input"
+                       placeholder="0" min="0" max="60" value="0" />
+                <span class="duration-label">分</span>
+                <input type="number" id="target-seconds" class="input-field duration-input"
+                       placeholder="0" min="0" max="59" value="0" />
+                <span class="duration-label">秒（0のとき制限なし）</span>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">🌐 プレゼン言語</label>
+              <div class="lang-mode-grid" id="lang-mode-grid">
+                <button class="lang-btn active" data-lang="ja" onclick="setLanguageMode('ja')">
+                  <span class="lang-icon">🇯🇵</span>
+                  <span class="lang-name">日本語</span>
+                </button>
+                <button class="lang-btn" data-lang="en" onclick="setLanguageMode('en')">
+                  <span class="lang-icon">🇺🇸</span>
+                  <span class="lang-name">英語プレゼンに変更</span>
+                  <span class="lang-desc">文字おこし後に英語へ翻訳</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="info-card">
+              💡 スライドなしでもOKです。テキストや考えをまとめる目的でも使えます。
+            </div>
+
+            <div class="step-actions">
+              <button class="btn btn-primary" onclick="saveStep1AndProceed()">録音に進む →</button>
+            </div>
+          </div>
+
+          <!-- ステップ2: 録音 -->
+          <div class="step-content" id="content-2" style="display:none">
+            <div class="step-header">
+              <h2>② 録音する</h2>
+              <div class="step-nav-btns">
+                <button class="step-nav-btn prev" onclick="goToStep(1)">← ①スライド</button>
+                <button class="step-nav-btn next" onclick="goToStep(3)">③文字おこし →</button>
+              </div>
+            </div>
+
+            <!-- セッション復元後ナビ（JS参照用、常に非表示） -->
+            <div id="session-resume-nav" style="display:none">
+              <button data-resume-step="3" onclick="resumeGoToStep(3)" style="display:none"></button>
+              <button data-resume-step="4" onclick="resumeGoToStep(4)" style="display:none"></button>
+              <button data-resume-step="5" onclick="resumeGoToStep(5)" style="display:none"></button>
+            </div>
+
+            <div id="iteration-info" class="iteration-info" style="display:none">
+              <span id="iteration-label" class="iteration-badge">第2回練習</span>
+              <span>前回の原稿を参考に練習してみましょう</span>
+            </div>
+
+            <!-- スライド別原稿表示（録音中用） -->
+            <div id="record-slide-script" class="record-slide-script record-slide-script-large" style="display:none">
+              <div class="rss-header">
+                <span id="rss-label">📄 スライド 1 の原稿</span>
+                <span class="rss-hint">スライドを切り替えると原稿も切り替わります</span>
+              </div>
+              <div id="rss-current" class="rss-current"></div>
+
+              <div id="rss-next-preview" class="rss-next-preview"></div>
+            </div>
+
+            <div class="record-area">
+              <div class="timer-display" id="timer-display">0:00</div>
+              <div class="timer-sublabel">録音時間</div>
+
+              <button class="btn btn-record" id="btn-record" onclick="toggleRecording()">
+                <span class="record-dot" id="record-dot"></span>
+                <span id="record-label">🎙️ 録音開始</span>
+              </button>
+
+              <div class="volume-wrap" id="volume-wrap" style="display:none">
+                <div class="volume-bar-bg">
+                  <div class="volume-bar-fill" id="volume-fill"></div>
+                </div>
+                <span class="volume-label">音量</span>
+              </div>
+
+              <!-- 録音停止後のアクションボタン -->
+              <div id="post-record-actions" class="post-record-actions" style="display:none">
+                <button class="btn btn-ghost btn-discard" onclick="discardRecording()">
+                  🗑️ 削除して録り直す
+                </button>
+                <button class="btn btn-primary btn-proceed-transcribe" onclick="proceedToTranscribe()">
+                  ③ 文字おこしへ →
+                </button>
+              </div>
+            </div>
+
+            <div class="timing-log" id="timing-log">
+              <div class="timing-log-title">🗂 録音ログ（スライド切替・リアルタイム文字起こし）</div>
+              <div id="timing-log-items" class="timing-log-items">
+                <span class="no-data">録音中にスライド切り替えと話した内容が記録されます</span>
+              </div>
+            </div>
+            <div class="kbd-help-bar">
+              <span class="kbd-help-item"><kbd>←</kbd><kbd>→</kbd> スライド切替</span>
+              <span class="kbd-help-item"><kbd>Space</kbd> 録音 開始/停止</span>
+            </div>
+          </div>
+
+          <!-- ステップ3: 文字起こし -->
+          <div class="step-content" id="content-3" style="display:none">
+            <div class="step-header">
+              <h2>③ 文字おこし確認</h2>
+              <div class="step-nav-btns">
+                <button class="step-nav-btn prev" onclick="goToStep(2)">← ②録音</button>
+                <button class="step-nav-btn next" onclick="goToStep(4)">④原稿改善 →</button>
+              </div>
+            </div>
+
+            <!-- 録音削除ボタン（録音データがある場合に表示） -->
+            <div id="step3-discard-area" class="step3-discard-area" style="display:none">
+              <button class="btn btn-ghost btn-discard" onclick="discardFromStep3()">
+                🗑️ 録音を削除して録り直す
+              </button>
+            </div>
+
+            <div id="transcribe-status" class="transcribe-status" style="display:none">
+              <div class="spinner"></div>
+              <span id="transcribe-status-text">Whisperで文字起こし中...</span>
+            </div>
+
+            <!-- 英語翻訳セクション（英語プレゼンモード時のみ表示） -->
+            <div id="translate-section" class="translate-section" style="display:none">
+              <div class="translate-section-header">
+                <span>🌐 英語に翻訳</span>
+                <span class="translate-section-hint">翻訳後に原稿改善画面へ進みます</span>
+              </div>
+              <div class="translate-style-row">
+                <span class="translate-style-label">翻訳スタイル：</span>
+                <div class="translate-style-btns" id="translate-style-btns">
+                  <button class="style-btn active" data-style="formal" onclick="setTranslationStyle('formal')">フォーマル</button>
+                  <button class="style-btn" data-style="casual" onclick="setTranslationStyle('casual')">砕けた言い方</button>
+                  <button class="style-btn" data-style="academic" onclick="setTranslationStyle('academic')">学会用語</button>
+                  <button class="style-btn" data-style="accented" onclick="setTranslationStyle('accented')">個性あり</button>
+                </div>
+              </div>
+              <button class="btn btn-primary" onclick="requestTranslation()">🌐 英語に翻訳して原稿改善へ →</button>
+              <div id="translate-status" class="transcribe-status" style="display:none">
+                <div class="spinner"></div>
+                <span>翻訳中...</span>
+              </div>
+            </div>
+
+            <div id="transcript-area">
+              <div class="transcript-meta" id="transcript-meta"></div>
+              <div class="transcript-editable" id="transcript-editable"
+                   contenteditable="true"
+                   data-placeholder="文字起こし結果がここに表示されます（直接編集もできます）...">
+              </div>
+
+              <!-- 分析ボタンバー（ボタンを押すと各分析が展開） -->
+              <div class="analysis-btn-bar" id="analysis-btn-bar" style="display:none">
+                <span class="analysis-bar-label">分析：</span>
+                <button class="analysis-btn" id="abtn-filler"   onclick="toggleAnalysisPanel('filler')">🚫 フィラー</button>
+                <button class="analysis-btn" id="abtn-weak"     onclick="toggleAnalysisPanel('weak')">💪 弱気ワード</button>
+                <button class="analysis-btn" id="abtn-wpm"      onclick="toggleAnalysisPanel('wpm')">⚡ 話速</button>
+                <button class="analysis-btn" id="abtn-structure" onclick="toggleAnalysisPanel('structure')">🏗️ 構造</button>
+                <button class="analysis-btn" id="abtn-stumble"  onclick="toggleAnalysisPanel('stumble')">🔍 つまずき</button>
+                <button class="analysis-btn" id="abtn-metaphor" onclick="toggleAnalysisPanel('metaphor')">💡 比喩</button>
+                <button class="analysis-btn" id="abtn-energy"   onclick="toggleAnalysisPanel('energy')">🌡️ 熱量</button>
+              </div>
+
+              <!-- フィラー解析結果 -->
+              <div id="filler-analysis" class="filler-analysis analysis-panel" style="display:none">
+                <div class="analysis-panel-header">
+                  <span>🚫 フィラー（不要な言葉）検出</span>
+                  <button class="btn btn-sm btn-ghost" onclick="runFillerAnalysis()">再解析</button>
+                  <button class="analysis-panel-close" onclick="toggleAnalysisPanel('filler')">✕</button>
+                </div>
+                <div id="filler-result" class="filler-result"></div>
+              </div>
+
+              <!-- 弱気ワード検出 -->
+              <div id="weak-word-analysis" class="weak-analysis analysis-panel" style="display:none">
+                <div class="analysis-panel-header">
+                  <span>💪 弱気ワード検出</span>
+                  <span class="weak-hint">AIの原稿改善で自動修正されます</span>
+                  <button class="analysis-panel-close" onclick="toggleAnalysisPanel('weak')">✕</button>
+                </div>
+                <div id="weak-word-result" class="weak-result"></div>
+              </div>
+
+              <div class="timing-breakdown" id="timing-breakdown"></div>
+
+              <!-- WPM（話速）分析 -->
+              <div id="wpm-analysis" class="wpm-analysis analysis-panel" style="display:none">
+                <div class="analysis-panel-header">
+                  <span>⚡ 話速（文字数/分）</span>
+                  <span id="wpm-overall-badge" class="wpm-badge"></span>
+                  <button class="analysis-panel-close" onclick="toggleAnalysisPanel('wpm')">✕</button>
+                </div>
+                <div id="wpm-chart" class="wpm-chart"></div>
+                <div class="wpm-legend">
+                  <span class="wpm-legend-item slow">遅い (&lt;150)</span>
+                  <span class="wpm-legend-item good">良好 (150-450)</span>
+                  <span class="wpm-legend-item fast">速い (&gt;450)</span>
+                  <span class="wpm-legend-tip">日本語プレゼンの目安: 250〜350文字/分</span>
+                </div>
+              </div>
+
+              <!-- 🏗️ 構造診断 -->
+              <div id="structure-analysis" class="structure-analysis analysis-panel" style="display:none">
+                <div class="analysis-panel-header">
+                  <span>🏗️ 構造診断</span>
+                  <button class="btn btn-sm btn-ghost" onclick="runStructureAnalysis()">再診断</button>
+                  <button class="analysis-panel-close" onclick="toggleAnalysisPanel('structure')">✕</button>
+                </div>
+                <div id="structure-result"></div>
+              </div>
+
+              <!-- 🔍 つまずき検知 -->
+              <div id="stumble-analysis" class="stumble-analysis analysis-panel" style="display:none">
+                <div class="analysis-panel-header">
+                  <span>🔍 つまずき検知</span>
+                  <button class="btn btn-sm btn-ghost" onclick="runStumbleAnalysis()">再解析</button>
+                  <button class="analysis-panel-close" onclick="toggleAnalysisPanel('stumble')">✕</button>
+                </div>
+                <div id="stumble-result" class="stumble-result"></div>
+              </div>
+
+              <!-- 💡 メタファー提案 -->
+              <div id="metaphor-suggestions" class="metaphor-panel analysis-panel" style="display:none">
+                <div class="analysis-panel-header">
+                  <span>💡 比喩・メタファー提案</span>
+                  <button class="btn btn-sm btn-ghost" onclick="runMetaphorAnalysis()">再提案</button>
+                  <button class="analysis-panel-close" onclick="toggleAnalysisPanel('metaphor')">✕</button>
+                </div>
+                <div id="metaphor-result" class="metaphor-result"></div>
+              </div>
+
+              <!-- 🌡️ 熱量ヒートマップ -->
+              <div id="energy-heatmap" class="energy-panel analysis-panel" style="display:none">
+                <div class="analysis-panel-header">
+                  <span>🌡️ 熱量ヒートマップ</span>
+                  <span id="energy-overall-badge" class="energy-badge"></span>
+                  <button class="btn btn-sm btn-ghost" onclick="runEnergyAnalysis()">再解析</button>
+                  <button class="analysis-panel-close" onclick="toggleAnalysisPanel('energy')">✕</button>
+                </div>
+                <div id="energy-result" class="energy-result"></div>
+              </div>
+            </div>
+
+            <!-- フッターボタン削除済み（ステップナビボタンで移動） -->
+          </div>
+
+          <!-- ステップ4: 原稿改善 -->
+          <div class="step-content" id="content-4" style="display:none">
+            <div class="step-header">
+              <h2>④ 原稿改善</h2>
+              <div class="step-nav-btns">
+                <button class="step-nav-btn prev" onclick="goToStep(3)">← ③文字おこし</button>
+                <button class="step-nav-btn next" onclick="goToStep(5)">⑤練習 →</button>
+              </div>
+            </div>
+
+            <div id="script-area" class="script-area">
+              <!-- AI原稿改善 実行ボタン（常に上部に配置） -->
+              <div id="ai-improve-action-row" class="ai-improve-action-row">
+                <div id="improve-status" class="transcribe-status" style="display:none">
+                  <div class="spinner"></div>
+                  <span id="improve-status-text">AIが原稿を改善中… しばらくお待ちください</span>
+                </div>
+                <div id="ai-improve-ready" class="ai-improve-ready">
+                  <button class="btn btn-primary btn-improve-run" id="btn-run-improvement"
+                          onclick="requestImprovement()">
+                    🤖 AI原稿改善を実行
+                  </button>
+                  <span class="ai-improve-hint" id="ai-improve-hint-text">文字おこし原稿をAIが改善・整形します</span>
+                </div>
+              </div>
+
+              <!-- ピッチスコア（ボタンを押すと表示） -->
+              <div class="pitch-score-trigger-row">
+                <button class="btn btn-sm btn-ghost pitch-score-trigger-btn" id="btn-show-pitch"
+                        onclick="togglePitchScorePanel()">🎯 ピッチスコアを確認</button>
+                <button class="btn btn-sm btn-ghost" id="btn-rescore" onclick="runSpeechAnalysis()" style="display:none"
+                        title="現在の自分の原稿で再採点">🔄 再採点</button>
+              </div>
+              <div id="pitch-score-panel" class="pitch-score-panel" style="display:none">
+                <div class="pitch-score-header">
+                  <h3>🎯 ピッチスコア</h3>
+                  <div class="pitch-rank-badge" id="pitch-rank-badge">-</div>
+                  <button class="analysis-panel-close" onclick="togglePitchScorePanel()">✕</button>
+                </div>
+                <div class="pitch-score-bar-row">
+                  <div class="pitch-score-bar-bg">
+                    <div class="pitch-score-bar-fill" id="pitch-score-fill" style="width:0%"></div>
+                  </div>
+                  <span id="pitch-score-value" class="pitch-score-value">0/100</span>
+                </div>
+                <div id="pitch-checklist" class="pitch-checklist"></div>
+              </div>
+
+              <!-- 診断サマリー（Managed / GPT-4oモード時に表示） -->
+              <div id="diagnosis-panel" class="diagnosis-panel" style="display:none"></div>
+
+              <div class="script-toolbar">
+                <div class="script-view-tabs">
+                  <button class="tab-btn active" id="tab-improved" onclick="switchScriptTab('improved')">📋 原稿確認</button>
+                  <button class="tab-btn" id="tab-diff" onclick="switchScriptTab('diff')">🔍 差分比較</button>
+                </div>
+                <div class="script-toolbar-right">
+                  <button class="btn btn-sm btn-ghost" onclick="syncAiToUser()" title="AI原稿を自分の原稿に上書きコピー">🔄 AI→自分の原稿へ反映</button>
+                  <button class="btn btn-sm btn-ghost" onclick="copyScript()">📋 コピー</button>
+                  <!-- 保存ドロップダウン -->
+                  <div class="save-dropdown-wrap">
+                    <button class="btn btn-sm btn-ghost" onclick="toggleSaveMenu()">💾 保存 ▾</button>
+                    <div id="save-menu" class="save-menu" style="display:none">
+                      <button onclick="downloadScript(); toggleSaveMenu()">📄 テキスト保存（ローカル）</button>
+                      <button onclick="showQRCode(); toggleSaveMenu()">📱 QRコードで携帯に転送</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 改善原稿タブ：左右分割レイアウト -->
+              <div id="panel-improved">
+                <div class="script-split-pane">
+                  <!-- 左：ユーザー編集エリア（文字おこし原稿） -->
+                  <div class="script-pane script-pane-user">
+                    <div class="script-pane-header">
+                      <span class="script-pane-title">✏️ 自分の原稿</span>
+                      <span class="script-pane-hint">文字おこしから自由に編集できます</span>
+                    </div>
+                    <div class="script-content script-pane-content"
+                         id="user-script"
+                         contenteditable="true"
+                         placeholder="文字おこし内容が表示されます。自由に編集できます。"></div>
+                  </div>
+                  <!-- 区切り線 -->
+                  <div class="script-pane-divider"></div>
+                  <!-- 右：AI改善原稿（参照用） -->
+                  <div class="script-pane script-pane-ai">
+                    <div class="script-pane-header">
+                      <span class="script-pane-title">🤖 AI改善原稿</span>
+                      <span class="script-pane-hint">AIの提案（参照用）</span>
+                    </div>
+                    <div class="script-content script-pane-content"
+                         id="improved-script"
+                         contenteditable="false"></div>
+                  </div>
+                </div>
+              </div>
+              <!-- 差分比較タブ -->
+              <div id="panel-diff" style="display:none">
+                <div class="diff-legend">
+                  <span class="diff-add-sample">＋ 追加</span>
+                  <span class="diff-del-sample">－ 削除</span>
+                  <span class="diff-note">（AIによる変更箇所をハイライト表示）</span>
+                </div>
+                <div class="script-content" id="diff-view"></div>
+              </div>
+            </div>
+            <!-- フッターボタン削除済み（ステップナビボタンで移動） -->
+          </div>
+
+          <!-- ステップ5: 練習 -->
+          <div class="step-content" id="content-5" style="display:none">
+            <div class="step-header">
+              <h2>⑤ 練習モード</h2>
+              <div class="step-nav-btns">
+                <button class="step-nav-btn prev" onclick="goToStep(4)">← ④原稿改善</button>
+              </div>
+            </div>
+            <p>改善された原稿を見ながら、自分の言葉でプレゼンしてみましょう。<br>
+               左パネルに原稿を表示しながらスライドを進めることができます。</p>
+
+            <!-- 成長グラフ -->
+            <div id="growth-chart-section" class="growth-section" style="display:none">
+              <div class="growth-header">
+                <h3>📈 成長記録</h3>
+                <span id="growth-improvement-badge" class="growth-badge"></span>
+              </div>
+              <div id="growth-chart" class="growth-chart"></div>
+              <div id="growth-stats" class="growth-stats"></div>
+            </div>
+
+            <!-- 今回のスコアサマリー -->
+            <div id="practice-score-summary" class="practice-score-summary" style="display:none">
+              <div class="pss-item">
+                <span class="pss-label">ピッチスコア</span>
+                <span class="pss-value" id="pss-pitch">-</span>
+              </div>
+              <div class="pss-item">
+                <span class="pss-label">フィラー数</span>
+                <span class="pss-value" id="pss-filler">-</span>
+              </div>
+              <div class="pss-item">
+                <span class="pss-label">話速</span>
+                <span class="pss-value" id="pss-cpm">-</span>
+              </div>
+              <div class="pss-item">
+                <span class="pss-label">弱気ワード</span>
+                <span class="pss-value" id="pss-weak">-</span>
+              </div>
+            </div>
+
+            <!-- 現在スライドの原稿（スライドに連動） -->
+            <div id="slide-script-box" class="slide-script-box" style="display:none">
+              <div class="slide-script-box-header">
+                <span id="slide-script-label">📄 スライド1 の原稿</span>
+                <button class="btn btn-sm btn-ghost" onclick="toggleSlideScript()">全文表示 ▾</button>
+              </div>
+              <div id="slide-script-text" class="slide-script-text"></div>
+            </div>
+
+            <!-- 原稿表示 / スクロール原稿モード切り替え -->
+            <div class="tp-toggle-bar">
+              <span class="tp-mode-label">📖 発表原稿（全文）</span>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+                <button class="btn btn-sm btn-secondary" id="tp-mode-btn" onclick="toggleTeleprompterMode()">
+                  📜 スクロール原稿モード
+                </button>
+                <span class="kbd-hint">← → スライド切替 &nbsp; Space 録音</span>
+              </div>
+            </div>
+
+            <!-- 通常表示 -->
+            <div id="tp-normal-view" class="practice-summary">
+              <div class="practice-script-display" id="practice-script-display"></div>
+            </div>
+
+            <!-- スクロール原稿モード -->
+            <div id="tp-mode-view" class="teleprompter-wrap" style="display:none">
+              <div class="tp-controls">
+                <button class="btn btn-sm btn-primary" id="tp-play-btn" onclick="toggleTpScroll()">▶ 自動スクロール</button>
+                <div class="tp-speed-row">
+                  <span class="tp-speed-label">速度</span>
+                  <input type="range" id="tp-speed" min="5" max="80" value="25" class="tp-slider" oninput="setTpSpeed(this.value)">
+                </div>
+                <div style="display:flex;gap:4px">
+                  <button class="btn btn-sm btn-ghost tp-font-btn" onclick="changeTpFontSize(-2)">A－</button>
+                  <button class="btn btn-sm btn-ghost tp-font-btn" onclick="changeTpFontSize(2)">A＋</button>
+                </div>
+                <button class="btn btn-sm btn-ghost" onclick="resetTp()" title="先頭に戻す">↩ 先頭</button>
+              </div>
+              <div class="tp-progress-bar">
+                <div class="tp-progress-fill" id="tp-progress-fill"></div>
+              </div>
+              <div class="tp-script" id="tp-script" onscroll="updateTpProgress()"></div>
+            </div>
+
+            <!-- 💥 圧迫ピッチモード -->
+            <div class="pressure-mode-section" id="pressure-mode-section" style="display:none">
+              <div class="pressure-mode-header">
+                <span class="pressure-mode-title">💥 圧迫ピッチモード</span>
+                <span class="pressure-mode-desc">AIが厳しい投資家・面接官に扮して質問します</span>
+                <button class="btn btn-sm btn-ghost" onclick="closePressureMode()">✕ 終了</button>
+              </div>
+              <div id="pressure-chat" class="pressure-chat"></div>
+              <div class="pressure-input-row">
+                <input type="text" id="pressure-answer-input"
+                       class="input-field" placeholder="答えを入力して Enter…" />
+                <button class="btn btn-primary btn-sm" onclick="sendPressureAnswer()">送信</button>
+              </div>
+            </div>
+
+            <div class="step-actions practice-actions">
+              <button class="btn btn-primary btn-large" onclick="startNextIteration()">
+                🎙️ もう一度録音してさらに改善する
+              </button>
+              <button class="btn btn-danger btn-large" id="btn-pressure-mode"
+                      onclick="startPressureMode()" style="display:none">
+                💥 圧迫ピッチモードで鍛える
+              </button>
+              <button class="btn btn-secondary" onclick="exportSessionReport()">
+                📄 レポートをエクスポート
+              </button>
+              <button class="btn btn-success btn-large" onclick="finishSession()">
+                ✅ 原稿完成！セッション終了
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ========== 設定モーダル ========== -->
+<div id="modal-settings" class="modal-overlay" style="display:none" onclick="closeSettingsOnOverlay(event)">
+  <div class="modal-box modal-box-wide">
+    <div class="modal-header">
+      <h2>⚙️ 設定</h2>
+      <button class="btn btn-ghost modal-close" onclick="closeSettings()">✕</button>
+    </div>
+
+    <!-- タブ -->
+    <div class="settings-tabs">
+      <button class="stab active" id="stab-settings" onclick="switchSettingsTab('settings')">⚙️ 設定</button>
+      <button class="stab"        id="stab-setup"    onclick="switchSettingsTab('setup')">🚀 セットアップガイド</button>
+    </div>
+
+    <!-- ① 設定タブ -->
+    <div id="spanel-settings" class="modal-body">
+
+      <div class="settings-section">
+        <h3>🔒 プライバシー / Strict Local Mode</h3>
+        <div id="settings-strict-status" class="settings-strict-status">
+          <div class="settings-strict-row">
+            <span>現在のモード:</span>
+            <span id="settings-strict-current" class="strict-local-badge strict-on">🔒 Strict Local</span>
+          </div>
+          <p class="form-hint" id="settings-strict-hint">
+            すべての処理がローカルで完結し、外部送信は発生しません。
+            クラウド利用が必要な場合は下の「文字起こし方法」または「AI方法」をクラウドに変更してください（同意モーダルが表示されます）。
+          </p>
+          <button id="btn-revoke-consent" class="btn btn-sm btn-secondary"
+                  style="display:none" onclick="if(confirm('クラウド送信許可を取り消し、ローカル処理に戻しますか？'))revokeCloudConsent()">
+            クラウド送信許可を取り消す
+          </button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>🎙️ 文字起こし設定</h3>
+        <div class="form-group">
+          <label class="form-label">文字起こし方法</label>
+          <select id="cfg-transcribe-method" class="select-field" onchange="onTranscribeMethodChange()">
+            <option value="local">ローカルWhisper（推奨・無料・要ffmpeg）</option>
+            <option value="api">OpenAI Whisper API（クラウド・要APIキー・要同意）</option>
+          </select>
+        </div>
+        <div class="form-group" id="cfg-local-engine-group">
+          <label class="form-label">ローカルWhisperエンジン（② / ③ で別々に設定できます）</label>
+          <div class="engine-split-row">
+            <div class="engine-split-col">
+              <label class="form-sublabel" for="cfg-realtime-engine">② 録音中リアルタイム文字起こし用</label>
+              <select id="cfg-realtime-engine" class="select-field">
+                <option value="faster">⚡ faster-whisper（推奨・約4倍速）</option>
+                <option value="openai">📦 openai-whisper（公式・既存）</option>
+              </select>
+            </div>
+            <div class="engine-split-col">
+              <label class="form-sublabel" for="cfg-final-engine">③ 録音後の原稿文字起こし用</label>
+              <select id="cfg-final-engine" class="select-field">
+                <option value="faster">⚡ faster-whisper（推奨・約4倍速）</option>
+                <option value="openai">📦 openai-whisper（公式・既存）</option>
+              </select>
+            </div>
+          </div>
+          <p class="form-hint">
+            faster-whisper は CTranslate2 ベースの最適化実装で、CPUでも約4倍速。NVIDIA GPU があればさらに高速化します。<br>
+            ②録音中は短いチャンクを連続処理するため軽量な faster-whisper 推奨。③原稿用に高精度を狙うなら openai-whisper も選択できます。<br>
+            モデルサイズ・言語は ② / ③ 共通です。
+          </p>
+        </div>
+        <div class="form-group">
+          <label class="form-label">言語</label>
+          <select id="cfg-language" class="select-field">
+            <option value="ja">日本語</option>
+            <option value="en">英語</option>
+            <option value="auto">自動検出</option>
+          </select>
+        </div>
+        <div class="form-group" id="cfg-whisper-model-group">
+          <label class="form-label">Whisperモデルサイズ</label>
+          <select id="cfg-whisper-model" class="select-field">
+            <option value="tiny">tiny（最速・低精度 約75MB）</option>
+            <option value="base" selected>base（推奨バランス 約140MB）</option>
+            <option value="small">small（高精度・やや遅い 約460MB）</option>
+            <option value="medium">medium（高精度・遅い 約1.5GB）</option>
+          </select>
+          <p class="form-hint">初回使用時に自動ダウンロードします（エンジン別に別キャッシュ）</p>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px">
+            <button type="button" class="btn btn-sm btn-secondary" onclick="checkWhisperModelDownload()">ダウンロード状況を確認</button>
+          </div>
+          <p class="form-hint" id="whisper-model-check-hint" style="margin-top:4px"></p>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>🤖 AI スクリプト改善設定</h3>
+        <div class="form-group">
+          <label class="form-label">AI方法</label>
+          <select id="cfg-ai-method" class="select-field" onchange="onAIMethodChange()">
+            <option value="ollama">Ollama（ローカル・推奨・完全無料）</option>
+            <option value="openai">OpenAI API（クラウド・要APIキー・要同意）</option>
+          </select>
+        </div>
+
+        <div id="openai-cfg" style="display:none">
+          <div class="form-group">
+            <label class="form-label">OpenAI APIキー</label>
+            <input type="password" id="cfg-openai-key" class="input-field" placeholder="sk-..." />
+            <p class="form-hint">
+              <a href="https://platform.openai.com/api-keys" target="_blank">APIキーはこちらで取得</a>
+              ｜GPT-4o-miniは1回の改善で約0.01円未満
+            </p>
+          </div>
+          <div class="form-group">
+            <label class="form-label">モデル</label>
+            <select id="cfg-openai-model" class="select-field">
+              <option value="gpt-4o-mini">GPT-4o mini（安価・推奨）</option>
+              <option value="gpt-4o">GPT-4o（高品質）</option>
+              <option value="gpt-3.5-turbo">GPT-3.5 Turbo（最安価）</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="ollama-cfg" style="display:none">
+          <div class="form-group">
+            <label class="form-label">使用するOllamaモデル</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="text" id="cfg-ollama-model" class="input-field" value="qwen3:8b" />
+              <button class="btn btn-sm btn-secondary" onclick="loadOllamaModelList()" style="white-space:nowrap">一覧取得</button>
+            </div>
+            <div id="ollama-model-list" style="margin-top:6px;display:none"></div>
+            <div class="pc-spec-panel">
+              <label class="form-label" style="margin-top:8px">💻 このPCに合うモデル（目安）</label>
+              <p class="form-hint">RAM と NVIDIA GPU（<code>nvidia-smi</code>）から、<code>docs/research/ローカルLLM‗調査資料‗20260507.md</code> の PCクラス（S0〜S4）に沿って候補を出します。</p>
+              <button type="button" class="btn btn-sm btn-secondary" onclick="refreshSystemSpecRecommendations()">PCスペックを確認して提案を表示</button>
+              <p class="form-hint" id="pc-spec-summary" style="margin-top:6px"></p>
+              <div id="llm-recommend-body"></div>
+            </div>
+            <p class="form-hint">セットアップガイドでモデルのインストール方法を確認できます</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ② セットアップガイドタブ -->
+    <div id="spanel-setup" class="modal-body" style="display:none">
+
+      <!-- STEP 1: 文字起こし -->
+      <div class="setup-step">
+        <div class="setup-step-header">
+          <div class="setup-step-num">STEP 1</div>
+          <div class="setup-step-title">🎙️ 文字起こし（音声→テキスト）</div>
+          <div class="setup-step-badge" id="badge-transcribe">未確認</div>
+        </div>
+        <div class="setup-step-body">
+          <p class="setup-desc">プレゼン録音をテキストに変換します。3つの方法から選べます。</p>
+
+          <div class="setup-method-tabs">
+            <button class="smethod-btn active" id="smtab-local"     onclick="selectSetupMethod('local')">🖥️ ローカルWhisper<br><small>完全無料・高精度・推奨</small></button>
+            <button class="smethod-btn"        id="smtab-api"       onclick="selectSetupMethod('api')">☁️ OpenAI API<br><small>クラウド送信・要同意・有料</small></button>
+          </div>
+
+          <!-- ローカルWhisper -->
+          <div id="setup-local" class="setup-method-detail">
+            <div class="setup-check-list">
+              <div class="setup-check-item">
+                <div class="setup-check-left">
+                  <span class="setup-check-icon" id="icon-ffmpeg">⬜</span>
+                  <div>
+                    <div class="setup-check-name">ffmpeg</div>
+                    <div class="setup-check-desc">音声ファイル変換ツール（必須）</div>
+                  </div>
+                </div>
+                <button class="btn btn-sm btn-secondary" onclick="checkFfmpeg()">確認</button>
+              </div>
+              <div class="setup-install-block" id="ffmpeg-install" style="display:none">
+                <div class="setup-install-title">📥 ffmpegのインストール方法</div>
+                <div class="setup-install-step">① 以下のコマンドをコピーして、コマンドプロンプト（管理者）に貼り付けて実行</div>
+                <div class="code-copy-row">
+                  <code id="ffmpeg-cmd">winget install --id Gyan.FFmpeg --accept-package-agreements --accept-source-agreements</code>
+                  <button class="btn btn-sm btn-ghost" onclick="copyCode('ffmpeg-cmd')">📋 コピー</button>
+                </div>
+                <div class="setup-install-step">② インストール完了後、<strong>このアプリ（start.bat）を再起動</strong>してください</div>
+                <div class="setup-install-step">③ 再度「確認」ボタンを押してください</div>
+              </div>
+
+              <div class="setup-check-item">
+                <div class="setup-check-left">
+                  <span class="setup-check-icon" id="icon-whisper">⬜</span>
+                  <div>
+                    <div class="setup-check-name">openai-whisper</div>
+                    <div class="setup-check-desc">音声認識AIライブラリ（既存・必須のいずれか）</div>
+                  </div>
+                </div>
+                <button class="btn btn-sm btn-secondary" onclick="checkWhisper()">確認</button>
+              </div>
+              <div class="setup-check-item">
+                <div class="setup-check-left">
+                  <span class="setup-check-icon" id="icon-faster-whisper">⬜</span>
+                  <div>
+                    <div class="setup-check-name">faster-whisper（推奨・約4倍速）</div>
+                    <div class="setup-check-desc">CTranslate2 ベースの高速実装（必須のいずれか）</div>
+                  </div>
+                </div>
+                <button class="btn btn-sm btn-secondary" onclick="checkFasterWhisper()">確認</button>
+              </div>
+              <div class="setup-install-block" id="faster-whisper-install" style="display:none">
+                <div class="setup-install-title">📥 faster-whisper のインストール方法</div>
+                <div class="setup-install-step">① 以下のコマンドをコピーして、コマンドプロンプトに貼り付けて実行（同梱Pythonに入れる場合は <code>python\python.exe -m pip ...</code>）</div>
+                <div class="code-copy-row">
+                  <code id="faster-whisper-cmd">pip install faster-whisper</code>
+                  <button class="btn btn-sm btn-ghost" onclick="copyCode('faster-whisper-cmd')">📋 コピー</button>
+                </div>
+                <div class="setup-install-step">② インストール完了後、<strong>このアプリ（start.bat）を再起動</strong>してください</div>
+                <div class="setup-install-step">③ 設定画面で「ローカルWhisperエンジン → faster-whisper」を選択してください</div>
+              </div>
+              <div class="setup-check-item">
+                <div class="setup-check-left">
+                  <span class="setup-check-icon">📦</span>
+                  <div>
+                    <div class="setup-check-name">Whisper モデル（設定タブで選んだサイズ）</div>
+                    <div class="setup-check-desc">tiny/base/small/medium がPCにダウンロード済みか</div>
+                  </div>
+                </div>
+                <button type="button" class="btn btn-sm btn-secondary" onclick="checkWhisperModelDownload()">確認</button>
+              </div>
+              <p class="form-hint" id="whisper-model-check-setup" style="margin:-4px 0 8px 12px"></p>
+              <div class="setup-install-block" id="whisper-install" style="display:none">
+                <div class="setup-install-title">📥 openai-whisperのインストール方法</div>
+                <div class="setup-install-step">① アプリフォルダの <strong>start.bat</strong> を実行すると自動インストールされます</div>
+                <button class="btn btn-secondary" onclick="openAppFolder()" style="margin:8px 0;display:flex;align-items:center;gap:6px;width:fit-content">
+                  📂 アプリフォルダを開く（start.batを実行してください）
+                </button>
+                <div class="setup-install-step" style="color:#6b7280;font-size:11px">
+                  ※ フォルダが開いたら <strong>start.bat</strong> をダブルクリックしてください。自動でインストール＆起動されます。
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- OpenAI API -->
+          <div id="setup-api" class="setup-method-detail" style="display:none">
+            <div class="setup-check-list">
+              <div class="setup-check-item">
+                <div class="setup-check-left">
+                  <span class="setup-check-icon">ℹ️</span>
+                  <div>
+                    <div class="setup-check-name">OpenAI APIキー</div>
+                    <div class="setup-check-desc">「設定」タブでAPIキーを入力してください</div>
+                  </div>
+                </div>
+                <a href="https://platform.openai.com/api-keys" target="_blank" class="btn btn-sm btn-secondary">取得ページ →</a>
+              </div>
+              <div class="setup-info-block">
+                <div>✅ ffmpegのインストール不要</div>
+                <div>✅ 最高レベルの精度</div>
+                <div>⚠️ APIキー・クレジットカード登録が必要（1分約0.5円）</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 2: AI原稿改善 -->
+      <div class="setup-step">
+        <div class="setup-step-header">
+          <div class="setup-step-num">STEP 2</div>
+          <div class="setup-step-title">🤖 AI原稿改善</div>
+          <div class="setup-step-badge" id="badge-ai">未確認</div>
+        </div>
+        <div class="setup-step-body">
+          <p class="setup-desc">録音テキストをプロ品質の原稿に改善します。</p>
+
+          <div class="setup-method-tabs">
+            <button class="smethod-btn active" id="smtab-ai-ollama" onclick="selectAISetupMethod('ollama')">🖥️ Ollama<br><small>完全無料・ローカル</small></button>
+            <button class="smethod-btn"        id="smtab-ai-openai" onclick="selectAISetupMethod('openai')">☁️ OpenAI API<br><small>高品質・有料</small></button>
+          </div>
+
+          <!-- Ollama -->
+          <div id="setup-ai-ollama" class="setup-method-detail">
+            <div class="setup-check-list">
+              <div class="setup-check-item">
+                <div class="setup-check-left">
+                  <span class="setup-check-icon" id="icon-ollama">⬜</span>
+                  <div>
+                    <div class="setup-check-name">Ollama アプリ</div>
+                    <div class="setup-check-desc">ローカルAIの実行環境（起動状態確認）</div>
+                  </div>
+                </div>
+                <button class="btn btn-sm btn-secondary" onclick="checkOllama()">確認</button>
+              </div>
+              <!-- Ollama バージョン情報（起動中のときに表示） -->
+              <div id="ollama-version-info" style="display:none">
+                <div class="ollama-version-card">
+                  <div class="ollama-version-row">
+                    <span class="ollama-version-label">現在のバージョン</span>
+                    <span id="ollama-current-ver" class="ollama-version-val">確認中...</span>
+                  </div>
+                  <div class="ollama-version-row">
+                    <span class="ollama-version-label">最新バージョン</span>
+                    <span id="ollama-latest-ver" class="ollama-version-val">確認中...</span>
+                  </div>
+                  <div id="ollama-update-available" style="display:none" class="ollama-update-notice">
+                    🆙 新しいバージョンが利用可能です！
+                    <a href="https://ollama.com/download" target="_blank" class="btn btn-sm btn-primary" style="margin-top:6px;display:inline-flex">
+                      ⬇️ Ollamaをアップデート →
+                    </a>
+                  </div>
+                  <div id="ollama-up-to-date" style="display:none" class="ollama-uptodate-notice">
+                    ✅ 最新バージョンです
+                  </div>
+                </div>
+              </div>
+
+              <div class="setup-install-block" id="ollama-install" style="display:none">
+                <div class="setup-install-title">📥 Ollamaのインストール方法</div>
+                <div class="setup-install-step">① 下のボタンからダウンロードページを開く</div>
+                <a href="https://ollama.com/download" target="_blank" class="btn btn-secondary" style="display:inline-flex;margin:6px 0;gap:6px">
+                  🌐 ollama.com/download を開く →
+                </a>
+                <div class="setup-install-step">② インストーラーを実行してOllamaをインストール</div>
+                <div class="setup-install-step">③ Ollamaを起動（タスクバーにラマのアイコンが表示されます）</div>
+                <div class="setup-install-step">④ 再度「確認」ボタンを押してください</div>
+              </div>
+
+              <div class="pc-spec-panel">
+                <div class="setup-install-title">💻 このPCに合うモデル（目安）</div>
+                <p class="form-hint">ドキュメントの PCクラス（S0〜S4）に基づき、RAM・NVIDIA GPU を検出してローカルLLMを提案します。</p>
+                <button type="button" class="btn btn-sm btn-secondary" onclick="refreshSystemSpecRecommendations()">PCスペックを確認して提案を表示</button>
+                <p class="form-hint" id="pc-spec-summary-setup" style="margin-top:6px"></p>
+                <div id="llm-recommend-body-setup"></div>
+              </div>
+
+              <!-- モデル確認（Ollama起動後に表示） -->
+              <div id="ollama-model-setup-area" style="display:none">
+                <div class="setup-check-item" style="border-top:1px solid var(--border);padding-top:10px;margin-top:4px">
+                  <div class="setup-check-left">
+                    <span class="setup-check-icon" id="icon-ollama-model">⬜</span>
+                    <div>
+                      <div class="setup-check-name">AIモデルのダウンロード</div>
+                      <div class="setup-check-desc">原稿改善に使うAIモデルが必要です</div>
+                    </div>
+                  </div>
+                  <button class="btn btn-sm btn-secondary" onclick="checkOllamaModels()">モデル確認</button>
+                </div>
+                <div id="ollama-models-display" style="margin-top:8px;display:none">
+                  <div id="ollama-installed-models"></div>
+                  <div class="setup-install-block" id="ollama-model-install" style="display:none">
+                    <div class="setup-install-title">📥 おすすめモデルをインストール（コマンドプロンプトで実行）</div>
+                    <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px">
+                      <!-- qwen3:8b（最推奨） -->
+                      <div class="ollama-model-option recommended">
+                        <div class="ollama-model-info">
+                          <strong>qwen3:8b</strong>
+                          <span class="model-size-badge">約5GB</span>
+                          <span class="model-badge-rec">⭐ 最推奨</span>
+                          <span class="model-desc">日本語品質 最高水準・RAM 16GB推奨</span>
+                        </div>
+                        <div class="code-copy-row">
+                          <code id="cmd-qwen3-8b">ollama pull qwen3:8b</code>
+                          <button class="btn btn-sm btn-ghost" onclick="copyCode('cmd-qwen3-8b')">📋</button>
+                        </div>
+                      </div>
+                      <!-- qwen3:4b（軽量推奨） -->
+                      <div class="ollama-model-option">
+                        <div class="ollama-model-info">
+                          <strong>qwen3:4b</strong>
+                          <span class="model-size-badge">約2.5GB</span>
+                          <span class="model-badge-light">💡 軽量推奨</span>
+                          <span class="model-desc">RAM 8GBでも動作・品質も高め</span>
+                        </div>
+                        <div class="code-copy-row">
+                          <code id="cmd-qwen3-4b">ollama pull qwen3:4b</code>
+                          <button class="btn btn-sm btn-ghost" onclick="copyCode('cmd-qwen3-4b')">📋</button>
+                        </div>
+                      </div>
+                      <!-- qwen3-vl:8b（将来性） -->
+                      <div class="ollama-model-option">
+                        <div class="ollama-model-info">
+                          <strong>qwen3-vl:8b</strong>
+                          <span class="model-size-badge">約5GB</span>
+                          <span class="model-badge-future">🔮 将来性</span>
+                          <span class="model-desc">スライド画像も直接読み込み可能（Vision対応）</span>
+                        </div>
+                        <div class="code-copy-row">
+                          <code id="cmd-qwen3-vl">ollama pull qwen3-vl:8b</code>
+                          <button class="btn btn-sm btn-ghost" onclick="copyCode('cmd-qwen3-vl')">📋</button>
+                        </div>
+                      </div>
+                      <!-- qwen3:30b（ハイスペック向け） -->
+                      <div class="ollama-model-option">
+                        <div class="ollama-model-info">
+                          <strong>qwen3:30b</strong>
+                          <span class="model-size-badge">約18GB</span>
+                          <span class="model-badge-pro">🚀 ハイスペック</span>
+                          <span class="model-desc">クラウドAPIに迫る品質・RAM 32GB必要</span>
+                        </div>
+                        <div class="code-copy-row">
+                          <code id="cmd-qwen3-30b">ollama pull qwen3:30b</code>
+                          <button class="btn btn-sm btn-ghost" onclick="copyCode('cmd-qwen3-30b')">📋</button>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="setup-install-step" style="margin-top:8px">
+                      💡 迷ったら <strong>qwen3:8b</strong>（RAM 16GB以上）または <strong>qwen3:4b</strong>（RAM 8GB）をお選びください<br>
+                      ダウンロード中はOllamaを起動したままにしてください（数分〜数十分かかります）
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- OpenAI AI -->
+          <div id="setup-ai-openai" class="setup-method-detail" style="display:none">
+            <div class="setup-check-list">
+              <div class="setup-check-item">
+                <div class="setup-check-left">
+                  <span class="setup-check-icon">ℹ️</span>
+                  <div>
+                    <div class="setup-check-name">OpenAI APIキー</div>
+                    <div class="setup-check-desc">「設定」タブで入力後、STEPテストで確認できます</div>
+                  </div>
+                </div>
+                <a href="https://platform.openai.com/api-keys" target="_blank" class="btn btn-sm btn-secondary">取得ページ →</a>
+              </div>
+              <div class="setup-info-block">
+                <div>✅ インストール不要・すぐ使える</div>
+                <div>✅ GPT-4o-miniは1回の改善で約0.01〜0.1円</div>
+                <div>⚠️ クレジットカード登録が必要</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 3: 動作テスト -->
+      <div class="setup-step">
+        <div class="setup-step-header">
+          <div class="setup-step-num">STEP 3</div>
+          <div class="setup-step-title">✅ 動作テスト</div>
+          <div class="setup-step-badge" id="badge-test">未実施</div>
+        </div>
+        <div class="setup-step-body">
+          <p class="setup-desc">本番前に録音・文字起こし・AIが正常に動くか確認しましょう。失敗した場合はメッセージに従って設定を見直してください。</p>
+
+          <div class="test-panel">
+            <div class="test-card">
+              <div class="test-card-title">🎤 マイクテスト</div>
+              <div class="test-card-desc">マイクのアクセス許可を確認します</div>
+              <button class="btn btn-secondary" onclick="testMic()">テスト開始</button>
+              <div class="test-result" id="test-mic-result"></div>
+            </div>
+
+            <div class="test-card">
+              <div class="test-card-title">🎙️ 文字起こしテスト</div>
+              <div class="test-card-desc">3秒間録音して文字起こしを確認します</div>
+              <button class="btn btn-secondary" id="btn-test-transcribe" onclick="testTranscribe()">テスト開始</button>
+              <div class="test-result" id="test-transcribe-result"></div>
+            </div>
+
+            <div class="test-card">
+              <div class="test-card-title">🤖 AIテスト</div>
+              <div class="test-card-desc">AIに短いメッセージを送って確認します</div>
+              <button class="btn btn-secondary" onclick="testAI()">テスト開始</button>
+              <div class="test-result" id="test-ai-result"></div>
+            </div>
+          </div>
+
+          <div id="all-tests-ok" class="setup-all-ok" style="display:none">
+            🎉 すべてのテスト完了！プレゼン練習を始められます。
+            <button class="btn btn-primary" onclick="closeSettings()" style="margin-top:10px;display:block">練習を始める →</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="modal-footer" style="display:flex;justify-content:space-between;align-items:center">
+      <div id="settings-footer-content" style="display:flex;gap:8px;width:100%">
+        <button class="btn btn-primary" id="btn-save-settings" onclick="saveSettings()">💾 設定を保存</button>
+        <button class="btn btn-secondary" id="btn-run-all-checks" style="display:none" onclick="runAllChecks()">🔍 全項目を一括確認</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- トースト通知 -->
+<div id="toast" class="toast" style="display:none"></div>
+
+<!-- QRコードライブラリ (CDN) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<!-- QRコードモーダル -->
+<div id="qr-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeQRModal()">
+  <div class="modal-card qr-modal-card">
+    <div class="modal-header">
+      <span>📱 携帯で原稿を確認</span>
+      <button class="modal-close" onclick="closeQRModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="qr-instruction">同じWi-Fiに接続した状態で、スマートフォンのカメラでQRコードを読み取ってください。</p>
+      <div id="qr-code-container" class="qr-code-container"></div>
+      <div id="qr-url-display" class="qr-url-display"></div>
+      <p class="qr-note">※ アプリと同じネットワーク内でのみアクセスできます</p>
+    </div>
+  </div>
+</div>
+
+<!-- クラウドAPI送信 明示同意モーダル（Strict Local Mode 切替） -->
+<div id="modal-cloud-consent" class="modal-overlay" style="display:none">
+  <div class="modal-card cloud-consent-card">
+    <div class="modal-header">
+      <span>☁️ クラウドAPIへの送信について（要同意）</span>
+    </div>
+    <div class="modal-body">
+      <p class="consent-lead">
+        本機能を利用するには、録音・原稿などのデータを <strong>外部クラウド（OpenAI 等）</strong> に送信する必要があります。
+        既定では <strong>Strict Local Mode</strong>（ローカル処理のみ）です。送信に同意する場合のみONにできます。
+      </p>
+
+      <table class="consent-table">
+        <tr>
+          <th>送信先</th>
+          <td><span id="consent-target-name">OpenAI API</span><br>
+            <small>api.openai.com（HTTPS）</small></td>
+        </tr>
+        <tr>
+          <th>送信データ</th>
+          <td><span id="consent-target-data">音声・テキスト</span></td>
+        </tr>
+        <tr>
+          <th>保存方針</th>
+          <td>OpenAI のデータ利用ポリシーに従います。デフォルトでは API 経由のデータは学習に利用されませんが、最新の規約をご確認ください。
+            <br>
+            <a href="https://openai.com/policies/api-data-usage-policies" target="_blank" rel="noopener">OpenAI API データ利用規約 →</a>
+          </td>
+        </tr>
+        <tr>
+          <th>課金</th>
+          <td>ユーザーご自身のOpenAI APIキーで直接 OpenAI に課金されます。プレデキ側で手数料は徴収しません。</td>
+        </tr>
+        <tr>
+          <th>解除方法</th>
+          <td>ヘッダー右上の「☁️ クラウド許可中」バッジをクリック、または設定画面でいつでも取り消せます。取り消すとローカル処理に戻ります。</td>
+        </tr>
+      </table>
+
+      <label class="consent-agree-row">
+        <input type="checkbox" id="consent-agree-checkbox" />
+        <span>上記の内容を理解し、クラウドAPIへのデータ送信に同意します。</span>
+      </label>
+    </div>
+    <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px">
+      <button class="btn btn-secondary" onclick="declineCloudConsent()">同意せず ローカルに戻す</button>
+      <button class="btn btn-primary" onclick="approveCloudConsent()">同意して有効化</button>
+    </div>
+  </div>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

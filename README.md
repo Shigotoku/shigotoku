@@ -15,6 +15,7 @@
 | [`clipit/app/`](./clipit/app/) | クリッピット（ClipIt） | Webアプリ | React + Vite |
 | [`shapeit/landing-page/`](./shapeit/landing-page/) | シェイプイット（ShapeIt） | ランディングページ | Astro |
 | [`shapeit/app/`](./shapeit/app/) | シェイプイット（ShapeIt） | Webアプリ | React + Vite |
+| [`PreDeck/`](./PreDeck/) | プレデキ（PreDeck） | プレゼン練習（ローカル） | Python FastAPI + 静的 UI |
 
 ## 開発の起動方法
 
@@ -45,6 +46,9 @@ cd shapeit/landing-page && npm install && npm run dev
 
 # シェイプイット アプリ
 cd shapeit/app && npm install && npm run dev
+
+# プレデキ（Windows: install.bat のあと start.bat / 開発: pip + python main.py）
+# 詳細は PreDeck/README.md
 ```
 
 ## 本番 URL 構成

@@ -1,8 +1,6 @@
 import { repurposeFromIdea } from './repurpose';
 import { shouldApplyWatermark, WATERMARK_SUFFIX } from './planLimits';
-
-const GEMINI_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+import { aiFetch, aiKey } from './aiClient';
 
 export interface RepurposeResult {
   platform: string;
@@ -38,7 +36,7 @@ export async function generateRepurposeWithGemini(
   plan: string,
   mediaUrls?: string[],
 ): Promise<{ results: RepurposeResult[]; usedGemini: boolean }> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = aiKey();
   if (!apiKey) {
     return { results: repurposeFromIdea(idea, plan, mediaUrls), usedGemini: false };
   }
@@ -56,7 +54,7 @@ ${REPURPOSE_SCHEMA}
 医療・薬機法に抵触する表現（完全治癒、必ず治る等）は使わないこと。`;
 
   try {
-    const res = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
+    const res = await aiFetch({
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -86,7 +84,7 @@ export async function voiceDraftWithGemini(
   plan: string,
   hint?: string,
 ): Promise<{ transcript: string; results: RepurposeResult[]; usedGemini: boolean }> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = aiKey();
   const fallbackIdea = hint?.trim() || '今日の施術・接客についてのカウンセリング会話';
   if (!apiKey) {
     const { results } = await generateRepurposeWithGemini(fallbackIdea, plan);
@@ -113,7 +111,7 @@ ${hintNote}
 医療・薬機法に抵触する表現は使わないこと。音声が聞き取れない場合は聞こえた範囲だけ文字起こしし、不足はヒントから補完すること。`;
 
   try {
-    const res = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
+    const res = await aiFetch({
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -185,7 +183,7 @@ export async function generateXSeriesBatchWithGemini(
   const lines = sourceLines.map((l) => l.trim()).filter(Boolean).slice(0, 20);
   if (!lines.length) return { items: [], usedGemini: false };
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = aiKey();
   const fallback = (): XSeriesDraftItem[] =>
     lines.map((line) => ({
       text: line.length > 260 ? `${line.slice(0, 259)}…` : line,
@@ -213,7 +211,7 @@ tags は1〜3個のハッシュタグ（日本語可）。
 ${X_SERIES_BATCH_SCHEMA}`;
 
   try {
-    const res = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
+    const res = await aiFetch({
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -252,7 +250,7 @@ export async function generateMissionAdvice(metrics: {
   estimatedRevenue: number;
   lineFriends: number;
 }): Promise<{ title: string; description: string }> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = aiKey();
   if (!apiKey) {
     return {
       title: '本日のリール動画を承認してください',
@@ -261,7 +259,7 @@ export async function generateMissionAdvice(metrics: {
   }
 
   try {
-    const res = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
+    const res = await aiFetch({
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -314,7 +312,7 @@ export async function generateInsightsTakeawaysWithGemini(input: {
   lineFollowers: number | null;
   periodDays: number;
 }): Promise<{ takeaways: GeminiInsightTakeaway[]; usedGemini: boolean }> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = aiKey();
   if (!apiKey) return { takeaways: [], usedGemini: false };
 
   const prompt = `あなたは美容室・サロン向けSNSコンサルタントです。
@@ -347,7 +345,7 @@ LINE友だち: ${input.lineFollowers ?? '未連携'}
 医療広告・薬機法に抵触する表現は避け、実行しやすい行動に落とし込むこと。`;
 
   try {
-    const res = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
+    const res = await aiFetch({
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

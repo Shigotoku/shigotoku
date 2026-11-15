@@ -28,7 +28,9 @@ jobs:
             buzzit/app/package-lock.json
             buzzit/api/package-lock.json
             clipit/landing-page/package-lock.json
-            Slide_Studio/landing-page/package-lock.json
+            deckit/landing-page/package-lock.json
+            PreDeck/landing-page/package-lock.json
+            PreDeck/app/package-lock.json
             raiseit/landing-page/package-lock.json
             clipit/app/package-lock.json
             clipit/api/package-lock.json
@@ -43,7 +45,9 @@ jobs:
           npm ci --prefix buzzit/app
           npm ci --prefix buzzit/api
           npm ci --prefix clipit/landing-page
-          npm ci --prefix Slide_Studio/landing-page
+          npm ci --prefix deckit/landing-page
+          npm ci --prefix PreDeck/landing-page
+          npm ci --prefix PreDeck/app
           npm ci --prefix raiseit/landing-page
           npm ci --prefix clipit/app
           npm ci --prefix clipit/api

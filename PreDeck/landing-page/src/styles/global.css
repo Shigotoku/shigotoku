@@ -1,0 +1,147 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Segoe UI", "Noto Sans JP", ui-sans-serif, system-ui, sans-serif;
+
+  --color-pd-side: #0c1220;
+  --color-pd-side-2: #141c2e;
+  --color-pd-bg: #f6f8fc;
+  --color-pd-panel: #ffffff;
+  --color-pd-text: #172033;
+  --color-pd-muted: #5b6678;
+  --color-pd-line: #e1e7f0;
+  --color-pd-accent: #2563eb;
+  --color-pd-accent-2: #1d4ed8;
+  --color-pd-accent-soft: #eaf1ff;
+  --color-pd-highlight: #8dbbff;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  text-wrap: pretty;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--color-pd-text);
+  background: var(--color-pd-bg);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
+}
+
+main {
+  overflow-x: clip;
+}
+
+.predeck-grid-safe > * {
+  min-width: 0;
+}
+
+.predeck-tap {
+  min-height: 44px;
+}
+
+:where(
+  [data-jp-wrap],
+  main p,
+  main li,
+  main dd,
+  main h1,
+  main h2,
+  main h3
+):not([data-jp-wrap-off]) {
+  word-break: keep-all;
+  line-break: strict;
+  overflow-wrap: anywhere;
+}
+
+:where(main h1, main h2, main h3, [data-jp-heading]) {
+  text-wrap: balance;
+  letter-spacing: -0.02em;
+}
+
+main .predeck-h1 {
+  font-size: clamp(2.25rem, 1.35rem + 3.2vw, 3.75rem);
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+}
+
+main .predeck-h2 {
+  font-size: clamp(1.625rem, 1rem + 2.2vw, 2.75rem);
+  line-height: 1.28;
+}
+
+main .predeck-h3 {
+  font-size: clamp(1.1875rem, 1rem + 0.55vw, 1.5rem);
+  line-height: 1.4;
+}
+
+main .predeck-lead {
+  font-size: clamp(1.0625rem, 0.9rem + 0.55vw, 1.3125rem);
+  line-height: 1.75;
+}
+
+main .predeck-body {
+  font-size: clamp(1rem, 0.9rem + 0.25vw, 1.125rem);
+  line-height: 1.7;
+}
+
+main .predeck-hero-copy {
+  font-size: clamp(1.1875rem, 1rem + 0.65vw, 1.4375rem);
+}
+
+/* 重要フレーズの差し色（シンプル LP 用） */
+.predeck-em-dark {
+  color: var(--color-pd-highlight);
+  font-weight: 600;
+}
+
+.predeck-em {
+  color: var(--color-pd-accent);
+  font-weight: 600;
+}
+
+main .predeck-section {
+  padding-top: clamp(3rem, 2rem + 3vw, 5rem);
+  padding-bottom: clamp(3rem, 2rem + 3vw, 5rem);
+}
+
+main .predeck-section--lg {
+  padding-top: clamp(3.25rem, 2rem + 4vw, 6rem);
+  padding-bottom: clamp(3.25rem, 2rem + 4vw, 6rem);
+}
+
+/* スクロールイン（LP） */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(1.25rem);
+  transition:
+    opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-reveal].is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+[data-reveal-delay='1'] {
+  transition-delay: 0.08s;
+}
+
+[data-reveal-delay='2'] {
+  transition-delay: 0.16s;
+}
+
+[data-reveal-delay='3'] {
+  transition-delay: 0.24s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}

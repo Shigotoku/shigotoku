@@ -1,0 +1,41 @@
+﻿---
+const beats = [
+  {
+    titleHtml: '<span class="predeck-em">PDF</span> を開いて、そのまま話す',
+    body: 'スライドを PDF で読み込み、マイクで話すだけ。専用ソフトのインストールは不要で、Chrome があればすぐ始められます。',
+  },
+  {
+    titleHtml: '<span class="predeck-em">専門用語</span>も、聞き取る',
+    body: '医療・科学・物理の用語辞書を標準搭載。自分の分野の用語を登録すれば、さらに正確に文字になります。',
+  },
+  {
+    titleHtml: '<span class="predeck-em">AI</span> が原稿を整え、英語にも',
+    body: '文字起こしを話せる原稿に直し、英語の発表原稿も作成。構成の見直しと想定質問まで、本番前にまとめて確認できます。',
+  },
+];
+---
+
+<section id="story" class="predeck-section bg-pd-bg">
+  <div class="mx-auto max-w-3xl px-6 text-center">
+    <p class="text-sm font-semibold uppercase tracking-widest text-pd-accent" data-reveal>Scroll</p>
+    <h2 class="predeck-h2 mt-3 font-bold text-pd-text" data-reveal data-reveal-delay="1" data-jp-heading>
+      発表の準備が、だんだん<span class="predeck-em">楽</span>になる。
+    </h2>
+    <p class="predeck-lead mt-4 text-pd-muted" data-reveal data-reveal-delay="2" data-jp-wrap>
+      下に進むほど、PreDeck がどう助けるかが見えてきます。
+    </p>
+  </div>
+
+  <ol class="mx-auto mt-14 max-w-2xl space-y-16 px-6">
+    {beats.map((b, i) => (
+      <li class="relative border-l-2 border-pd-highlight/50 pl-8" data-reveal data-reveal-delay={(i % 3) + 1}>
+        <span
+          class="absolute -left-[9px] top-0 flex h-4 w-4 items-center justify-center rounded-full bg-pd-highlight ring-4 ring-pd-bg"
+          aria-hidden="true"
+        ></span>
+        <h3 class="predeck-h3 font-bold text-pd-text" data-jp-heading set:html={b.titleHtml} />
+        <p class="predeck-body mt-2 text-pd-muted" data-jp-wrap>{b.body}</p>
+      </li>
+    ))}
+  </ol>
+</section>

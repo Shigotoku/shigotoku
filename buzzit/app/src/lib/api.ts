@@ -49,15 +49,23 @@ export interface LoginHintResponse {
 
 /** ログイン失敗時に登録済みプロバイダを案内（認証不要） */
 export async function fetchLoginHint(email: string): Promise<LoginHintResponse> {
-  const res = await fetch(`${API_BASE}/v1/auth/login-hint`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: email.trim() }),
-  });
-  if (!res.ok) {
-    return {};
+  // API 無応答でログインボタンが「処理中...」のまま固まらないよう 4 秒で打ち切る
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 4000);
+  try {
+    const res = await fetch(`${API_BASE}/v1/auth/login-hint`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim() }),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      return {};
+    }
+    return (await res.json()) as LoginHintResponse;
+  } finally {
+    clearTimeout(timer);
   }
-  return res.json() as Promise<LoginHintResponse>;
 }
 
 export interface DashboardResponse {
@@ -115,6 +123,10 @@ export interface SettingsResponse {
   gbpLocationName?: string;
   notifyEmail?: string;
   industry?: string;
+  businessEntityType?: 'corporate' | 'individual';
+  officeNumber?: string;
+  cardBrand?: string;
+  cardLast4?: string;
   brandProfile?: string;
   activePersonaId?: string;
   activePersonaName?: string;
@@ -145,7 +157,7 @@ export interface PostInsight {
   replies?: number;
   reposts?: number;
   fetchedAt: string;
-  source: 'meta' | 'x';
+  source: 'meta' | 'x' | 'manual';
   lastError?: string;
   scheduledAt?: string;
   preview?: string;
@@ -451,6 +463,10 @@ export interface ScheduledJob {
   publishMode: PublishMode;
   status: 'pending_approval' | 'pending' | 'processing' | 'published' | 'notified' | 'failed' | 'draft';
   mediaUrls?: string[];
+  tags?: string[];
+  topic?: string;
+  createdBy?: 'ai' | 'user';
+  aiGeneratedMedia?: boolean;
   completedMessage?: string;
   errorMessage?: string;
   createdAt: string;
@@ -493,6 +509,10 @@ export function approveScheduledJob(id: string) {
   });
 }
 
+export function markScheduledPosted(id: string) {
+  return request<{ success: boolean }>(`/v1/scheduled/${id}/mark-posted`, { method: 'POST' });
+}
+
 export function retryScheduledJob(id: string) {
   return request<{ success: boolean; job: ScheduledJob }>(`/v1/scheduled/${id}/retry`, {
     method: 'POST',
@@ -511,6 +531,10 @@ export function updateScheduledJob(
     scheduledAt?: string;
     contents?: ScheduleApiRequest['contents'];
     publishMode?: PublishMode;
+    tags?: string[];
+    topic?: string;
+    mediaUrls?: string[];
+    aiGeneratedMedia?: boolean;
   },
 ) {
   return request<{ success: boolean; job: ScheduledJob }>(`/v1/scheduled/${id}`, {
@@ -543,6 +567,52 @@ export interface WeeklyReport {
 
 export function fetchWeeklyReport() {
   return request<{ report: WeeklyReport }>('/v1/reports/weekly');
+}
+
+export interface BreakdownGroup {
+  key: string;
+  posts: number;
+  avgImpressions: number;
+  medianImpressions: number;
+  per1000: { likes: number | null; reposts: number | null; bookmarks: number | null; urlClicks: number | null };
+  lowSample: boolean;
+}
+
+export interface MetricsBreakdown {
+  periodDays: number;
+  coverage: { publishedPosts: number; measuredPosts: number; unmeasuredPosts: number; note: string };
+  overall: { avgImpressions: number; medianImpressions: number } | null;
+  bySeries: BreakdownGroup[];
+  byWeekday: BreakdownGroup[];
+  byHour: BreakdownGroup[];
+  byMedia: BreakdownGroup[];
+  byUrl: BreakdownGroup[];
+  byFormat: BreakdownGroup[];
+  byTag: BreakdownGroup[];
+  caution: string;
+}
+
+export function fetchMetricsBreakdown(days = 90) {
+  return request<MetricsBreakdown>(`/v1/metrics/breakdown?days=${days}`);
+}
+
+/** 実績の手入力（X API を使わない・費用ゼロ）。未入力の項目は保存されない */
+export function saveManualMetrics(jobId: string, metrics: Record<string, number | undefined>) {
+  return request<{ success: boolean; label: string }>('/v1/metrics/manual', {
+    method: 'POST',
+    body: JSON.stringify({ jobId, metrics }),
+  });
+}
+
+/** X のアナリティクスCSVを取り込む */
+export function importMetricsCsv(csv: string) {
+  return request<{
+    success: boolean;
+    matched: number;
+    unmatched: number;
+    total: number;
+    unmatchedSamples: Array<{ text: string; reason: string }>;
+  }>('/v1/metrics/import-csv', { method: 'POST', body: JSON.stringify({ csv }) });
 }
 
 export function fetchInsightsSummary(platform?: string) {
@@ -859,6 +929,29 @@ export function updatePersona(personaId: string, patch: Partial<PersonaRecord>) 
   });
 }
 
+export interface AccountLedgerEntry {
+  id: string;
+  service: string;
+  handle?: string;
+  email?: string;
+  password?: string;
+  url?: string;
+  memo?: string;
+}
+
+export function fetchAccountLedger(personaId: string) {
+  return request<{ entries: AccountLedgerEntry[] }>(
+    `/v1/personas/${encodeURIComponent(personaId)}/account-ledger`,
+  );
+}
+
+export function saveAccountLedger(personaId: string, entries: AccountLedgerEntry[]) {
+  return request<{ persona: PersonaRecord }>(`/v1/personas/${encodeURIComponent(personaId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ accountLedger: entries }),
+  });
+}
+
 export function archivePersona(personaId: string) {
   return request<{ success: boolean }>(`/v1/personas/${encodeURIComponent(personaId)}`, {
     method: 'DELETE',
@@ -1118,6 +1211,9 @@ export interface XSeriesItem {
   approved: boolean;
   status: string;
   publishedAt?: string;
+  scheduledAt?: string;
+  /** 全シリーズ一覧のときのみ */
+  seriesName?: string;
   tweetId?: string;
   errorMessage?: string;
   createdAt: string;
@@ -1171,10 +1267,19 @@ export function fetchXSeriesItems(seriesId: string, status?: string) {
   return request<{ items: XSeriesItem[] }>(`/v1/x/series/${seriesId}/items${q}`);
 }
 
+/** 全シリーズ横断の一覧。status はカンマ区切り（pending,published 等） */
+export function fetchAllXSeriesItems(status?: string, limit?: number) {
+  const q = new URLSearchParams();
+  if (status) q.set('status', status);
+  if (limit) q.set('limit', String(limit));
+  const qs = q.toString();
+  return request<{ items: XSeriesItem[] }>(`/v1/x/items${qs ? `?${qs}` : ''}`);
+}
+
 export function addXSeriesItems(
   seriesId: string,
   body:
-    | { text: string; tags?: string; title?: string; linkUrl?: string; imageUrl?: string; imageAlt?: string; approved?: boolean }
+    | { text: string; tags?: string; title?: string; linkUrl?: string; imageUrl?: string; imageAlt?: string; approved?: boolean; scheduledAt?: string }
     | {
         items: Array<{
           text: string;
@@ -1212,6 +1317,7 @@ export function updateXSeriesItem(
     imageAlt: string;
     approved: boolean;
     status: string;
+    scheduledAt: string;
   }>,
 ) {
   return request<{ item: XSeriesItem }>(`/v1/x/series/${seriesId}/items/${itemId}`, {

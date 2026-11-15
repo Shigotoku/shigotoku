@@ -33,6 +33,7 @@ import {
   approveScheduledJob,
   retryScheduledJob,
   revertScheduledJobToDraft,
+  updateScheduledJobStatus,
   updateScheduledJob,
   trackMetricEvent,
   createTrackingLink,
@@ -175,6 +176,7 @@ import {
   updateXSeries,
   deleteXSeries,
   listXSeriesItems,
+  listAllXSeriesItems,
   addXSeriesItems,
   updateXSeriesItem,
   deleteXSeriesItem,
@@ -202,7 +204,8 @@ import {
   voiceToXSeriesBatch,
 } from './services/xSeriesExtras';
 import { saveOAuthState, consumeOAuthState } from './services/schedulerWorker';
-import { assertPostQuota, incrementPostQuota, getPostsThisMonth, freePostLimitForPlan } from './services/planLimits';
+import { assertPostQuota, incrementPostQuota, getPostsThisMonth, freePostLimitForPlan, consumeAiQuota, AiQuotaError, getAiUsage } from './services/planLimits';
+import { getAiSettings, saveAiSettings, deleteAiKey, AI_PROVIDERS } from './services/aiClient';
 import {
   getGoogleOAuthUrl,
   exchangeGoogleCode,
@@ -263,6 +266,10 @@ import {
   EXTRA_ACCOUNT_SEAT_MONTHLY,
 } from './services/billing';
 import { functionSecrets } from './config/secrets';
+import { agentRouter } from './services/agentApi';
+import { extrasRouter } from './services/agentExtras';
+import './services/mcpRemote';
+import { oauthRouter } from './services/oauthMcp';
 import { checkLoginHintRateLimit, getLoginHint } from './services/loginHint';
 
 if (!getApps().length) initializeApp();
@@ -279,6 +286,9 @@ app.use(
 );
 
 const api = express.Router();
+api.use('/v1/agent', agentRouter);
+api.use('/v1/metrics', extrasRouter);
+api.use(oauthRouter);
 
 api.get('/health', (_req, res) => {
   res.json({
@@ -365,6 +375,7 @@ api.post('/v1/repurpose', requireAuth, async (req: AuthedRequest, res) => {
 
   try {
     const settings = await assertPostQuota(req.uid!);
+    await consumeAiQuota(req.uid!, settings.plan);
     const effectivePlan = plan ?? settings.plan;
     const safety = checkBrandSafety(idea);
     const { results, usedGemini } = await generateRepurposeWithGemini(idea, effectivePlan, mediaUrls);
@@ -583,6 +594,22 @@ api.post('/v1/scheduled/:id/approve', requireAuth, async (req: AuthedRequest, re
   res.json({ success: true, job: result.job, message: '承認しました。予約キューに入りました。' });
 });
 
+api.post('/v1/scheduled/:id/mark-posted', requireAuth, async (req: AuthedRequest, res) => {
+  const jobId = String(req.params.id);
+  const existing = await getScheduledJob(req.uid!, jobId);
+  if (!existing) {
+    res.status(404).json({ error: '予約が見つかりません' });
+    return;
+  }
+  if (!['notified', 'pending', 'failed'].includes(existing.status)) {
+    res.status(400).json({ error: 'この状態の予約は「投稿済み」にできません' });
+    return;
+  }
+  await updateScheduledJobStatus(req.uid!, jobId, { status: 'published', completedMessage: '手動で投稿済みにしました' });
+  await writeAuditLog(req.uid!, 'schedule.mark_posted', jobId);
+  res.json({ success: true });
+});
+
 api.post('/v1/scheduled/:id/retry', requireAuth, async (req: AuthedRequest, res) => {
   const jobId = String(req.params.id);
   const existing = await getScheduledJob(req.uid!, jobId);
@@ -626,13 +653,17 @@ api.post('/v1/scheduled/:id/draft', requireAuth, async (req: AuthedRequest, res)
 });
 
 api.patch('/v1/scheduled/:id', requireAuth, async (req: AuthedRequest, res) => {
-  const { scheduledAt, contents, publishMode } = req.body as {
+  const { scheduledAt, contents, publishMode, tags, topic, mediaUrls, aiGeneratedMedia } = req.body as {
     scheduledAt?: string;
     contents?: Array<{ platform: string; label: string; content: string; carouselSlides?: string[] }>;
     publishMode?: PublishMode;
+    tags?: string[];
+    topic?: string;
+    mediaUrls?: string[];
+    aiGeneratedMedia?: boolean;
   };
 
-  if (scheduledAt === undefined && contents === undefined && publishMode === undefined) {
+  if (scheduledAt === undefined && contents === undefined && publishMode === undefined && tags === undefined && topic === undefined && mediaUrls === undefined && aiGeneratedMedia === undefined) {
     res.status(400).json({ error: '更新する項目がありません' });
     return;
   }
@@ -680,6 +711,14 @@ api.patch('/v1/scheduled/:id', requireAuth, async (req: AuthedRequest, res) => {
     scheduledAt: normalizedScheduledAt,
     contents,
     publishMode,
+    tags: Array.isArray(tags)
+      ? [...new Set(tags.map((t) => String(t).replace(/^[#＃]/, '').trim().slice(0, 30)).filter(Boolean))].slice(0, 10)
+      : undefined,
+    topic: typeof topic === 'string' ? topic.slice(0, 80) : undefined,
+    aiGeneratedMedia: typeof aiGeneratedMedia === 'boolean' ? aiGeneratedMedia : undefined,
+    mediaUrls: Array.isArray(mediaUrls)
+      ? mediaUrls.filter((u) => typeof u === 'string' && /^https:\/\//.test(u)).slice(0, 6)
+      : undefined,
   });
   if (!job) {
     res.status(404).json({ error: '編集できる予約が見つかりません（処理中・完了済みは編集不可）' });
@@ -713,9 +752,9 @@ api.get('/v1/insights/summary', requireAuth, async (req: AuthedRequest, res) => 
 
 api.get('/v1/insights/posts', requireAuth, async (req: AuthedRequest, res) => {
   try {
-    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 40));
+    const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 40));
     const platform = typeof req.query.platform === 'string' ? req.query.platform : undefined;
-    let posts = await listPostInsights(req.uid!, { limit: 200 });
+    let posts = await listPostInsights(req.uid!, { limit: 500 });
     if (platform) {
       const want = platform.toLowerCase();
       posts = posts.filter((p) => {
@@ -1048,7 +1087,7 @@ api.put('/v1/settings', requireAuth, async (req: AuthedRequest, res) => {
     'plan', 'slackWebhookUrl', 'autoModeEnabled', 'slackTeamId',
     'displayName', 'defaultDestinationUrl',
     'hpbStoreUrl', 'hpbTrackingEnabled', 'autoModeGoal', 'notifyEmail', 'industry',
-    'extraSnsAccounts',
+    'extraSnsAccounts', 'businessEntityType', 'officeNumber',
   ];
   const personaAllowed = PERSONA_SETTINGS_ALLOWLIST.filter(
     (k) => !['name', 'slug', 'type', 'status'].includes(k),
@@ -1199,6 +1238,13 @@ api.delete('/v1/x/series/:id', requireAuth, async (req: AuthedRequest, res) => {
   res.json({ success: true });
 });
 
+api.get('/v1/x/items', requireAuth, async (req: AuthedRequest, res) => {
+  const personaId = await resolveActivePersonaId(req.uid!);
+  const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+  const limit = Number(req.query.limit) || undefined;
+  res.json({ items: await listAllXSeriesItems(req.uid!, personaId, { status, limit }) });
+});
+
 api.get('/v1/x/series/:id/items', requireAuth, async (req: AuthedRequest, res) => {
   const status = typeof req.query.status === 'string' ? req.query.status : undefined;
   const items = await listXSeriesItems(req.uid!, String(req.params.id), {
@@ -1209,7 +1255,7 @@ api.get('/v1/x/series/:id/items', requireAuth, async (req: AuthedRequest, res) =
 
 api.post('/v1/x/series/:id/items', requireAuth, async (req: AuthedRequest, res) => {
   try {
-    const { items, text, tags, title, linkUrl, imageUrl, imageAlt, approved } = req.body as {
+    const { items, text, tags, title, linkUrl, imageUrl, imageAlt, approved, scheduledAt } = req.body as {
       items?: Array<{
         text: string;
         tags?: string;
@@ -1218,6 +1264,7 @@ api.post('/v1/x/series/:id/items', requireAuth, async (req: AuthedRequest, res) 
         imageUrl?: string;
         imageAlt?: string;
         approved?: boolean;
+        scheduledAt?: string;
       }>;
       text?: string;
       tags?: string;
@@ -1226,11 +1273,12 @@ api.post('/v1/x/series/:id/items', requireAuth, async (req: AuthedRequest, res) 
       imageUrl?: string;
       imageAlt?: string;
       approved?: boolean;
+      scheduledAt?: string;
     };
     const list =
       items ??
       (text
-        ? [{ text, tags, title, linkUrl, imageUrl, imageAlt, approved }]
+        ? [{ text, tags, title, linkUrl, imageUrl, imageAlt, approved, scheduledAt }]
         : []);
     const created = await addXSeriesItems(req.uid!, String(req.params.id), list);
     res.json({ items: created });
@@ -1746,6 +1794,43 @@ api.get('/v1/trends', requireAuth, async (req: AuthedRequest, res) => {
   }
 });
 
+// --- AI 設定（運営AI / 自分のAIキー の切り替え） ---
+api.get('/v1/ai/settings', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const settings = await getUserSettingsWithDevBoost(req.uid!);
+    res.json({
+      ...(await getAiSettings(req.uid!)),
+      providers: Object.entries(AI_PROVIDERS).map(([id, p]) => ({ id, label: p.label, defaultModel: p.defaultModel })),
+      platformUsage: await getAiUsage(req.uid!, settings.plan),
+      plan: settings.plan,
+    });
+  } catch {
+    res.status(500).json({ error: 'AI設定の取得に失敗しました' });
+  }
+});
+
+api.put('/v1/ai/settings', requireAuth, async (req: AuthedRequest, res) => {
+  const b = (req.body ?? {}) as { mode?: string; provider?: string; model?: string; apiKey?: string };
+  if (b.mode !== 'platform' && b.mode !== 'own') {
+    res.status(400).json({ error: 'mode は platform か own を指定してください' });
+    return;
+  }
+  try {
+    const out = await saveAiSettings(req.uid!, {
+      mode: b.mode,
+      provider: b.provider as 'gemini' | 'openai' | 'anthropic' | undefined,
+      model: b.model,
+      apiKey: b.apiKey,
+    });
+    res.json(out);
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : '保存に失敗しました' });
+  }
+});
+
+api.delete('/v1/ai/key', requireAuth, async (req: AuthedRequest, res) => {
+  res.json(await deleteAiKey(req.uid!));
+});
 api.post('/v1/trends/refresh', requireAuth, async (req: AuthedRequest, res) => {
   try {
     const settings = await getUserSettingsWithDevBoost(req.uid!);
@@ -1753,6 +1838,7 @@ api.post('/v1/trends/refresh', requireAuth, async (req: AuthedRequest, res) => {
       res.status(403).json({ error: 'Pro プラン以上が必要です' });
       return;
     }
+    await consumeAiQuota(req.uid!, settings.plan);
     const trends = await refreshTrends(req.uid!, settings.industry);
     res.json({ trends });
   } catch (err) {
@@ -1935,6 +2021,7 @@ api.post('/v1/voice-draft', requireAuth, async (req: AuthedRequest, res) => {
   }
   try {
     const settings = await assertPostQuota(req.uid!);
+    await consumeAiQuota(req.uid!, settings.plan);
     const { transcript, results, usedGemini } = await voiceDraftWithGemini(
       audioBase64,
       mimeType || 'audio/webm',
@@ -2492,6 +2579,16 @@ api.post('/v1/agent/chat', requireAuth, async (req: AuthedRequest, res) => {
     res.status(400).json({ error: 'messages が必要です' });
     return;
   }
+  try {
+    const st = await getUserSettingsWithDevBoost(req.uid!);
+    await consumeAiQuota(req.uid!, st.plan);
+  } catch (err) {
+    if (err instanceof AiQuotaError) {
+      res.status(429).json({ error: err.message });
+      return;
+    }
+    throw err;
+  }
   const result = await runStrategyAgent(req.uid!, messages);
   res.json(result);
 });
@@ -2883,6 +2980,18 @@ api.patch('/v1/personas/:personaId', requireAuth, async (req: AuthedRequest, res
     res.json({ persona: safePersonaForClient(persona) });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'ペルソナの更新に失敗しました';
+    res.status(400).json({ error: message });
+  }
+});
+
+api.get('/v1/personas/:personaId/account-ledger', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const personaId = String(req.params.personaId);
+    await assertPersonaAccess(personaId, req.uid!, 'editor');
+    const persona = await getPersona(personaId);
+    res.json({ entries: persona?.accountLedger ?? [] });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '台帳の取得に失敗しました';
     res.status(400).json({ error: message });
   }
 });
@@ -3405,6 +3514,6 @@ export const buzzitApi = onRequest({ ...functionOptions, secrets: [...functionSe
 export {
   buzzitScheduler,
   buzzitPublishWorker,
-  buzzitLineStepWorker,
   buzzitWeeklyReport,
 } from './scheduler';
+

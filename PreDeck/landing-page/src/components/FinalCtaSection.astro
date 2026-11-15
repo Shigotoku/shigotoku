@@ -1,0 +1,24 @@
+﻿---
+import { appPath, sitePath } from '../lib/urls';
+
+const loginUrl = appPath('/');
+---
+
+<section class="predeck-section bg-pd-side text-center text-white">
+  <div class="mx-auto max-w-xl px-6" data-reveal>
+    <h2 class="predeck-h2 font-bold" data-jp-heading>まずは、<span class="predeck-em-dark">1回</span>話してみる。</h2>
+    <p class="predeck-lead mt-3 text-[#c3cfe0]" data-jp-wrap>
+      Google アカウントまたはメールでログイン。PDF を開いて話すだけで、練習が始まります。
+    </p>
+    <a
+      href={loginUrl}
+      class="predeck-tap mt-8 inline-flex rounded-lg bg-pd-highlight px-8 py-3.5 text-lg font-semibold text-pd-side shadow-md shadow-pd-highlight/25 transition-colors hover:bg-pd-accent-soft"
+    >
+      ログインして始める
+    </a>
+  </div>
+  <p class="mt-16 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-sm text-[#9aa9c0]">
+    <a href={sitePath('privacy')} class="hover:text-[#c3cfe0]">プライバシー</a>
+    <a href="https://shigotoku.com/" class="hover:text-[#c3cfe0]">株式会社シゴトク</a>
+  </p>
+</section>

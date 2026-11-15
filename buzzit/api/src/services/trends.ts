@@ -1,7 +1,5 @@
+import { aiFetch, aiKey } from './aiClient';
 import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore';
-
-const GEMINI_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
 export interface TrendTopic {
   id: string;
@@ -27,11 +25,11 @@ function db() {
 }
 
 async function generateTrendsWithGemini(industry: string): Promise<Omit<TrendTopic, 'id' | 'createdAt' | 'status'>[]> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = aiKey();
   if (!apiKey) return FALLBACK_TRENDS;
 
   try {
-    const res = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
+    const res = await aiFetch({
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -151,11 +149,10 @@ export async function markTrendUsed(uid: string, trendId: string): Promise<Trend
 
 export async function refreshTrendsForAllUsers(): Promise<number> {
   const { getFirestore } = await import('firebase-admin/firestore');
-  const snap = await getFirestore().collection('users').get();
+  // 有料プランのみ読む（全ユーザー読み取りによる Firestore 課金を避ける）
+  const snap = await getFirestore().collection('users').where('plan', 'in', ['pro', 'team', 'growth']).get();
   let count = 0;
   for (const doc of snap.docs) {
-    const plan = doc.data().plan as string;
-    if (!['pro', 'team', 'growth'].includes(plan)) continue;
     try {
       await refreshTrends(doc.id, doc.data().industry as string | undefined);
       count++;
