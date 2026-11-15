@@ -60,6 +60,8 @@ import {
   withIdempotency,
 } from './agentExtras';
 
+import { getSnsRule, getSnsRules, setSnsRule } from './snsRules';
+
 const PLATFORM = z
   .enum(['x_thread', 'instagram', 'facebook', 'threads', 'line', 'gbp', 'youtube_shorts', 'tiktok'])
   .describe('x_thread=X / instagram / facebook / threads / line / gbp=Googleビジネス / youtube_shorts / tiktok');
@@ -67,7 +69,7 @@ const PLATFORM = z
 const INSTRUCTIONS = `バジット(Buzzit)は SNS 投稿の管理アプリです。あなたは「編集長」として下書きを作り、人が確認・承認・予約します（あなたは投稿できません）。
 まず whoami で「接続中のキャラ（ID・名前）」と接続済みSNSアカウントを確認する。この接続はそのキャラ専用で、別キャラ・別アカウントは操作できない（曖昧なら中止して人に確認する）。投稿シリーズは list_series、登録は upsert_plan（既定はプレビューのみ。保存は人が内容と対象キャラを確認してから dryRun=false + characterId）。実績は未取得を0として扱わず、無いデータの成果や理由を創作しない（get_series_report / get_weekly_report の facts と hypotheses を区別して報告）。X APIの読み取りは費用がかかるため使わず、実績は人が手入力またはCSV取り込みする。
 推奨手順: 0) 投稿計画があれば plan_gaps で埋めるべき枠（日時・媒体・テーマ）を取得し、その枠に沿って作る 1) overview か tag_report / performance_report で現状と過去の実績（伸びた型）を確認 2) 使用回数の多いタグ・直近の内容と被らない切り口を選ぶ 3) check_duplicate で重複確認 / lint_post で表現チェック 4) 画像/動画があれば upload_media か get_upload_url で送る 5) tags を付けて create_draft 6) 他SNSに展開するなら adapt_post(dryRun で確認→作成)。
-投稿候補は BuzzIt が正本。candidates_unused でネタを探し、candidates_check_duplicate（完全一致・表現・テーマ・結論・オチ・投稿済み）で確認してから create_draft。ネタを作ったら candidates_add で媒体(platform)付きで候補に保存（表の一括取り込みは candidates_import）。修正案は candidates_update の aiSuggestion。ユーザーが「この日時に投稿して」と明確に頼んだときは candidates_schedule で予約できる（時間になったら自動投稿／未連携媒体は通知）。頼まれていない予約・投稿は絶対にしない。
+投稿候補は BuzzIt が正本。candidates_unused でネタを探し、candidates_check_duplicate（完全一致・表現・テーマ・結論・オチ・投稿済み）で確認してから create_draft。ネタや下書きを作る前に、sns_rules_get で対象SNSのルール（曜日ごとのネタ・載せない内容など）を読んで従う。ユーザーに頼まれたら sns_rules_set で追記する。ネタを作ったら candidates_add で媒体(platform)付きで候補に保存（表の一括取り込みは candidates_import）。修正案は candidates_update の aiSuggestion。ユーザーが「この日時に投稿して」と明確に頼んだときは candidates_schedule で予約できる（時間になったら自動投稿／未連携媒体は通知）。頼まれていない予約・投稿は絶対にしない。
 X自動投稿のシリーズ（カテゴリ別の在庫）は x_series_list → x_series_create → x_series_add_items で自由に作れる（投稿OKは人が画面で付ける）。
 X は本文280字（スレッドは「---」だけの行で区切る・最大5投稿）。Instagram は画像必須、YouTube Shorts / TikTok は動画必須、Googleビジネスはハッシュタグ不要。`;
 
@@ -491,6 +493,22 @@ function buildServer(ctx: AgentCtx): McpServer {
       inputSchema: { rows: z.array(z.record(z.string(), z.union([z.string(), z.number()]))).min(1).max(200), columnMap: z.record(z.string(), z.string()).optional(), dryRun: z.boolean().default(true) },
     },
     ({ rows, columnMap, dryRun }) => run(() => addCandidatesFromAi(ctx.uid, rows, { columnMap: columnMap as never, dryRun })),
+  );
+  server.registerTool(
+    'sns_rules_get',
+    {
+      description: 'SNSごとの運用ルール（人が自由記載。例:「月曜は医療制度ネタ」「診療報酬の断定表現はしない」）を読む。ネタ・下書きを作る前に、対象の媒体のルールを必ず読み、従うこと。platform を省略すると全媒体。',
+      inputSchema: { platform: z.string().optional().describe('x / instagram / tiktok / facebook-threads / youtube-shorts / line / gbp（x_thread 等でも可）') },
+    },
+    ({ platform }) => run(async () => (platform ? getSnsRule(ctx.uid, platform) : { rules: (await getSnsRules(ctx.uid)).filter((r) => r.text) })),
+  );
+  server.registerTool(
+    'sns_rules_set',
+    {
+      description: 'SNSごとの運用ルールを書き込む。ユーザーが「ルールに追加して」「Xでは◯◯しないと決めて」と頼んだときに使う。既定は mode=append（既存ルールの末尾に追記）。replace は全文置き換えなので、先に sns_rules_get で現状を読み、ユーザーが整理を頼んだときだけ使う。',
+      inputSchema: { platform: z.string().describe('x / instagram / tiktok / facebook-threads / youtube-shorts / line / gbp'), text: z.string().min(1).max(8000), mode: z.enum(['append', 'replace']).default('append') },
+    },
+    ({ platform, text, mode }) => run(() => setSnsRule(ctx.uid, platform, text, 'ai', mode)),
   );
   server.registerTool(
     'candidates_add',

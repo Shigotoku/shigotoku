@@ -269,6 +269,7 @@ import { functionSecrets } from './config/secrets';
 import { agentRouter } from './services/agentApi';
 import { extrasRouter } from './services/agentExtras';
 import { candidatesRouter } from './services/postCandidates';
+import { snsRulesRouter } from './services/snsRules';
 import './services/mcpRemote';
 import { oauthRouter } from './services/oauthMcp';
 import { checkLoginHintRateLimit, getLoginHint } from './services/loginHint';
@@ -290,6 +291,7 @@ const api = express.Router();
 api.use('/v1/agent', agentRouter);
 api.use('/v1/metrics', extrasRouter);
 api.use('/v1/candidates', candidatesRouter);
+api.use('/v1/sns-rules', snsRulesRouter);
 api.use(oauthRouter);
 
 api.get('/health', (_req, res) => {

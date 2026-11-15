@@ -816,6 +816,25 @@ candidatesRouter.post('/', requireAuth, async (req: AuthedRequest, res) => {
 });
 
 /** 候補の入り口（ネタ帳・Xシリーズ在庫・下書き）をそろえる。画面を開くたびに呼んでよい（重複しない） */
+/** 媒体が未設定の候補を、まとめて1つの媒体にする(取り込み直後に便利)。すでに媒体のある候補は変えない */
+candidatesRouter.post('/set-platform', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const b = req.body as { platform?: string; ids?: string[] };
+    const platform = normPlatform(b.platform ?? '');
+    if (!platform) throw new Error('媒体を選んでください');
+    const snap = await col(req.uid!).limit(2000).get();
+    const only = b.ids?.length ? new Set(b.ids) : null;
+    const targets = snap.docs.filter((d) => !d.data().platform && (!only || only.has(d.id)));
+    for (let i = 0; i < targets.length; i += 400) {
+      const batch = db().batch();
+      for (const d of targets.slice(i, i + 400)) batch.update(d.ref, { platform, updatedAt: FieldValue.serverTimestamp() });
+      await batch.commit();
+    }
+    await writeAuditLog(req.uid!, 'candidates.set_platform', `${platform}: ${targets.length}件`);
+    res.json({ updated: targets.length });
+  } catch (e) { fail(res, e); }
+});
+
 candidatesRouter.post('/sync', requireAuth, async (req: AuthedRequest, res) => {
   try { res.json(await syncCandidates(await ctxOf(req))); } catch (e) { fail(res, e); }
 });

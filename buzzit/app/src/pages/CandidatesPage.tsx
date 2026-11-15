@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { authFetch } from '../lib/api';
+import SnsRulesBox, { RULE_ID_OF } from './SnsRulesBox';
 
 type Selection = 'unreviewed' | 'adopted' | 'needs_fix' | 'hold' | 'rejected';
 interface Candidate {
@@ -289,7 +290,7 @@ function Detail({ id, list, reload }: { id: string; list: ListRes; reload: () =>
       )}
       {c.status !== 'candidate' && (
         <p className="rounded-lg bg-neutral-50 p-3 text-xs text-neutral-600">
-          {STATUS[c.status]?.label}{c.scheduledAt ? `(${new Date(c.scheduledAt).toLocaleString('ja-JP')})` : ''}。投稿の確認・変更は <Link to="/calendar" className="underline">投稿カレンダー</Link> で行えます。
+          {STATUS[c.status]?.label}{c.scheduledAt ? `(${new Date(c.scheduledAt).toLocaleString('ja-JP')})` : ''}。投稿の確認・変更は <Link to="/calendar" className="underline">週表示・編集</Link> で行えます。
         </p>
       )}
       <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -326,6 +327,7 @@ export default function CandidatesPage() {
   const [quick, setQuick] = useState('');
   const [quickPlatform, setQuickPlatform] = useState('');
   const [syncMsg, setSyncMsg] = useState('');
+  const [bulkPlatform, setBulkPlatform] = useState('');
   const [sel, setSel] = useState('');
   const [series, setSeries] = useState('');
   const [q, setQ] = useState('');
@@ -352,6 +354,15 @@ export default function CandidatesPage() {
       .then((r) => { if (r.created > 0) setSyncMsg(`ネタ帳・ネタ一括作成・AI下書きから ${r.created}件 を候補に追加しました。`); return reload(); })
       .catch(() => undefined);
   }, [reload]);
+
+  const bulkSet = async () => {
+    try {
+      const r = await call<{ updated: number }>('/set-platform', { method: 'POST', body: { platform: bulkPlatform } });
+      setSyncMsg(`媒体未設定の候補 ${r.updated}件 を ${PLATFORM_NAME[bulkPlatform]} にしました。`);
+      setBulkPlatform('');
+      await reload();
+    } catch (e) { setErr(e instanceof Error ? e.message : '設定できませんでした'); }
+  };
 
   const addQuick = async () => {
     try {
@@ -396,22 +407,35 @@ export default function CandidatesPage() {
       <div className="flex flex-wrap items-center gap-2">
         <button onClick={() => setShowImport(!showImport)} className="rounded-lg bg-neutral-900 px-3 py-1.5 text-sm text-white">{showImport ? '取り込みを閉じる' : '取り込む'}</button>
         <button onClick={exportCsv} className="rounded-lg border px-3 py-1.5 text-sm">CSVで書き出す(バックアップ)</button>
-        {data && (
-          <label className="ml-auto flex items-center gap-2 text-xs">
-            <input type="checkbox" checked={data.prefs.useAi} onChange={togglePref} />
-            重複チェックにAIも使う(既定はルールのみ・無料)
-          </label>
-        )}
+        <span className="rounded-full bg-neutral-900 px-3 py-1 text-sm font-semibold text-white">
+          {platformSel === '' ? 'すべてのSNS' : platformSel === 'none' ? '媒体未設定' : `${PLATFORM_NAME[platformSel] ?? platformSel}の投稿候補`}
+        </span>
+        {data && ([['', 'すべて'], ...PLATFORMS.map(([k, n]) => [k, `${n} ${data.platformCounts[k] ?? 0}`]), ...(data.platformCounts.none ? [['none', `未設定 ${data.platformCounts.none}`]] : [])] as string[][]).map(([k, label]) => (
+          <button key={k} onClick={() => setPlatformSel(k)} className={`rounded-full border px-3 py-1 text-xs ${platformSel === k ? 'border-neutral-900 bg-neutral-900 text-white' : 'bg-white'}`}>{label}</button>
+        ))}
       </div>
-      {showImport && <ImportPanel onDone={reload} />}
+      {data && (
+        <label className="flex items-center gap-2 text-xs">
+          <input type="checkbox" checked={data.prefs.useAi} onChange={togglePref} />
+          重複チェックにAIも使う(既定はルールのみ・無料)
+        </label>
+      )}
+      {platformSel !== '' && platformSel !== 'none' && RULE_ID_OF[platformSel] && <SnsRulesBox ruleId={RULE_ID_OF[platformSel]} />}
+      {data && (data.platformCounts.none ?? 0) > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs">
+          <span>媒体が決まっていない候補が {data.platformCounts.none}件 あります。</span>
+          <select className="rounded border p-1" value={bulkPlatform} onChange={(e) => setBulkPlatform(e.target.value)}>
+            <option value="">媒体を選ぶ</option>
+            {PLATFORMS.map(([k, n]) => <option key={k} value={k}>{n}</option>)}
+          </select>
+          <button disabled={!bulkPlatform} onClick={bulkSet} className="rounded-lg bg-neutral-900 px-3 py-1 text-white disabled:opacity-40">未設定をまとめてその媒体にする</button>
+          <span className="text-neutral-500">(すでに媒体のある候補は変わりません。個別の変更は詳細画面で)</span>
+        </div>
+      )}      {showImport && <ImportPanel onDone={reload} />}
 
       {data && (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold text-neutral-500">媒体</span>
-          {([['', 'すべて'], ...PLATFORMS.filter(([k]) => data.platformCounts[k]).map(([k, n]) => [k, `${n} ${data.platformCounts[k]}`]), ...(data.platformCounts.none ? [['none', `媒体未設定 ${data.platformCounts.none}`]] : [])] as string[][]).map(([k, label]) => (
-            <button key={k} onClick={() => setPlatformSel(k)} className={`rounded-full border px-3 py-1 text-xs ${platformSel === k ? 'bg-neutral-900 text-white' : ''}`}>{label}</button>
-          ))}
-          <span className="ml-2 text-xs font-semibold text-neutral-500">進み具合</span>
+          <span className="text-xs font-semibold text-neutral-500">進み具合</span>
           {([['', 'すべて'], ...Object.entries(STATUS).map(([k, v]) => [k, `${v.label} ${data.statusCounts[k] ?? 0}`])] as string[][]).map(([k, label]) => (
             <button key={k} onClick={() => setStSel(k)} className={`rounded-full border px-3 py-1 text-xs ${stSel === k ? 'bg-neutral-900 text-white' : ''}`}>{label}</button>
           ))}

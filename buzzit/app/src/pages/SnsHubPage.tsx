@@ -11,6 +11,7 @@ import {
 } from '../lib/api';
 import CalendarPage from './CalendarPage';
 import { authFetch } from '../lib/api';
+import SnsRulesBox from './SnsRulesBox';
 
 const HUB_PLATFORMS: Record<string, string[]> = {
   x: ['x_thread'], instagram: ['instagram'], tiktok: ['tiktok'], 'facebook-threads': ['facebook', 'threads'],
@@ -185,6 +186,7 @@ export default function SnsHubPage() {
         </div>
       </div>
 
+      <SnsRulesBox ruleId={platformId} />
       <HubCandidates platformId={platformId} />
       <CalendarPage platformId={platformId} embedded />
     </div>
