@@ -20,6 +20,7 @@ const RoadmapPage = lazy(() => import('./pages/RoadmapPage'));
 const CalendarPage = lazy(() => import('./pages/CalendarPage'));
 const FunnelBuilderPage = lazy(() => import('./pages/FunnelBuilderPage'));
 const InboxPage = lazy(() => import('./pages/InboxPage'));
+const CandidatesPage = lazy(() => import('./pages/CandidatesPage'));
 const ContentCalendarPage = lazy(() => import('./pages/ContentCalendarPage'));
 const XSeriesPage = lazy(() => import('./pages/XSeriesPage'));
 const SnsHubPage = lazy(() => import('./pages/SnsHubPage'));
@@ -61,6 +62,7 @@ function App() {
                     <Route path="sns/:platformId" element={<SnsHubPage />} />
                     <Route path="x-series" element={<XSeriesPage />} />
                     <Route path="inbox" element={<InboxPage />} />
+                    <Route path="candidates" element={<CandidatesPage />} />
                     <Route path="funnel" element={<FunnelBuilderPage />} />
                     <Route path="content-calendar" element={<ContentCalendarPage />} />
                     <Route path="analytics" element={<AnalyticsPage />} />

@@ -8,6 +8,14 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { z } from 'zod';
 import type { Response } from 'express';
 import {
+  addCandidatesFromAi,
+  checkDuplicates,
+  getCandidate,
+  listCandidates,
+  targetOf,
+  updateCandidate,
+} from './postCandidates';
+import {
   APP_ORIGIN,
   agentRouter,
   requireAgentKey,
@@ -58,6 +66,7 @@ const PLATFORM = z
 const INSTRUCTIONS = `バジット(Buzzit)は SNS 投稿の管理アプリです。あなたは「編集長」として下書きを作り、人が確認・承認・予約します（あなたは投稿できません）。
 まず whoami で「接続中のキャラ（ID・名前）」と接続済みSNSアカウントを確認する。この接続はそのキャラ専用で、別キャラ・別アカウントは操作できない（曖昧なら中止して人に確認する）。投稿シリーズは list_series、登録は upsert_plan（既定はプレビューのみ。保存は人が内容と対象キャラを確認してから dryRun=false + characterId）。実績は未取得を0として扱わず、無いデータの成果や理由を創作しない（get_series_report / get_weekly_report の facts と hypotheses を区別して報告）。X APIの読み取りは費用がかかるため使わず、実績は人が手入力またはCSV取り込みする。
 推奨手順: 0) 投稿計画があれば plan_gaps で埋めるべき枠（日時・媒体・テーマ）を取得し、その枠に沿って作る 1) overview か tag_report / performance_report で現状と過去の実績（伸びた型）を確認 2) 使用回数の多いタグ・直近の内容と被らない切り口を選ぶ 3) check_duplicate で重複確認 / lint_post で表現チェック 4) 画像/動画があれば upload_media か get_upload_url で送る 5) tags を付けて create_draft 6) 他SNSに展開するなら adapt_post(dryRun で確認→作成)。
+投稿候補は BuzzIt が正本。candidates_unused でネタを探し、candidates_check_duplicate（完全一致・表現・テーマ・結論・オチ・投稿済み）で確認してから create_draft。候補の追加は candidates_import（列名は自由・既定プレビュー）、修正案は candidates_update の aiSuggestion。採用・下書き移行・予約・投稿は人が画面で行う。
 X自動投稿のシリーズ（カテゴリ別の在庫）は x_series_list → x_series_create → x_series_add_items で自由に作れる（投稿OKは人が画面で付ける）。
 X は本文280字（スレッドは「---」だけの行で区切る・最大5投稿）。Instagram は画像必須、YouTube Shorts / TikTok は動画必須、Googleビジネスはハッシュタグ不要。`;
 
@@ -435,6 +444,66 @@ function buildServer(ctx: AgentCtx): McpServer {
     (a) => run(async () => buildUtmUrl(a)),
   );
 
+  // ---- 投稿候補（BuzzIt が正本）。AIは候補の追加・修正案・重複確認まで。採用・下書き移行・予約・投稿は人が画面で行う ----
+  server.registerTool(
+    'candidates_search',
+    {
+      description: '登録済みの投稿候補を検索する（管理ID・タイトル・本文・シリーズ・テーマ・追加項目が対象）。selection=unreviewed/adopted/needs_fix/hold/rejected、status=candidate/drafted。',
+      inputSchema: { query: z.string().optional(), series: z.string().optional(), selection: z.string().optional(), status: z.string().optional(), limit: z.number().int().min(1).max(100).default(30) },
+    },
+    (q) => run(async () => { const r = await listCandidates(ctx.uid, q); return { total: r.total, counts: r.counts, series: r.series, candidates: r.candidates.map((c) => ({ ...c, body: c.body.slice(0, 300) })) }; }),
+  );
+  server.registerTool(
+    'candidates_unused',
+    {
+      description: '未使用の投稿候補（まだ下書きに移していない・不採用ではない）を、採用済み→未選定→要修正/保留の順で返す。次に作る投稿ネタ探しに使う。',
+      inputSchema: { series: z.string().optional(), limit: z.number().int().min(1).max(50).default(10) },
+    },
+    ({ series, limit }) => run(async () => {
+      const r = await listCandidates(ctx.uid, { series, status: 'candidate', limit: 2000 });
+      const rank: Record<string, number> = { adopted: 0, unreviewed: 1, needs_fix: 2, hold: 3 };
+      const list = r.candidates.filter((c) => c.selection !== 'rejected').sort((a, b) => (rank[a.selection] ?? 9) - (rank[b.selection] ?? 9)).slice(0, limit);
+      return { count: list.length, candidates: list };
+    }),
+  );
+  server.registerTool(
+    'candidates_get',
+    { description: '投稿候補1件の全項目（本文・画像案・確認事項・編集メモ・追加項目・AI提案）。id は管理ID（例 MD-001）。', inputSchema: { id: z.string() } },
+    ({ id }) => run(() => getCandidate(ctx.uid, id)),
+  );
+  server.registerTool(
+    'candidates_check_duplicate',
+    {
+      description: '重複・類似チェック。完全一致／表現が似ている／テーマが近い／結論が同じ／オチが同じ／投稿済みのテーマ を、候補・Xシリーズ在庫・下書き・予約・投稿済み・ネタ帳すべてから探し、ID・タイトル・本文・理由を返す。id（候補の管理ID）または text のどちらかを渡す。useAi を省略するとユーザー設定（既定はルールのみ）に従う。自動削除はしない。',
+      inputSchema: { id: z.string().optional(), text: z.string().optional(), title: z.string().optional(), theme: z.string().optional(), conclusion: z.string().optional(), punchline: z.string().optional(), useAi: z.boolean().optional() },
+    },
+    ({ id, useAi, ...t }) => run(async () => {
+      if (id) return checkDuplicates(ctx, targetOf(await getCandidate(ctx.uid, id)), { ai: useAi });
+      if (!t.text) throw new Error('id か text が必要です');
+      return checkDuplicates(ctx, { text: t.text, title: t.title, theme: t.theme, conclusion: t.conclusion, punchline: t.punchline }, { ai: useAi });
+    }),
+  );
+  server.registerTool(
+    'candidates_import',
+    {
+      description: '投稿候補を追加する。rows は「列名は自由」の表（例: {"管理ID":"MD-121","シリーズ":"…","タイトル":"…","投稿本文":"…","画像案":"…"}）。既知の列（管理ID・シリーズ・タイトル・投稿本文・画像案・評価・確認事項・編集メモ・テーマ・結論・オチ）は自動対応し、それ以外の列は「追加項目」として保存。同じ管理IDは重複登録しない（既存はスキップ）。選定状況は常に未選定で始まり、下書き・予約・公開は作られない。既定は dryRun=true（プレビューのみ）。保存は人が内容を確認してから dryRun=false。',
+      inputSchema: { rows: z.array(z.record(z.string(), z.union([z.string(), z.number()]))).min(1).max(200), columnMap: z.record(z.string(), z.string()).optional(), dryRun: z.boolean().default(true) },
+    },
+    ({ rows, columnMap, dryRun }) => run(() => addCandidatesFromAi(ctx.uid, rows, { columnMap: columnMap as never, dryRun })),
+  );
+  server.registerTool(
+    'candidates_update',
+    {
+      description: '投稿候補の本文・画像案・タイトル・テーマ・結論・オチ・確認事項・編集メモの修正、および aiSuggestion（改善提案。画面に表示され、人が採否を決める）の保存。選定状況（採用など）と下書きへの移行は人だけが行う。',
+      inputSchema: {
+        id: z.string(),
+        title: z.string().max(200).optional(), body: z.string().max(5000).optional(), imageIdea: z.string().max(2000).optional(),
+        theme: z.string().max(200).optional(), conclusion: z.string().max(300).optional(), punchline: z.string().max(300).optional(),
+        checkNotes: z.string().max(2000).optional(), editNotes: z.string().max(2000).optional(), aiSuggestion: z.string().max(3000).optional(),
+      },
+    },
+    ({ id, ...patch }) => run(() => updateCandidate(ctx.uid, id, patch, 'ai')),
+  );
   return server;
 }
 

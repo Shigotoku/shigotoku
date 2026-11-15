@@ -17,6 +17,7 @@ import {
   Share2,
   CheckCircle2,
   PenLine,
+  ListChecks,
 } from 'lucide-react';
 import { BRAND_NAME } from '../constants/brand';
 import { landingPath } from '../lib/urls';
@@ -85,6 +86,7 @@ const mainNav: NavEntry[] = [
   { kind: 'link', name: '今日の投稿', path: '/today', icon: CheckCircle2, staffOk: true },
   { kind: 'divider', label: 'つくる' },
   { kind: 'link', name: 'ネタを溜める', path: '/inbox', icon: Inbox, staffOk: true },
+  { kind: 'link', name: '投稿候補', path: '/candidates', icon: ListChecks, staffOk: true },
   { kind: 'link', name: '投稿を作る', path: '/magic-creator', icon: Wand2, staffOk: true },
   { kind: 'link', name: 'まとめて作る', path: '/content-calendar', icon: PenLine, staffOk: true, match: ['/content-calendar', '/x-series'] },
   { kind: 'divider', label: '予約・確認' },

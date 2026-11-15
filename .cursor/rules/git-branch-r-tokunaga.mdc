@@ -1,25 +1,24 @@
 ---
-description: 徳永（r.tokunaga）がこのリポジトリから push するときの Git 運用（main 直 push）
-globs:
+description: このPCからのコミット・pushのルール（mainへ直接push）
 alwaysApply: true
 ---
 
-# Git ブランチ（徳永 / r.tokunaga）
+# Git push ルール（徳永 / r.tokunaga）
 
-このワークスペースから **コミット・push する前**に、次を守る。
+このワークスペース（このPC）から **コミット・push する際**は、次を守る。
 
-1. **作業ブランチは `main`**
-2. **push 先は `origin/main`（main へ直接 push）**
-3. push の前に **`git pull origin main`** で最新を取り込む
-4. 日付ブランチ `r.tokunaga-YYYY-MM-DD` は **使わない**（徳永の横断変更も main 上で行う）
+1. **`main` へ直接 push する**（PR・作業ブランチは不要）
+2. push の前に `git pull origin main` で最新を取り込み、競合があれば解消する
+3. 他の人の変更を上書きしない（force push はしない）
+4. 担当者向けの `runwith/` `buzzit/` ブランチは、ランウィズ・バジット担当の作業用。徳永の横断変更（`clipit/`、`deploy/`、`corporate-site/`、`docs/`、`raiseit/` など）は `main` に直接 push する
 
 手順:
 
 ```bash
 git checkout main
 git pull origin main
-# コミット後
+# 変更をコミット後
 git push origin main
 ```
 
-担当者向けの `runwith/` `buzzit/` ブランチや、チーム全体の PR 運用は `docs/GIT-TEAM-WORKFLOW.md` を参照。徳永の Cursor 上での push は上記（main 直 push）に従う。
+補足: `main` への push は GitHub Actions（`deploy.yml`）を動かす。

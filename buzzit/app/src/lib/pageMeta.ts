@@ -20,6 +20,9 @@ export function getPageMeta(pathname: string): PageMeta {
   if (pathname.startsWith('/inbox')) {
     return { title: '① ネタを溜める', subtitle: '思いついたことを写真1枚＋一言でメモ' };
   }
+  if (pathname.startsWith('/candidates')) {
+    return { title: '投稿候補', subtitle: '取り込み・重複チェック・採用・下書きまでを一元管理' };
+  }
   if (pathname.startsWith('/magic-creator')) {
     return { title: '② 投稿を作る', subtitle: 'ネタから各SNS向けの投稿文を自動で作ります' };
   }
