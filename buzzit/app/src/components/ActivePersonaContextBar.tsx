@@ -1,9 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Link2, Lock, Unlock } from 'lucide-react';
+import { Lock, Unlock } from 'lucide-react';
 import { usePersona } from '../store/personaContext';
-import { personaSnsLinks } from '../lib/personaSnsStatus';
-import { settingsPath } from '../lib/settingsUrls';
 import { isPersonaLocked, setPersonaLocked } from '../lib/personaLock';
 
 /**
@@ -28,41 +25,22 @@ export default function ActivePersonaContextBar() {
 
   if (!activePersona || loading) return null;
 
-  const links = personaSnsLinks(activePersona);
-
+  // SNSの連携状況はサイドバー「SNSごとの管理」の各媒体の右に「未」で表示する
   return (
-    <div className="hidden flex-wrap items-center justify-end gap-1.5 md:flex">
+    <div className="hidden items-center md:flex">
       <button
         type="button"
         onClick={() => setPersonaLocked(!locked)}
         title={locked ? 'キャラ固定を解除' : 'このキャラに固定（誤切替防止）'}
-        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold ${
+        aria-label={locked ? 'キャラ固定を解除' : 'このキャラに固定'}
+        className={`inline-flex h-7 w-7 items-center justify-center rounded-full border ${
           locked
             ? 'border-violet-700 bg-violet-800 text-white'
             : 'border-violet-300 bg-white text-violet-900 hover:bg-violet-100'
         }`}
       >
-        {locked ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
-        {locked ? 'キャラ固定中' : 'キャラを固定'}
+        {locked ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
       </button>
-      {links.map((link) => (
-        <Link
-          key={link.id}
-          to={settingsPath({ section: link.settingsSection })}
-          title={link.connected ? `${link.label} 連携済み` : `${link.label} をこのキャラで連携`}
-          className={`inline-flex max-w-[10rem] items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${
-            link.connected
-              ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
-              : 'border-amber-300 bg-amber-50 text-amber-950'
-          }`}
-        >
-          <Link2 className="h-3 w-3 shrink-0" aria-hidden />
-          <span className="truncate">
-            {link.label}
-            {link.connected ? (link.detail ? ` ${link.detail}` : ' 済') : ' 未連携'}
-          </span>
-        </Link>
-      ))}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import type { DragEvent, HTMLAttributes } from 'react';
 import type { ScheduledJob } from '../../lib/api';
 import { WEEK_HOUR_SLOTS, applyDateAndHour, findSlotConflicts, nearestHourSlot } from '../../lib/bulkSchedule';
-import { isEditableStatus, sameDay, type ViewMode } from './calendarUtils';
+import { isMovableJob, sameDay, type ViewMode } from './calendarUtils';
 
 export type CalendarCell = { date: Date | null; jobs: ScheduledJob[] };
 
@@ -115,7 +115,7 @@ export default function CalendarGrid({
                         {cellJobs.slice(0, 2).map((j) => (
                           <div
                             key={j.id}
-                            draggable={isEditableStatus(j.status)}
+                            draggable={isMovableJob(j)}
                             onDragStart={(e) => {
                               e.stopPropagation();
                               beginDrag(j, e);
@@ -157,12 +157,14 @@ export default function CalendarGrid({
               const isToday = sameDay(cell.date, new Date());
               const isDrop = dropDateKey === cell.date.toDateString();
               return (
-                <button
+                <div
                   key={cell.date.toISOString()}
-                  type="button"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => cell.date && pickDay(cell.date)}
+                  onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && cell.date) { e.preventDefault(); pickDay(cell.date); } }}
                   {...dateDropProps(cell.date, undefined, true)}
-                  className={`min-h-[64px] border p-1.5 text-left transition-colors ${
+                  className={`min-h-[64px] cursor-pointer overflow-hidden border p-1 text-left transition-colors ${
                     isDrop
                       ? 'border-neutral-900 bg-amber-50'
                       : selected
@@ -177,26 +179,44 @@ export default function CalendarGrid({
                   >
                     {cell.date.getDate()}
                   </span>
-                  <div className="mt-1 flex flex-wrap items-center gap-0.5" title={cell.jobs.length ? `${cell.jobs.length}件` : undefined}>
-                    {cell.jobs.length > 3 && (
-                      <span className="order-last text-[10px] leading-none text-neutral-500">+{cell.jobs.length - 3}</span>
+                  <div className="mt-0.5 space-y-0.5">
+                    {cell.jobs.slice(0, 2).map((j) => {
+                      const movable = isMovableJob(j);
+                      return (
+                        <div
+                          key={j.id}
+                          draggable={movable}
+                          onDragStart={(e) => {
+                            if (!movable) return;
+                            e.stopPropagation();
+                            beginDrag(j, e);
+                          }}
+                          onDragEnd={endDrag}
+                          title={`${j.contents[0]?.label ?? '予約'}${movable ? '（ドラッグで別の日へ移動）' : ''}`}
+                          className={`flex items-center gap-1 truncate rounded border px-1 py-px text-[10px] leading-tight ${
+                            movable ? 'cursor-grab active:cursor-grabbing' : 'cursor-default opacity-70'
+                          } ${
+                            j.status === 'failed'
+                              ? 'border-red-200 bg-red-50 text-red-800'
+                              : j.status === 'pending_approval'
+                                ? 'border-amber-200 bg-amber-50 text-amber-900'
+                                : j.status === 'published' || j.status === 'notified'
+                                  ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+                                  : j.status === 'draft'
+                                    ? 'border-dashed border-neutral-300 bg-neutral-50'
+                                    : 'border-neutral-200 bg-neutral-50'
+                          } ${draggingId === j.id ? 'opacity-40' : ''}`}
+                        >
+                          <span className="shrink-0 text-neutral-400">{new Date(j.scheduledAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}</span>
+                          <span className="truncate">{j.contents[0]?.label ?? '予約'}</span>
+                        </div>
+                      );
+                    })}
+                    {cell.jobs.length > 2 && (
+                      <span className="block text-[10px] leading-none text-neutral-500">+{cell.jobs.length - 2}</span>
                     )}
-                    {cell.jobs.slice(0, 3).map((j) => (
-                      <span
-                        key={j.id}
-                        className={`h-1.5 w-1.5 rounded-full ${
-                          j.status === 'failed'
-                            ? 'bg-red-500'
-                            : j.status === 'pending_approval'
-                              ? 'bg-amber-500'
-                              : j.status === 'published' || j.status === 'notified'
-                                ? 'bg-emerald-500'
-                                : 'bg-neutral-400'
-                        }`}
-                      />
-                    ))}
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>

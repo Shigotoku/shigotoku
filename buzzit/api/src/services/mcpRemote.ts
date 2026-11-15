@@ -69,7 +69,7 @@ const PLATFORM = z
 const INSTRUCTIONS = `バジット(Buzzit)は SNS 投稿の管理アプリです。あなたは「編集長」として下書きを作り、人が確認・承認・予約します（あなたは投稿できません）。
 まず whoami で「接続中のキャラ（ID・名前）」と接続済みSNSアカウントを確認する。この接続はそのキャラ専用で、別キャラ・別アカウントは操作できない（曖昧なら中止して人に確認する）。投稿シリーズは list_series、登録は upsert_plan（既定はプレビューのみ。保存は人が内容と対象キャラを確認してから dryRun=false + characterId）。実績は未取得を0として扱わず、無いデータの成果や理由を創作しない（get_series_report / get_weekly_report の facts と hypotheses を区別して報告）。X APIの読み取りは費用がかかるため使わず、実績は人が手入力またはCSV取り込みする。
 推奨手順: 0) 投稿計画があれば plan_gaps で埋めるべき枠（日時・媒体・テーマ）を取得し、その枠に沿って作る 1) overview か tag_report / performance_report で現状と過去の実績（伸びた型）を確認 2) 使用回数の多いタグ・直近の内容と被らない切り口を選ぶ 3) check_duplicate で重複確認 / lint_post で表現チェック 4) 画像/動画があれば upload_media か get_upload_url で送る 5) tags を付けて create_draft 6) 他SNSに展開するなら adapt_post(dryRun で確認→作成)。
-投稿候補は BuzzIt が正本。candidates_unused でネタを探し、candidates_check_duplicate（完全一致・表現・テーマ・結論・オチ・投稿済み）で確認してから create_draft。ネタや下書きを作る前に、sns_rules_get で対象SNSのルール（曜日ごとのネタ・載せない内容など）を読んで従う。ユーザーに頼まれたら sns_rules_set で追記する。ネタを作ったら candidates_add で媒体(platform)付きで候補に保存（表の一括取り込みは candidates_import）。修正案は candidates_update の aiSuggestion。ユーザーが「この日時に投稿して」と明確に頼んだときは candidates_schedule で予約できる（時間になったら自動投稿／未連携媒体は通知）。頼まれていない予約・投稿は絶対にしない。
+投稿候補は BuzzIt が正本。candidates_unused でネタを探し、candidates_check_duplicate（完全一致・表現・テーマ・結論・オチ・投稿済み）で確認してから create_draft。ネタや下書きを作る前に、sns_rules_get で対象SNSのルール（曜日ごとのネタ・載せない内容など）を読んで従う。ユーザーに頼まれたら sns_rules_set で追記する。ネタを作ったら candidates_add で候補に保存する。どのSNS用か(platform)は必須（省略不可）で、画像は必須のため mediaUrls に upload_media で得たURLを付ける（表の一括取り込み candidates_import も各行に「媒体」列が必須）。修正案は candidates_update の aiSuggestion。ユーザーが「この日時に投稿して」と明確に頼んだときは candidates_schedule で予約できる（時間になったら自動投稿／未連携媒体は通知）。頼まれていない予約・投稿は絶対にしない。
 X自動投稿のシリーズ（カテゴリ別の在庫）は x_series_list → x_series_create → x_series_add_items で自由に作れる（投稿OKは人が画面で付ける）。
 X は本文280字（スレッドは「---」だけの行で区切る・最大5投稿）。Instagram は画像必須、YouTube Shorts / TikTok は動画必須、Googleビジネスはハッシュタグ不要。`;
 
@@ -489,7 +489,7 @@ function buildServer(ctx: AgentCtx): McpServer {
   server.registerTool(
     'candidates_import',
     {
-      description: '投稿候補を追加する。rows は「列名は自由」の表（例: {"管理ID":"MD-121","シリーズ":"…","タイトル":"…","投稿本文":"…","画像案":"…"}）。既知の列（管理ID・シリーズ・タイトル・投稿本文・画像案・評価・確認事項・編集メモ・テーマ・結論・オチ）は自動対応し、それ以外の列は「追加項目」として保存。同じ管理IDは重複登録しない（既存はスキップ）。選定状況は常に未選定で始まり、下書き・予約・公開は作られない。既定は dryRun=true（プレビューのみ）。保存は人が内容を確認してから dryRun=false。',
+      description: '投稿候補を追加する。各行に「媒体」列（X / Instagram / Threads / Facebook / TikTok / YouTube Shorts / LINE / Googleビジネス）が必須で、無い行は取り込まれない。画像は「画像URL」列（https）で渡す。rows は「列名は自由」の表（例: {"管理ID":"MD-121","シリーズ":"…","タイトル":"…","投稿本文":"…","画像案":"…"}）。既知の列（管理ID・シリーズ・タイトル・投稿本文・画像案・評価・確認事項・編集メモ・テーマ・結論・オチ）は自動対応し、それ以外の列は「追加項目」として保存。同じ管理IDは重複登録しない（既存はスキップ）。選定状況は常に未選定で始まり、下書き・予約・公開は作られない。既定は dryRun=true（プレビューのみ）。保存は人が内容を確認してから dryRun=false。',
       inputSchema: { rows: z.array(z.record(z.string(), z.union([z.string(), z.number()]))).min(1).max(200), columnMap: z.record(z.string(), z.string()).optional(), dryRun: z.boolean().default(true) },
     },
     ({ rows, columnMap, dryRun }) => run(() => addCandidatesFromAi(ctx.uid, rows, { columnMap: columnMap as never, dryRun })),
@@ -513,12 +513,13 @@ function buildServer(ctx: AgentCtx): McpServer {
   server.registerTool(
     'candidates_add',
     {
-      description: 'AIが作ったネタを、その場で投稿候補に保存する（プレビューなし）。各ネタに媒体(platform)を付けると、その媒体のネタとして画面に出る。選定状況は「未選定」から始まり、下書き・予約・投稿は作られない。同じ管理IDは重複登録しない。ユーザーが「ネタを作って」「候補に入れて」と頼んだらこれを使う。保存後、必要なら candidates_check_duplicate で確認する。',
+      description: 'AIが作ったネタを、その場で投稿候補に保存する（プレビューなし）。各ネタに媒体(platform)は必須（どのSNS用か）。画像(mediaUrls)も付ける。選定状況は「未選定」から始まり、下書き・予約・投稿は作られない。同じ管理IDは重複登録しない。ユーザーが「ネタを作って」「候補に入れて」と頼んだらこれを使う。保存後、必要なら candidates_check_duplicate で確認する。',
       inputSchema: {
         items: z.array(z.object({
           title: z.string().max(200).optional(),
           body: z.string().min(1).max(5000),
-          platform: PLATFORM.optional(),
+          platform: PLATFORM.describe('必須。このネタを投稿するSNS'),
+          mediaUrls: z.array(z.string().url()).max(6).optional().describe('投稿に付ける画像のURL（https）。upload_media で得たURL。投稿には画像が必須'),
           series: z.string().max(100).optional(),
           imageIdea: z.string().max(2000).optional(),
           theme: z.string().max(200).optional(),
@@ -527,7 +528,7 @@ function buildServer(ctx: AgentCtx): McpServer {
       },
     },
     ({ items }) => run(() => addCandidatesFromAi(ctx.uid, items.map((i) => ({
-      管理ID: i.managementId ?? '', タイトル: i.title ?? '', 投稿本文: i.body, 媒体: i.platform ?? '', シリーズ: i.series ?? '', 画像案: i.imageIdea ?? '', テーマ: i.theme ?? '',
+      管理ID: i.managementId ?? '', タイトル: i.title ?? '', 投稿本文: i.body, 媒体: i.platform, 画像URL: (i.mediaUrls ?? []).join(' '), シリーズ: i.series ?? '', 画像案: i.imageIdea ?? '', テーマ: i.theme ?? '',
     })), { dryRun: false })),
   );
   server.registerTool(
@@ -565,7 +566,7 @@ function buildServer(ctx: AgentCtx): McpServer {
         id: z.string(),
         title: z.string().max(200).optional(), body: z.string().max(5000).optional(), imageIdea: z.string().max(2000).optional(),
         theme: z.string().max(200).optional(), conclusion: z.string().max(300).optional(), punchline: z.string().max(300).optional(),
-        checkNotes: z.string().max(2000).optional(), editNotes: z.string().max(2000).optional(), aiSuggestion: z.string().max(3000).optional(),
+        mediaUrls: z.array(z.string().url()).max(6).optional(), platform: PLATFORM.optional(), checkNotes: z.string().max(2000).optional(), editNotes: z.string().max(2000).optional(), aiSuggestion: z.string().max(3000).optional(),
       },
     },
     ({ id, ...patch }) => run(() => updateCandidate(ctx.uid, id, patch, 'ai')),

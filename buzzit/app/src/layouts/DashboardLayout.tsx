@@ -38,6 +38,8 @@ import BrandMark from '../components/BrandMark';
 import { ROLE_LABELS, canEditSettings, canManageLineCrm, isStaffOnly } from '../lib/permissions';
 import { getPageMeta } from '../lib/pageMeta';
 import { SNS_NAV_PLATFORMS, getSnsNavPlatform } from '../lib/snsPlatforms';
+import { usePersona } from '../store/personaContext';
+import { personaSnsLinks } from '../lib/personaSnsStatus';
 
 const planLabels = {
   free: 'Free',
@@ -82,10 +84,10 @@ type NavEntry = NavLinkItem | NavGroupItem | NavDivider;
 
 const mainNav: NavEntry[] = [
   { kind: 'link', name: 'ダッシュボード', path: '/dashboard', icon: LayoutDashboard, staffOk: true },
+  { kind: 'link', name: '投稿候補', path: '/candidates', icon: ListChecks, staffOk: true },
   { kind: 'link', name: '今日の投稿', path: '/today', icon: CheckCircle2, staffOk: true },
   { kind: 'divider', label: 'つくる' },
   { kind: 'link', name: 'ネタを溜める', path: '/inbox', icon: Inbox, staffOk: true },
-  { kind: 'link', name: '投稿候補', path: '/candidates', icon: ListChecks, staffOk: true },
   { kind: 'link', name: '投稿を作る', path: '/magic-creator', icon: Wand2, staffOk: true },
   { kind: 'link', name: 'まとめて作る', path: '/content-calendar', icon: PenLine, staffOk: true, match: ['/content-calendar', '/x-series'] },
   { kind: 'divider', label: '予約・確認' },
@@ -213,6 +215,18 @@ function SidebarContent({
   onLogout: () => void;
 }) {
   const location = useLocation();
+  const { activePersona } = usePersona();
+  // 連携していないSNS(サイドバーに「未」と表示)。Facebook / Threads は Meta 連携(Instagram と同じ)
+  const unlinked = useMemo(() => {
+    const s = new Set<string>();
+    if (!activePersona) return s;
+    for (const l of personaSnsLinks(activePersona)) {
+      if (l.connected) continue;
+      s.add(l.id);
+      if (l.id === 'instagram') s.add('facebook-threads');
+    }
+    return s;
+  }, [activePersona]);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => ({
     sns: false,
   }));
@@ -288,6 +302,9 @@ function SidebarContent({
                           />
                         )}
                         {child.name}
+                        {platform && unlinked.has(platform.id) && (
+                          <span className="ml-auto text-[10px] font-semibold text-amber-300" title="このキャラでは未連携です">未</span>
+                        )}
                       </NavLink>
                     );})}
                   </div>
@@ -391,7 +408,7 @@ export default function DashboardLayout() {
     ? getSnsNavPlatform(location.pathname.split('/')[2] ?? '')
     : undefined;
   const isSns = !!snsPlatform;
-  const isFullPage = isSns || location.pathname === '/dashboard' || location.pathname === '/analytics' || location.pathname.startsWith('/settings') || location.pathname.startsWith('/x-series');
+  const isFullPage = isSns || location.pathname === '/dashboard' || location.pathname === '/analytics' || location.pathname.startsWith('/settings') || location.pathname.startsWith('/x-series') || location.pathname.startsWith('/candidates');
   const roleLabel = userRole ? ROLE_LABELS[userRole] : 'メンバー';
 
   const navEntries = useMemo(() => filterNav(mainNav, isStaffOnly(userRole)), [userRole]);

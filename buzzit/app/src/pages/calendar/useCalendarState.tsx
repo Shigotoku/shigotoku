@@ -11,7 +11,7 @@ import { getSnsNavPlatform, jobMatchesSnsPlatform } from '../../lib/snsPlatforms
 import { getPostTemplates } from '../../data/postTemplates';
 import { settingsPath } from '../../lib/settingsUrls';
 import type { SideTab } from './SnsSidePanel';
-import { isEditableStatus, startOfWeek, startOfMonth, sameDay, type FilterKey, type ViewMode } from './calendarUtils';
+import { isEditableStatus, isMovableJob, startOfWeek, startOfMonth, sameDay, type FilterKey, type ViewMode } from './calendarUtils';
 
 export type CalendarPageProps = {
   /** 指定時はこの SNS の予約だけ表示（/sns/:platform ハブ用） */
@@ -352,23 +352,28 @@ export function useCalendarState({ platformId, embedded }: CalendarPageProps) {
     setDropDateKey(null);
     const dragId = draggingId;
     setDraggingId(null);
-    if (!job || !isEditableStatus(job.status)) {
-      setMessage('この予約は移動できません');
+    if (!job || !isMovableJob(job)) {
+      setMessage('この予約は移動できません（過去の投稿は動かせません）');
       return;
     }
-    // 月ビュー: 既定時刻が未選択ならピッカー、選んでいればその時刻で即配置
-    if (opts?.fromMonth && hour == null && dropHour == null) {
-      setMonthDropPicker({ date: targetDate, jobId: dragId });
-      setSelectedDay(targetDate);
-      return;
-    }
-    const effectiveHour = hour ?? dropHour ?? undefined;
+    // 月ビュー: 日付だけ変えて時刻は維持する（時刻の変更は詳細で行う）
+    const effectiveHour = opts?.fromMonth ? undefined : hour ?? dropHour ?? undefined;
     if (effectiveHour != null) {
       await placeJobAt(job, targetDate, effectiveHour);
       return;
     }
     const prevAt = job.scheduledAt;
     const nextIso = applyDateKeepTime(job.scheduledAt, targetDate);
+    if (new Date(nextIso).getTime() <= Date.now()) {
+      if (job.status === 'draft') {
+        // 下書きは時刻が決まっていないので、時刻を選んでもらう
+        setMonthDropPicker({ date: targetDate, jobId: dragId });
+        setSelectedDay(targetDate);
+      } else {
+        setMessage('現在より前の日時には移動できません。今日に移す場合は、詳細で時間を変更してください。');
+      }
+      return;
+    }
     setBusyId(job.id);
     try {
       await updateScheduledJob(job.id, {
@@ -377,7 +382,7 @@ export function useCalendarState({ platformId, embedded }: CalendarPageProps) {
       });
       setUndoStack((prev) => [{ jobId: job.id, scheduledAt: prevAt, publishMode: job.publishMode }, ...prev].slice(0, 10));
       setMessage(
-        `${new Date(nextIso).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} へ移動しました`,
+        `投稿予定日を ${new Date(nextIso).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} に変更しました`,
       );
       setSelectedDay(targetDate);
       load();
@@ -390,7 +395,13 @@ export function useCalendarState({ platformId, embedded }: CalendarPageProps) {
   const slotKey = (date: Date, hour?: number) =>
     hour != null ? `${date.toDateString()}@${hour}` : date.toDateString();
 
-  const dateDropProps = (date: Date, hour?: number, fromMonth?: boolean) => ({
+  const dateDropProps = (date: Date, hour?: number, fromMonth?: boolean) => {
+    // 過去の日(時間枠)にはドロップできない
+    const end = hour != null ? new Date(applyDateAndHour(date, hour)) : new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59);
+    if (end.getTime() <= Date.now()) return {};
+    return dateDropHandlers(date, hour, fromMonth);
+  };
+  const dateDropHandlers = (date: Date, hour?: number, fromMonth?: boolean) => ({
     onDragOver: (e: DragEvent) => {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';

@@ -87,6 +87,8 @@ export interface Candidate {
   punchline: string;
   /** 取り込んだ元の列のうち、既知の項目に当てはまらなかったもの（列名は自由） */
   extra: Record<string, string>;
+  /** 投稿に付ける画像・動画のURL（https）。投稿には画像が必須 */
+  mediaUrls: string[];
   status: CandidateStatus;
   linkedJobId?: string;
   aiSuggestion?: string;
@@ -152,7 +154,7 @@ export function mapHeaders(headers: string[], override: ColumnMap = {}): Array<F
     for (const f of MATCH_ORDER) {
       if (taken.has(f)) continue;
       const aliases = ALIASES[f].map(normHeader);
-      const idx = hs.findIndex((h, i) => out[i] === 'extra' && !override[headers[i]] && h && aliases.some((a) => (pass === 'exact' ? h === a : a.length >= (/^[a-z0-9]+$/.test(a) ? 4 : 2) && h.includes(a))));
+      const idx = hs.findIndex((h, i) => out[i] === 'extra' && !override[headers[i]] && h && !MEDIA_HEADERS.has(h) && aliases.some((a) => (pass === 'exact' ? h === a : a.length >= (/^[a-z0-9]+$/.test(a) ? 4 : 2) && h.includes(a))));
       if (idx >= 0) {
         out[idx] = f;
         taken.add(f);
@@ -174,6 +176,13 @@ export function toSelection(raw: string): Selection {
 
 const docIdOf = (managementId: string) => managementId.replace(/[\/\\\s#?\[\]*]/g, '_').slice(0, 100) || 'x';
 const clean = (v: unknown, max = 5000) => String(v ?? '').replace(/\r\n/g, '\n').trim().slice(0, max);
+
+/** https の URL だけを残す（最大6件） */
+export function cleanUrls(v: unknown): string[] {
+  const arr = Array.isArray(v) ? v : typeof v === 'string' ? v.split(/[\s,|]+/) : [];
+  return [...new Set(arr.map((u) => String(u ?? '').trim()).filter((u) => /^https:\/\/\S+$/.test(u)))].slice(0, 6);
+}
+const MEDIA_HEADERS = new Set(['画像url', '画像urls', 'imageurl', 'imageurls', 'mediaurl', 'mediaurls', '画像リンク']);
 
 function tsIso(v: unknown): string {
   return v instanceof Timestamp ? v.toDate().toISOString() : new Date().toISOString();
@@ -200,6 +209,7 @@ function fromDoc(id: string, d: FirebaseFirestore.DocumentData): Candidate {
     conclusion: d.conclusion ?? '',
     punchline: d.punchline ?? '',
     extra: (d.extra as Record<string, string>) ?? {},
+    mediaUrls: cleanUrls(d.mediaUrls),
     status: (d.status as CandidateStatus) ?? 'candidate',
     linkedJobId: d.linkedJobId,
     aiSuggestion: d.aiSuggestion,
@@ -219,6 +229,8 @@ export interface ImportInput {
   mode?: 'skip' | 'update';
   /** true=保存せず結果だけ返す。既定 true にする呼び出し側も多い */
   dryRun?: boolean;
+  /** true=媒体（投稿先SNS）が読み取れない行は取り込まない（AI経由は必須） */
+  requirePlatform?: boolean;
 }
 
 const MAX_ROWS = 2000;
@@ -248,7 +260,7 @@ export async function importCandidates(uid: string, input: ImportInput) {
   }
   const mode = input.mode === 'update' ? 'update' : 'skip';
 
-  type Parsed = { managementId: string; auto: boolean; fields: Partial<Record<TextField, string>>; selectionRaw: string; platform: string; extra: Record<string, string>; rowNo: number };
+  type Parsed = { managementId: string; auto: boolean; fields: Partial<Record<TextField, string>>; selectionRaw: string; platform: string; mediaUrls: string[]; extra: Record<string, string>; rowNo: number };
   const parsed: Parsed[] = [];
   const errors: Array<{ row: number; message: string }> = [];
   const seen = new Set<string>();
@@ -259,11 +271,13 @@ export async function importCandidates(uid: string, input: ImportInput) {
     let mid = '';
     let selectionRaw = '';
     let platformRaw = '';
+    let mediaUrls: string[] = [];
     headers.forEach((h, c) => {
       const v = clean(rec[c]);
       const m = mapping[c];
       if (!v || m === 'ignore') return;
-      if (m === 'extra') extra[h.slice(0, 40)] = v.slice(0, 2000);
+      if (m === 'extra' && MEDIA_HEADERS.has(normHeader(h))) mediaUrls = cleanUrls(v);
+      else if (m === 'extra') extra[h.slice(0, 40)] = v.slice(0, 2000);
       else if (m === 'managementId') mid = v.slice(0, 60);
       else if (m === 'selection') selectionRaw = v.slice(0, 60);
       else if (m === 'platform') platformRaw = v.slice(0, 60);
@@ -271,6 +285,10 @@ export async function importCandidates(uid: string, input: ImportInput) {
     });
     if (!fields.body && !fields.title) {
       if (Object.keys(extra).length || mid) errors.push({ row: rowNo, message: '本文もタイトルも空のためスキップしました' });
+      return;
+    }
+    if (input.requirePlatform && !normPlatform(platformRaw)) {
+      errors.push({ row: rowNo, message: '媒体（どのSNS用か）が未指定のためスキップしました。X / Instagram / Threads / Facebook / TikTok / YouTube Shorts / LINE / Googleビジネス のいずれかを必ず指定してください' });
       return;
     }
     let auto = false;
@@ -284,7 +302,7 @@ export async function importCandidates(uid: string, input: ImportInput) {
       return;
     }
     seen.add(key);
-    parsed.push({ managementId: mid, auto, fields, selectionRaw, platform: toPlatform(platformRaw), extra, rowNo });
+    parsed.push({ managementId: mid, auto, fields, selectionRaw, platform: normPlatform(platformRaw), mediaUrls, extra, rowNo });
   });
 
   const refs = parsed.map((p) => col(uid).doc(docIdOf(p.managementId)));
@@ -319,7 +337,7 @@ export async function importCandidates(uid: string, input: ImportInput) {
     else updated++;
     if (input.dryRun) continue;
 
-    const base = { ...Object.fromEntries(Object.entries(p.fields)), ...(p.platform ? { platform: p.platform } : {}), extra: p.extra, managementId: p.managementId, updatedAt: FieldValue.serverTimestamp() };
+    const base = { ...Object.fromEntries(Object.entries(p.fields)), ...(p.platform ? { platform: p.platform } : {}), ...(p.mediaUrls.length ? { mediaUrls: p.mediaUrls } : {}), extra: p.extra, managementId: p.managementId, updatedAt: FieldValue.serverTimestamp() };
     if (result === 'new') {
       const full: Record<string, unknown> = {};
       for (const f of TEXT_FIELDS) full[f] = p.fields[f] ?? '';
@@ -327,6 +345,7 @@ export async function importCandidates(uid: string, input: ImportInput) {
         ...full,
         managementId: p.managementId,
         extra: p.extra,
+        mediaUrls: p.mediaUrls,
         selection: toSelection(p.selectionRaw),
         selectionRaw: p.selectionRaw,
         platform: p.platform,
@@ -400,6 +419,7 @@ export interface CandidatePatch extends Partial<Record<TextField, string>> {
   selection?: Selection;
   platform?: string;
   aiSuggestion?: string;
+  mediaUrls?: string[];
 }
 
 /** 人による更新。AI（MCP）経由では selection は変更できない（採用の判断は人） */
@@ -415,6 +435,7 @@ export async function updateCandidate(uid: string, id: string, patch: CandidateP
     upd.selectionRaw = SELECTION_LABEL[patch.selection];
   }
   if (typeof patch.platform === 'string') upd.platform = normPlatform(patch.platform);
+  if (Array.isArray(patch.mediaUrls)) upd.mediaUrls = cleanUrls(patch.mediaUrls);
   if (typeof patch.aiSuggestion === 'string') {
     upd.aiSuggestion = clean(patch.aiSuggestion, 3000);
     upd.aiSuggestedAt = FieldValue.serverTimestamp();
@@ -434,14 +455,15 @@ export async function addCandidatesFromAi(uid: string, rows: Array<Record<string
     }
     return o;
   });
-  return importCandidates(uid, { rows: stripped, columnMap: opts.columnMap, mode: 'skip', dryRun: opts.dryRun });
+  return importCandidates(uid, { rows: stripped, columnMap: opts.columnMap, mode: 'skip', dryRun: opts.dryRun, requirePlatform: true });
 }
 const toSelectionHeader = (h: string) => mapHeaders([h])[0] === 'selection';
 
 /** 自分で書いたネタを、そのまま候補に入れる（選定状況は未選定から。下書き・予約は作らない） */
-export async function createManualCandidate(uid: string, input: { body?: string; title?: string; platform?: string; series?: string }) {
+export async function createManualCandidate(uid: string, input: { body?: string; title?: string; platform?: string; series?: string; mediaUrls?: string[] }) {
   const body = clean(input.body);
   if (!body) throw new Error('ネタの本文を入力してください');
+  if (!normPlatform(input.platform ?? '')) throw new Error('どのSNS用か（媒体）を選んでください');
   const id = `MY-${Date.now().toString(36).toUpperCase()}`;
   await col(uid).doc(id).set({
     managementId: id,
@@ -451,6 +473,7 @@ export async function createManualCandidate(uid: string, input: { body?: string;
     platform: normPlatform(input.platform ?? ''),
     imageIdea: '', rating: '', checkNotes: '', editNotes: '', theme: '', conclusion: '', punchline: '',
     extra: {},
+    mediaUrls: cleanUrls(input.mediaUrls),
     selection: 'unreviewed',
     selectionRaw: '',
     status: 'candidate',
@@ -536,6 +559,7 @@ export async function syncCandidates(ctx: AgentCtx) {
           platform: 'x_thread', source: 'xseries', sourceKey: `xseries:${it.id}`,
           selection: x.approved ? 'adopted' : 'unreviewed', selectionRaw: x.approved ? '採用' : '', status,
           extra: { ...(x.tags ? { タグ: String(x.tags) } : {}), ...(x.imageAlt ? { 画像ALT: String(x.imageAlt) } : {}) },
+          mediaUrls: cleanUrls(x.imageUrl),
           ...(x.scheduledAt ? { scheduledAt: x.scheduledAt } : {}),
         });
       }
@@ -552,7 +576,7 @@ export async function syncCandidates(ctx: AgentCtx) {
       await create(key, {
         managementId: key.slice(0, 11), title: String(j.topic || text.split('\n')[0]).slice(0, 30), body: text,
         platform: platformOf(j), source: 'draft', sourceKey: `job:${j.id}`, linkedJobId: j.id, status: 'drafted', scheduledAt: j.scheduledAt,
-        extra: {},
+        extra: {}, mediaUrls: cleanUrls(j.mediaUrls),
       });
     }
   }
@@ -566,7 +590,23 @@ export async function syncCandidates(ctx: AgentCtx) {
     if (d.status !== st || d.scheduledAt !== job.scheduledAt) await update(id, { status: st, scheduledAt: job.scheduledAt });
   }
   if (n) await batch.commit();
+  await migrateUnsetPlatformToX(uid);
   return { created, refreshed };
+}
+
+/** 一度だけ: これまで媒体未設定だった候補（ChatGPT連携で入れたXの投稿案など）をXに分類する */
+async function migrateUnsetPlatformToX(uid: string) {
+  const flag = db().doc(`users/${uid}/prefs/candidatePlatformX`);
+  if ((await flag.get()).exists) return;
+  const snap = await col(uid).limit(2000).get();
+  const targets = snap.docs.filter((d) => !d.data().platform);
+  for (let i = 0; i < targets.length; i += 400) {
+    const b = db().batch();
+    for (const d of targets.slice(i, i + 400)) b.update(d.ref, { platform: 'x_thread', updatedAt: FieldValue.serverTimestamp() });
+    await b.commit();
+  }
+  await flag.set({ done: true, count: targets.length, at: new Date().toISOString() });
+  if (targets.length) await writeAuditLog(uid, 'candidates.migrate_platform_x', `${targets.length}件`);
 }
 
 /**
@@ -579,6 +619,7 @@ export async function candidateToJob(ctx: AgentCtx, id: string, input: { schedul
   if (c.selection === 'rejected') throw new Error('「不採用」の候補は予定にできません。先に未選定などへ戻してください');
   if (c.linkedJobId && c.status !== 'candidate') throw new Error(`すでにカレンダーに入っています（${STATUS_LABEL[c.status]}）。二重に作らないよう止めました。カレンダーで確認してください`);
   if (!c.body.trim()) throw new Error('投稿本文が空です');
+  if (!c.mediaUrls.length) throw new Error('画像が未設定です。投稿には画像が必須のため、候補の画面で画像を貼り付けてから予約してください');
   const platform = input.platform || c.platform || 'x_thread';
   if (!(TARGET_PLATFORMS as string[]).includes(platform)) throw new Error(`媒体は ${TARGET_PLATFORMS.join(' / ')} のいずれかです`);
   const when = new Date(input.scheduledAt ?? '');
@@ -592,7 +633,7 @@ export async function candidateToJob(ctx: AgentCtx, id: string, input: { schedul
   if (mode === 'draft') {
     const r = await opCreateDraft(ctx, {
       contents: [{ platform, label, content: c.body }],
-      scheduledAt: when.toISOString(), topic: c.title || undefined, silent: true,
+      scheduledAt: when.toISOString(), topic: c.title || undefined, silent: true, mediaUrls: c.mediaUrls,
     });
     jobId = r.jobId;
     message = '下書きにしました。カレンダーで確認し、予約してください。';
@@ -617,6 +658,7 @@ export async function candidateToJob(ctx: AgentCtx, id: string, input: { schedul
     await incrementPostQuota(ctx.uid);
     jobId = await createScheduledJob(ctx.uid, {
       contents: [{ platform, label, content: c.body }],
+      mediaUrls: c.mediaUrls,
       scheduledAt: when.toISOString(),
       publishMode,
       personaId: ctx.personaId,

@@ -1,7 +1,7 @@
 import type { DragEvent } from 'react';
 import { CheckCircle2, GripVertical, MoreHorizontal, Pencil, RefreshCw } from 'lucide-react';
 import type { ScheduledJob } from '../../lib/api';
-import { isEditableStatus, statusLabel } from './calendarUtils';
+import { isEditableStatus, isMovableJob, statusLabel } from './calendarUtils';
 
 export type JobCardHandlers = {
   canApprove: boolean;
@@ -46,6 +46,7 @@ export default function JobCard({
   setMessage,
 }: Props) {
   const editable = isEditableStatus(job.status);
+  const movable = isMovableJob(job);
   const busy = busyId === job.id;
   const thumb = job.mediaUrls?.find((u) => !isVideo(u));
   const when = new Date(job.scheduledAt);
@@ -58,10 +59,10 @@ export default function JobCard({
 
   return (
     <div
-      draggable={editable}
-      onDragStart={(e) => editable && beginDrag(job, e)}
+      draggable={movable}
+      onDragStart={(e) => movable && beginDrag(job, e)}
       onDragEnd={endDrag}
-      className={`rounded-xl border border-neutral-200 bg-white p-3 ${editable ? 'cursor-grab active:cursor-grabbing' : ''} ${
+      className={`rounded-xl border border-neutral-200 bg-white p-3 ${movable ? 'cursor-grab active:cursor-grabbing' : ''} ${
         draggingId === job.id ? 'opacity-50' : ''
       }`}
     >

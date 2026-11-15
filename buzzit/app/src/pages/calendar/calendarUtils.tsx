@@ -6,6 +6,12 @@ export function isEditableStatus(status: ScheduledJob['status']): status is Edit
   return status === 'pending' || status === 'pending_approval' || status === 'draft' || status === 'failed';
 }
 
+/** ドラッグで日付を動かせる投稿: 編集できる状態で、現在時刻以降の予定(下書きは常に可)。過去のものは動かせない */
+export function isMovableJob(job: Pick<ScheduledJob, 'status' | 'scheduledAt'>): boolean {
+  if (!isEditableStatus(job.status)) return false;
+  return job.status === 'draft' || new Date(job.scheduledAt).getTime() > Date.now();
+}
+
 export const PLATFORM_LIMITS: Record<string, number> = { x_thread: 280, threads: 500, instagram: 2200, reels: 2200, carousel: 2200, facebook: 5000, line: 500, gbp: 1500, tiktok: 2200, youtube_shorts: 5000 };
 
 export function CharCount({ platform, text }: { platform: string; text: string }) {
