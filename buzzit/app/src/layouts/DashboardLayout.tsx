@@ -341,14 +341,17 @@ function SidebarContent({
             サイト
             <ExternalLink className="h-3 w-3" />
           </a>
-          <NavLink
-            to="/guide"
+          <a
+            href={landingPath('/guide/')}
+            target="_blank"
+            rel="noopener noreferrer"
             onClick={onNavigate}
             className="inline-flex items-center justify-center gap-1 rounded-lg border border-white/20 bg-white/5 px-2 py-2 text-xs font-semibold text-neutral-100 transition-colors hover:bg-white/15 hover:text-white"
           >
             <BookOpen className="h-3 w-3" />
             使い方ガイド
-          </NavLink>
+            <ExternalLink className="h-3 w-3" />
+          </a>
         </div>
         <div className="rounded-lg bg-white/15 px-3 py-2">
           <div className="flex items-center gap-2">
