@@ -10,23 +10,24 @@ const toc = [
   { id: 'overview', label: '1. BuzzItとは・何ができるか' },
   { id: 'start', label: '2. はじめての使い方' },
   { id: 'screens', label: '3. 画面の見方（サイドバー）' },
-  { id: 'persona', label: '配信キャラの切り替え・管理' },
-  { id: 'dashboard', label: '4. 経営コクピット' },
-  { id: 'roadmap', label: '5. 成長ロードマップ' },
-  { id: 'inbox', label: '6. ネタInbox' },
-  { id: 'magic', label: '7. マジック・クリエイター' },
-  { id: 'calendar', label: '8. 投稿カレンダー' },
-  { id: 'x-scheduling', label: 'X予約投稿ガイド（場面別）' },
-  { id: 'content-calendar', label: '9. 30本カレンダー' },
-  { id: 'funnel', label: '10. 導線ビルダー' },
-  { id: 'line', label: '11. LINE CRM' },
-  { id: 'analytics', label: '12. 分析・売上' },
-  { id: 'team', label: '13. スタッフ管理' },
-  { id: 'settings', label: '14. 設定・連携' },
-  { id: 'billing', label: '15. 料金・店舗・追加アカウント' },
-  { id: 'roles', label: '16. 権限（オーナー／店長／スタッフ）' },
-  { id: 'daily', label: '17. おすすめの一日の流れ' },
-  { id: 'faq', label: '18. よくある質問' },
+  { id: 'persona', label: '4. 配信キャラの切り替え・管理' },
+  { id: 'dashboard', label: '5. ダッシュボード' },
+  { id: 'today', label: '6. 今日の投稿' },
+  { id: 'inbox', label: '7. ネタを溜める' },
+  { id: 'candidates', label: '8. 投稿候補' },
+  { id: 'create', label: '9. 投稿を作る' },
+  { id: 'bulk', label: '10. まとめて作る（30日分・Xシリーズ）' },
+  { id: 'sns', label: '11. SNSごとの管理・カレンダー' },
+  { id: 'x-scheduling', label: '12. X予約投稿ガイド（場面別）' },
+  { id: 'ai', label: '13. AIにつなぐ（ChatGPT・Claude）' },
+  { id: 'growth', label: '14. 集客（LINE・導線）' },
+  { id: 'analytics', label: '15. 分析・売上' },
+  { id: 'settings', label: '16. 設定・連携' },
+  { id: 'roadmap', label: '17. 成長ロードマップ' },
+  { id: 'billing', label: '18. 料金・店舗・追加アカウント' },
+  { id: 'roles', label: '19. 権限（オーナー／店長／スタッフ）' },
+  { id: 'daily', label: '20. おすすめの一日の流れ' },
+  { id: 'faq', label: '21. よくある質問' },
 ];
 ---
 
@@ -57,7 +58,7 @@ const toc = [
   </header>
 
   <main class="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:py-14">
-    <div class="mb-10 max-w-3xl">
+    <div class="mx-auto mb-10 max-w-3xl text-left">
       <p class="mb-3 text-xs font-semibold tracking-wider text-[#6b4a3a] uppercase">User Guide</p>
       <h1 class="font-display text-3xl font-bold tracking-tight text-[var(--color-buzz-title)] sm:text-4xl">
         BuzzIt 使い方ガイド
@@ -90,28 +91,27 @@ const toc = [
         <section id="overview" class="scroll-mt-24">
           <h2>1. BuzzItとは・何ができるか</h2>
           <p>
-            BuzzIt（バジット）は、美容室・飲食店・クリニックなどの<strong>来店型・サービス業</strong>向けに、
-            SNS投稿・LINE運用・集客導線・売上の見える化をひとつにまとめたクラウドサービスです。
-            来店型の集客支援が強みですが、<strong>SNS運用の効率化・投稿予約の一元管理だけ</strong>の使い方にも向いています。
+            BuzzIt（バジット）は、SNSの投稿づくりから予約、確認までを<strong>ひとつの画面で進められる</strong>クラウドサービスです。
+            美容室・飲食店・クリニックなどの来店型のお店はもちろん、<strong>複数のSNSを運用している会社や個人</strong>にも使えます。
           </p>
           <h3>一言でいうと</h3>
           <ul>
-            <li>複数SNSへの投稿を<strong>一括で予約</strong>できる</li>
-            <li>「なにを投稿するか」をAIが提案する</li>
-            <li>1本のネタから Instagram / LINE / X など向けの文章に展開する</li>
-            <li>予約投稿・承認・カレンダーで運用を回す</li>
-            <li>LINE友だちへのタグ・配信・クーポンでリピートにつなげる</li>
-            <li>投稿→来店・予約までの流れをダッシュボードで見る</li>
+            <li>思いついた<strong>ネタを溜めて</strong>、投稿の形に仕上げられる</li>
+            <li>1本のネタから、Instagram・X・LINE など<strong>媒体ごとの文章</strong>を作れる</li>
+            <li>日時を決めて<strong>予約</strong>し、予定をカレンダーで確認できる</li>
+            <li>「今日の投稿」の画面で、<strong>コピー → 投稿 → 完了</strong>までを迷わず進められる</li>
+            <li>ChatGPT や Claude などの<strong>AIに下書きを作らせる</strong>こともできる（承認と投稿は必ずご自身で行います）</li>
+            <li>LINE友だちの管理や、SNSからの導線づくり、分析もできる</li>
           </ul>
           <h3>主なできること</h3>
           <div class="not-prose grid gap-3 sm:grid-cols-2">
             {[
-              ['台本生成', 'マジック・クリエイターでAI台本・ボイスドラフト'],
-              ['予約投稿', 'カレンダーで承認・失敗時のやり直し'],
-              ['チーム運用', 'SlackやネタInboxでスタッフのネタを集める'],
-              ['LINE CRM', 'タグ・セグメント・ステップ・クーポン'],
-              ['導線設計', 'プロフィール文・短縮URL・店頭QR'],
-              ['連携', 'Meta / LINE / Slack / Ayrshare(X) / GBP / HPB'],
+              ['ネタを溜める', '思いついたことを1行メモ。スタッフも参加できる'],
+              ['投稿候補', 'ネタの置き場。重複チェック・採用の判断・予約までここで'],
+              ['投稿を作る', '1つのネタから媒体別の投稿文をAIがまとめて作成'],
+              ['今日の投稿', 'コピー・画像保存・投稿画面を開く・完了ボタンを1画面で'],
+              ['SNSごとの管理', '媒体別にカレンダー・下書き・運用ルールを管理'],
+              ['AI連携', 'ChatGPT / Claude などが下書きを直接バジットに作成'],
             ].map(([title, desc]) => (
               <div class="border border-neutral-200 bg-white p-4">
                 <p class="font-semibold text-neutral-900">{title}</p>
@@ -119,6 +119,9 @@ const toc = [
               </div>
             ))}
           </div>
+          <p class="guide-tip">
+            <strong>大切なルール：</strong>投稿・承認・予約の確定は、必ずあなたが画面のボタンで行います。AIが勝手に投稿することはありません。
+          </p>
         </section>
 
         <!-- 2 -->
@@ -133,24 +136,34 @@ const toc = [
             <li>メールアドレス＋パスワード、または Google で登録／ログイン</li>
             <li>はじめての場合は、続く「はじめに」画面で業種・目的・媒体を選びます（約2分）</li>
           </ol>
-          <h3>ステップ2：はじめに（オンボーディング）</h3>
-          <p>次の5ステップで進めます。</p>
+          <h3>ステップ2：「はじめに」で選ぶこと</h3>
           <ol>
-            <li><strong>ようこそ</strong> — 進め方の説明</li>
-            <li><strong>業種</strong> — 美容・飲食・医療・非店舗など近いものを選択</li>
+            <li><strong>業種</strong> — 美容・飲食・医療・非店舗など、近いものを選ぶ</li>
             <li><strong>目的</strong> — 新規集客／リピート／認知／採用など</li>
-            <li><strong>媒体</strong> — 最初に集中するSNS（Instagram / LINE / X など）</li>
-            <li><strong>次の一手</strong> — 公式登録 → BuzzIt連携 → 初投稿の順を提示</li>
+            <li><strong>媒体</strong> — 最初に力を入れたいSNS（Instagram・X・LINE など）</li>
+            <li><strong>次の一手</strong> — 選んだ媒体に合わせて、やることが案内されます</li>
           </ol>
           <p class="guide-tip">
-            「あとで設定する」でもダッシュボードへ進めます。あとからサイドバーの「はじめにを見直す」でやり直せます。
+            「あとで設定する」でも先へ進めます。あとから、サイドバー下の<strong>「使い方の手順」</strong>ページの「業種・目的の見直し」でやり直せます。
           </p>
-          <h3>ステップ3：最初にやること（おすすめ順）</h3>
+          <h3>ステップ3：「使い方の手順」ページで準備を進める</h3>
+          <p>
+            サイドバー下の<strong>「使い方の手順」</strong>には、「あと何をすれば使える？」というチェックリスト（セットアップ診断）があります。
+            上から順にやるだけで、準備が整います。
+          </p>
           <ol>
-            <li><strong>設定</strong>で選んだ媒体の連携（Meta / LINE / Ayrshare など）</li>
-            <li><strong>マジック・クリエイター</strong>で最初の1本を作る</li>
-            <li><strong>投稿カレンダー</strong>で予約・承認する</li>
-            <li>LINEを使うなら<strong>LINE CRM</strong>でタグとあいさつを整える</li>
+            <li><strong>配信キャラを設定</strong>する（誰として投稿するかを決める）</li>
+            <li><strong>事業所の特徴</strong>を書く（強み・話し方を入れると、AIの文章に反映されます）</li>
+            <li><strong>SNS連携</strong>をする（Instagram・X・LINE など）</li>
+            <li>予約・来店用の<strong>URL</strong>を登録する</li>
+            <li><strong>最初の投稿</strong>を予約する</li>
+          </ol>
+          <h3>はじめての流れ（4ステップ）</h3>
+          <ol>
+            <li><strong>ネタを溜める</strong> — 思いついたことをメモ</li>
+            <li><strong>各SNS用に作る</strong> — 「投稿を作る」で媒体別の文章にする</li>
+            <li><strong>媒体で整えて予約</strong> — 「SNSごとの管理」で仕上げて日時を決める</li>
+            <li><strong>全体を確認</strong> — ダッシュボードのカレンダーで予定をチェック</li>
           </ol>
         </section>
 
@@ -168,214 +181,291 @@ const toc = [
                 </tr>
               </thead>
               <tbody>
-                <tr><td>ダッシュボード</td><td>今日のミッション・健康スコア・承認待ち</td><td>全員</td></tr>
-                <tr><td>ネタ作成（Inbox / クリエイター）</td><td>スタッフのネタ収集とAI台本・予約作成</td><td>全員</td></tr>
-                <tr><td>SNS（各媒体）</td><td>Instagram / LINE / X など媒体別の運用ハブ</td><td>全員</td></tr>
-                <tr><td>投稿カレンダー</td><td>予約一覧・承認・再試行</td><td>全員</td></tr>
-                <tr><td>導線ビルダー</td><td>プロフィール文・URL・QR</td><td>店長以上</td></tr>
-                <tr><td>LINE CRM</td><td>友だち・タグ・配信・ステップ</td><td>店長以上</td></tr>
-                <tr><td>設定</td><td>プラン・連携・請求・スタッフ招待</td><td>店長以上</td></tr>
-                <tr><td>成長ロードマップ</td><td>SNS立ち上げの順番・伴走ガイド</td><td>全員</td></tr>
-                <tr><td>30本カレンダー</td><td>最初の30日分のネタ計画</td><td>全員</td></tr>
-                <tr><td>Xシリーズ</td><td>連続ツイートの計画・予約</td><td>全員</td></tr>
-                <tr><td>分析・売上</td><td>週次レポート・KPI</td><td>店長以上</td></tr>
+                <tr><td>ダッシュボード</td><td>予定カレンダー・承認待ち・数字の確認</td><td>全員</td></tr>
+                <tr><td>今日の投稿</td><td>今日やる投稿のコピー・投稿・完了報告／下書きの日時確定</td><td>全員</td></tr>
+                <tr><td colspan="3"><strong>つくる</strong></td></tr>
+                <tr><td>ネタを溜める</td><td>ネタ・写真のメモ（スタッフも投稿可）</td><td>全員</td></tr>
+                <tr><td>投稿候補</td><td>ネタの置き場。重複チェック・判断・予約</td><td>全員</td></tr>
+                <tr><td>投稿を作る</td><td>媒体別の投稿文をAIが作成</td><td>全員</td></tr>
+                <tr><td>まとめて作る</td><td>30日分のネタ計画／Xシリーズ（連続投稿の在庫）</td><td>全員</td></tr>
+                <tr><td colspan="3"><strong>予約・確認</strong></td></tr>
+                <tr><td>SNSごとの管理</td><td>X・Instagram・TikTok など媒体別のカレンダー・運用ルール</td><td>全員</td></tr>
+                <tr><td colspan="3"><strong>増やす</strong></td></tr>
+                <tr><td>集客（LINE・導線）</td><td>LINE友だち管理・配信／プロフィール導線・QR</td><td>店長以上</td></tr>
+                <tr><td>分析・売上</td><td>週次レポート・成果の確認</td><td>店長以上</td></tr>
+                <tr><td colspan="3"><strong>設定・ヘルプ</strong></td></tr>
+                <tr><td>使い方の手順</td><td>準備チェックリスト・毎朝のルーティン・AI連携の手順／成長ロードマップ（タブ）</td><td>全員</td></tr>
+                <tr><td>設定</td><td>配信キャラ・事業所・SNS連携・スタッフ・プラン</td><td>店長以上</td></tr>
               </tbody>
             </table>
           </div>
           <p>
-            サイドバー上部の<strong>「使い方ガイド」</strong>を押すと、このページが別タブで開きます。
+            サイドバーの一番下には、<strong>「サイト」</strong>（サービスサイト）と<strong>「使い方ガイド」</strong>（このページ）のボタンがあります。
+            <strong>「使い方ガイド」</strong>を押すと、このページが別タブで開きます。
           </p>
           <p>
-            画面右上には<strong>配信キャラ切り替え</strong>（公式・院長・キャラなど）があります。1社で複数の発信者を運用する場合は、まずここで「誰として投稿するか」を選んでから作業してください。
+            画面の上部には<strong>配信キャラ</strong>の切り替えがあります。複数のキャラ（公式・院長など）を運用している場合は、まず「誰として投稿するか」を選んでから作業してください。
           </p>
         </section>
 
         <!-- persona -->
         <section id="persona" class="scroll-mt-24">
-          <h2>配信キャラの切り替え・管理</h2>
+          <h2>4. 配信キャラの切り替え・管理</h2>
           <p>
-            BuzzIt では、1つのログインアカウントの中で<strong>複数の配信キャラ</strong>（公式・個人・キャラなど）を切り替えて運用できます。
-            例：メディトク株式会社では「メディトク公式」「院長」「メディトくん」などを分けて管理します。
+            BuzzIt では、1つのログインの中で<strong>複数の配信キャラ</strong>（公式・個人・キャラなど）を切り替えて運用できます。
+            例：「公式」「院長」「マスコットキャラ」を分けて管理する、といった使い方です。
           </p>
-          <h3>キャラを切り替える手順</h3>
+          <h3>キャラを切り替える</h3>
           <ol>
-            <li>画面<strong>右上</strong>の配信キャラ名（色付きボタン）をクリック</li>
-            <li>一覧から切り替えたいキャラを選択</li>
-            <li>ヘッダーの表示名と、設定の黄色バナー（「現在の配信キャラ：…」）が同じ名前になれば成功</li>
+            <li>画面上部の配信キャラ名をクリック</li>
+            <li>一覧から、切り替えたいキャラを選ぶ</li>
+            <li>表示名が切り替わったら完了です</li>
           </ol>
           <p class="guide-tip">
-            切り替えに失敗した場合は、赤いエラーメッセージが表示されます。ページを再読み込みしてからもう一度お試しください。
+            切り替えに失敗した場合は、エラーメッセージが出ます。ページを再読み込みしてから、もう一度お試しください。
           </p>
           <h3>キャラごとに分かれるもの</h3>
           <ul>
-            <li><strong>SNS連携</strong>（X API・Meta・LINE など）— 設定 → SNS連携タブで、選択中キャラ専用に保存されます</li>
-            <li><strong>ブランドトーン</strong>（brandProfile）— AI生成の口調がキャラごとに変わります</li>
-            <li><strong>予約投稿・Xシリーズ</strong>— 選択中キャラに紐づきます</li>
+            <li><strong>SNS連携</strong>（X・Instagram・LINE など）</li>
+            <li><strong>ブランドトーン</strong>（AIが作る文章の口調）</li>
+            <li><strong>投稿候補・予約・下書き</strong></li>
+            <li><strong>SNSごとのルール</strong></li>
           </ul>
           <h3>キャラの追加・名前変更</h3>
           <ol>
-            <li>右上メニュー下部の「<strong>＋ キャラを追加・管理</strong>」をクリック（または 設定 → 配信キャラ タブ）</li>
-            <li>名前・種別（公式／個人／キャラ）を入力して追加</li>
-            <li>2体目以降はプランの追加ペルソナ枠（¥980/月/体）が必要な場合があります</li>
+            <li><strong>設定 → 配信キャラ・アカウント</strong> タブを開く</li>
+            <li>名前・種別（公式／個人／キャラ）を入れて追加する</li>
+            <li>2体目以降は、プランによって追加枠（¥980/月/体）が必要な場合があります</li>
           </ol>
           <h3>よくあるつまずき</h3>
           <ul>
-            <li><strong>キャラを変えたのに X の連携が同じ</strong> → 各キャラで設定 → SNS連携を開き、切り替え後に改めて API キーを保存してください</li>
-            <li><strong>公式キャラの投稿が承認待ちになる</strong> → 公式タイプは安全のため承認フローがデフォルトです。投稿カレンダーで承認してください</li>
+            <li><strong>キャラを変えたのに、Xの連携が前のキャラのまま</strong> → 各キャラで、設定 → SNS連携を開いて保存し直してください</li>
+            <li><strong>公式キャラの投稿が承認待ちになる</strong> → 公式タイプは安全のため、承認してから投稿する設定が標準です</li>
           </ul>
         </section>
 
-        <!-- 4 -->
+        <!-- dashboard -->
         <section id="dashboard" class="scroll-mt-24">
-          <h2>4. 経営コクピット</h2>
-          <p>アプリを開いたときのホーム画面です。「今日やること」が一目で分かるようになっています。</p>
+          <h2>5. ダッシュボード</h2>
+          <p>アプリを開いたときのホーム画面です。「今どうなっているか」を一目で確認できます。</p>
           <h3>見られるもの</h3>
           <ul>
-            <li><strong>今日のミッション</strong> — AIが提案する今日の投稿・承認タスク</li>
-            <li><strong>SNS健康スコア</strong> — 連携状況や運用の健全性の目安</li>
-            <li><strong>承認待ち投稿</strong> — ワンタップで承認できる予約</li>
-            <li><strong>トレンド／地域ネタ</strong> — 波乗り用のアイデア</li>
-            <li><strong>接続アラート</strong> — Metaトークン期限切れなど</li>
+            <li><strong>予定カレンダー</strong>（左側）— 今日以降の投稿予定</li>
+            <li><strong>数字のまとめ</strong>（右側）— 投稿数・成果など</li>
+            <li><strong>承認待ちの投稿</strong> — 内容を確認して承認できます</li>
+            <li><strong>連携の警告</strong> — Metaの有効期限切れなど、対応が必要なもの</li>
           </ul>
-          <h3>操作のコツ</h3>
+          <h3>朝の使い方</h3>
           <ol>
-            <li>朝いちにコクピットを開く</li>
-            <li>承認待ちがあれば内容を確認して承認</li>
-            <li>ミッションの「台本を作る」からマジック・クリエイターへ進む</li>
+            <li>ダッシュボードを開く</li>
+            <li>承認待ちがあれば、内容を見て承認</li>
+            <li>赤い警告（失敗した投稿）があれば、再試行する</li>
+            <li>細かく編集したいときは、カレンダーの<strong>「週表示・編集」</strong>を開く</li>
           </ol>
         </section>
 
-        <!-- 5 -->
-        <section id="roadmap" class="scroll-mt-24">
-          <h2>5. 成長ロードマップ</h2>
+        <!-- today -->
+        <section id="today" class="scroll-mt-24">
+          <h2>6. 今日の投稿</h2>
           <p>
-            SNSをゼロから整えるときの<strong>順番つきガイド</strong>です。業種を選ぶと、おすすめ媒体・投稿の型・初投稿ネタが具体化されます。
+            「今日、何を投稿すればいいか」を1画面で終わらせるためのページです。
+            投稿は、あなたが確認してボタンを押して行います。
           </p>
-          <h3>使い方</h3>
+          <h3>「今日やること」の使い方</h3>
           <ol>
-            <li>業種を選ぶ（オンボーディングと連動）</li>
-            <li>「公式登録 → 初投稿 → 自動投稿」のステージを順に進める</li>
-            <li>各ステップの公式サイトリンクやアプリ内リンクから作業する</li>
-            <li>完了したらチェックを入れて進捗を見える化する</li>
+            <li>投稿カードの<strong>「全文コピー」</strong>で本文をコピー</li>
+            <li>画像・動画があるときは<strong>「画像を保存」</strong>で端末に保存</li>
+            <li><strong>「投稿画面を開く」</strong>で、X・Instagram・LINE など各SNSの投稿画面へ移動</li>
+            <li>貼り付けて投稿する</li>
+            <li>BuzzIt に戻って<strong>「投稿しました」</strong>を押す</li>
           </ol>
-          <p class="guide-tip">迷ったらロードマップの「次にやること」だけ進めてください。全部を一度にやる必要はありません。</p>
+          <p class="guide-tip">
+            Xでは、投稿画面で「予約」を選ぶと、X側の予約投稿にもできます。スレッド（連続投稿）は、1本目を開いて、続きは返信に貼ります。
+          </p>
+          <h3>「日時の確定待ちの下書き」</h3>
+          <p>AIや候補から作られた下書きがここに並びます。日時を確認して<strong>「この日時で予約する」</strong>を押すと予約されます。</p>
+          <ul>
+            <li><strong>Xへ自動投稿</strong> — X連携済みなら、指定した時刻に自動で投稿されます</li>
+            <li><strong>通知のみ（手動投稿）</strong> — 時刻に通知が届くので、「今日やること」から投稿します</li>
+            <li>チェックを付けて<strong>まとめて予約</strong>・<strong>日付をずらす</strong>・<strong>タグ追加</strong>もできます</li>
+          </ul>
         </section>
 
-        <!-- 6 -->
+        <!-- inbox -->
         <section id="inbox" class="scroll-mt-24">
-          <h2>6. ネタInbox</h2>
-          <p>現場スタッフが「今日の仕上がり写真」「お客様の一言」などを送る箱です。店長が採用して台本化できます。</p>
-          <h3>スタッフの操作</h3>
+          <h2>7. ネタを溜める</h2>
+          <p>思いついたことを1行でメモする場所です。「施術後の一言」「お客様との会話」「今日の写真」など、投稿のタネを貯めておきます。スタッフ全員が使えます。</p>
+          <h3>メモの残し方</h3>
           <ol>
-            <li>ネタInboxを開く</li>
-            <li>テキストと任意で写真を添付して送信</li>
+            <li>「ネタを溜める」を開く</li>
+            <li>テキストを入れ、必要なら写真を添付して送信</li>
           </ol>
-          <h3>店長・オーナーの操作</h3>
-          <ol>
-            <li>届いたネタを確認</li>
-            <li>「使う」を押すとマジック・クリエイターへ引き継がれます</li>
-          </ol>
+          <h3>溜めたネタの使い方</h3>
+          <ul>
+            <li>店長・オーナーが内容を確認して、<strong>「投稿を作る」</strong>で投稿文にします</li>
+            <li>溜めたネタは<strong>「投稿候補」</strong>にも自動で集まります</li>
+          </ul>
         </section>
 
-        <!-- 7 -->
-        <section id="magic" class="scroll-mt-24">
-          <h2>7. マジック・クリエイター</h2>
-          <p>BuzzItの中心機能です。1つのネタから、複数媒体向けの投稿文をまとめて作り、予約できます。</p>
+        <!-- candidates -->
+        <section id="candidates" class="scroll-mt-24">
+          <h2>8. 投稿候補</h2>
+          <p>
+            投稿ネタの<strong>置き場</strong>です。自分で書いたネタ・ネタ帳・まとめて作ったネタ・AIの下書きが、すべてここに集まります。
+            「ネタを見比べる → 重複を確認する → 日時を決めて予約する」までを、この画面で進められます。
+          </p>
+          <h3>ネタを追加する</h3>
+          <ul>
+            <li><strong>その場で書く</strong> — 上の入力欄にネタを書いて「候補に追加」</li>
+            <li><strong>取り込む</strong> — スプレッドシートの表を貼り付けるか、CSVファイルを選んで取り込み。取り込んでも、下書き・予約・公開は作られません。同じ管理IDは重複して登録されません</li>
+            <li><strong>書き出す</strong> — 「CSVで書き出す」でバックアップできます</li>
+          </ul>
+          <h3>1件ずつ判断して予約する</h3>
+          <ol>
+            <li>左の一覧からネタを選ぶ（媒体・進み具合・シリーズ・キーワードで絞り込めます）</li>
+            <li>右側で本文・編集メモを確認・修正して保存</li>
+            <li><strong>「採用」「要修正」「保留」「不採用」</strong>から判断を選ぶ</li>
+            <li><strong>過去の類似投稿</strong>を確認する（同じような内容を何度も投稿しないためのチェックです）</li>
+            <li>「投稿予定を立てる」で日時と投稿先を選び、<strong>「予約する」</strong>（予約せず下書きにすることもできます）</li>
+          </ol>
+          <h3>ポイント</h3>
+          <ul>
+            <li>重複チェックは、既定では<strong>ルール判定（無料）</strong>です。「AIでも判定する」にチェックを入れると、AIでも判定します</li>
+            <li>媒体が決まっていない候補は、まとめて同じ媒体に設定できます</li>
+            <li>予約の確定は、必ず人がボタンを押して行います</li>
+          </ul>
+        </section>
+
+        <!-- create -->
+        <section id="create" class="scroll-mt-24">
+          <h2>9. 投稿を作る</h2>
+          <p>BuzzItの中心機能です。1つのネタから、複数媒体向けの投稿文をまとめて作れます。</p>
           <h3>基本の流れ</h3>
           <ol>
             <li>アイデア（今日の一言・メニュー名・出来事）を入力</li>
-            <li>必要なら写真／動画をアップロード（添削ヒントが出ます）</li>
-            <li>「生成」で Instagramリール／カルーセル／X／LINE 向け文案を取得</li>
+            <li>必要なら写真／動画をアップロード</li>
+            <li>「生成」で、Instagram・X・LINE など媒体別の文案を取得</li>
             <li>内容を確認・編集</li>
-            <li>日時と投稿モードを選んで予約</li>
+            <li>日時と投稿方法を選んで予約</li>
           </ol>
           <h3>ボイスドラフト</h3>
           <ol>
-            <li>マイクボタンで録音（施術中の説明など）</li>
-            <li>停止すると文字起こし＋台本化</li>
-            <li>生成結果をそのまま予約へ進める</li>
+            <li>マイクボタンで話す（施術中の説明など）</li>
+            <li>停止すると、文字起こし＋台本化</li>
+            <li>そのまま予約へ進めます</li>
           </ol>
-          <h3>勝ち型・Xのコピー</h3>
-          <ul>
-            <li>過去にうまくいった型（勝ち型）を保存・再利用できます</li>
-            <li>Xは自動投稿の代わりに、コピーして公式アプリへ貼る運用も想定しています（Ayrshare連携時は予約投稿可）</li>
-          </ul>
           <p class="guide-tip">
-            Freeプランでは透かしや月間生成上限があります。本格運用は Starter 以上がおすすめです。
+            Freeプランでは、透かしや月間の生成回数に上限があります。本格的に使う場合は、Starter以上がおすすめです。
           </p>
         </section>
 
-        <!-- 8 -->
-        <section id="calendar" class="scroll-mt-24">
-          <h2>8. 投稿カレンダー</h2>
-          <p>予約済み・承認待ち・失敗した投稿をカレンダー／一覧で管理します。</p>
-          <h3>できること</h3>
+        <!-- bulk -->
+        <section id="bulk" class="scroll-mt-24">
+          <h2>10. まとめて作る（30日分・Xシリーズ）</h2>
+          <p>サイドバーの「まとめて作る」には、上部のタブで切り替える2つの機能があります。</p>
+          <h3>30日分をまとめて作る</h3>
+          <p>
+            業種に合わせた<strong>最初の30日分のネタ計画</strong>です。「何を書けばいいか分からない」時期の道しるべになります。
+          </p>
+          <ol>
+            <li>「はじめに」で選んだ業種に合わせて、アイデアが表示されます</li>
+            <li>気になるネタを「投稿を作る」で投稿文にする</li>
+            <li>日時を決めて予約していく</li>
+          </ol>
+          <h3>Xシリーズ（自動投稿キュー）</h3>
+          <p>決まった曜日に、ストックしたツイートを自動で投稿する機能です（詳しくは<a href="#x-scheduling">X予約投稿ガイド</a>）。</p>
+        </section>
+
+        <!-- sns -->
+        <section id="sns" class="scroll-mt-24">
+          <h2>11. SNSごとの管理・カレンダー</h2>
+          <p>
+            サイドバーの<strong>「SNSごとの管理」</strong>を開くと、X・Instagram・TikTok・Facebook / Threads・YouTube Shorts・LINE公式・Googleビジネスが並びます。
+            媒体を選ぶと、その媒体専用の画面が開きます。
+          </p>
+          <h3>この画面でできること</h3>
+          <ul>
+            <li><strong>連携の状態</strong>の確認（「連携済み」「未連携」。未連携なら「連携する」から設定へ）</li>
+            <li><strong>カレンダー</strong>（左側）— 予約済み・承認待ち・失敗した投稿の確認</li>
+            <li><strong>作成・履歴・予定・下書き</strong>（右側）の切り替え</li>
+            <li><strong>その媒体の投稿候補</strong>（まだ予約していないネタ）の確認</li>
+            <li><strong>その媒体のルール</strong>の記入</li>
+          </ul>
+          <h3>カレンダーでの操作</h3>
           <ul>
             <li>週・月表示の切り替え</li>
-            <li>投稿の承認</li>
+            <li>投稿の<strong>承認</strong></li>
             <li>失敗した投稿の<strong>再試行</strong>／<strong>下書きに戻す</strong></li>
-            <li>投稿の空き（コンテンツギャップ）の警告</li>
+            <li>投稿が空いている日の警告</li>
           </ul>
-          <h3>失敗したときの3択</h3>
+          <h3>失敗したときの3つの対処</h3>
           <ol>
             <li>もう一度送る（再試行）</li>
-            <li>下書きに戻して文案を直す</li>
-            <li>連携（Meta / LINE など）を設定で確認する</li>
+            <li>下書きに戻して、文章を直す</li>
+            <li>設定で連携（Meta・LINE など）を確認する</li>
           </ol>
+          <h3>SNSごとの「ルール」を書く</h3>
+          <p>
+            各媒体の画面には、<strong>「○○のルール」</strong>という自由記入欄があります。
+            運用のきまりを書いておくと、AIがネタを作るときにも読んでくれます。
+          </p>
+          <ul>
+            <li>例：「月曜は医療制度のネタ」「金曜は小ネタ」</li>
+            <li>例：「診療報酬の断定的な表現はしない」「同じオチは続けない」</li>
+            <li>AI連携中のChatGPTなどは、頼めばルールに追記もできます（「AIが更新」と表示されます）</li>
+          </ul>
         </section>
 
         <!-- x-scheduling -->
         <section id="x-scheduling" class="scroll-mt-24">
-          <h2>X予約投稿ガイド（場面別）</h2>
+          <h2>12. X予約投稿ガイド（場面別）</h2>
           <p>
             X（旧Twitter）への投稿は、<strong>目的と運用スタイル</strong>によって使う機能が異なります。
-            まず右上で<strong>配信キャラ</strong>を選び、続いて<strong>設定 → SNS連携</strong>でそのキャラ用の X API を接続してください。
+            まず上部で<strong>配信キャラ</strong>を選び、続いて<strong>設定 → SNS連携 → X</strong>でそのキャラ用のX APIを接続してください。
           </p>
 
           <h3>事前準備（すべての場面で共通）</h3>
           <ol>
-            <li>右上で投稿したい<strong>配信キャラ</strong>を選択</li>
-            <li><strong>設定 → SNS連携</strong>で X API（Key / Secret / Access Token / Secret）を入力し「接続テストして保存」</li>
-            <li>接続済み（✓）になったら予約投稿が可能です</li>
+            <li>上部で、投稿したい<strong>配信キャラ</strong>を選ぶ</li>
+            <li><strong>設定 → SNS連携 → X</strong>で、X API（Key / Secret / Access Token / Secret）を入力し、「接続テストして保存」</li>
+            <li>接続済み（✓）になったら、予約投稿が使えます</li>
           </ol>
           <p class="guide-tip">
-            X API は月500件程度の無料枠があります。設定画面に「今月 N / 500」が表示されます。上限に近づいたら Xシリーズのペースを見直してください。
+            X APIには、月500件程度の無料枠があります。設定画面に「今月 N / 500」と表示されます。上限に近づいたら、Xシリーズのペースを見直してください。
           </p>
 
-          <h3>場面A：1本だけ、決まった日時に投稿したい（単発予約）</h3>
-          <p><strong>向いている例：</strong>キャンペーン告知、イベント前日のリマインド、ニュース1本だけ</p>
+          <h3>場面A：1本だけ、決まった日時に投稿したい</h3>
+          <p><strong>向いている例：</strong>キャンペーン告知、イベント前日のリマインド</p>
           <ol>
-            <li><strong>マジック・クリエイター</strong>を開く（サイドバー「原稿ビルダー」または SNS → X）</li>
-            <li>ネタを入力して「生成」→ X 向け文案を確認・編集</li>
-            <li>予約ボタンから<strong>日時</strong>を指定</li>
-            <li>投稿モードで<strong>「X API 自動投稿（BYOK）」</strong>を選択して予約</li>
-            <li><strong>投稿カレンダー</strong>で「予約済み」として確認（公式キャラは承認待ちの場合あり）</li>
+            <li><strong>「投稿を作る」</strong>を開き、ネタを入れて生成</li>
+            <li>X向けの文案を確認・編集</li>
+            <li>日時を指定して予約（投稿方法は「X自動投稿」）</li>
+            <li>「今日の投稿」やカレンダーで、予約済みになっているか確認</li>
           </ol>
 
           <h3>場面B：毎週決まった曜日に、ストックから自動投稿したい（Xシリーズ）</h3>
-          <p><strong>向いている例：</strong>医療コラム、論文紹介、定番ネタの継続発信（旧スプレッドシート＋GAS運用の代替）</p>
+          <p><strong>向いている例：</strong>コラム、豆知識など、定番ネタの継続発信</p>
           <ol>
-            <li>サイドバー<strong>「Xシリーズ」</strong>を開く（設定の SNS連携画面からリンクもあります）</li>
-            <li>シリーズを作成（「医療テンプレを作成」で A〜D シリーズを一括作成も可）</li>
-            <li>ツイートを<strong>一括追加</strong>（AI一括生成・テキスト貼り付け・CSV）で在庫を入れる</li>
-            <li>各行の<strong>「投稿OK」</strong>にチェック（承認済みの在庫だけが消化されます）</li>
-            <li><strong>スケジュールルール</strong>で曜日・時刻・1回の件数を設定 → 自動投稿開始</li>
+            <li>サイドバー<strong>「まとめて作る」→「Xシリーズ」</strong>を開く</li>
+            <li>シリーズを作る（医療向けのテンプレートで一括作成もできます）</li>
+            <li>ツイートを<strong>一括追加</strong>（AI一括生成・テキスト貼り付け・CSV）して在庫を入れる</li>
+            <li>各行の<strong>「投稿OK」</strong>にチェック（承認済みの在庫だけが使われます）</li>
+            <li><strong>スケジュールルール</strong>で、曜日・時刻・1回の件数を決めて自動投稿を開始</li>
           </ol>
-          <p>在庫が少なくなるとパネルに「週N本ペース・約M週分」と表示されます。切れる前に補充してください。</p>
+          <p>在庫が少なくなると、「週N本ペース・約M週分」と表示されます。切れる前に補充してください。</p>
 
-          <h3>場面C：今すぐ1本だけ投稿したい（即時投稿）</h3>
+          <h3>場面C：今すぐ1本だけ投稿したい</h3>
           <ol>
-            <li><strong>Xシリーズ</strong>で在庫を選び「今すぐ投稿」</li>
-            <li>またはマジック・クリエイターで生成後、日時を「今」に近い未来に設定して予約</li>
+            <li>Xシリーズで在庫を選び、<strong>「今すぐ投稿」</strong></li>
+            <li>または、<strong>「今日の投稿」</strong>から投稿画面を開いて、手動で投稿</li>
           </ol>
 
-          <h3>場面D：文案だけ作り、手動で X アプリに貼る（連携なし）</h3>
+          <h3>場面D：文案だけ作って、手動でXに貼りたい（連携なし）</h3>
           <ol>
-            <li>マジック・クリエイターで X 文案を生成</li>
-            <li>投稿モードを<strong>「通知」</strong>にする（Slack/LINE に文案が届く運用も可）</li>
-            <li>表示された文案をコピーし、X 公式アプリで手動投稿</li>
+            <li>「投稿を作る」でX文案を作り、投稿方法を<strong>「通知のみ」</strong>にして予約</li>
+            <li>時刻になったら、<strong>「今日の投稿」</strong>で本文をコピーし、「投稿画面を開く」で投稿</li>
+            <li>投稿後に「投稿しました」を押す</li>
           </ol>
-          <p>外部サービス <strong>Ayrshare</strong> を使う場合は、設定でプロファイルキーを登録し投稿モード「Ayrshare」を選びます（X API とは別ルートです）。</p>
 
           <h3>どの方法を選ぶ？（早見表）</h3>
           <div class="not-prose overflow-x-auto">
@@ -388,148 +478,194 @@ const toc = [
                 </tr>
               </thead>
               <tbody>
-                <tr><td>1本だけ日時指定</td><td>マジック・クリエイター → 投稿カレンダー</td><td>X API（BYOK）</td></tr>
-                <tr><td>毎週自動で連投</td><td>Xシリーズ ＋ スケジュールルール</td><td>X API（BYOK）</td></tr>
-                <tr><td>今すぐ1本</td><td>Xシリーズ「今すぐ投稿」</td><td>X API（BYOK）</td></tr>
-                <tr><td>手動コピー運用</td><td>マジック・クリエイター（通知モード）</td><td>不要</td></tr>
-                <tr><td>複数キャラで別アカウント</td><td>配信キャラ切替 → 各キャラで SNS連携</td><td>キャラごとに X API</td></tr>
+                <tr><td>1本だけ日時指定</td><td>投稿を作る → 予約</td><td>X API</td></tr>
+                <tr><td>毎週自動で連投</td><td>Xシリーズ ＋ スケジュールルール</td><td>X API</td></tr>
+                <tr><td>今すぐ1本</td><td>Xシリーズ「今すぐ投稿」／今日の投稿</td><td>X API（手動なら不要）</td></tr>
+                <tr><td>手動コピー運用</td><td>今日の投稿（通知のみ）</td><td>不要</td></tr>
+                <tr><td>複数キャラで別アカウント</td><td>配信キャラ切替 → 各キャラでSNS連携</td><td>キャラごとにX API</td></tr>
               </tbody>
             </table>
           </div>
         </section>
 
-        <!-- 9 -->
-        <section id="content-calendar" class="scroll-mt-24">
-          <h2>9. 30本カレンダー</h2>
+        <!-- ai -->
+        <section id="ai" class="scroll-mt-24">
+          <h2>13. AIにつなぐ（ChatGPT・Claude）</h2>
           <p>
-            業種テンプレに基づく<strong>最初の30日分のネタ計画</strong>です。「何を書けばいいか分からない」時期の道しるべになります。
+            ChatGPT や Claude などのAIから、バジットに<strong>ネタや下書きを直接書き込める</strong>ようにする機能です。
+            AIができるのは<strong>「ネタの追加」と「下書きの作成」まで</strong>です。承認・予約・投稿は、必ずあなたが画面で行います。
           </p>
+          <h3>つなぎ方（ChatGPT の場合・Plus以上）</h3>
           <ol>
-            <li>はじめにで選んだ業種に合わせてアイデアが表示されます</li>
-            <li>気になるネタをマジック・クリエイターで台本化</li>
-            <li>投稿カレンダーに予約していく</li>
+            <li>
+              <strong>URLをコピーする</strong> — バジットの<strong>設定 → 配信キャラ・アカウント → AI連携</strong>を開き、「ChatGPT / Claude（Web）」を選んで、MCPサーバーURLをコピー
+            </li>
+            <li>
+              <strong>ChatGPTにカスタムMCPサーバーを追加する</strong> — ChatGPTの「プラグイン」画面で「カスタムMCPサーバーを追加」を選び、次のように入力
+              <ul>
+                <li>名前：「BuzzIt ○○」など、分かりやすい名前（キャラごとに変えると区別できます）</li>
+                <li>接続タイプ：サーバーURL ／ URL：①でコピーしたもの</li>
+                <li>認証：<strong>OAuth</strong></li>
+                <li>「理解したうえで続けます」にチェックして作成</li>
+              </ul>
+            </li>
+            <li><strong>「接続」を押す</strong> — バジットのログイン画面が開きます</li>
+            <li>
+              <strong>バジットで「許可する」</strong> — ログインして、<strong>AIに任せたい配信キャラ</strong>を選び、「許可する」を押します。下書きは、ここで選んだキャラの名義で作られます
+            </li>
+            <li>
+              <strong>AIに依頼する</strong> — ChatGPTで新しいチャットを開き、バジットを有効にして、AI連携画面の「AIに送る依頼文」を貼ります。「X向けに来週分3本の下書きを作って」のように一言添えると、下書きが作られます
+            </li>
           </ol>
-        </section>
-
-        <!-- 10 -->
-        <section id="funnel" class="scroll-mt-24">
-          <h2>10. 導線ビルダー</h2>
-          <p>SNSプロフィールから予約・LINEへの流れを整える画面です（店長以上）。</p>
-          <h3>作れるもの</h3>
+          <p>できあがった下書きは、<strong>「今日の投稿」</strong>や<strong>カレンダー</strong>で内容を確認し、あなたが承認・予約します。</p>
+          <h3>安全に使うために</h3>
           <ul>
-            <li>プロフィール名・自己紹介文のたたき台</li>
-            <li>短縮URL（計測用）</li>
-            <li>店頭用QRコード</li>
+            <li>接続は、<strong>承認したユーザーの、選んだ1つのキャラ専用</strong>です。他のユーザーのデータには触れません</li>
+            <li>依頼文には、最初に「<strong>接続中のユーザーとキャラが想定どおりか確認する</strong>」手順が入っています。違うときは、何も書き込まずに中止します</li>
+            <li>承認画面には、ログイン中のアカウントと接続先のアプリが表示されます。<strong>心当たりのないアプリは許可しないでください</strong></li>
+            <li>接続は、いつでも「設定 → AI連携」から解除できます</li>
           </ul>
-          <h3>おすすめの流れ</h3>
-          <p>リール／投稿 → プロフィール → LINE or 予約サイト → 来店。導線ビルダーで「プロフィールの看板」を先に固めると成果が出やすくなります。</p>
+          <h3>複数のキャラをつなぐとき</h3>
+          <p>
+            同じURLで、キャラごとにつなぎます。URLは全員共通で、<strong>どのキャラになるかは、承認画面で選んだキャラで決まります</strong>。
+            ChatGPT側の名前は「BuzzIt 公式」「BuzzIt 院長」のようにキャラごとに変え、承認画面でキャラを間違えないようにしてください。
+            つないだあとは、AIに接続中のユーザーとキャラを確認させると安心です。
+          </p>
+          <h3>うまくいかないとき</h3>
+          <ul>
+            <li><strong>新しい機能が見当たらない</strong> → ChatGPTのプラグイン画面でバジットを開き、「更新（再読み込み）」を押してください。設定やデータは消えません</li>
+            <li>それでも直らない → バジットのプラグインを削除して、追加し直してください（承認画面でキャラも選び直します）</li>
+            <li>「カスタムMCPサーバーを追加」が見つからない → Cursor・Claude Code・Gemini CLI（キーを発行して設定を貼る方式）をご利用ください</li>
+          </ul>
         </section>
 
-        <!-- 11 -->
-        <section id="line" class="scroll-mt-24">
-          <h2>11. LINE CRM</h2>
-          <p>Lステップ等の代わりに使える、LINE公式アカウント運用機能です（店長以上）。</p>
-          <h3>タブごとの使い方</h3>
+        <!-- growth -->
+        <section id="growth" class="scroll-mt-24">
+          <h2>14. 集客（LINE・導線）</h2>
+          <p>サイドバーの<strong>「集客（LINE・導線）」</strong>には、上部のタブで切り替える2つの機能があります（店長以上）。</p>
+
+          <h3>LINE CRM（友だち管理）</h3>
+          <p>Lステップなどの代わりに使える、LINE公式アカウントの運用機能です。</p>
           <ul>
             <li><strong>友だち</strong> — 一覧・検索・タグ付け・詳細</li>
             <li><strong>タグ</strong> — 来店回数・興味などのラベル管理</li>
             <li><strong>流入経路</strong> — QR・広告ごとの友だち追加を計測</li>
             <li><strong>セグメント配信</strong> — 条件に合う人だけにメッセージ</li>
-            <li><strong>ステップ配信</strong> — 登録後の自動メッセージシナリオ</li>
+            <li><strong>ステップ配信</strong> — 登録後の自動メッセージ</li>
             <li><strong>チャットキュー</strong> — お客様からの返信対応</li>
-            <li><strong>クーポン</strong> — 発行・利用（リデーム）</li>
-            <li><strong>Flex／リッチメニュー</strong> — 見た目の良いメッセージや下部メニュー</li>
-            <li><strong>インサイト</strong> — 友だち数・配信コスト試算</li>
+            <li><strong>クーポン</strong> — 発行・利用</li>
+            <li><strong>Flex／リッチメニュー</strong> — 見た目の良いメッセージ・下部メニュー</li>
+            <li><strong>インサイト</strong> — 友だち数・配信コストの試算</li>
           </ul>
-          <h3>初期セットアップ</h3>
+          <h3>LINEの初期セットアップ</h3>
           <ol>
-            <li>設定で LINE Channel Secret / Access Token を保存</li>
-            <li>表示される Webhook URL を LINE Developers に登録</li>
+            <li>設定でLINEのChannel SecretとAccess Tokenを保存</li>
+            <li>表示されるWebhook URLを、LINE Developersに登録</li>
             <li>タグとあいさつ（ステップ）を1本作る</li>
-            <li>店頭QRを導線ビルダー／流入経路で発行</li>
+            <li>店頭のQRを発行する</li>
           </ol>
           <p class="guide-tip">
-            LINEの<strong>配信料金自体</strong>はLINE公式から各店舗へ請求されます。BuzzItは管理ツール料のみです。絞り込み配信で通数を抑えるのがポイントです。
+            LINEの<strong>配信料金そのもの</strong>は、LINE公式から各店舗へ請求されます。BuzzItは管理ツール料のみです。絞り込み配信で通数を抑えるのがコツです。
           </p>
+
+          <h3>導線ビルダー（SNS → LINE → 予約）</h3>
+          <p>SNSのプロフィールから、予約・LINEへの流れを整える画面です。</p>
+          <ul>
+            <li>プロフィール名・自己紹介文のたたき台</li>
+            <li>短縮URL（計測用）</li>
+            <li>店頭用のQRコード</li>
+          </ul>
+          <p>投稿 → プロフィール → LINE または予約サイト → 来店。まず「プロフィールの看板」を固めると、成果が出やすくなります。</p>
         </section>
 
-        <!-- 12 -->
+        <!-- analytics -->
         <section id="analytics" class="scroll-mt-24">
-          <h2>12. 分析・売上</h2>
-          <p>リーチ・クリック・LINE登録・推計売上などをまとめて見る画面です。</p>
+          <h2>15. 分析・売上</h2>
+          <p>リーチ・クリック・LINE登録・推計売上などをまとめて見る画面です（店長以上）。</p>
           <ul>
-            <li>週次レポート（月曜想定）の要約</li>
+            <li>週次レポートの要約</li>
             <li>投稿ごとの成果</li>
-            <li>HPB（ホットペッパー）など予約サイトとの関連（プランによる）</li>
+            <li>ホットペッパーなど予約サイトとの関連（プランによる）</li>
           </ul>
-          <p>連携が少ないうちはデモ／サンプル表示になることがあります。Meta・LINE・予約URLを設定すると実データに近づきます。</p>
+          <p>連携が少ないうちは、サンプル表示になります。Instagram・LINE・予約URLなどを設定すると、実際の数字に切り替わります。</p>
         </section>
 
-        <!-- 13 -->
-        <section id="team" class="scroll-mt-24">
-          <h2>13. スタッフ管理</h2>
-          <ol>
-            <li>スタッフ画面でメールアドレスを入力して招待</li>
-            <li>役割（店長／スタッフ）を選ぶ</li>
-            <li>相手が招待リンクから参加</li>
-          </ol>
-          <p>スタッフはネタ投稿・台本作成が中心。承認・配信・設定は店長／オーナー向けです。</p>
-        </section>
-
-        <!-- 14 -->
+        <!-- settings -->
         <section id="settings" class="scroll-mt-24">
-          <h2>14. 設定・連携</h2>
-          <p>設定画面ではプラン変更と各種連携を行います。</p>
-          <h3>Meta（Instagram / Facebook / Threads）</h3>
-          <ol>
-            <li>「Meta で連携する」を押す</li>
-            <li>店舗のFacebook／Instagramビジネスアカウントで許可</li>
-            <li>投稿モードを「Meta 自動投稿」や「自動」にすると予約投稿が可能</li>
-          </ol>
-          <h3>LINE</h3>
-          <p>Channel Secret と Channel Access Token を貼り付けて保存。Webhook URLをLINE側に設定します。</p>
-          <h3>Slack</h3>
-          <p>Incoming Webhook URL を入れると、朝の通知やネタ会議がSlackに届きます（プランによる）。</p>
-          <h3>Ayrshare（X連携向け・オプション）</h3>
-          <p>
-            Ayrshareは外部の投稿予約サービスです。X（旧Twitter）の公式APIは料金が高いため、BuzzItでは
-            <strong>Ayrshare経由でXの予約投稿</strong>に対応しています。プロファイルキーを設定し、投稿モードで「Ayrshare」を選ぶと使えます。
-            未設定でも、文案をコピーしてXアプリに貼る運用が可能です。
-          </p>
-          <h3>Googleビジネスプロフィール（GBP）／ホットペッパー（HPB）</h3>
+          <h2>16. 設定・連携</h2>
+          <p>設定画面は、上部のタブで切り替えます。</p>
+          <div class="not-prose overflow-x-auto">
+            <table class="guide-table">
+              <thead>
+                <tr>
+                  <th>タブ</th>
+                  <th>できること</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>配信キャラ・アカウント</td><td>キャラの追加・名前変更・AI連携</td></tr>
+                <tr><td>事業所</td><td>事業所の特徴・強み・話し方（AIの文章に反映）</td></tr>
+                <tr><td>SNS連携</td><td>各SNSやSlackとの接続</td></tr>
+                <tr><td>スタッフ</td><td>スタッフの招待・役割の設定</td></tr>
+                <tr><td>プラン</td><td>プラン・店舗・請求</td></tr>
+                <tr><td>高度な設定</td><td>その他の詳細設定</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <h3>「SNS連携」タブの中身</h3>
           <ul>
-            <li>GBP — 口コミ返信の下書きや投稿連携（段階的に拡充）</li>
-            <li>HPB — 店舗URLを登録し、投稿と予約のつながりを追う</li>
+            <li><strong>Instagram / Facebook</strong> — 「Metaで連携する」を押し、店舗のアカウントで許可</li>
+            <li><strong>X</strong> — X APIのキーを入力して、接続テスト</li>
+            <li><strong>LINE</strong> — Channel SecretとAccess Tokenを保存し、Webhook URLをLINE側に登録</li>
+            <li><strong>Googleビジネス</strong> — 口コミ返信の下書きや投稿連携</li>
+            <li><strong>ホットペッパー</strong> — 店舗URLを登録し、投稿と予約のつながりを確認</li>
+            <li><strong>インプレッション取得</strong> — 投稿の閲覧数などを取り込む設定</li>
+            <li><strong>投稿方法</strong> — 自動で投稿するか、通知だけにするかなど</li>
+            <li><strong>TikTok / YouTube</strong> — 外部の予約サービス（Ayrshare）経由の連携</li>
+            <li><strong>Slack・通知</strong> — Incoming Webhook URLを入れると、通知がSlackに届きます</li>
           </ul>
-          <h3>投稿モード（デフォルト）</h3>
+          <h3>投稿方法の考え方</h3>
           <ul>
-            <li><strong>通知</strong> — Slack/LINEに文案を送り、手元で投稿（半自動）</li>
-            <li><strong>承認後</strong> — ダッシュボードで承認してから投稿</li>
-            <li><strong>Meta / LINE / GBP</strong> — 各APIで自動投稿</li>
-            <li><strong>自動</strong> — 接続状況に応じて最適化</li>
-            <li><strong>Ayrshare</strong> — Xなどを含む外部予約</li>
+            <li><strong>通知</strong> — 時刻になったらお知らせ。「今日の投稿」から手動で投稿（半自動）</li>
+            <li><strong>承認後</strong> — 承認してから投稿</li>
+            <li><strong>自動投稿</strong> — 連携済みのSNSに、指定時刻に自動で投稿</li>
           </ul>
         </section>
 
-        <!-- 15 -->
+        <!-- roadmap -->
+        <section id="roadmap" class="scroll-mt-24">
+          <h2>17. 成長ロードマップ</h2>
+          <p>
+            SNSをゼロから整えるための<strong>順番つきガイド</strong>です。サイドバーの「使い方の手順」ページにある、上部の<strong>「成長ロードマップ」</strong>タブから開きます。
+          </p>
+          <ol>
+            <li>業種を選ぶ（「はじめに」と連動）</li>
+            <li>「公式登録 → 初投稿 → 自動投稿」のステージを順に進める</li>
+            <li>各ステップのリンクから作業する</li>
+            <li>終わったらチェックを付けて、進み具合を見える化する</li>
+          </ol>
+          <p class="guide-tip">迷ったら、「次にやること」だけを進めてください。全部を一度にやる必要はありません。</p>
+        </section>
+
+        <!-- billing -->
         <section id="billing" class="scroll-mt-24">
-          <h2>15. 料金・店舗・追加アカウント</h2>
+          <h2>18. 料金・店舗・追加アカウント</h2>
           <ul>
-            <li>料金は<strong>店舗単位</strong>。1店舗目はプラン基本料、2店舗目以降は基本料の20%OFF</li>
-            <li>各SNSの<strong>1アカウント目はプランに含む</strong></li>
-            <li>同じ媒体で2つ目（例: Instagram公式＋採用用）は<strong>追加枠 ¥980/月</strong></li>
-            <li>設定の「店舗・請求」カードで店舗追加とSNS追加枠を変更</li>
+            <li>料金は<strong>店舗単位</strong>。1店舗目はプランの基本料、2店舗目以降は基本料の20%OFF</li>
+            <li>各SNSの<strong>1アカウント目はプランに含まれます</strong></li>
+            <li>同じ媒体で2つ目（例：Instagramの公式＋採用用）は<strong>追加枠 ¥980/月</strong></li>
+            <li>「設定 → プラン」で、店舗やSNSの追加枠を変更できます</li>
           </ul>
           <p>
-            詳細な料金表は
+            詳しい料金表は
             <a href={`${homeUrl}#pricing`}>サービスサイトの料金セクション</a>
             をご覧ください。
           </p>
         </section>
 
-        <!-- 16 -->
+        <!-- roles -->
         <section id="roles" class="scroll-mt-24">
-          <h2>16. 権限（オーナー／店長／スタッフ）</h2>
+          <h2>19. 権限（オーナー／店長／スタッフ）</h2>
           <div class="not-prose overflow-x-auto">
             <table class="guide-table">
               <thead>
@@ -541,52 +677,67 @@ const toc = [
                 </tr>
               </thead>
               <tbody>
-                <tr><td>ネタ投稿・台本作成</td><td>○</td><td>○</td><td>○</td></tr>
+                <tr><td>ネタ投稿・投稿を作る</td><td>○</td><td>○</td><td>○</td></tr>
                 <tr><td>投稿の承認</td><td>○</td><td>○</td><td>—</td></tr>
-                <tr><td>LINE配信・CRM</td><td>○</td><td>○</td><td>—</td></tr>
+                <tr><td>集客（LINE・導線）・分析</td><td>○</td><td>○</td><td>—</td></tr>
                 <tr><td>設定・連携</td><td>○</td><td>○</td><td>—</td></tr>
                 <tr><td>プラン・請求・店舗追加</td><td>○</td><td>—</td><td>—</td></tr>
                 <tr><td>スタッフ招待</td><td>○</td><td>○</td><td>—</td></tr>
               </tbody>
             </table>
           </div>
-        </section>
-
-        <!-- 17 -->
-        <section id="daily" class="scroll-mt-24">
-          <h2>17. おすすめの一日の流れ</h2>
+          <h3>スタッフを招待する</h3>
           <ol>
-            <li><strong>朝（5分）</strong> — コクピットを開き、承認待ちを処理。ミッションを確認</li>
-            <li><strong>業務中</strong> — スタッフがネタInboxやボイスドラフトで素材を送る</li>
-            <li><strong>昼／空き時間</strong> — マジック・クリエイターで1〜2本を予約</li>
-            <li><strong>週1回</strong> — 分析・週次レポートとLINEセグメント配信を確認</li>
-            <li><strong>月1回</strong> — 導線（プロフィール・QR）と追加アカウント枠を見直し</li>
+            <li>設定のスタッフ画面で、メールアドレスを入力して招待</li>
+            <li>役割（店長／スタッフ）を選ぶ</li>
+            <li>相手が、招待リンクから参加</li>
           </ol>
         </section>
 
-        <!-- 18 -->
+        <!-- daily -->
+        <section id="daily" class="scroll-mt-24">
+          <h2>20. おすすめの一日の流れ</h2>
+          <ol>
+            <li><strong>朝（5分）</strong> — ダッシュボードで承認待ち・失敗した投稿を確認。「今日の投稿」でその日の投稿を終わらせる</li>
+            <li><strong>業務中</strong> — 気づいたことを「ネタを溜める」に1行メモ（スタッフも）</li>
+            <li><strong>空き時間</strong> — 「投稿候補」でネタを選んで予約。AIに下書きを頼むのもおすすめ</li>
+            <li><strong>週1回</strong> — 分析と、各SNSのルールを見直す</li>
+            <li><strong>月1回</strong> — プロフィール・導線（QR）と、追加アカウントの枠を見直す</li>
+          </ol>
+        </section>
+
+        <!-- faq -->
         <section id="faq" class="scroll-mt-24">
-          <h2>18. よくある質問</h2>
-          <h3>Q. Xを選んだのに Meta / LINE の話が出る</h3>
+          <h2>21. よくある質問</h2>
+          <h3>Q. 「使い方の手順」と「使い方ガイド」は何が違う？</h3>
           <p>
-            オンボーディングの「次の一手」は、選んだ媒体に合わせて案内が切り替わります。古い表示の場合はハードリロードするか、はじめにを見直してください。
+            「使い方の手順」はアプリ内の<strong>準備チェックリスト</strong>（最初の準備・毎朝のルーティン・AI連携）です。
+            「使い方ガイド」は、このページのように<strong>全機能を説明した説明書</strong>です。
           </p>
-          <h3>Q. Ayrshareとは？ Xは自動投稿できる？</h3>
+          <h3>Q. AIが勝手に投稿してしまうことはある？</h3>
           <p>
-            Ayrshareは投稿予約の仲介サービスです。プロファイルキーを設定し投稿モードで指定すると、X向けの予約投稿ができます。未設定でもコピー運用が可能です。
-            自社の X API キーをお持ちの場合は、設定の X API 連携 ＋ 投稿モード「X API 自動投稿」または Xシリーズがおすすめです。詳しくは上の<strong>X予約投稿ガイド（場面別）</strong>をご覧ください。
+            ありません。AIにできるのは、ネタの追加と下書きの作成までです。承認・予約・投稿は、あなたが画面のボタンで行います。
           </p>
           <h3>Q. 配信キャラを切り替えられない</h3>
           <p>
-            右上の配信キャラ名をクリックし、一覧から別キャラを選びます。エラーが出る場合はページを再読み込みしてください。
-            切り替え後は設定の黄色バナーとヘッダー表示が同じ名前になることを確認し、SNS連携はキャラごとに設定が必要です。
+            画面上部の配信キャラ名をクリックして、別のキャラを選びます。エラーが出るときは、ページを再読み込みしてください。SNS連携は、キャラごとに設定が必要です。
           </p>
-          <h3>Q. ログイン画面が真っ白</h3>
-          <p>ブラウザのスーパーリロード（Ctrl+Shift+R）やキャッシュ削除を試してください。改善しない場合はサポートへご連絡ください。</p>
-          <h3>Q. 設定の「店舗・請求」が遅い</h3>
-          <p>最新版では初期表示を高速化しています。それでも遅い場合は通信環境とログイン状態をご確認ください。</p>
+          <h3>Q. Xを自動で投稿したい</h3>
+          <p>
+            設定の「SNS連携 → X」でX APIを接続すると、予約した時刻に自動投稿できます。連携しない場合は、「今日の投稿」で本文をコピーして手動で投稿できます。詳しくは<a href="#x-scheduling">X予約投稿ガイド</a>をご覧ください。
+          </p>
+          <h3>Q. 投稿が「失敗」になった</h3>
+          <p>
+            カレンダーで、再試行するか、下書きに戻して直してください。繰り返す場合は、設定でその媒体の連携（有効期限切れなど）を確認します。
+          </p>
+          <h3>Q. 同じような投稿をしてしまわないか心配</h3>
+          <p>
+            「投稿候補」で、過去の類似投稿を自動で確認できます。必要なら「AIでも判定する」を使ってください。
+          </p>
+          <h3>Q. 画面が古い／真っ白になる</h3>
+          <p>ブラウザを強制再読み込み（Ctrl + Shift + R）するか、キャッシュを削除してください。改善しない場合は、サポートへご連絡ください。</p>
           <h3>Q. スマホでも使える？</h3>
-          <p>はい。PWA対応のため、ブラウザの「ホーム画面に追加」でアプリのように開けます。</p>
+          <p>はい。ブラウザの「ホーム画面に追加」で、アプリのように開けます。</p>
         </section>
 
         <section class="border border-neutral-200 bg-white p-6 sm:p-8">
