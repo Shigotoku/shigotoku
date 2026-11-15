@@ -11,6 +11,7 @@ import DualApprovalSetupBanner from '../components/DualApprovalSetupBanner';
 import EditJobModal from './calendar/EditJobModal';
 import CalendarGrid from './calendar/CalendarGrid';
 import DayPanel from './calendar/DayPanel';
+import SnsSidePanel from './calendar/SnsSidePanel';
 import CalendarToolbar from './calendar/CalendarToolbar';
 import MonthDropPickerModal from './calendar/MonthDropPickerModal';
 import TempoCopyModal from './calendar/TempoCopyModal';
@@ -73,7 +74,7 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
     setSplitPct(next);
     saveSplit(next);
   };
-  const { activePersona, canApprove, sns, filter, setFilter, viewMode, setViewMode, alertsOpen, setAlertsOpen, search, setSearch, rightTab, setRightTab, month, setMonth, weekStart, setWeekStart, selectedDay, busyId, message, setMessage, loading, editingJob, setEditingJob, draggingId, dropDateKey, dragGhost, cloneJob, setCloneJob, connected, shifting, dropHour, monthDropPicker, setMonthDropPicker, undoStack, tempoJob, setTempoJob, tempoWeeks, setTempoWeeks, tempoBusy, approveConfirmJob, setApproveConfirmJob, load, scopedJobs, jobsByDay, calendarCells, dayJobs, handleApprove, handleRetry, handleDraft, openEdit, draftJobs, createHref, bestHours, preferredHourList, dayOpenSlots, placeJobAt, undoLastMove, shiftVisibleWeek, runTempoCopy, onDragMove, slotKey, dateDropProps, quickPlaceDraftOnSelected, beginDrag, endDrag, setDropHourPref, pickDay, alertCount, alertBlocks } = useCalendarState({ platformId, embedded });
+  const { activePersona, canApprove, sns, filter, setFilter, viewMode, setViewMode, alertsOpen, setAlertsOpen, search, setSearch, rightTab, setRightTab, scheduleDayOnly, setScheduleDayOnly, setSelectedDay, month, setMonth, weekStart, setWeekStart, selectedDay, busyId, message, setMessage, loading, editingJob, setEditingJob, draggingId, dropDateKey, dragGhost, cloneJob, setCloneJob, connected, shifting, dropHour, monthDropPicker, setMonthDropPicker, undoStack, tempoJob, setTempoJob, tempoWeeks, setTempoWeeks, tempoBusy, approveConfirmJob, setApproveConfirmJob, load, scopedJobs, jobsByDay, calendarCells, dayJobs, handleApprove, handleRetry, handleDraft, openEdit, draftJobs, createHref, bestHours, preferredHourList, dayOpenSlots, placeJobAt, undoLastMove, shiftVisibleWeek, runTempoCopy, onDragMove, slotKey, dateDropProps, quickPlaceDraftOnSelected, beginDrag, endDrag, setDropHourPref, pickDay, alertCount, alertBlocks } = useCalendarState({ platformId, embedded });
 
   return (
     <div
@@ -138,9 +139,10 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
         </div>
       </div>
 
-      <section className={`border border-neutral-200 bg-white ${embedded ? 'flex flex-wrap items-center gap-2 px-3 py-2' : 'p-3'}`}>
-        <p className={`text-sm font-medium text-neutral-700 ${embedded ? '' : 'mb-2'}`}>
-          {embedded ? 'ドロップ時の時刻' : 'おすすめ投稿時刻（ドロップ時の既定・記憶されます）'}
+      {!embedded && (
+      <section className="border border-neutral-200 bg-white p-3">
+        <p className="mb-2 text-sm font-medium text-neutral-700">
+          おすすめ投稿時刻（ドロップ時の既定・記憶されます）
         </p>
         <div className="flex flex-wrap gap-1.5">
           <button
@@ -175,14 +177,15 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
             );
           })}
         </div>
-        {bestHours[0] && !embedded && (
+        {bestHours[0] && (
           <p className="mt-2 text-[11px] text-neutral-500">
             上位: {bestHours.map((h) => `${String(h.hour).padStart(2, '0')}:00（${h.reason}）`).join(' / ')}
           </p>
         )}
       </section>
+      )}
 
-      {draftJobs.length > 0 && (
+      {!embedded && draftJobs.length > 0 && (
         <section className="border border-dashed border-neutral-300 bg-white p-3">
           <p className="mb-2 text-xs font-medium text-neutral-600">
             ドラッグ用トレイ（下書き・承認待ち）— 週ビューの時間帯 or 月ビューの日付へドロップ
@@ -232,28 +235,10 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
         </div>
       )}
 
-      <div className="hidden items-center justify-end gap-1 text-xs lg:flex">
-        <span className="mr-1 text-neutral-500">表示幅:</span>
-        {([
-          ['カレンダー重視', 75],
-          ['均等', 50],
-          ['履歴重視', 30],
-          ['カレンダー最小化', SPLIT_MIN],
-        ] as const).map(([label, pct]) => (
-          <button
-            key={label}
-            type="button"
-            onClick={() => { setSplitPct(pct); saveSplit(pct); }}
-            className={`border px-2 py-1 ${Math.round(splitPct) === pct ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-200 bg-white hover:border-neutral-400'}`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
       <div
         ref={gridRef}
         style={{ '--cal-cols': `minmax(0,${splitPct}fr) 12px minmax(0,${100 - splitPct}fr)` } as CSSProperties}
-        className={`${embedded ? 'grid min-h-0 flex-1 gap-3' : 'grid gap-6'} lg:gap-0 lg:[grid-template-columns:var(--cal-cols)]`}
+        className={`${embedded ? 'grid min-h-0 flex-1 gap-3 lg:[grid-template-rows:minmax(0,1fr)]' : 'grid gap-6'} lg:gap-0 lg:[grid-template-columns:var(--cal-cols)]`}
       >
         <div
           className={
@@ -377,32 +362,65 @@ export default function CalendarPage({ platformId, embedded }: CalendarPageProps
           <span className="h-16 w-1 rounded-full bg-neutral-300 transition group-hover:bg-neutral-500 group-focus-visible:bg-neutral-700" />
         </div>
 
-        <DayPanel
-          embedded={embedded}
-          platformId={platformId}
-          rightTab={rightTab}
-          setRightTab={setRightTab}
-          scopedJobs={scopedJobs}
-          selectedDay={selectedDay}
-          load={load}
-          loading={loading}
-          dayJobs={dayJobs}
-          dayOpenSlots={dayOpenSlots}
-          busyId={busyId}
-          draggingId={draggingId}
-          canApprove={canApprove}
-          quickPlaceDraftOnSelected={quickPlaceDraftOnSelected}
-          beginDrag={beginDrag}
-          endDrag={endDrag}
-          openEdit={openEdit}
-          setCloneJob={setCloneJob}
-          setTempoJob={setTempoJob}
-          setTempoWeeks={setTempoWeeks}
-          setApproveConfirmJob={setApproveConfirmJob}
-          handleRetry={handleRetry}
-          handleDraft={handleDraft}
-          setMessage={setMessage}
-        />
+        {embedded && platformId ? (
+          <SnsSidePanel
+            platformId={platformId}
+            snsName={sns?.name ?? platformId}
+            tab={rightTab}
+            setTab={setRightTab}
+            scopedJobs={scopedJobs}
+            selectedDay={selectedDay}
+            dayOnly={scheduleDayOnly}
+            setDayOnly={setScheduleDayOnly}
+            preferredHour={preferredHourList[0] ?? 12}
+            loading={loading}
+            load={load}
+            onSaved={(msg, at, asDraft) => {
+              setMessage(msg);
+              setSelectedDay(at);
+              setMonth(new Date(at.getFullYear(), at.getMonth(), 1));
+              setScheduleDayOnly(false);
+              setRightTab(asDraft ? 'draft' : 'schedule');
+              load();
+            }}
+            canApprove={canApprove}
+            busyId={busyId}
+            draggingId={draggingId}
+            beginDrag={beginDrag}
+            endDrag={endDrag}
+            openEdit={openEdit}
+            setCloneJob={setCloneJob}
+            setTempoJob={setTempoJob}
+            setTempoWeeks={setTempoWeeks}
+            setApproveConfirmJob={setApproveConfirmJob}
+            handleRetry={handleRetry}
+            handleDraft={handleDraft}
+            setMessage={setMessage}
+          />
+        ) : (
+          <DayPanel
+            scopedJobs={scopedJobs}
+            selectedDay={selectedDay}
+            load={load}
+            loading={loading}
+            dayJobs={dayJobs}
+            dayOpenSlots={dayOpenSlots}
+            busyId={busyId}
+            draggingId={draggingId}
+            canApprove={canApprove}
+            quickPlaceDraftOnSelected={quickPlaceDraftOnSelected}
+            beginDrag={beginDrag}
+            endDrag={endDrag}
+            openEdit={openEdit}
+            setCloneJob={setCloneJob}
+            setTempoJob={setTempoJob}
+            setTempoWeeks={setTempoWeeks}
+            setApproveConfirmJob={setApproveConfirmJob}
+            handleRetry={handleRetry}
+            handleDraft={handleDraft}
+            setMessage={setMessage}
+          />
+        )}
       </div>
 
       {editingJob && (

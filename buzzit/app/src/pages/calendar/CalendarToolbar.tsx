@@ -69,7 +69,7 @@ export default function CalendarToolbar({
           元に戻す
         </button>
       )}
-      {(Object.keys(filterLabels) as FilterKey[]).map((key) => (
+      {!embedded && (Object.keys(filterLabels) as FilterKey[]).map((key) => (
         <button
           key={key}
           type="button"
@@ -83,12 +83,12 @@ export default function CalendarToolbar({
           {filterLabels[key]}
         </button>
       ))}
-      <input
+      {!embedded && <input
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         placeholder="本文・#タグで検索"
         className="ml-auto w-full border border-neutral-200 sm:w-44 bg-white px-3 py-1.5 text-sm focus:border-neutral-900 focus:outline-none"
-      />
+      />}
     </div>
   );
 }

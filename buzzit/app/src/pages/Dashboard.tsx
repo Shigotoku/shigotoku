@@ -263,6 +263,13 @@ export default function Dashboard() {
               <p className="text-xs text-neutral-500">表示中: {activePersona?.name ?? '—'}</p>
             </div>
             <div className="flex items-center gap-2">
+              <Link
+                to="/calendar"
+                className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 text-sm font-medium text-neutral-700 hover:border-neutral-400"
+              >
+                週表示・編集
+                <ArrowRight className="h-4 w-4" />
+              </Link>
               <button
                 type="button"
                 onClick={() => setAlertsOpen((v) => !v)}

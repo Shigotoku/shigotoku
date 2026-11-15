@@ -9,7 +9,7 @@ const FIRST_STEPS = [
   { step: '1', label: 'ネタを溜める', to: '/inbox', hint: 'ネタInbox に思いついたことをメモします' },
   { step: '2', label: '各SNS用に作る', to: '/magic-creator', hint: 'ネタクリエイターで媒体別の投稿文を作ります' },
   { step: '3', label: '媒体で整えて予約', to: '/sns/instagram', hint: '各SNSのページで仕上げて予約します' },
-  { step: '4', label: '全体を確認', to: '/calendar', hint: '投稿カレンダーで予定を確認します' },
+  { step: '4', label: '全体を確認', to: '/calendar', hint: 'ダッシュボードのカレンダーで予定を確認します（細かい編集は「週表示・編集」）' },
 ];
 
 const MORNING = [

@@ -10,7 +10,6 @@ import {
   LogOut,
   Menu,
   X,
-  CalendarDays,
   Inbox,
   BookOpen,
   ChevronDown,
@@ -90,7 +89,6 @@ const mainNav: NavEntry[] = [
   { kind: 'link', name: '投稿を作る', path: '/magic-creator', icon: Wand2, staffOk: true },
   { kind: 'link', name: 'まとめて作る', path: '/content-calendar', icon: PenLine, staffOk: true, match: ['/content-calendar', '/x-series'] },
   { kind: 'divider', label: '予約・確認' },
-  { kind: 'link', name: '投稿カレンダー', path: '/calendar', icon: CalendarDays, staffOk: true },
   {
     kind: 'group',
     id: 'sns',

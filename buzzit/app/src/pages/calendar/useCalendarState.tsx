@@ -10,6 +10,7 @@ import { canApprovePosts } from '../../lib/permissions';
 import { getSnsNavPlatform, jobMatchesSnsPlatform } from '../../lib/snsPlatforms';
 import { getPostTemplates } from '../../data/postTemplates';
 import { settingsPath } from '../../lib/settingsUrls';
+import type { SideTab } from './SnsSidePanel';
 import { isEditableStatus, startOfWeek, startOfMonth, sameDay, type FilterKey, type ViewMode } from './calendarUtils';
 
 export type CalendarPageProps = {
@@ -34,7 +35,9 @@ export function useCalendarState({ platformId, embedded }: CalendarPageProps) {
   const [viewMode, setViewMode] = useState<ViewMode>(() => (embedded ? 'month' : loadCalendarViewPref()));
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const [rightTab, setRightTab] = useState<'history' | 'day'>('history');
+  const [rightTab, setRightTab] = useState<SideTab>('create');
+  /** 投稿予定タブで選択日だけに絞る */
+  const [scheduleDayOnly, setScheduleDayOnly] = useState(false);
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [selectedDay, setSelectedDay] = useState<Date | null>(new Date());
@@ -467,7 +470,11 @@ export function useCalendarState({ platformId, embedded }: CalendarPageProps) {
 
   const pickDay = (d: Date) => {
     setSelectedDay(d);
-    if (embedded) setRightTab('day');
+    if (embedded) {
+      // 作成中は作成タブのまま（日付だけ追従）。それ以外は選んだ日の予定を見せる
+      setRightTab((t) => (t === 'create' || t === 'ideas' ? t : 'schedule'));
+      setScheduleDayOnly(true);
+    }
   };
 
   const alertCount =
@@ -588,6 +595,8 @@ export function useCalendarState({ platformId, embedded }: CalendarPageProps) {
     setSearch,
     rightTab,
     setRightTab,
+    scheduleDayOnly,
+    setScheduleDayOnly,
     month,
     setMonth,
     weekStart,

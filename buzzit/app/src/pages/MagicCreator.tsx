@@ -621,7 +621,7 @@ export default function MagicCreator() {
                     <p>{scheduleMessage}</p>
                     <div className="mt-2 flex flex-wrap gap-3 text-xs">
                       <Link to="/calendar" className="underline-offset-2 hover:underline">
-                        投稿カレンダーで確認 →
+                        週表示・編集で確認 →
                       </Link>
                       <Link to="/sns/instagram" className="underline-offset-2 hover:underline">
                         Instagram で整える →

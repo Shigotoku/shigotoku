@@ -30,7 +30,7 @@ export function getPageMeta(pathname: string): PageMeta {
     return { title: 'まとめて作る', subtitle: '4週間分の投稿や、Xの自動投稿キューをまとめて用意' };
   }
   if (pathname.startsWith('/calendar')) {
-    return { title: '投稿カレンダー', subtitle: '全SNSの予約を確認・調整' };
+    return { title: '週表示・編集', subtitle: '全SNSの予約を週単位で確認・調整' };
   }
   if (pathname.startsWith('/funnel') || pathname.startsWith('/line-crm')) {
     return { title: '集客（LINE・導線）', subtitle: 'LINEの友だち管理と、SNSからの導線づくり' };
