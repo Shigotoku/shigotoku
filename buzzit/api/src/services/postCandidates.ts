@@ -10,12 +10,17 @@ import { Router } from 'express';
 import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { requireAuth, type AuthedRequest } from '../middleware/auth';
 import { aiFetch, aiKey, getAiSettings, withUserAi } from './aiClient';
-import { AiQuotaError, consumeAiQuota, getAiUsage } from './planLimits';
-import { getScheduledJobs, getUserSettings } from './firestore';
+import { AiQuotaError, assertPostQuota, consumeAiQuota, getAiUsage, incrementPostQuota } from './planLimits';
+import { createScheduledJob, getScheduledJobs, getUserSettings } from './firestore';
+import { getEffectiveSettings } from './personaSettings';
+import { assertConnectedForPublishMode } from './schedulePublishSafety';
+import { notifyApprovalNeeded } from './approvalNotify';
+import { TARGET_PLATFORMS } from './crosspostRules';
+import type { PublishMode } from '../types/schedule';
 import { jobText, opCreateDraft, platformOf, type AgentCtx } from './agentApi';
 import { parseCsv } from './agentExtras';
 import { listIdeaInbox, writeAuditLog } from './productExtras';
-import { assertPersonaAccess, resolveActivePersonaId } from './personas';
+import { assertPersonaAccess, getPersona, personaRequiresApproval, resolveActivePersonaId } from './personas';
 import {
   buildAiDupPrompt,
   findDuplicates,
@@ -38,7 +43,26 @@ export const SELECTION_LABEL: Record<Selection, string> = {
   hold: '保留',
   rejected: '不採用',
 };
-export type CandidateStatus = 'candidate' | 'drafted';
+export type CandidateStatus = 'candidate' | 'drafted' | 'scheduled' | 'published';
+export const STATUS_LABEL: Record<CandidateStatus, string> = { candidate: '候補', drafted: '下書き', scheduled: '予約済み', published: '投稿済み' };
+
+/** 媒体(SNS)の表記ゆれを、内部ID（x_thread / instagram / facebook / threads / line / gbp / youtube_shorts / tiktok）にそろえる */
+export function toPlatform(raw: string): string {
+  const s = (raw ?? '').normalize('NFKC').toLowerCase().replace(/\s/g, '');
+  if (!s) return '';
+  if (/instagram|インスタ|^ig$|リール/.test(s)) return 'instagram';
+  if (/tiktok|ティックトック/.test(s)) return 'tiktok';
+  if (/youtube|ユーチューブ|ショート|shorts/.test(s)) return 'youtube_shorts';
+  if (/threads|スレッズ/.test(s)) return 'threads';
+  if (/facebook|フェイスブック|^fb$/.test(s)) return 'facebook';
+  if (/line|ライン/.test(s)) return 'line';
+  if (/gbp|googleビジネス|ビジネスプロフィール|マップ|google/.test(s)) return 'gbp';
+  if (/twitter|ツイッター|ツイート|x_thread|^x/.test(s)) return 'x_thread';
+  return '';
+}
+/** 内部ID(x_thread 等)でも表記ゆれ(X・インスタ 等)でも、内部IDにそろえる */
+export const normPlatform = (raw: string): string => ((TARGET_PLATFORMS as string[]).includes(raw) ? raw : toPlatform(raw));
+export const PLATFORM_LABEL: Record<string, string> = { x_thread: 'X', instagram: 'Instagram', facebook: 'Facebook', threads: 'Threads', line: 'LINE', gbp: 'Googleビジネス', youtube_shorts: 'YouTube Shorts', tiktok: 'TikTok' };
 
 export interface Candidate {
   id: string;
@@ -50,6 +74,12 @@ export interface Candidate {
   rating: string;
   selection: Selection;
   selectionRaw: string;
+  /** 投稿先の媒体（内部ID）。空=媒体未設定 */
+  platform: string;
+  /** 候補の出どころ: import(取り込み) / manual(自分で書いた) / idea(ネタ帳) / xseries(Xシリーズ在庫) / draft(カレンダーの下書き) */
+  source: string;
+  sourceKey?: string;
+  scheduledAt?: string;
   checkNotes: string;
   editNotes: string;
   theme: string;
@@ -66,7 +96,7 @@ export interface Candidate {
 
 const TEXT_FIELDS = ['series', 'title', 'body', 'imageIdea', 'rating', 'checkNotes', 'editNotes', 'theme', 'conclusion', 'punchline'] as const;
 type TextField = (typeof TEXT_FIELDS)[number];
-type FieldKey = TextField | 'managementId' | 'selection';
+type FieldKey = TextField | 'managementId' | 'selection' | 'platform';
 
 export const FIELD_LABEL: Record<FieldKey, string> = {
   managementId: '管理ID',
@@ -76,6 +106,7 @@ export const FIELD_LABEL: Record<FieldKey, string> = {
   imageIdea: '画像案',
   rating: '評価',
   selection: '選定状況',
+  platform: '媒体',
   checkNotes: '確認事項',
   editNotes: '編集メモ',
   theme: 'テーマ',
@@ -92,13 +123,14 @@ const ALIASES: Record<FieldKey, string[]> = {
   imageIdea: ['画像案', '画像', 'イメージ', 'image', 'ビジュアル', '4コマ'],
   rating: ['評価', 'rating', 'スコア', '点数', 'おすすめ度'],
   selection: ['選定状況', '選定', '状況', 'ステータス', 'status', '採否'],
+  platform: ['媒体', 'sns', 'プラットフォーム', 'platform', '投稿先', '投稿媒体', 'チャンネル'],
   checkNotes: ['確認事項', '確認', '要確認', '注意', 'チェック'],
   editNotes: ['編集メモ', 'メモ', '備考', 'notes', 'note', '修正メモ'],
   punchline: ['4コマのオチ', 'オチ', '落ち', 'punchline'],
   conclusion: ['結論', '要点', '主張', 'conclusion'],
   theme: ['テーマ', 'theme', 'トピック'],
 };
-const MATCH_ORDER: FieldKey[] = ['managementId', 'body', 'title', 'series', 'punchline', 'conclusion', 'theme', 'imageIdea', 'rating', 'selection', 'checkNotes', 'editNotes'];
+const MATCH_ORDER: FieldKey[] = ['managementId', 'body', 'title', 'series', 'punchline', 'conclusion', 'theme', 'imageIdea', 'rating', 'selection', 'platform', 'checkNotes', 'editNotes'];
 
 const normHeader = (h: string) => h.normalize('NFKC').toLowerCase().replace(/[\s\u3000_\-・:：()（）]/g, '');
 
@@ -158,6 +190,10 @@ function fromDoc(id: string, d: FirebaseFirestore.DocumentData): Candidate {
     rating: d.rating ?? '',
     selection: (d.selection as Selection) ?? 'unreviewed',
     selectionRaw: d.selectionRaw ?? '',
+    platform: d.platform ?? '',
+    source: d.source ?? 'import',
+    sourceKey: d.sourceKey,
+    scheduledAt: d.scheduledAt,
     checkNotes: d.checkNotes ?? '',
     editNotes: d.editNotes ?? '',
     theme: d.theme ?? '',
@@ -212,7 +248,7 @@ export async function importCandidates(uid: string, input: ImportInput) {
   }
   const mode = input.mode === 'update' ? 'update' : 'skip';
 
-  type Parsed = { managementId: string; auto: boolean; fields: Partial<Record<TextField, string>>; selectionRaw: string; extra: Record<string, string>; rowNo: number };
+  type Parsed = { managementId: string; auto: boolean; fields: Partial<Record<TextField, string>>; selectionRaw: string; platform: string; extra: Record<string, string>; rowNo: number };
   const parsed: Parsed[] = [];
   const errors: Array<{ row: number; message: string }> = [];
   const seen = new Set<string>();
@@ -222,6 +258,7 @@ export async function importCandidates(uid: string, input: ImportInput) {
     const extra: Record<string, string> = {};
     let mid = '';
     let selectionRaw = '';
+    let platformRaw = '';
     headers.forEach((h, c) => {
       const v = clean(rec[c]);
       const m = mapping[c];
@@ -229,6 +266,7 @@ export async function importCandidates(uid: string, input: ImportInput) {
       if (m === 'extra') extra[h.slice(0, 40)] = v.slice(0, 2000);
       else if (m === 'managementId') mid = v.slice(0, 60);
       else if (m === 'selection') selectionRaw = v.slice(0, 60);
+      else if (m === 'platform') platformRaw = v.slice(0, 60);
       else fields[m] = v;
     });
     if (!fields.body && !fields.title) {
@@ -246,7 +284,7 @@ export async function importCandidates(uid: string, input: ImportInput) {
       return;
     }
     seen.add(key);
-    parsed.push({ managementId: mid, auto, fields, selectionRaw, extra, rowNo });
+    parsed.push({ managementId: mid, auto, fields, selectionRaw, platform: toPlatform(platformRaw), extra, rowNo });
   });
 
   const refs = parsed.map((p) => col(uid).doc(docIdOf(p.managementId)));
@@ -281,7 +319,7 @@ export async function importCandidates(uid: string, input: ImportInput) {
     else updated++;
     if (input.dryRun) continue;
 
-    const base = { ...Object.fromEntries(Object.entries(p.fields)), extra: p.extra, managementId: p.managementId, updatedAt: FieldValue.serverTimestamp() };
+    const base = { ...Object.fromEntries(Object.entries(p.fields)), ...(p.platform ? { platform: p.platform } : {}), extra: p.extra, managementId: p.managementId, updatedAt: FieldValue.serverTimestamp() };
     if (result === 'new') {
       const full: Record<string, unknown> = {};
       for (const f of TEXT_FIELDS) full[f] = p.fields[f] ?? '';
@@ -291,6 +329,7 @@ export async function importCandidates(uid: string, input: ImportInput) {
         extra: p.extra,
         selection: toSelection(p.selectionRaw),
         selectionRaw: p.selectionRaw,
+        platform: p.platform,
         status: 'candidate',
         source: 'import',
         createdAt: FieldValue.serverTimestamp(),
@@ -322,12 +361,24 @@ export async function importCandidates(uid: string, input: ImportInput) {
 
 // ---- 取得・更新 ----
 
-export async function listCandidates(uid: string, q: { query?: string; series?: string; selection?: string; status?: string; limit?: number } = {}) {
+export async function listCandidates(uid: string, q: { query?: string; series?: string; selection?: string; status?: string; platform?: string; limit?: number } = {}) {
   const snap = await col(uid).limit(2000).get();
   let list = snap.docs.map((d) => fromDoc(d.id, d.data()));
   const counts: Record<string, number> = { all: list.length };
   for (const c of list) counts[c.selection] = (counts[c.selection] ?? 0) + 1;
+  const statusCounts: Record<string, number> = {};
+  const platformCounts: Record<string, number> = {};
+  for (const c of list) {
+    statusCounts[c.status] = (statusCounts[c.status] ?? 0) + 1;
+    platformCounts[c.platform || 'none'] = (platformCounts[c.platform || 'none'] ?? 0) + 1;
+  }
   const series = [...new Set(list.map((c) => c.series).filter(Boolean))].sort();
+  // platform: 媒体ID。カンマ区切りで複数、'+none' を付けると媒体未設定の候補も含める（SNSごとの画面用）
+  if (q.platform) {
+    const want = q.platform.split(',').map((s) => s.trim()).filter(Boolean);
+    const withNone = want.includes('+none');
+    list = list.filter((c) => want.includes(c.platform) || (withNone && !c.platform) || (want.includes('none') && !c.platform));
+  }
   if (q.series) list = list.filter((c) => c.series === q.series);
   if (q.selection) list = list.filter((c) => c.selection === q.selection);
   if (q.status) list = list.filter((c) => c.status === q.status);
@@ -336,7 +387,7 @@ export async function listCandidates(uid: string, q: { query?: string; series?: 
     list = list.filter((c) => `${c.managementId} ${c.title} ${c.body} ${c.series} ${c.theme} ${Object.values(c.extra).join(' ')}`.normalize('NFKC').toLowerCase().includes(k));
   }
   list.sort((a, b) => a.managementId.localeCompare(b.managementId, 'ja', { numeric: true }));
-  return { candidates: list.slice(0, q.limit ?? 500), total: list.length, counts, series };
+  return { candidates: list.slice(0, q.limit ?? 500), total: list.length, counts, statusCounts, platformCounts, series };
 }
 
 export async function getCandidate(uid: string, id: string): Promise<Candidate> {
@@ -347,6 +398,7 @@ export async function getCandidate(uid: string, id: string): Promise<Candidate> 
 
 export interface CandidatePatch extends Partial<Record<TextField, string>> {
   selection?: Selection;
+  platform?: string;
   aiSuggestion?: string;
 }
 
@@ -362,6 +414,7 @@ export async function updateCandidate(uid: string, id: string, patch: CandidateP
     upd.selection = patch.selection;
     upd.selectionRaw = SELECTION_LABEL[patch.selection];
   }
+  if (typeof patch.platform === 'string') upd.platform = normPlatform(patch.platform);
   if (typeof patch.aiSuggestion === 'string') {
     upd.aiSuggestion = clean(patch.aiSuggestion, 3000);
     upd.aiSuggestedAt = FieldValue.serverTimestamp();
@@ -385,21 +438,203 @@ export async function addCandidatesFromAi(uid: string, rows: Array<Record<string
 }
 const toSelectionHeader = (h: string) => mapHeaders([h])[0] === 'selection';
 
-/** 採用済みの候補だけ、人が日時を決めて下書きにできる。日時は必須（自動で予約・公開はしない） */
-export async function candidateToDraft(ctx: AgentCtx, id: string, input: { scheduledAt?: string; platform?: string }) {
-  const c = await getCandidate(ctx.uid, id);
-  if (c.selection !== 'adopted') throw new Error('「採用」にした候補だけ下書きにできます');
-  if (c.status === 'drafted') throw new Error(`すでに下書きに移しています（${c.linkedJobId ?? ''}）。二重に作らないよう止めました`);
-  if (!c.body.trim()) throw new Error('投稿本文が空です');
-  const r = await opCreateDraft(ctx, {
-    contents: [{ platform: input.platform || 'x_thread', label: c.title || c.managementId, content: c.body }],
-    scheduledAt: input.scheduledAt,
-    topic: c.title || undefined,
-    silent: true,
+/** 自分で書いたネタを、そのまま候補に入れる（選定状況は未選定から。下書き・予約は作らない） */
+export async function createManualCandidate(uid: string, input: { body?: string; title?: string; platform?: string; series?: string }) {
+  const body = clean(input.body);
+  if (!body) throw new Error('ネタの本文を入力してください');
+  const id = `MY-${Date.now().toString(36).toUpperCase()}`;
+  await col(uid).doc(id).set({
+    managementId: id,
+    title: clean(input.title, 200) || body.split('\n')[0].slice(0, 30),
+    body,
+    series: clean(input.series, 100),
+    platform: normPlatform(input.platform ?? ''),
+    imageIdea: '', rating: '', checkNotes: '', editNotes: '', theme: '', conclusion: '', punchline: '',
+    extra: {},
+    selection: 'unreviewed',
+    selectionRaw: '',
+    status: 'candidate',
+    source: 'manual',
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   });
-  await col(ctx.uid).doc(id).update({ status: 'drafted', linkedJobId: r.jobId, updatedAt: FieldValue.serverTimestamp() });
-  await writeAuditLog(ctx.uid, 'candidates.to_draft', `${c.managementId} → ${r.jobId}`);
-  return { ...r, candidateId: id };
+  await writeAuditLog(uid, 'candidates.create', id);
+  return getCandidate(uid, id);
+}
+
+const statusFromJob = (s: string): CandidateStatus =>
+  s === 'published' || s === 'notified' ? 'published' : s === 'draft' ? 'drafted' : s === 'failed' ? 'drafted' : 'scheduled';
+
+/**
+ * 候補の入り口をひとつにそろえる（何度実行しても重複しない）:
+ *  - ネタ帳（自分で書いたネタ・AIが追加したネタ）
+ *  - Xシリーズ在庫（「ネタを一気に作る」で作ったもの）
+ *  - カレンダーの下書き（AIが作った下書き）
+ * 既存の投稿・予約・シリーズ・ネタ帳は変更しない（読み取り専用）。候補側の状態（下書き/予約済み/投稿済み）は元の投稿に合わせて更新する。
+ */
+export async function syncCandidates(ctx: AgentCtx) {
+  const uid = ctx.uid;
+  const [existingSnap, ideas, jobs] = await Promise.all([
+    col(uid).limit(2000).get(),
+    listIdeaInbox(uid).catch(() => []),
+    getScheduledJobs(uid, undefined, ctx.personaId, 500),
+  ]);
+  const have = new Map(existingSnap.docs.map((d) => [d.id, d.data()]));
+  const linkedJobIds = new Set(existingSnap.docs.map((d) => d.data().linkedJobId).filter(Boolean) as string[]);
+  const jobById = new Map(jobs.map((j) => [j.id, j]));
+  let batch = db().batch();
+  let n = 0;
+  let created = 0;
+  let refreshed = 0;
+  const commitIfFull = async () => {
+    if (n >= 400) { await batch.commit(); batch = db().batch(); n = 0; }
+  };
+  const create = async (id: string, data: Record<string, unknown>) => {
+    if (have.has(id) || created >= 600) return;
+    batch.set(col(uid).doc(id), {
+      series: '', imageIdea: '', rating: '', checkNotes: '', editNotes: '', theme: '', conclusion: '', punchline: '',
+      selectionRaw: '', extra: {}, selection: 'unreviewed', ...data,
+      createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
+    });
+    n++; created++;
+    await commitIfFull();
+  };
+  const update = async (id: string, patch: Record<string, unknown>) => {
+    batch.update(col(uid).doc(id), { ...patch, updatedAt: FieldValue.serverTimestamp() });
+    n++; refreshed++;
+    await commitIfFull();
+  };
+
+  for (const i of ideas) {
+    const text = i.text.trim();
+    if (!text) continue;
+    await create(`IDEA-${i.id}`, {
+      managementId: `IDEA-${i.id.slice(0, 8)}`, title: text.split('\n')[0].slice(0, 30), body: text,
+      platform: '', source: 'idea', sourceKey: `idea:${i.id}`,
+      status: i.status === 'used' ? 'drafted' : 'candidate',
+      extra: i.author ? { 投稿者: i.author } : {},
+    });
+  }
+
+  try {
+    const series = await db().collection(`users/${uid}/xSeries`).limit(100).get();
+    for (const s of series.docs) {
+      const sname = String(s.data().name ?? '');
+      const items = await s.ref.collection('items').limit(1000).get();
+      for (const it of items.docs) {
+        const x = it.data();
+        const text = String(x.text ?? '').trim();
+        if (!text) continue;
+        const id = `XS-${it.id}`;
+        const status: CandidateStatus = x.status === 'published' ? 'published' : 'candidate';
+        if (have.has(id)) {
+          if (have.get(id)!.status !== status && status === 'published') await update(id, { status });
+          continue;
+        }
+        await create(id, {
+          managementId: id, title: String(x.title || text.split('\n')[0]).slice(0, 30), body: text, series: sname,
+          platform: 'x_thread', source: 'xseries', sourceKey: `xseries:${it.id}`,
+          selection: x.approved ? 'adopted' : 'unreviewed', selectionRaw: x.approved ? '採用' : '', status,
+          extra: { ...(x.tags ? { タグ: String(x.tags) } : {}), ...(x.imageAlt ? { 画像ALT: String(x.imageAlt) } : {}) },
+          ...(x.scheduledAt ? { scheduledAt: x.scheduledAt } : {}),
+        });
+      }
+    }
+  } catch {
+    // シリーズが無い・読めない場合は他の入り口だけで続行
+  }
+
+  for (const j of jobs) {
+    const key = `DR-${j.id}`;
+    if (j.status === 'draft' && !have.has(key) && !linkedJobIds.has(j.id)) {
+      const text = jobText(j).trim();
+      if (!text) continue;
+      await create(key, {
+        managementId: key.slice(0, 11), title: String(j.topic || text.split('\n')[0]).slice(0, 30), body: text,
+        platform: platformOf(j), source: 'draft', sourceKey: `job:${j.id}`, linkedJobId: j.id, status: 'drafted', scheduledAt: j.scheduledAt,
+        extra: {},
+      });
+    }
+  }
+  // 元の投稿の状態に合わせて更新
+  for (const [id, d] of have) {
+    const jid = d.linkedJobId as string | undefined;
+    if (!jid) continue;
+    const job = jobById.get(jid);
+    if (!job) continue;
+    const st = statusFromJob(job.status);
+    if (d.status !== st || d.scheduledAt !== job.scheduledAt) await update(id, { status: st, scheduledAt: job.scheduledAt });
+  }
+  if (n) await batch.commit();
+  return { created, refreshed };
+}
+
+/**
+ * 候補を、人が日時を決めて「下書き」または「予約（時間になったら自動投稿）」にする。
+ * 予約を押すこと自体が採用の判断なので、選定状況は「採用」になる（不採用の候補は不可）。
+ * Xは連携済みなら自動投稿。それ以外・未連携は、通知リマインダー（自分で投稿）になる。
+ */
+export async function candidateToJob(ctx: AgentCtx, id: string, input: { scheduledAt?: string; platform?: string; mode?: 'draft' | 'schedule' }) {
+  const c = await getCandidate(ctx.uid, id);
+  if (c.selection === 'rejected') throw new Error('「不採用」の候補は予定にできません。先に未選定などへ戻してください');
+  if (c.linkedJobId && c.status !== 'candidate') throw new Error(`すでにカレンダーに入っています（${STATUS_LABEL[c.status]}）。二重に作らないよう止めました。カレンダーで確認してください`);
+  if (!c.body.trim()) throw new Error('投稿本文が空です');
+  const platform = input.platform || c.platform || 'x_thread';
+  if (!(TARGET_PLATFORMS as string[]).includes(platform)) throw new Error(`媒体は ${TARGET_PLATFORMS.join(' / ')} のいずれかです`);
+  const when = new Date(input.scheduledAt ?? '');
+  if (Number.isNaN(when.getTime()) || when.getTime() <= Date.now()) throw new Error('投稿日時は未来の日時を指定してください');
+  const mode = input.mode === 'schedule' ? 'schedule' : 'draft';
+  const label = c.title || c.managementId;
+
+  let jobId: string;
+  let message: string;
+  let publishMode: PublishMode | undefined;
+  if (mode === 'draft') {
+    const r = await opCreateDraft(ctx, {
+      contents: [{ platform, label, content: c.body }],
+      scheduledAt: when.toISOString(), topic: c.title || undefined, silent: true,
+    });
+    jobId = r.jobId;
+    message = '下書きにしました。カレンダーで確認し、予約してください。';
+  } else {
+    await assertPostQuota(ctx.uid);
+    const effective = await getEffectiveSettings(ctx.uid, ctx.personaId);
+    const persona = await getPersona(ctx.personaId);
+    const desired: PublishMode = platform === 'x_thread' ? 'x_free' : platform === 'line' ? 'line' : 'notify';
+    let note = '';
+    if (persona && personaRequiresApproval(persona)) {
+      publishMode = 'approval';
+      note = '公式キャラのため、承認待ちになります。承認後に予約キューへ入ります。';
+    } else if (desired !== 'notify' && !assertConnectedForPublishMode(effective, desired)) {
+      publishMode = desired;
+      note = '時間になったら自動で投稿されます。';
+    } else {
+      publishMode = 'notify';
+      note = desired === 'notify'
+        ? `${PLATFORM_LABEL[platform] ?? platform}は、時間になると通知でお知らせします（自分で投稿）。`
+        : `${PLATFORM_LABEL[platform] ?? platform}が未連携のため、通知でお知らせします（自分で投稿）。設定でSNS連携すると自動投稿になります。`;
+    }
+    await incrementPostQuota(ctx.uid);
+    jobId = await createScheduledJob(ctx.uid, {
+      contents: [{ platform, label, content: c.body }],
+      scheduledAt: when.toISOString(),
+      publishMode,
+      personaId: ctx.personaId,
+      topic: c.title || undefined,
+      dualApprovalRequired: publishMode === 'approval' && persona?.type === 'official',
+      createdBy: 'user',
+    });
+    if (publishMode === 'approval') {
+      await notifyApprovalNeeded(ctx.uid, { jobId, personaId: ctx.personaId, publishMode, scheduledAt: when.toISOString(), contentSummary: label });
+    }
+    message = `${when.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })} に予約しました。${note}`;
+  }
+  await col(ctx.uid).doc(id).update({
+    status: mode === 'schedule' ? 'scheduled' : 'drafted', linkedJobId: jobId, platform,
+    selection: 'adopted', selectionRaw: '採用', scheduledAt: when.toISOString(), updatedAt: FieldValue.serverTimestamp(),
+  });
+  await writeAuditLog(ctx.uid, 'candidates.to_job', `${c.managementId} → ${jobId} (${mode}${publishMode ? '/' + publishMode : ''})`);
+  return { success: true, jobId, mode, publishMode, message, candidateId: id };
 }
 
 // ---- 重複チェック ----
@@ -414,7 +649,7 @@ const JOB_STATE: Record<string, string> = {
   failed: '失敗',
 };
 
-/** 検索対象: 投稿候補・Xシリーズ在庫・下書き/予約/投稿済み・ネタ帳 のすべて */
+/** 検索対象: 投稿候補・Xシリーズ在庫・下書き/予約/投稿済み・ネタ帳 のすべて。候補に取り込み済みのものは二重に数えない */
 export async function gatherDupPool(ctx: AgentCtx): Promise<DupItem[]> {
   const out: DupItem[] = [];
   const [cands, jobs, ideas] = await Promise.all([
@@ -422,15 +657,23 @@ export async function gatherDupPool(ctx: AgentCtx): Promise<DupItem[]> {
     getScheduledJobs(ctx.uid, undefined, ctx.personaId, 1500),
     listIdeaInbox(ctx.uid).catch(() => []),
   ]);
+  const jobById = new Map(jobs.map((j) => [j.id, j]));
+  const linked = new Set<string>();
   for (const d of cands.docs) {
     const c = fromDoc(d.id, d.data());
+    if (c.sourceKey) linked.add(c.sourceKey);
+    if (c.linkedJobId) linked.add(`job:${c.linkedJobId}`);
+    const job = c.linkedJobId ? jobById.get(c.linkedJobId) : undefined;
+    const status: CandidateStatus = job ? statusFromJob(job.status) : c.status;
     out.push({
       source: 'candidate', id: c.id, managementId: c.managementId, title: c.title,
-      text: c.body || c.title, stateLabel: `投稿候補(${SELECTION_LABEL[c.selection]}${c.status === 'drafted' ? '・下書き移行済み' : ''})`,
-      published: false, series: c.series, theme: c.theme, conclusion: c.conclusion, punchline: c.punchline,
+      text: c.body || c.title,
+      stateLabel: `投稿候補(${STATUS_LABEL[status]}${status === 'candidate' ? '・' + SELECTION_LABEL[c.selection] : ''}${c.platform ? '・' + (PLATFORM_LABEL[c.platform] ?? c.platform) : ''})`,
+      published: status === 'published', series: c.series, theme: c.theme, conclusion: c.conclusion, punchline: c.punchline,
     });
   }
   for (const j of jobs) {
+    if (linked.has(`job:${j.id}`)) continue;
     out.push({
       source: 'scheduled', id: j.id, title: j.topic,
       text: jobText(j), stateLabel: `${JOB_STATE[j.status] ?? j.status}(${platformOf(j)})`,
@@ -438,6 +681,7 @@ export async function gatherDupPool(ctx: AgentCtx): Promise<DupItem[]> {
     });
   }
   for (const i of ideas) {
+    if (linked.has(`idea:${i.id}`)) continue;
     out.push({ source: 'idea', id: i.id, text: i.text, stateLabel: i.status === 'used' ? 'ネタ帳(使用済み)' : 'ネタ帳', published: false });
   }
   try {
@@ -445,6 +689,7 @@ export async function gatherDupPool(ctx: AgentCtx): Promise<DupItem[]> {
     for (const s of series.docs) {
       const items = await s.ref.collection('items').limit(1000).get();
       for (const it of items.docs) {
+        if (linked.has(`xseries:${it.id}`)) continue;
         const x = it.data();
         out.push({
           source: 'xseries', id: it.id, title: x.title || undefined,
@@ -459,7 +704,6 @@ export async function gatherDupPool(ctx: AgentCtx): Promise<DupItem[]> {
   }
   return out;
 }
-
 export interface DupPrefs { useAi: boolean }
 export async function getDupPrefs(uid: string): Promise<DupPrefs> {
   const s = await db().doc(`users/${uid}/prefs/dupCheck`).get();
@@ -557,11 +801,23 @@ candidatesRouter.get('/', requireAuth, async (req: AuthedRequest, res) => {
     const ai = await getAiSettings(req.uid!);
     const st = await getUserSettings(req.uid!);
     res.json({
-      ...(await listCandidates(req.uid!, { query: q.q, series: q.series, selection: q.selection, status: q.status })),
+      ...(await listCandidates(req.uid!, { query: q.q, series: q.series, selection: q.selection, status: q.status, platform: q.platform })),
       prefs: await getDupPrefs(req.uid!),
       ai: { mode: ai.mode, provider: ai.provider, hasKey: ai.hasKey, usage: ai.mode === 'platform' ? await getAiUsage(req.uid!, st.plan) : null },
     });
   } catch (e) { fail(res, e); }
+});
+
+candidatesRouter.post('/', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    await ctxOf(req, true);
+    res.json({ candidate: await createManualCandidate(req.uid!, req.body as Parameters<typeof createManualCandidate>[1]) });
+  } catch (e) { fail(res, e); }
+});
+
+/** 候補の入り口（ネタ帳・Xシリーズ在庫・下書き）をそろえる。画面を開くたびに呼んでよい（重複しない） */
+candidatesRouter.post('/sync', requireAuth, async (req: AuthedRequest, res) => {
+  try { res.json(await syncCandidates(await ctxOf(req))); } catch (e) { fail(res, e); }
 });
 
 candidatesRouter.post('/import', requireAuth, async (req: AuthedRequest, res) => {
@@ -607,9 +863,15 @@ candidatesRouter.patch('/:id', requireAuth, async (req: AuthedRequest, res) => {
   } catch (e) { fail(res, e); }
 });
 
+candidatesRouter.post('/:id/schedule', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const b = req.body as { scheduledAt?: string; platform?: string; mode?: 'draft' | 'schedule' };
+    res.json(await candidateToJob(await ctxOf(req, true), String(req.params.id), b));
+  } catch (e) { fail(res, e); }
+});
 candidatesRouter.post('/:id/draft', requireAuth, async (req: AuthedRequest, res) => {
   try {
     const b = req.body as { scheduledAt?: string; platform?: string };
-    res.json(await candidateToDraft(await ctxOf(req, true), String(req.params.id), b));
+    res.json(await candidateToJob(await ctxOf(req, true), String(req.params.id), { ...b, mode: 'draft' }));
   } catch (e) { fail(res, e); }
 });

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { authFetch } from '../lib/api';
 
 type Selection = 'unreviewed' | 'adopted' | 'needs_fix' | 'hold' | 'rejected';
@@ -18,7 +18,10 @@ interface Candidate {
   conclusion: string;
   punchline: string;
   extra: Record<string, string>;
-  status: 'candidate' | 'drafted';
+  status: 'candidate' | 'drafted' | 'scheduled' | 'published';
+  platform: string;
+  source: string;
+  scheduledAt?: string;
   linkedJobId?: string;
   aiSuggestion?: string;
 }
@@ -38,6 +41,8 @@ interface ListRes {
   candidates: Candidate[];
   total: number;
   counts: Record<string, number>;
+  statusCounts: Record<string, number>;
+  platformCounts: Record<string, number>;
   series: string[];
   prefs: { useAi: boolean };
   ai: { mode: 'platform' | 'own'; provider: string; hasKey: boolean; usage: { used: number; limit: number } | null };
@@ -59,6 +64,16 @@ const SEL: Record<Selection, { label: string; cls: string }> = {
   hold: { label: '保留', cls: 'bg-sky-100 text-sky-700' },
   rejected: { label: '不採用', cls: 'bg-rose-100 text-rose-700' },
 };
+
+const PLATFORMS: Array<[string, string]> = [['x_thread', 'X'], ['instagram', 'Instagram'], ['threads', 'Threads'], ['facebook', 'Facebook'], ['tiktok', 'TikTok'], ['youtube_shorts', 'YouTube Shorts'], ['line', 'LINE'], ['gbp', 'Googleビジネス']];
+const PLATFORM_NAME: Record<string, string> = Object.fromEntries(PLATFORMS);
+const STATUS: Record<string, { label: string; cls: string }> = {
+  candidate: { label: '候補', cls: 'bg-neutral-100 text-neutral-600' },
+  drafted: { label: '下書き', cls: 'bg-violet-100 text-violet-700' },
+  scheduled: { label: '予約済み', cls: 'bg-blue-100 text-blue-700' },
+  published: { label: '投稿済み', cls: 'bg-emerald-100 text-emerald-700' },
+};
+const SOURCE_LABEL: Record<string, string> = { manual: '自分で書いた', idea: 'ネタ帳', xseries: 'ネタ一括作成', draft: 'AI下書き', import: '取り込み', ai: 'AI提案' };
 
 async function call<T>(path: string, init?: { method?: string; body?: unknown }): Promise<T> {
   const res = await authFetch(`/v1/candidates${path}`, {
@@ -169,11 +184,13 @@ function Detail({ id, list, reload }: { id: string; list: ListRes; reload: () =>
   const [busy, setBusy] = useState(false);
   const [when, setWhen] = useState('');
   const [platform, setPlatform] = useState('x_thread');
+  const [asSchedule, setAsSchedule] = useState(true);
 
   const load = useCallback(async () => {
     setMsg('');
     const r = await call<{ candidate: Candidate; duplicates: Dup }>(`/${encodeURIComponent(id)}`);
     setC(r.candidate);
+    setPlatform(r.candidate.platform || 'x_thread');
     setBody(r.candidate.body);
     setNote(r.candidate.editNotes);
     setDup(r.duplicates);
@@ -194,12 +211,12 @@ function Detail({ id, list, reload }: { id: string; list: ListRes; reload: () =>
     try { setDup(await call<Dup>(`/${encodeURIComponent(id)}/check`, { method: 'POST', body: { ai } })); }
     catch (e) { setMsg(e instanceof Error ? e.message : '失敗しました'); } finally { setBusy(false); }
   };
-  const toDraft = async () => {
+  const toJob = async () => {
     setBusy(true);
     setMsg('');
     try {
-      await call(`/${encodeURIComponent(id)}/draft`, { method: 'POST', body: { scheduledAt: new Date(when).toISOString(), platform } });
-      setMsg('下書きにしました。投稿カレンダーで確認・承認・予約してください(自動では投稿されません)。');
+      const r = await call<{ message: string }>(`/${encodeURIComponent(id)}/schedule`, { method: 'POST', body: { scheduledAt: new Date(when).toISOString(), platform, mode: asSchedule ? 'schedule' : 'draft' } });
+      setMsg(r.message);
       await load();
       reload();
     } catch (e) { setMsg(e instanceof Error ? e.message : '失敗しました'); } finally { setBusy(false); }
@@ -215,7 +232,9 @@ function Detail({ id, list, reload }: { id: string; list: ListRes; reload: () =>
           <Badge s={c.selection} />
           {c.series && <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs">{c.series}</span>}
           {c.rating && <span className="text-xs text-neutral-500">評価: {c.rating}</span>}
-          {c.status === 'drafted' && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs text-violet-700">下書き移行済み</span>}
+          <span className={`rounded-full px-2 py-0.5 text-xs ${STATUS[c.status]?.cls ?? ''}`}>{STATUS[c.status]?.label}</span>
+          <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs">{PLATFORM_NAME[c.platform] ?? '媒体未設定'}</span>
+          {c.source && SOURCE_LABEL[c.source] && <span className="text-[11px] text-neutral-400">{SOURCE_LABEL[c.source]}</span>}
         </div>
         <h2 className="mt-1 text-lg font-bold">{c.title || '(タイトルなし)'}</h2>
       </div>
@@ -254,20 +273,32 @@ function Detail({ id, list, reload }: { id: string; list: ListRes; reload: () =>
         </div>
       </div>
 
-      {c.selection === 'adopted' && c.status === 'candidate' && (
+      {c.status === 'candidate' && c.selection !== 'rejected' && (
         <div className="space-y-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-          <div className="text-sm font-semibold">下書きに移す</div>
-          <p className="text-xs text-neutral-600">日時を決めて「下書き」にします。承認・予約・投稿は、カレンダーで人が行います。</p>
+          <div className="text-sm font-semibold">投稿予定を立てる</div>
+          <p className="text-xs text-neutral-600">日時と投稿先を決めて「予約」すると、時間になったら自動で投稿されます(Xなど連携済みの媒体)。連携していない媒体は、時間になると通知でお知らせします。予約すると「採用」になり、投稿予定はダッシュボード・カレンダーに出ます。</p>
           <div className="flex flex-wrap items-center gap-2">
             <input type="datetime-local" className="rounded border p-1 text-sm" value={when} onChange={(e) => setWhen(e.target.value)} />
             <select className="rounded border p-1 text-sm" value={platform} onChange={(e) => setPlatform(e.target.value)}>
-              <option value="x_thread">X</option><option value="instagram">Instagram</option><option value="threads">Threads</option><option value="facebook">Facebook</option>
+              {PLATFORMS.map(([k, n]) => <option key={k} value={k}>{n}</option>)}
             </select>
-            <button disabled={busy || !when} onClick={toDraft} className="rounded-lg bg-neutral-900 px-3 py-1.5 text-sm text-white disabled:opacity-40">下書きにする</button>
+            <label className="text-xs"><input type="checkbox" checked={!asSchedule} onChange={(e) => setAsSchedule(!e.target.checked)} /> 予約せず下書きにする</label>
+            <button disabled={busy || !when} onClick={toJob} className="rounded-lg bg-neutral-900 px-3 py-1.5 text-sm text-white disabled:opacity-40">{asSchedule ? '予約する' : '下書きにする'}</button>
           </div>
         </div>
       )}
-      {msg && <p className="text-sm text-neutral-700">{msg}</p>}
+      {c.status !== 'candidate' && (
+        <p className="rounded-lg bg-neutral-50 p-3 text-xs text-neutral-600">
+          {STATUS[c.status]?.label}{c.scheduledAt ? `(${new Date(c.scheduledAt).toLocaleString('ja-JP')})` : ''}。投稿の確認・変更は <Link to="/calendar" className="underline">投稿カレンダー</Link> で行えます。
+        </p>
+      )}
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <span className="font-semibold text-neutral-500">投稿先の媒体</span>
+        <select className="rounded border p-1" value={c.platform} disabled={busy} onChange={(e) => patch({ platform: e.target.value })}>
+          <option value="">未設定</option>
+          {PLATFORMS.map(([k, n]) => <option key={k} value={k}>{n}</option>)}
+        </select>
+      </div>      {msg && <p className="text-sm text-neutral-700">{msg}</p>}
 
       <div className="space-y-2">
         <div className="flex flex-wrap items-center gap-2">
@@ -288,6 +319,13 @@ function Detail({ id, list, reload }: { id: string; list: ListRes; reload: () =>
 
 export default function CandidatesPage() {
   const [data, setData] = useState<ListRes | null>(null);
+  const [params, setParams] = useSearchParams();
+  const platformSel = params.get('platform') ?? '';
+  const setPlatformSel = (v: string) => setParams(v ? { platform: v } : {}, { replace: true });
+  const [stSel, setStSel] = useState('');
+  const [quick, setQuick] = useState('');
+  const [quickPlatform, setQuickPlatform] = useState('');
+  const [syncMsg, setSyncMsg] = useState('');
   const [sel, setSel] = useState('');
   const [series, setSeries] = useState('');
   const [q, setQ] = useState('');
@@ -298,10 +336,31 @@ export default function CandidatesPage() {
   const reload = useCallback(async () => {
     const p = new URLSearchParams();
     if (sel) p.set('selection', sel);
+    if (stSel) p.set('status', stSel);
+    if (platformSel) p.set('platform', platformSel);
     if (series) p.set('series', series);
     if (q.trim()) p.set('q', q.trim());
     try { setData(await call<ListRes>(`?${p}`)); setErr(''); } catch (e) { setErr(e instanceof Error ? e.message : '読み込めませんでした'); }
-  }, [sel, series, q]);
+  }, [sel, stSel, platformSel, series, q]);
+
+  // 開くたびに、ネタ帳・ネタ一括作成・AI下書きを候補へそろえる(何度でも安全・重複しない)
+  const synced = useRef(false);
+  useEffect(() => {
+    if (synced.current) return;
+    synced.current = true;
+    call<{ created: number }>('/sync', { method: 'POST' })
+      .then((r) => { if (r.created > 0) setSyncMsg(`ネタ帳・ネタ一括作成・AI下書きから ${r.created}件 を候補に追加しました。`); return reload(); })
+      .catch(() => undefined);
+  }, [reload]);
+
+  const addQuick = async () => {
+    try {
+      const r = await call<{ candidate: Candidate }>('/', { method: 'POST', body: { body: quick, platform: quickPlatform || platformSel } });
+      setQuick('');
+      await reload();
+      setOpenId(r.candidate.id);
+    } catch (e) { setErr(e instanceof Error ? e.message : '追加できませんでした'); }
+  };
   useEffect(() => { const t = setTimeout(() => void reload(), 200); return () => clearTimeout(t); }, [reload]);
 
   const exportCsv = async () => {
@@ -323,8 +382,17 @@ export default function CandidatesPage() {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-neutral-600">投稿ネタの正本です。取り込み → 重複チェック → 採用 → 下書き、までをここで管理します。投稿・予約は人がカレンダーで確定します。</p>
+      <p className="text-sm text-neutral-600">投稿ネタの置き場です。自分で書いたネタ・ネタ帳・ネタ一括作成・AI下書きが全部ここに集まります。重複チェック → 日時を決めて予約 → 時間になったら投稿、までをここで進められます。予約の確定は人が押します。</p>
       {err && <p className="text-sm text-rose-700">{err}</p>}
+      {syncMsg && <p className="text-sm text-emerald-700">{syncMsg}</p>}
+      <div className="flex flex-wrap items-start gap-2 rounded-2xl border bg-white p-3">
+        <textarea className="h-16 min-w-[16rem] flex-1 rounded-lg border p-2 text-sm" placeholder="思いついたネタをここに書いて追加(あとで媒体・日時を決められます)" value={quick} onChange={(e) => setQuick(e.target.value)} />
+        <select className="rounded border p-1 text-sm" value={quickPlatform || platformSel} onChange={(e) => setQuickPlatform(e.target.value)}>
+          <option value="">媒体は後で</option>
+          {PLATFORMS.map(([k, n]) => <option key={k} value={k}>{n}</option>)}
+        </select>
+        <button disabled={!quick.trim()} onClick={addQuick} className="rounded-lg bg-neutral-900 px-3 py-1.5 text-sm text-white disabled:opacity-40">候補に追加</button>
+      </div>
       <div className="flex flex-wrap items-center gap-2">
         <button onClick={() => setShowImport(!showImport)} className="rounded-lg bg-neutral-900 px-3 py-1.5 text-sm text-white">{showImport ? '取り込みを閉じる' : '取り込む'}</button>
         <button onClick={exportCsv} className="rounded-lg border px-3 py-1.5 text-sm">CSVで書き出す(バックアップ)</button>
@@ -337,6 +405,18 @@ export default function CandidatesPage() {
       </div>
       {showImport && <ImportPanel onDone={reload} />}
 
+      {data && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold text-neutral-500">媒体</span>
+          {([['', 'すべて'], ...PLATFORMS.filter(([k]) => data.platformCounts[k]).map(([k, n]) => [k, `${n} ${data.platformCounts[k]}`]), ...(data.platformCounts.none ? [['none', `媒体未設定 ${data.platformCounts.none}`]] : [])] as string[][]).map(([k, label]) => (
+            <button key={k} onClick={() => setPlatformSel(k)} className={`rounded-full border px-3 py-1 text-xs ${platformSel === k ? 'bg-neutral-900 text-white' : ''}`}>{label}</button>
+          ))}
+          <span className="ml-2 text-xs font-semibold text-neutral-500">進み具合</span>
+          {([['', 'すべて'], ...Object.entries(STATUS).map(([k, v]) => [k, `${v.label} ${data.statusCounts[k] ?? 0}`])] as string[][]).map(([k, label]) => (
+            <button key={k} onClick={() => setStSel(k)} className={`rounded-full border px-3 py-1 text-xs ${stSel === k ? 'bg-neutral-900 text-white' : ''}`}>{label}</button>
+          ))}
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         {chips.map(([k, label]) => (
           <button key={k} onClick={() => setSel(k)} className={`rounded-full border px-3 py-1 text-xs ${sel === k ? 'bg-neutral-900 text-white' : ''}`}>{label}</button>
@@ -354,7 +434,7 @@ export default function CandidatesPage() {
         <div className="max-h-[70vh] space-y-1 overflow-y-auto rounded-2xl border bg-white p-2">
           {data?.candidates.map((c) => (
             <button key={c.id} onClick={() => setOpenId(c.id)} className={`w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-neutral-50 ${openId === c.id ? 'bg-neutral-100' : ''}`}>
-              <div className="flex items-center gap-2"><span className="font-mono text-xs text-neutral-500">{c.managementId}</span><Badge s={c.selection} />{c.status === 'drafted' && <span className="text-[11px] text-violet-600">下書き済</span>}</div>
+              <div className="flex items-center gap-2"><span className="font-mono text-xs text-neutral-500">{c.managementId}</span><Badge s={c.selection} />{c.status !== 'candidate' && <span className={`rounded-full px-1.5 text-[11px] ${STATUS[c.status]?.cls}`}>{STATUS[c.status]?.label}</span>}<span className="text-[11px] text-neutral-500">{PLATFORM_NAME[c.platform] ?? '媒体未設定'}</span></div>
               <div className="truncate font-semibold">{c.title || c.body.slice(0, 40)}</div>
               {c.series && <div className="text-[11px] text-neutral-500">{c.series}</div>}
             </button>
