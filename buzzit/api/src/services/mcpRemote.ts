@@ -9,6 +9,7 @@ import { z } from 'zod';
 import type { Response } from 'express';
 import {
   addCandidatesFromAi,
+  candidateToJob,
   checkDuplicates,
   getCandidate,
   listCandidates,
@@ -66,7 +67,7 @@ const PLATFORM = z
 const INSTRUCTIONS = `バジット(Buzzit)は SNS 投稿の管理アプリです。あなたは「編集長」として下書きを作り、人が確認・承認・予約します（あなたは投稿できません）。
 まず whoami で「接続中のキャラ（ID・名前）」と接続済みSNSアカウントを確認する。この接続はそのキャラ専用で、別キャラ・別アカウントは操作できない（曖昧なら中止して人に確認する）。投稿シリーズは list_series、登録は upsert_plan（既定はプレビューのみ。保存は人が内容と対象キャラを確認してから dryRun=false + characterId）。実績は未取得を0として扱わず、無いデータの成果や理由を創作しない（get_series_report / get_weekly_report の facts と hypotheses を区別して報告）。X APIの読み取りは費用がかかるため使わず、実績は人が手入力またはCSV取り込みする。
 推奨手順: 0) 投稿計画があれば plan_gaps で埋めるべき枠（日時・媒体・テーマ）を取得し、その枠に沿って作る 1) overview か tag_report / performance_report で現状と過去の実績（伸びた型）を確認 2) 使用回数の多いタグ・直近の内容と被らない切り口を選ぶ 3) check_duplicate で重複確認 / lint_post で表現チェック 4) 画像/動画があれば upload_media か get_upload_url で送る 5) tags を付けて create_draft 6) 他SNSに展開するなら adapt_post(dryRun で確認→作成)。
-投稿候補は BuzzIt が正本。candidates_unused でネタを探し、candidates_check_duplicate（完全一致・表現・テーマ・結論・オチ・投稿済み）で確認してから create_draft。候補の追加は candidates_import（列名は自由・既定プレビュー）、修正案は candidates_update の aiSuggestion。採用・下書き移行・予約・投稿は人が画面で行う。
+投稿候補は BuzzIt が正本。candidates_unused でネタを探し、candidates_check_duplicate（完全一致・表現・テーマ・結論・オチ・投稿済み）で確認してから create_draft。ネタを作ったら candidates_add で媒体(platform)付きで候補に保存（表の一括取り込みは candidates_import）。修正案は candidates_update の aiSuggestion。ユーザーが「この日時に投稿して」と明確に頼んだときは candidates_schedule で予約できる（時間になったら自動投稿／未連携媒体は通知）。頼まれていない予約・投稿は絶対にしない。
 X自動投稿のシリーズ（カテゴリ別の在庫）は x_series_list → x_series_create → x_series_add_items で自由に作れる（投稿OKは人が画面で付ける）。
 X は本文280字（スレッドは「---」だけの行で区切る・最大5投稿）。Instagram は画像必須、YouTube Shorts / TikTok は動画必須、Googleビジネスはハッシュタグ不要。`;
 
@@ -490,6 +491,53 @@ function buildServer(ctx: AgentCtx): McpServer {
       inputSchema: { rows: z.array(z.record(z.string(), z.union([z.string(), z.number()]))).min(1).max(200), columnMap: z.record(z.string(), z.string()).optional(), dryRun: z.boolean().default(true) },
     },
     ({ rows, columnMap, dryRun }) => run(() => addCandidatesFromAi(ctx.uid, rows, { columnMap: columnMap as never, dryRun })),
+  );
+  server.registerTool(
+    'candidates_add',
+    {
+      description: 'AIが作ったネタを、その場で投稿候補に保存する（プレビューなし）。各ネタに媒体(platform)を付けると、その媒体のネタとして画面に出る。選定状況は「未選定」から始まり、下書き・予約・投稿は作られない。同じ管理IDは重複登録しない。ユーザーが「ネタを作って」「候補に入れて」と頼んだらこれを使う。保存後、必要なら candidates_check_duplicate で確認する。',
+      inputSchema: {
+        items: z.array(z.object({
+          title: z.string().max(200).optional(),
+          body: z.string().min(1).max(5000),
+          platform: PLATFORM.optional(),
+          series: z.string().max(100).optional(),
+          imageIdea: z.string().max(2000).optional(),
+          theme: z.string().max(200).optional(),
+          managementId: z.string().max(60).optional(),
+        })).min(1).max(100),
+      },
+    },
+    ({ items }) => run(() => addCandidatesFromAi(ctx.uid, items.map((i) => ({
+      管理ID: i.managementId ?? '', タイトル: i.title ?? '', 投稿本文: i.body, 媒体: i.platform ?? '', シリーズ: i.series ?? '', 画像案: i.imageIdea ?? '', テーマ: i.theme ?? '',
+    })), { dryRun: false })),
+  );
+  server.registerTool(
+    'candidates_schedule',
+    {
+      description:
+        '投稿候補を、指定日時に予約する（時間になったら自動投稿。X連携済みなら自動、未連携の媒体は通知で知らせる。公式キャラは承認待ちになる）。ユーザーが日時を指定して「投稿して／予約して」と明確に頼んだときだけ呼ぶこと。ユーザーの依頼なしに勝手に予約しない。userRequestedPosting は、ユーザーが明示的に依頼した場合のみ true にする。完全一致・表現が似ている候補があると、ignoreDuplicates=true でない限り予約せず中止する。mode=draft なら下書きまで。',
+      inputSchema: {
+        id: z.string().describe('候補の管理ID'),
+        scheduledAt: z.string().describe('投稿日時（ISO8601。日本時間なら 2026-11-20T09:00:00+09:00）。未来の日時のみ'),
+        platform: PLATFORM.optional(),
+        mode: z.enum(['schedule', 'draft']).default('schedule'),
+        userRequestedPosting: z.boolean().describe('ユーザーが投稿・予約を明示的に依頼したか'),
+        ignoreDuplicates: z.boolean().default(false),
+      },
+    },
+    ({ id, scheduledAt, platform, mode, userRequestedPosting, ignoreDuplicates }) => run(async () => {
+      if (mode === 'schedule' && !userRequestedPosting) throw new Error('ユーザーからの明確な予約依頼がないため中止しました。まず下書き(mode=draft)にするか、ユーザーに確認してください');
+      const c = await getCandidate(ctx.uid, id);
+      if (!ignoreDuplicates) {
+        const d = await checkDuplicates(ctx, targetOf(c), {});
+        const hit = d.matches.filter((m) => m.id !== c.id && (m.kinds.includes('exact') || m.kinds.includes('similar')));
+        if (hit.length) {
+          return { scheduled: false, reason: '似た投稿があるため予約しませんでした。ユーザーに確認し、問題なければ ignoreDuplicates=true で再実行してください。', duplicates: hit.slice(0, 5).map((m) => ({ id: m.managementId ?? m.id, state: m.stateLabel, kinds: m.kindLabels, text: m.text.slice(0, 120) })) };
+        }
+      }
+      return { scheduled: true, ...(await candidateToJob(ctx, id, { scheduledAt, platform, mode })) };
+    }),
   );
   server.registerTool(
     'candidates_update',
