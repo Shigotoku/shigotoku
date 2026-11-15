@@ -354,21 +354,20 @@ function SidebarContent({
         </div>
         <div className="rounded-lg bg-white/15 px-3 py-2">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-sm font-bold text-neutral-900">
+            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-xs font-bold text-neutral-900">
               {displayName.slice(0, 1)}
             </div>
             <div className="min-w-0 flex-1 text-center" title={`${displayName} · ${roleLabel} (${planLabels[plan]})`}>
               <p className="truncate text-sm font-bold text-white">{displayName}</p>
-              <p className="truncate text-xs text-neutral-300">{roleLabel}</p>
             </div>
             <button
               type="button"
               onClick={onLogout}
               title="ログアウト"
               aria-label="ログアウト"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-white/30 text-white transition-colors hover:bg-white hover:text-neutral-900"
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-white/30 text-white transition-colors hover:bg-white hover:text-neutral-900"
             >
-              <LogOut className="h-4 w-4" />
+              <LogOut className="h-3.5 w-3.5" />
             </button>
           </div>
         </div>
