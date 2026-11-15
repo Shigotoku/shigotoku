@@ -47,6 +47,51 @@ export function detectAnalytics(html) {
   return { ga4Ids: ga4, gtmIds: gtm, hasAnalytics: ga4.length > 0 || gtm.length > 0 };
 }
 
+const FRAMEWORKS = [
+  ['Next.js', /__NEXT_DATA__|\/_next\//],
+  ['Nuxt', /\/_nuxt\/|__NUXT__/],
+  ['Astro', /astro-island|data-astro-cid|\/_astro\//],
+  ['WordPress', /wp-content\/|wp-includes\//],
+  ['Webflow', /data-wf-site|webflow\.com/],
+  ['Wix', /wixstatic\.com/],
+  ['STUDIO', /studio\.site|cdn\.studio\.design/],
+  ['Shopify', /cdn\.shopify\.com/],
+];
+const CMPS = [
+  ['Cookiebot', /consent\.cookiebot\.com/],
+  ['OneTrust', /cookielaw\.org|onetrust\.com/],
+  ['Usercentrics', /usercentrics\.eu/],
+  ['CookieYes', /cookieyes\.com/],
+  ['Osano', /osano\.com/],
+  ['iubenda', /iubenda\.com/],
+  ['Termly', /termly\.io/],
+  ['TrustArc', /trustarc\.com/],
+  ['Complianz', /complianz/i],
+  ['Klaro', /klaro/i],
+  ['Google同意メッセージ', /fundingchoicesmessages\.google\.com/],
+];
+
+/**
+ * サイトの作り・同意バナー・フォームを HTML から読み取る(AI への依頼文に自動で添えるため)。
+ * 見つからないものは null / 空にする(推測しない)。
+ */
+export function detectSiteFacts(html) {
+  const framework = FRAMEWORKS.find(([, re]) => re.test(html))?.[0] ?? null;
+  let cmp = CMPS.find(([, re]) => re.test(html))?.[0] ?? null;
+  if (!cmp && /cookie[-_ ]?(banner|consent|notice)|cookieconsent/i.test(html)) cmp = '自前のバナー(コード内に実装)';
+  const consentMode = /gtag\(\s*['"]consent['"]\s*,\s*['"]default['"]/.test(html);
+  const forms = [];
+  for (const m of html.matchAll(/<form\b[\s\S]*?<\/form>/gi)) {
+    const fields = [...m[0].matchAll(/<(input|textarea|select)\b[^>]*>/gi)]
+      .map((f) => f[0])
+      .filter((tag) => !/type=["']?(hidden|submit|button|image|reset)/i.test(tag));
+    if (!fields.length) continue;
+    const names = fields.map((tag) => /(?:name|id)=["']([^"']+)["']/i.exec(tag)?.[1]).filter(Boolean).slice(0, 12);
+    forms.push({ fieldCount: fields.length, requiredCount: fields.filter((t) => /\brequired\b|aria-required=["']true/i.test(t)).length, names });
+  }
+  return { framework, cmp, consentMode, forms: forms.slice(0, 3) };
+}
+
 export function auditHtml(html) {
   const head = html.slice(0, 200000);
   const title = first(/<title[^>]*>([\s\S]*?)<\/title>/i, head);
@@ -75,7 +120,7 @@ export function auditHtml(html) {
     .replace(/<[^>]+>/g, ' ');
   const text = decode(body).replace(/\s+/g, ' ');
   const blocks = checkText(text).findings.filter((f) => f.severity === 'block').slice(0, 5).map((f) => ({ label: f.label, match: f.match, advice: f.advice }));
-  return { title, desc, robots, canonical, ogTitle, h1Count, jsonldTypes: [...new Set(jsonldTypes)], textLength: text.length, blocks, ...detectAnalytics(html) };
+  return { title, desc, robots, canonical, ogTitle, h1Count, jsonldTypes: [...new Set(jsonldTypes)], textLength: text.length, blocks, ...detectAnalytics(html), facts: detectSiteFacts(html) };
 }
 
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split(/[\\/]/).pop())) {

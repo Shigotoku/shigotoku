@@ -79,6 +79,29 @@ export function pickConversion(site, events) {
 
 const confLabel = (c) => (c >= 0.7 ? '高' : c >= 0.45 ? '中' : '低');
 
+/** 公開ページ監査の facts を集約し、AI への依頼文に自動で添える「サイトの情報」にする。最頻値を採用。 */
+export function aggregateSiteFacts(auditRows) {
+  const rows = auditRows.filter((r) => r.status === 200 && r.facts);
+  const mode = (vals) => {
+    const c = new Map();
+    for (const v of vals.filter(Boolean)) c.set(v, (c.get(v) ?? 0) + 1);
+    return [...c.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+  };
+  const ga4Ids = [...new Set(rows.flatMap((r) => r.ga4Ids ?? []))];
+  const gtmIds = [...new Set(rows.flatMap((r) => r.gtmIds ?? []))];
+  const forms = [];
+  for (const r of rows) for (const f of r.facts.forms ?? []) forms.push({ page: r.finalUrl || r.page, ...f });
+  return {
+    checked: rows.length,
+    framework: mode(rows.map((r) => r.facts.framework)),
+    cmp: mode(rows.map((r) => r.facts.cmp)),
+    consentMode: rows.some((r) => r.facts.consentMode),
+    ga4Ids,
+    gtmIds,
+    forms: forms.slice(0, 5),
+  };
+}
+
 /**
  * @param input {{site, today, gscPage, gscQuery, ga4src, ga4ev, ga4conv, psi, actions, audit, competitors}}
  * @param opts  {{days?: number}}
@@ -604,6 +627,7 @@ export function buildSummary(input, opts = {}) {
     northStar, funnel, channels, ai, seo, conversion, landing,
     competitors,
     audit: { date: auditDate, checked: audit.length, clean: audit.length ? audit.filter((r) => r.status === 200 && !r.blocks?.length).length : 0 },
+    siteFacts: aggregateSiteFacts(audit),
     actions, thisWeek, skipList, effects, freshness, limits,
     pagesTop: [...pagesCur.values()].sort((a, b) => b.impressions - a.impressions).slice(0, 15).map((a) => ({ path: a.path, clicks: a.clicks, impressions: a.impressions, ctrPct: round(a.ctr * 100, 2), position: round(a.position, 1), prevClicks: pagesPrev.get(a.path)?.clicks ?? 0 })),
   };

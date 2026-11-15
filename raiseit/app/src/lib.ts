@@ -31,6 +31,8 @@ export type Action = {
   /** そのまま貼れる依頼文。ai=ChatGPT/Cursor 等への指示、vendor=制作会社・担当者への依頼 */
   instructions?: { ai: string; vendor: string };
 };
+/** レイジットが公開ページから自動で読み取ったサイトの情報(AIへの依頼文に自動で添える) */
+export type SiteFacts = { checked: number; framework: string | null; cmp: string | null; consentMode: boolean; ga4Ids: string[]; gtmIds: string[]; forms: { page: string; fieldCount: number; requiredCount: number; names: string[] }[] };
 /** 計測乖離(trk-gap)のページ群別の内訳 */
 export type GapSection = { section: string; clicks: number; orgSessions: number; ratioPct: number | null; audited: number; noTag: number };
 export type Summary = {
@@ -46,6 +48,7 @@ export type Summary = {
   landing: { path: string; sessions: number; orgSessions: number; sessionPerClick: number; leads: number; cvrPct: number }[];
   competitors?: Competitor[];
   audit?: { date: string | null; checked: number; clean: number };
+  siteFacts?: SiteFacts;
   actions: Action[];
   thisWeek: string[];
   skipList: { id: string; title: string; reason: string }[];

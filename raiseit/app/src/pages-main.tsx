@@ -82,7 +82,7 @@ export function ActionCard({ a, compact = false, selected, onToggle }: { a: Acti
   const st = state[a.id]?.status ?? "open";
   const writable = ["owner", "admin", "editor"].includes(role);
   const p = plainOf(a);
-  const prompt = buildAiPrompt(a, summary?.site.name ?? "", summary?.period.latest ?? "");
+  const prompt = buildAiPrompt(a, { siteName: summary?.site.name ?? "", date: summary?.period.latest ?? "", facts: summary?.siteFacts, topPages: summary?.pagesTop.map((x) => x.path) });
   const [showPrompt, setShowPrompt] = useState(false);
   return (
     <Card className={`space-y-3 ${selected ? "ring-2 ring-mint" : ""}`}>
@@ -169,7 +169,7 @@ export function ActionsPage() {
   if (!s) return null;
   const toggle = (id: string) => setSel((o) => { const n = new Set(o); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const chosen = s.actions.filter((a) => sel.has(a.id));
-  const combined = buildCombinedPrompt(chosen, s.site.name, s.period.latest);
+  const combined = buildCombinedPrompt(chosen, { siteName: s.site.name, date: s.period.latest, facts: s.siteFacts, topPages: s.pagesTop.map((x) => x.path) });
   const area = params.get("area");
   const list = s.actions
     .filter((a) => !area || plainOf(a).area === area)

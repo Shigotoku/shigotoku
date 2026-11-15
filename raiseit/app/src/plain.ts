@@ -1,4 +1,4 @@
-import type { Action } from "./lib";
+import type { Action, SiteFacts } from "./lib";
 
 /** 素人向けの説明と、AIに渡すプロンプトの生成。ルール(a.rule)ごとに「何が悪いか」を平易に言い換える */
 
@@ -146,114 +146,90 @@ export function plainOf(a: Action): Plain & { areaInfo: Area } {
 export const CONFIDENCE_HELP = "この改善で効果が出る見込みの確かさ(データがどれだけ揃っているか)";
 export const RISK_HELP = "直すときに、見た目や表現を壊してしまうリスク。「中」以上は本文などを変えるので、必ず人が確認してください";
 
-const VERIFY: Record<string, string[]> = {
-  計測: ["本番ページのHTMLに計測タグ(G-から始まる測定ID)が出力されていること", "GA4のリアルタイムで、自分でページを開いたアクセスが記録されること"],
-  SEO: ["変更後のページをブラウザで開き、表示が崩れていないこと", "公開後、Search Consoleで2〜4週間後に表示回数・クリック率が改善しているか確認(これは私が行います)"],
-};
+/** プロンプトに自動で添える、サイトの情報(レイジットが公開ページを調べて埋める。ユーザーの入力は不要) */
+export type PromptCtx = { siteName: string; date: string; facts?: SiteFacts | null; topPages?: string[] };
 
-/** AIに貼り付けるプロンプトを作る。HP/LPをAIで作った人が、そのまま制作に使っているAIに貼れる形 */
-export function buildAiPrompt(a: Action, siteName: string, date: string): string {
+const isNotSet = (u?: string) => !!u && /\(not set\)/i.test(u);
+const shortUrl = (u: string) => { try { return new URL(u).pathname; } catch { return u; } };
+
+function factsLines(ctx: PromptCtx): string[] {
+  const f = ctx.facts;
+  const L = [`- サイト名: ${ctx.siteName}(計測日 ${ctx.date})`];
+  if (!f || !f.checked) return [...L, "- 作り方・計測タグ・フォーム: 自動で調べられませんでした。コードを見て自分で判断してください。"];
+  L.push(`- 作り方: ${f.framework ?? "不明(コードを見て判断)"}`);
+  L.push(`- Cookie同意バナー: ${f.cmp ?? "見つかりませんでした(なしとして進める)"}${f.cmp ? (f.consentMode ? "(拒否時の匿名計測の設定あり)" : "(拒否時の匿名計測の設定は見つからず)") : ""}`);
+  L.push(`- 計測タグ(GA4): ${f.ga4Ids.length ? f.ga4Ids.join("、") : f.gtmIds.length ? `GTM経由(${f.gtmIds.join("、")})` : "見つかりませんでした"}`);
+  if (f.forms.length) for (const fm of f.forms.slice(0, 3)) L.push(`- フォーム: ${shortUrl(fm.page)} … 入力欄${fm.fieldCount}個(必須${fm.requiredCount}個)`);
+  return L;
+}
+
+/** 項目ごとの短い依頼文。url が実在しない(not set)ときは、アクセスの多いページを自動で候補にする */
+function itemLines(a: Action, ctx: PromptCtx, head = ""): string[] {
+  const L: string[] = [];
+  L.push(`${head}${plainOf(a).headline}`);
+  if (a.url && !isNotSet(a.url)) L.push(`- 対象ページ: ${a.url}`);
+  else if (a.url) L.push(`- 対象ページ: 特定できませんでした。${ctx.topPages?.length ? `アクセスの多い ${ctx.topPages.slice(0, 3).join(" / ")} から、問い合わせへの案内が弱いものを選んで直す。` : "トップや主なLPの、問い合わせへの案内を直す。"}`);
+  // データは多くても2件、検索キーワードは先頭3つまでにして短くする
+  for (const w of a.why.slice(0, 2)) L.push(`- データ: ${w}`);
+  if (a.hints?.length) L.push(`- 検索されている言葉: ${a.hints.slice(0, 3).join("、")}`);
+  L.push("- やること:");
+  a.how.forEach((h, i) => L.push(`  ${i + 1}) ${h}`));
+  return L;
+}
+
+const HEAD = [
+  "あなたは私のWebサイト改善の担当者です。私は初心者で、質問されても答えられません。",
+  "",
+  "# ルール",
+  "- 質問や確認はしない。自分で調べて判断し、最後まで修正する。迷ったら、変更が小さく元に戻せる方を選ぶ。",
+  "- 専門用語は使わない。使うときは一言で説明する。",
+  "- 指示した所以外は変えない。canonical・noindex・robots.txt・リダイレクトは触らない。",
+  "- 効果の断定・体験談・最上級表現は書かない。ページにない事実は書かない(医療・健康は特に厳守)。",
+];
+
+const TAIL_CODE = [
+  "# 終わったら",
+  "ビルドやテストがあれば実行し、エラーは自分で直す。そのあと、次の形で短く報告する(専門用語なし)。",
+  "- 直した所: ページ名と、何を変えたかを一言で",
+  "- 私が確認すること: 「はい/いいえ」で答えられるものだけ、最大3つ",
+];
+
+const TAIL_GUIDE = [
+  "# 終わったら",
+  "質問せず、最初から最後までの手順を一度にまとめて案内する。画面名・ボタン名を1手順ずつ書き、私が上から順に進められるようにする。",
+  "最後に、うまくいったか確かめる方法を書く。私の環境が分からない所は、よくあるケースで書き、違う場合の分岐も添える。",
+];
+
+/** AIに貼り付けるプロンプトを1件分作る。HP/LPをAIで作った人が、そのまま制作に使っているAIに貼れる形 */
+export function buildAiPrompt(a: Action, ctx: PromptCtx): string {
   const p = plainOf(a);
-  const lines: string[] = [];
-  lines.push("あなたは、私のWebサイト(ホームページ/ランディングページ)の改善を手伝うパートナーです。このサイトはAIを使って作成しました。");
-  lines.push("アクセス解析ツール「レイジット」の監視で、改善できる点が見つかりました。下記の内容に沿って、サイトを修正してください。");
-  lines.push("");
-  lines.push(`# 改善したいこと`);
-  lines.push(`${p.headline}(分野: ${p.areaInfo.label})`);
-  lines.push("");
-  lines.push("# 対象");
-  lines.push(`- サイト: ${siteName}`);
-  if (a.url) lines.push(`- 対象ページ: ${a.url}`);
-  lines.push(`- 計測日: ${date}(レイジットの計測)`);
-  lines.push("");
-  lines.push("# 何が問題か(やさしい説明)");
-  lines.push(p.problem);
-  lines.push("");
-  lines.push("# 計測で分かっていること");
-  for (const w of a.why) lines.push(`- ${w}`);
-  if (a.hints?.length) lines.push(`- このページで検索されている言葉の例: ${a.hints.join("、")}`);
-  lines.push("");
-  lines.push(p.mode === "guide" ? "# 私にやってほしいこと(設定作業のため、手順の案内をお願いします)" : p.mode === "research" ? "# 調べて提案してほしいこと" : "# 直してほしいこと");
-  a.how.forEach((h, i) => lines.push(`${i + 1}. ${h}`));
-  lines.push("");
-  lines.push("# 守ってほしいこと");
-  if (p.mode === "code") {
-    lines.push("- 指示した箇所以外の見た目・デザイン・文章は変えない。");
-    if (a.rule !== "audit.noindex") lines.push("- canonical / noindex / robots.txt / リダイレクトは、指示がない限り変更しない。");
-    if (a.risk !== "low") lines.push("- 効果の断定・体験談・「日本一」などの最上級表現、誇大な表現は書かない(医療・健康に関する内容は特に厳守)。");
-    lines.push("- 事実が分からない部分は、推測で書かずに私に質問する。");
-    lines.push("- 変更は最小限にする。いきなり大きく書き換えない。");
-  } else {
-    lines.push("- 私はこの分野の初心者です。専門用語には、かんたんな説明を添えてください。");
-    lines.push("- 画面名やボタン名を、1手順ずつ具体的に示してください。");
-    lines.push("- 設定を変えると過去のデータや動作に影響する場合は、先に注意してください。");
-  }
-  lines.push("");
-  lines.push("# 進め方");
-  if (p.mode === "code") {
-    lines.push("1. まず、このプロジェクトの中から関係するファイルを探し、原因と変更方針を3行以内で説明してください。");
-    lines.push("2. 私が了承したら、最小限の変更で修正してください。");
-    lines.push("3. 変更したファイルと変更内容を、一覧で報告してください。");
-    lines.push("4. ビルドやテストがあれば実行し、問題がないことを確認してください。");
-  } else {
-    lines.push("1. まず全体の流れを短く説明してください。");
-    lines.push("2. 次に、手順を1つずつ案内してください。私が終わったら次に進みます。");
-    lines.push("3. 最後に、うまくいったか確かめる方法を教えてください。");
-  }
-  lines.push("");
-  lines.push("# 終わったあとの確認");
-  for (const v of VERIFY[a.category] ?? ["変更後のページをブラウザで開き、表示と動作に問題がないこと"]) lines.push(`- ${v}`);
-  lines.push("");
-  lines.push("不明な点があれば、推測で進めずに先に質問してください。");
-  return lines.join("\n");
+  const guide = p.mode !== "code";
+  return [
+    ...HEAD,
+    ...(guide ? ["- 管理画面の作業は、画面名・ボタン名を1手順ずつ具体的に示す。設定で過去のデータや動作に影響する場合は、先に注意する。"] : []),
+    "",
+    "# サイトの情報(レイジットが自動で調べました。聞き返さないでください)",
+    ...factsLines(ctx),
+    "",
+    `# ${guide ? "お願いしたいこと" : "直してほしいこと"}`,
+    ...itemLines(a, ctx),
+    "",
+    ...(guide ? TAIL_GUIDE : TAIL_CODE),
+  ].join("\n");
 }
 
 /** 複数の改善候補をまとめて、1つのプロンプトにする。サイトを直す作業を先、設定・調査を後にして順に進めてもらう */
-export function buildCombinedPrompt(actions: Action[], siteName: string, date: string): string {
+export function buildCombinedPrompt(actions: Action[], ctx: PromptCtx): string {
   const items = actions.map((a) => ({ a, p: plainOf(a) }));
   const rank = { code: 0, research: 1, guide: 2 } as const;
   items.sort((x, y) => rank[x.p.mode] - rank[y.p.mode]);
-  const MODE = { code: "サイトの修正", research: "調査・提案", guide: "管理画面での設定(手順の案内)" } as const;
-  const L: string[] = [];
-  L.push("あなたは、私のWebサイト(ホームページ/ランディングページ)の改善を手伝うパートナーです。このサイトはAIを使って作成しました。");
-  L.push(`アクセス解析ツール「レイジット」の監視で、改善できる点が${items.length}件見つかりました。下記すべてを、順番に対応してください。`);
-  L.push("");
-  L.push("# 対象");
-  L.push(`- サイト: ${siteName}`);
-  L.push(`- 計測日: ${date}(レイジットの計測)`);
-  L.push("");
-  L.push("# 改善項目一覧");
+  const L: string[] = [...HEAD];
+  if (items.some(({ p }) => p.mode !== "code")) L.push("- 管理画面の作業は、画面名・ボタン名を1手順ずつ具体的に示す。");
+  L.push("- 項目ごとに分けて変更し、混ぜない。番号順に最後まで一度に進める。", "", "# サイトの情報(レイジットが自動で調べました。聞き返さないでください)", ...factsLines(ctx), "", `# 直してほしいこと(${items.length}件)`);
   items.forEach(({ a, p }, i) => {
-    L.push("");
-    L.push(`## ${i + 1}. ${p.headline}`);
-    L.push(`- 分野: ${p.areaInfo.label} / 種類: ${MODE[p.mode]}`);
-    if (a.url) L.push(`- 対象ページ: ${a.url}`);
-    L.push(`- 何が問題か: ${p.problem}`);
-    L.push("- 計測で分かっていること:");
-    for (const w of a.why) L.push(`  - ${w}`);
-    if (a.hints?.length) L.push(`  - このページで検索されている言葉の例: ${a.hints.join("、")}`);
-    L.push("- やってほしいこと:");
-    a.how.forEach((h, j) => L.push(`  ${j + 1}) ${h}`));
+    L.push("", ...itemLines(a, ctx, `## ${i + 1}. `));
+    if (p.mode !== "code") L.push("- これは管理画面での作業です。手順の案内として書いてください。");
   });
-  L.push("");
-  L.push("# 守ってほしいこと(全項目共通)");
-  L.push("- 各項目で指示した箇所以外の見た目・デザイン・文章は変えない。");
-  if (!items.some(({ a }) => a.rule === "audit.noindex")) L.push("- canonical / noindex / robots.txt / リダイレクトは、指示がない限り変更しない。");
-  if (items.some(({ a, p }) => p.mode === "code" && a.risk !== "low")) L.push("- 効果の断定・体験談・「日本一」などの最上級表現、誇大な表現は書かない(医療・健康に関する内容は特に厳守)。");
-  L.push("- 事実が分からない部分は、推測で書かずに私に質問する。");
-  L.push("- 変更は最小限にする。項目ごとに分けて変更し、混ぜない。");
-  if (items.some(({ p }) => p.mode === "guide")) L.push("- 管理画面での設定作業は、私が初心者である前提で、画面名・ボタン名を1手順ずつ案内する。");
-  L.push("");
-  L.push("# 進め方");
-  L.push("1. まず全体を見て、項目ごとの変更方針を短い一覧にして説明してください(関係するファイルも添えて)。");
-  L.push("2. 私が了承したら、番号順に1項目ずつ対応してください。1項目終えるごとに、変更したファイルと内容を報告してください。");
-  L.push("3. 最後に、ビルドやテストがあれば実行して確認し、全項目の対応結果を表にまとめてください。");
-  L.push("");
-  L.push("# 終わったあとの確認");
-  const verify = new Set<string>();
-  for (const { a } of items) for (const v of VERIFY[a.category] ?? ["変更後のページをブラウザで開き、表示と動作に問題がないこと"]) verify.add(v);
-  for (const v of verify) L.push(`- ${v}`);
-  L.push("");
-  L.push("不明な点があれば、推測で進めずに先に質問してください。");
+  L.push("", ...(items.every(({ p }) => p.mode !== "code") ? TAIL_GUIDE : TAIL_CODE));
   return L.join("\n");
 }
