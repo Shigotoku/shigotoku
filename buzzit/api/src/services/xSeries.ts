@@ -91,7 +91,7 @@ function normalizeScheduledAt(value: unknown): string {
  * ネタの追加・変更があったときに呼び、次の定期処理ですぐ再確認させる。
  */
 export async function resetDueCheck(uid: string, seriesId: string): Promise<void> {
-  await col(uid, 'xSeries').doc(seriesId).update({ dueCheckAfter: FieldValue.delete() }).catch(() => undefined);
+  await col(uid, 'xSeries').doc(seriesId).update({ dueCheckAfter: 0 }).catch(() => undefined);
 }
 
 export async function listXSeries(uid: string, personaId?: string): Promise<XSeries[]> {
@@ -143,6 +143,7 @@ export async function createXSeries(
     name,
     description: input.description?.trim() ?? '',
     enabled: true,
+    dueCheckAfter: 0,
     ...(input.personaId ? { personaId: input.personaId } : {}),
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
@@ -743,12 +744,73 @@ async function readAllGroupDocs(
   return out;
 }
 
+/**
+ * 今の時刻に実行されうるルールだけを読む(全ユーザーの全ルールを5分ごとに読まない)。
+ * 実行時刻は「設定時刻 + ゆらぎ(0〜最大60分+)」なので、設定時刻が [現在-75分, 現在+5分] のものが対象。
+ * 索引が未作成などで失敗したら従来どおり全件読みに切り替える。
+ */
+async function readDueRuleDocs(all: boolean): Promise<FirebaseFirestore.QueryDocumentSnapshot[]> {
+  const base = db().collectionGroup('xScheduleRules').where('enabled', '==', true);
+  if (all) return readAllGroupDocs(base);
+  try {
+    const jstMs = Date.now() + 9 * 3600 * 1000;
+    const hhmm = (ms: number) => new Date(ms).toISOString().slice(11, 16);
+    const lo = jstMs - 75 * 60_000;
+    const hi = jstMs + 5 * 60_000;
+    const loS = hhmm(lo);
+    const hiS = hhmm(hi);
+    const ranges: Array<[string, string]> = loS <= hiS ? [[loS, hiS]] : [[loS, '23:59'], ['00:00', hiS]];
+    const out: FirebaseFirestore.QueryDocumentSnapshot[] = [];
+    for (const [a, b] of ranges) {
+      let last: FirebaseFirestore.QueryDocumentSnapshot | undefined;
+      for (let i = 0; i < 50; i++) {
+        let q = base.where('timeHHMM', '>=', a).where('timeHHMM', '<=', b).orderBy('timeHHMM').limit(300);
+        if (last) q = q.startAfter(last);
+        const snap = await q.get();
+        out.push(...snap.docs);
+        if (snap.size < 300) break;
+        last = snap.docs[snap.size - 1];
+      }
+    }
+    return out;
+  } catch (err) {
+    console.error('[xSeries] ルール絞り込み失敗、全件読みに切替', err instanceof Error ? err.message : err);
+    return readAllGroupDocs(base);
+  }
+}
+
+/**
+ * 時刻指定ネタの確認が必要なシリーズだけを読む(dueCheckAfter が現在以前のもの)。
+ * 印のない古いシリーズは、毎時の最初の5分に全件確認して印を付ける。
+ */
+async function readDueSeriesDocs(all: boolean): Promise<FirebaseFirestore.QueryDocumentSnapshot[]> {
+  const group = db().collectionGroup('xSeries');
+  const jstMinute = new Date(Date.now() + 9 * 3600 * 1000).getUTCMinutes();
+  if (all || jstMinute < 5) return readAllGroupDocs(group);
+  try {
+    const out: FirebaseFirestore.QueryDocumentSnapshot[] = [];
+    const seen = new Set<string>();
+    for (let i = 0; i < 20; i++) {
+      const snap = await group.where('dueCheckAfter', '<=', Date.now()).limit(300).get();
+      const fresh = snap.docs.filter((d) => !seen.has(d.ref.path));
+      fresh.forEach((d) => seen.add(d.ref.path));
+      out.push(...fresh);
+      if (snap.size < 300 || !fresh.length) break;
+      break; // 処理済みは dueCheckAfter が進むので、残りは次回の実行で拾う
+    }
+    return out;
+  } catch (err) {
+    console.error('[xSeries] シリーズ絞り込み失敗、全件読みに切替', err instanceof Error ? err.message : err);
+    return readAllGroupDocs(group);
+  }
+}
+
 export async function processXSeriesSchedules(opts?: {
   onlyUid?: string;
   /** true でジッター／時刻判定を無視して即消化（手動実行用） */
   force?: boolean;
 }): Promise<{ users: number; fired: number; posted: number; errors: number }> {
-  const ruleDocs = await readAllGroupDocs(db().collectionGroup('xScheduleRules').where('enabled', '==', true));
+  const ruleDocs = await readDueRuleDocs(opts?.force || !!opts?.onlyUid);
   const byUid = new Map<string, XScheduleRule[]>();
 
   for (const doc of ruleDocs) {
@@ -814,7 +876,7 @@ export async function processXSeriesSchedules(opts?: {
 
   // 投稿時刻（scheduledAt）が指定されたネタを、時刻が来たら投稿
   if (!opts?.force) {
-    const seriesDocs = await readAllGroupDocs(db().collectionGroup('xSeries'));
+    const seriesDocs = await readDueSeriesDocs(!!opts?.onlyUid);
     for (const sdoc of seriesDocs) {
       const uid = sdoc.ref.parent.parent?.id;
       if (!uid) continue;
@@ -826,6 +888,7 @@ export async function processXSeriesSchedules(opts?: {
       try {
         const meta: { nextDueMs?: number } = {};
         const claimed = await claimPendingItems(uid, sdoc.id, 5, 'due', meta);
+        if (claimed.length) await sdoc.ref.update({ dueCheckAfter: Date.now() + 4 * 60_000 }).catch(() => undefined);
         if (!claimed.length) {
           await sdoc.ref.update({ dueCheckAfter: Math.min(meta.nextDueMs ?? Infinity, Date.now() + 60 * 60_000) }).catch(() => undefined);
           continue;

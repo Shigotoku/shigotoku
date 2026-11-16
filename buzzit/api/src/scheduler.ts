@@ -48,9 +48,6 @@ export const buzzitScheduler = onSchedule(
     if (slot === 'evening') {
       await evaluateAbTestsForAllUsers();
     }
-    // 朝・昼・夜にインサイト同期（X はユーザー側の費用ガードで既定オフ）
-    const insights = await syncInsightsForEligibleUsers();
-    console.log('buzzitScheduler insights:', insights);
   },
 );
 
@@ -69,7 +66,12 @@ export const buzzitPublishWorker = onSchedule(
     // LINE ステップ配信も同じ5分ジョブで処理（Cloud Scheduler のジョブ数を減らす）
     const line = await processDueStepProgress();
     const richMenu = await processRichMenuSegmentSwitch();
-    console.log('buzzitPublishWorker:', result, 'xSeries:', series, 'line:', line, 'richMenu:', richMenu);
+    // インサイト同期は毎時の最初の5分に、150人ずつ順番に(X はユーザー側の費用ガードで既定オフ)
+    let insights: unknown = 'skipped';
+    if (new Date(Date.now() + 9 * 3600 * 1000).getUTCMinutes() < 5) {
+      insights = await syncInsightsForEligibleUsers().catch((e) => String(e));
+    }
+    console.log('buzzitPublishWorker:', result, 'xSeries:', series, 'line:', line, 'richMenu:', richMenu, 'insights:', insights);
   },
 );
 

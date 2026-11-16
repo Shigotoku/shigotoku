@@ -248,7 +248,7 @@ export async function evaluateAllRunningAbTests(uid: string): Promise<number> {
 }
 
 export async function evaluateAbTestsForAllUsers(): Promise<number> {
-  const snap = await db().collection('users').get();
+  const snap = await db().collection('users').where('plan', 'in', ['pro', 'team', 'growth']).get();
   let total = 0;
   for (const doc of snap.docs) {
     const plan = doc.data().plan as string;

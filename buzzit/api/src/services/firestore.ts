@@ -257,8 +257,13 @@ async function seedDemoPosts(uid: string) {
 }
 
 export async function getUserSettings(uid: string): Promise<UserSettings> {
-  await ensureUser(uid);
+  // 読み取りは1回だけ(存在しない新規ユーザーのときだけ作成処理へ)
   const snap = await db().collection('users').doc(uid).get();
+  if (!snap.exists) {
+    await ensureUser(uid);
+    const created = await db().collection('users').doc(uid).get();
+    return { uid, ...(created.data() as Omit<UserSettings, 'uid'>) };
+  }
   return { uid, ...(snap.data() as Omit<UserSettings, 'uid'>) };
 }
 
@@ -956,7 +961,8 @@ export async function getAutoModeUsers(): Promise<UserSettings[]> {
 }
 
 export async function getAllUsersWithSlack(): Promise<UserSettings[]> {
-  const snap = await db().collection('users').get();
+  // Slack連携済みのユーザーだけを索引で絞って読む(全ユーザーを読まない)
+  const snap = await db().collection('users').where('slackWebhookUrl', '>', '').get();
   return snap.docs
     .map((d) => ({ ...(d.data() as UserSettings), uid: d.id }))
     .filter((u) => !!u.slackWebhookUrl);

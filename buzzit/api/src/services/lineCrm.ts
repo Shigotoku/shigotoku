@@ -691,6 +691,8 @@ export async function createRichMenuWithImage(
 
 /** セグメント別リッチメニュー自動切替（5分ワーカー） */
 export async function processRichMenuSegmentSwitch(): Promise<{ processed: number; errors: number }> {
+  // 5分ごとに全LINEユーザーを走査すると費用が膨らむため、毎時の最初の5分だけ実行する
+  if (new Date(Date.now() + 9 * 3600 * 1000).getUTCMinutes() >= 5) return { processed: 0, errors: 0 };
   const db = getFirestore();
   const usersSnap = await db.collection('users').where('lineChannelAccessToken', '!=', null).get();
   let processed = 0;
@@ -698,7 +700,7 @@ export async function processRichMenuSegmentSwitch(): Promise<{ processed: numbe
 
   for (const userDoc of usersSnap.docs) {
     const uid = userDoc.id;
-    const settings = await getUserSettings(uid);
+    const settings = { uid, ...(userDoc.data() as Record<string, unknown>) } as Awaited<ReturnType<typeof getUserSettings>>;
     if (!settings.lineChannelAccessToken) continue;
 
     const menusSnap = await db.collection(`users/${uid}/lineRichMenus`).get().catch(() => null);

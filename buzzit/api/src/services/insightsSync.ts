@@ -21,7 +21,7 @@ import {
 } from './insights';
 import { credentialsFromSettings } from './xApi';
 import type { MetaConnection } from './meta';
-import { getFirestore } from 'firebase-admin/firestore';
+import { getFirestore, FieldPath } from 'firebase-admin/firestore';
 
 const STALE_MS = 6 * 60 * 60 * 1000; // 6時間以内はスキップ（force 以外）
 
@@ -196,47 +196,46 @@ export async function syncInsightsForUser(
   return result;
 }
 
-export async function syncInsightsForEligibleUsers(): Promise<{
+/**
+ * 全ユーザーを一定人数ずつ順番に同期する(カーソル方式)。
+ * 1回あたりの読み取り・処理時間を一定に保ち、ユーザーが1万人になっても1回の実行が重くならない。
+ */
+export async function syncInsightsForEligibleUsers(batchSize = 150): Promise<{
   users: number;
   fetched: number;
   errors: number;
 }> {
-  const snap = await getFirestore()
-    .collection('users')
-    .where('insightsEnabled', '!=', false)
-    .limit(100)
-    .get();
+  const db = getFirestore();
+  const cursorRef = db.doc('systemState/insightsSync');
+  const last = ((await cursorRef.get()).data()?.lastUid as string | undefined) ?? undefined;
+  let q = db.collection('users').orderBy(FieldPath.documentId()).limit(batchSize);
+  if (last) q = q.startAfter(last);
+  const snap = await q.get();
+  // 末尾まで届いたら次回は先頭から
+  await cursorRef.set({ lastUid: snap.size < batchSize ? '' : snap.docs[snap.size - 1].id, at: new Date().toISOString() }).catch(() => undefined);
 
-  // insightsEnabled 未設定ユーザーも対象にしたいので、別途最近投稿があるユーザーを拾う
-  const publishedSnap = await getFirestore()
-    .collectionGroup('scheduled')
-    .where('status', '==', 'published')
-    .limit(200)
-    .get();
-
-  const uids = new Set<string>();
-  for (const d of snap.docs) uids.add(d.id);
-  for (const d of publishedSnap.docs) {
-    const uid = d.ref.parent.parent?.id;
-    if (uid) uids.add(uid);
-  }
+  const uids = snap.docs.filter((d) => d.data().insightsEnabled !== false).map((d) => d.id);
 
   let fetched = 0;
   let errors = 0;
   let users = 0;
-
-  for (const uid of uids) {
-    try {
-      const settings = await getEffectiveSettings(uid);
-      if (settings.insightsEnabled === false) continue;
-      const r = await syncInsightsForUser(uid, { force: false });
-      users += 1;
-      fetched += r.fetched;
-      errors += r.errors;
-    } catch (err) {
-      errors += 1;
-      console.error('insights sync user failed', uid, err);
-    }
+  const CONCURRENCY = 5;
+  for (let i = 0; i < uids.length; i += CONCURRENCY) {
+    await Promise.all(
+      uids.slice(i, i + CONCURRENCY).map(async (uid) => {
+        try {
+          const settings = await getEffectiveSettings(uid);
+          if (settings.insightsEnabled === false) return;
+          const r = await syncInsightsForUser(uid, { force: false });
+          users += 1;
+          fetched += r.fetched;
+          errors += r.errors;
+        } catch (err) {
+          errors += 1;
+          console.error('insights sync user failed', uid, err);
+        }
+      }),
+    );
   }
 
   return { users, fetched, errors };
