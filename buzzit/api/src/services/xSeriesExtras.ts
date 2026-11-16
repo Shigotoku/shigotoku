@@ -12,6 +12,7 @@ import {
   matchScheduleDay,
   type XScheduleRule,
   type XSeriesItem,
+  resetDueCheck,
 } from './xSeries';
 import { getUserSettings, type UserSettings } from './firestore';
 import { getXApiPostsThisMonth } from './firestore';
@@ -259,6 +260,7 @@ export async function moveXSeriesItems(
     sortOrder++;
     moved++;
   }
+  if (moved) await resetDueCheck(uid, toSeriesId);
   return moved;
 }
 
@@ -276,6 +278,7 @@ export async function retryFailedXSeriesItem(
     errorMessage: FieldValue.delete(),
     updatedAt: FieldValue.serverTimestamp(),
   });
+  await resetDueCheck(uid, seriesId);
   return true;
 }
 

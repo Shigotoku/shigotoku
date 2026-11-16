@@ -86,20 +86,34 @@ function normalizeScheduledAt(value: unknown): string {
   return Number.isNaN(t) ? '' : new Date(t).toISOString();
 }
 
+/**
+ * 「時刻指定ネタの投稿チェック」を次回いつ行うかを覚えておく印(series.dueCheckAfter)を消す。
+ * ネタの追加・変更があったときに呼び、次の定期処理ですぐ再確認させる。
+ */
+export async function resetDueCheck(uid: string, seriesId: string): Promise<void> {
+  await col(uid, 'xSeries').doc(seriesId).update({ dueCheckAfter: FieldValue.delete() }).catch(() => undefined);
+}
+
 export async function listXSeries(uid: string, personaId?: string): Promise<XSeries[]> {
   const snap = await col(uid, 'xSeries').orderBy('createdAt', 'desc').limit(40).get();
   let series = await Promise.all(
     snap.docs.map(async (d) => {
       const data = d.data();
-      const items = await col(uid, 'xSeries')
-        .doc(d.id)
-        .collection('items')
-        .where('status', '==', 'pending')
-        .limit(200)
-        .get();
+      // 件数は集計クエリ(count)で取得する。ドキュメントを読まないので、在庫が増えても読み取り課金がほぼ増えない
+      const itemsRef = col(uid, 'xSeries').doc(d.id).collection('items');
+      let pendingCount = 0;
       let approvedCount = 0;
-      for (const it of items.docs) {
-        if (it.data().approved) approvedCount++;
+      try {
+        const [pend, appr] = await Promise.all([
+          itemsRef.where('status', '==', 'pending').count().get(),
+          itemsRef.where('status', '==', 'pending').where('approved', '==', true).count().get(),
+        ]);
+        pendingCount = pend.data().count;
+        approvedCount = appr.data().count;
+      } catch {
+        const items = await itemsRef.where('status', '==', 'pending').limit(200).get();
+        pendingCount = items.size;
+        for (const it of items.docs) if (it.data().approved) approvedCount++;
       }
       return {
         id: d.id,
@@ -108,7 +122,7 @@ export async function listXSeries(uid: string, personaId?: string): Promise<XSer
         enabled: data.enabled !== false,
         personaId: data.personaId as string | undefined,
         createdAt: tsToIso(data.createdAt),
-        pendingCount: items.size,
+        pendingCount,
         approvedCount,
       } satisfies XSeries;
     }),
@@ -326,7 +340,10 @@ export async function addXSeriesItems(
     });
     sortOrder++;
   }
-  if (created.length) await batch.commit();
+  if (created.length) {
+    await batch.commit();
+    await resetDueCheck(uid, seriesId);
+  }
   return created;
 }
 
@@ -355,6 +372,7 @@ export async function updateXSeriesItem(
   }
   if (patch.scheduledAt !== undefined) updates.scheduledAt = normalizeScheduledAt(patch.scheduledAt);
   await ref.update(updates);
+  if (patch.scheduledAt !== undefined || patch.approved !== undefined || patch.status !== undefined) await resetDueCheck(uid, seriesId);
   const after = await ref.get();
   return mapItem(seriesId, itemId, after.data()!);
 }
@@ -381,7 +399,10 @@ export async function approveAllPendingItems(uid: string, seriesId: string): Pro
     batch.update(doc.ref, { approved: true, updatedAt: FieldValue.serverTimestamp() });
     count++;
   }
-  if (count) await batch.commit();
+  if (count) {
+    await batch.commit();
+    await resetDueCheck(uid, seriesId);
+  }
   return count;
 }
 
@@ -548,6 +569,7 @@ async function claimPendingItems(
   seriesId: string,
   take: number,
   mode: 'rule' | 'due' = 'rule',
+  meta?: { nextDueMs?: number },
 ): Promise<Array<{ id: string; data: FirebaseFirestore.DocumentData }>> {
   const nowMs = Date.now();
   // status のみで取得し approved はアプリ側フィルタ（複合インデックス不要）
@@ -563,6 +585,7 @@ async function claimPendingItems(
     const data = d.data();
     if (data.approved !== true) return false;
     const at = data.scheduledAt ? new Date(String(data.scheduledAt)).getTime() : NaN;
+    if (meta && !Number.isNaN(at) && at > nowMs) meta.nextDueMs = Math.min(meta.nextDueMs ?? Infinity, at);
     if (mode === 'due') return !Number.isNaN(at) && at <= nowMs;
     // ルール消化: 未来の投稿時刻が指定されたネタは、その時刻まで取っておく
     return Number.isNaN(at) || at <= nowMs;
@@ -772,9 +795,16 @@ export async function processXSeriesSchedules(opts?: {
       if (!uid) continue;
       if (opts?.onlyUid && uid !== opts.onlyUid) continue;
       if (sdoc.data().enabled === false) continue;
+      // 前回「次に投稿時刻が来るのは先」と分かっているシリーズは、その時刻まで読み取りを省く(最大60分で再確認)
+      const checkAfter = sdoc.data().dueCheckAfter;
+      if (typeof checkAfter === 'number' && checkAfter > Date.now()) continue;
       try {
-        const claimed = await claimPendingItems(uid, sdoc.id, 5, 'due');
-        if (!claimed.length) continue;
+        const meta: { nextDueMs?: number } = {};
+        const claimed = await claimPendingItems(uid, sdoc.id, 5, 'due', meta);
+        if (!claimed.length) {
+          await sdoc.ref.update({ dueCheckAfter: Math.min(meta.nextDueMs ?? Infinity, Date.now() + 60 * 60_000) }).catch(() => undefined);
+          continue;
+        }
         const settings = await getEffectiveSettings(uid, sdoc.data().personaId as string | undefined);
         const mode = credentialsFromSettings(settings) ? 'x_free' : 'notify';
         for (const item of claimed) {

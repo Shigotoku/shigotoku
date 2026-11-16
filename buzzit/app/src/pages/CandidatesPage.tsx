@@ -260,12 +260,11 @@ function Workspace({ id, list, reload, onToggleAi }: DetailProps) {
 
   const load = useCallback(async () => {
     setMsg('');
-    const r = await call<{ candidate: Candidate; duplicates: Dup }>(`/${encodeURIComponent(id)}`);
+    const r = await call<{ candidate: Candidate }>(`/${encodeURIComponent(id)}`);
     setC(r.candidate);
     setPlatform(r.candidate.platform || 'x_thread');
     setBody(r.candidate.body);
     setNote(r.candidate.editNotes);
-    setDup(r.duplicates);
   }, [id]);
   useEffect(() => { load().catch((e) => setMsg(e.message)); }, [load]);
 
@@ -284,7 +283,10 @@ function Workspace({ id, list, reload, onToggleAi }: DetailProps) {
     setC((prev) => (prev ? { ...prev, mediaUrls: r.candidate.mediaUrls } : r.candidate));
     reload();
   };
+  // 類似投稿の確認は全件比較で重いので、「過去の類似投稿」を開いたときだけ実行する
+  const dupAsked = useRef(false);
   const check = async (ai: boolean) => {
+    dupAsked.current = true;
     setBusy(true);
     try { setDup(await call<Dup>(`/${encodeURIComponent(id)}/check`, { method: 'POST', body: { ai } })); }
     catch (e) { setMsg(e instanceof Error ? e.message : '失敗しました'); } finally { setBusy(false); }
@@ -408,7 +410,10 @@ function Workspace({ id, list, reload, onToggleAi }: DetailProps) {
           </details>
         )}
 
-        <details className="rounded-lg border p-2 text-xs">
+        <details
+          className="rounded-lg border p-2 text-xs"
+          onToggle={(e) => { if ((e.currentTarget as HTMLDetailsElement).open && !dupAsked.current) void check(false); }}
+        >
           <summary className="cursor-pointer font-semibold text-neutral-600">
             過去の類似投稿{dup ? `(${dup.matches.length}件)` : ''}
           </summary>
@@ -468,6 +473,11 @@ export default function CandidatesPage() {
   useEffect(() => {
     if (synced.current) return;
     synced.current = true;
+    // 同期は重いので、10分以内に実施済みなら呼ばない
+    const KEY = 'buzzit-candidates-synced-at';
+    const last = Number(sessionStorage.getItem(KEY) ?? 0);
+    if (Date.now() - last < 10 * 60_000) return;
+    sessionStorage.setItem(KEY, String(Date.now()));
     call<{ created: number }>('/sync', { method: 'POST' })
       .then((r) => { if (r.created > 0) setSyncMsg(`ネタ帳・ネタ一括作成・AI下書きから ${r.created}件 を候補に追加しました。`); return reload(); })
       .catch(() => undefined);
@@ -492,7 +502,7 @@ export default function CandidatesPage() {
       setOpenId(r.candidate.id);
     } catch (e) { setErr(e instanceof Error ? e.message : '追加できませんでした'); }
   };
-  useEffect(() => { const t = setTimeout(() => void reload(), 200); return () => clearTimeout(t); }, [reload]);
+  useEffect(() => { const t = setTimeout(() => void reload(), 400); return () => clearTimeout(t); }, [reload]);
 
   const exportCsv = async () => {
     const res = await authFetch('/v1/candidates/export-csv');

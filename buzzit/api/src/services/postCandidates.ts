@@ -35,6 +35,27 @@ import {
 const db = () => getFirestore();
 const col = (uid: string) => db().collection(`users/${uid}/postCandidates`);
 
+/**
+ * 読み取りコスト対策: 候補の全件読み込み(最大2000件)と重複チェック用の比較対象(候補+予約+シリーズ在庫+ネタ帳)は、
+ * 画面操作のたびに全件読むと課金・遅延が大きいので、短時間だけインスタンス内にキャッシュする。書き込み時は即破棄する。
+ */
+const CACHE_TTL_MS = 20_000;
+const listCache = new Map<string, { at: number; list: Candidate[] }>();
+const poolCache = new Map<string, { at: number; key: string; pool: DupItem[] }>();
+const lastSync = new Map<string, number>();
+const SYNC_MIN_INTERVAL_MS = 5 * 60_000;
+const bust = (uid: string) => { listCache.delete(uid); poolCache.delete(uid); };
+
+async function loadAllCandidates(uid: string): Promise<Candidate[]> {
+  const hit = listCache.get(uid);
+  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.list;
+  const snap = await col(uid).limit(2000).get();
+  const list = snap.docs.map((d) => fromDoc(d.id, d.data()));
+  listCache.set(uid, { at: Date.now(), list });
+  if (listCache.size > 200) listCache.delete(listCache.keys().next().value as string);
+  return list;
+}
+
 export type Selection = 'unreviewed' | 'adopted' | 'needs_fix' | 'hold' | 'rejected';
 export const SELECTION_LABEL: Record<Selection, string> = {
   unreviewed: '未選定',
@@ -363,6 +384,7 @@ export async function importCandidates(uid: string, input: ImportInput) {
   }
   if (!input.dryRun) {
     await flush();
+    bust(uid);
     await writeAuditLog(uid, 'candidates.import', `新規${created} / 更新${updated} / スキップ${skipped}`);
   }
 
@@ -381,8 +403,7 @@ export async function importCandidates(uid: string, input: ImportInput) {
 // ---- 取得・更新 ----
 
 export async function listCandidates(uid: string, q: { query?: string; series?: string; selection?: string; status?: string; platform?: string; limit?: number } = {}) {
-  const snap = await col(uid).limit(2000).get();
-  let list = snap.docs.map((d) => fromDoc(d.id, d.data()));
+  let list = [...(await loadAllCandidates(uid))];
   const counts: Record<string, number> = { all: list.length };
   for (const c of list) counts[c.selection] = (counts[c.selection] ?? 0) + 1;
   const statusCounts: Record<string, number> = {};
@@ -441,6 +462,7 @@ export async function updateCandidate(uid: string, id: string, patch: CandidateP
     upd.aiSuggestedAt = FieldValue.serverTimestamp();
   }
   await ref.update(upd);
+  bust(uid);
   await writeAuditLog(uid, by === 'ai' ? 'candidates.update.ai' : 'candidates.update', `${s.data()!.managementId ?? id}: ${Object.keys(upd).filter((k) => k !== 'updatedAt').join(',')}`);
   return getCandidate(uid, id);
 }
@@ -481,6 +503,7 @@ export async function createManualCandidate(uid: string, input: { body?: string;
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   });
+  bust(uid);
   await writeAuditLog(uid, 'candidates.create', id);
   return getCandidate(uid, id);
 }
@@ -495,8 +518,12 @@ const statusFromJob = (s: string): CandidateStatus =>
  *  - カレンダーの下書き（AIが作った下書き）
  * 既存の投稿・予約・シリーズ・ネタ帳は変更しない（読み取り専用）。候補側の状態（下書き/予約済み/投稿済み）は元の投稿に合わせて更新する。
  */
-export async function syncCandidates(ctx: AgentCtx) {
+export async function syncCandidates(ctx: AgentCtx, opts: { force?: boolean } = {}) {
   const uid = ctx.uid;
+  // 同期は全入り口(ネタ帳・シリーズ在庫・下書き)を読むため重い。5分以内に実施済みなら何もしない
+  const last = lastSync.get(uid) ?? 0;
+  if (!opts.force && Date.now() - last < SYNC_MIN_INTERVAL_MS) return { created: 0, refreshed: 0, skipped: true };
+  lastSync.set(uid, Date.now());
   const [existingSnap, ideas, jobs] = await Promise.all([
     col(uid).limit(2000).get(),
     listIdeaInbox(uid).catch(() => []),
@@ -591,6 +618,7 @@ export async function syncCandidates(ctx: AgentCtx) {
   }
   if (n) await batch.commit();
   await migrateUnsetPlatformToX(uid);
+  if (created || refreshed) bust(uid);
   return { created, refreshed };
 }
 
@@ -606,6 +634,7 @@ async function migrateUnsetPlatformToX(uid: string) {
     await b.commit();
   }
   await flag.set({ done: true, count: targets.length, at: new Date().toISOString() });
+  bust(uid);
   if (targets.length) await writeAuditLog(uid, 'candidates.migrate_platform_x', `${targets.length}件`);
 }
 
@@ -675,6 +704,7 @@ export async function candidateToJob(ctx: AgentCtx, id: string, input: { schedul
     status: mode === 'schedule' ? 'scheduled' : 'drafted', linkedJobId: jobId, platform,
     selection: 'adopted', selectionRaw: '採用', scheduledAt: when.toISOString(), updatedAt: FieldValue.serverTimestamp(),
   });
+  bust(ctx.uid);
   await writeAuditLog(ctx.uid, 'candidates.to_job', `${c.managementId} → ${jobId} (${mode}${publishMode ? '/' + publishMode : ''})`);
   return { success: true, jobId, mode, publishMode, message, candidateId: id };
 }
@@ -693,6 +723,15 @@ const JOB_STATE: Record<string, string> = {
 
 /** 検索対象: 投稿候補・Xシリーズ在庫・下書き/予約/投稿済み・ネタ帳 のすべて。候補に取り込み済みのものは二重に数えない */
 export async function gatherDupPool(ctx: AgentCtx): Promise<DupItem[]> {
+  const key = `${ctx.uid}:${ctx.personaId ?? ''}`;
+  const hit = poolCache.get(ctx.uid);
+  if (hit && hit.key === key && Date.now() - hit.at < CACHE_TTL_MS) return hit.pool;
+  const pool = await gatherDupPoolUncached(ctx);
+  poolCache.set(ctx.uid, { at: Date.now(), key, pool });
+  if (poolCache.size > 100) poolCache.delete(poolCache.keys().next().value as string);
+  return pool;
+}
+async function gatherDupPoolUncached(ctx: AgentCtx): Promise<DupItem[]> {
   const out: DupItem[] = [];
   const [cands, jobs, ideas] = await Promise.all([
     col(ctx.uid).limit(2000).get(),
@@ -842,8 +881,11 @@ candidatesRouter.get('/', requireAuth, async (req: AuthedRequest, res) => {
     const q = req.query as Record<string, string | undefined>;
     const ai = await getAiSettings(req.uid!);
     const st = await getUserSettings(req.uid!);
+    const r = await listCandidates(req.uid!, { query: q.q, series: q.series, selection: q.selection, status: q.status, platform: q.platform });
     res.json({
-      ...(await listCandidates(req.uid!, { query: q.q, series: q.series, selection: q.selection, status: q.status, platform: q.platform })),
+      ...r,
+      // 一覧に要らない長い項目は送らない(通信量・描画の削減)。全文は1件取得で返す
+      candidates: r.candidates.map((c) => ({ ...c, body: c.body.slice(0, 120), extra: {}, checkNotes: '', editNotes: '', aiSuggestion: undefined, imageIdea: '', mediaUrls: c.mediaUrls.slice(0, 1) })),
       prefs: await getDupPrefs(req.uid!),
       ai: { mode: ai.mode, provider: ai.provider, hasKey: ai.hasKey, usage: ai.mode === 'platform' ? await getAiUsage(req.uid!, st.plan) : null },
     });
@@ -872,6 +914,7 @@ candidatesRouter.post('/set-platform', requireAuth, async (req: AuthedRequest, r
       for (const d of targets.slice(i, i + 400)) batch.update(d.ref, { platform, updatedAt: FieldValue.serverTimestamp() });
       await batch.commit();
     }
+    bust(req.uid!);
     await writeAuditLog(req.uid!, 'candidates.set_platform', `${platform}: ${targets.length}件`);
     res.json({ updated: targets.length });
   } catch (e) { fail(res, e); }
@@ -904,9 +947,8 @@ candidatesRouter.put('/prefs', requireAuth, async (req: AuthedRequest, res) => {
 
 candidatesRouter.get('/:id', requireAuth, async (req: AuthedRequest, res) => {
   try {
-    const c = await getCandidate(req.uid!, String(req.params.id));
-    const dup = await checkDuplicates(await ctxOf(req), targetOf(c), { ai: false });
-    res.json({ candidate: c, duplicates: dup });
+    // 重複チェックは全件比較で重いので、ここでは行わない(画面で類似投稿を開いたときに /check で実行)
+    res.json({ candidate: await getCandidate(req.uid!, String(req.params.id)) });
   } catch (e) { fail(res, e); }
 });
 
