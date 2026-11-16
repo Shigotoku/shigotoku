@@ -7,7 +7,7 @@
  */
 import { createHash } from 'node:crypto';
 import { Router } from 'express';
-import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { getFirestore, FieldValue, FieldPath, Timestamp } from 'firebase-admin/firestore';
 import { requireAuth, type AuthedRequest } from '../middleware/auth';
 import { aiFetch, aiKey, getAiSettings, withUserAi } from './aiClient';
 import { AiQuotaError, assertPostQuota, consumeAiQuota, getAiUsage, incrementPostQuota } from './planLimits';
@@ -25,6 +25,7 @@ import {
   buildAiDupPrompt,
   findDuplicates,
   mergeAiVerdicts,
+  keywords,
   normalize,
   parseAiVerdicts,
   type DupItem,
@@ -44,15 +45,128 @@ const listCache = new Map<string, { at: number; list: Candidate[] }>();
 const poolCache = new Map<string, { at: number; key: string; pool: DupItem[] }>();
 const lastSync = new Map<string, number>();
 const SYNC_MIN_INTERVAL_MS = 5 * 60_000;
-const bust = (uid: string) => { listCache.delete(uid); poolCache.delete(uid); };
+const countsCache = new Map<string, { at: number; v: CandidateCounts }>();
+const bust = (uid: string) => { listCache.delete(uid); poolCache.delete(uid); countsCache.delete(uid); };
+
+// ---- 規模対策: 全件を読まずに済むための仕組み ----
+//  ・一覧はFirestoreのクエリ(絞り込み+ページ送り)で必要な分だけ読む
+//  ・件数は集計クエリ(count)で数える(ドキュメントを読まない)
+//  ・類似投稿チェックは、各候補に持たせた「指紋」(fp/fpk)で似ていそうな候補だけを検索して比べる
+//  ・シリーズ名の一覧は小さな専用ドキュメントに持つ
+const h8 = (x: string) => createHash('sha1').update(x).digest('hex').slice(0, 8);
+const SKETCH = 24;
+/** 本文の2文字の並び(類似判定と同じ尺度)と主要語から、似た投稿を探すための指紋を作る */
+export function fingerprint(title: string, body: string, theme = ''): { fp: string[]; fpk: string[] } {
+  const nt = normalize(body || title);
+  const bg = new Set<string>();
+  for (let i = 0; i < nt.length - 1; i++) bg.add(h8(nt.slice(i, i + 2)));
+  const fp = [...bg].sort().slice(0, SKETCH);
+  const fpk = [...keywords(`${title} ${theme} ${body}`)].map(h8).sort().slice(0, SKETCH);
+  return { fp, fpk };
+}
+
+export interface CandidateCounts {
+  all: number;
+  counts: Record<string, number>;
+  statusCounts: Record<string, number>;
+  platformCounts: Record<string, number>;
+}
+const PLATFORM_IDS = TARGET_PLATFORMS as string[];
+
+/** 件数だけを集計クエリで数える(ドキュメントは読まない)。20秒キャッシュ */
+export async function candidateCounts(uid: string): Promise<CandidateCounts> {
+  const hit = countsCache.get(uid);
+  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.v;
+  const n = async (q: FirebaseFirestore.Query) => (await q.count().get()).data().count;
+  const base = col(uid);
+  const sels = Object.keys(SELECTION_LABEL);
+  const stats = Object.keys(STATUS_LABEL);
+  const [all, selN, statN, platN] = await Promise.all([
+    n(base),
+    Promise.all(sels.map((k) => n(base.where('selection', '==', k)))),
+    Promise.all(stats.map((k) => n(base.where('status', '==', k)))),
+    Promise.all(PLATFORM_IDS.map((k) => n(base.where('platform', '==', k)))),
+  ]);
+  const counts: Record<string, number> = { all };
+  sels.forEach((k, i) => { counts[k] = selN[i]; });
+  const statusCounts: Record<string, number> = {};
+  stats.forEach((k, i) => { statusCounts[k] = statN[i]; });
+  const platformCounts: Record<string, number> = {};
+  let withPlatform = 0;
+  PLATFORM_IDS.forEach((k, i) => { platformCounts[k] = platN[i]; withPlatform += platN[i]; });
+  platformCounts.none = Math.max(0, all - withPlatform);
+  const v = { all, counts, statusCounts, platformCounts };
+  countsCache.set(uid, { at: Date.now(), v });
+  if (countsCache.size > 200) countsCache.delete(countsCache.keys().next().value as string);
+  return v;
+}
+
+const seriesDoc = (uid: string) => db().doc(`users/${uid}/prefs/candidateSeries`);
+const ensured = new Set<string>();
+/** シリーズ名の一覧(専用ドキュメント)。無ければ一度だけ全件から作る */
+export async function getSeriesNames(uid: string): Promise<string[]> {
+  const snap = await seriesDoc(uid).get();
+  if (snap.exists) return ((snap.data()?.names as string[]) ?? []).slice().sort();
+  const names = new Set<string>();
+  let cursor: string | undefined;
+  for (let page = 0; page < 40; page++) {
+    let q = col(uid).orderBy(FieldPath.documentId()).select('series').limit(1000);
+    if (cursor) q = q.startAfter(cursor);
+    const r = await q.get();
+    for (const d of r.docs) { const v = d.data().series; if (v) names.add(String(v)); }
+    if (r.size < 1000) break;
+    cursor = r.docs[r.size - 1].id;
+  }
+  await seriesDoc(uid).set({ names: [...names].slice(0, 500) });
+  return [...names].sort();
+}
+const addSeriesNames = async (uid: string, names: Array<string | undefined>) => {
+  const list = [...new Set(names.map((x) => (x ?? '').trim()).filter(Boolean))];
+  if (!list.length) return;
+  await seriesDoc(uid).set({ names: FieldValue.arrayUnion(...list) }, { merge: true }).catch(() => undefined);
+};
+
+/** 指紋が無い古い候補に、一度だけ指紋を付ける(以後の新規・更新は書き込み時に付く) */
+async function ensureFingerprints(uid: string) {
+  if (ensured.has(uid)) return;
+  const flag = db().doc(`users/${uid}/prefs/candidateFp`);
+  if ((await flag.get()).exists) { ensured.add(uid); return; }
+  let cursor: string | undefined;
+  for (let page = 0; page < 100; page++) {
+    let q = col(uid).orderBy(FieldPath.documentId()).limit(400);
+    if (cursor) q = q.startAfter(cursor);
+    const r = await q.get();
+    const b = db().batch();
+    let w = 0;
+    for (const d of r.docs) {
+      const x = d.data();
+      if (Array.isArray(x.fp)) continue;
+      b.update(d.ref, fingerprint(String(x.title ?? ''), String(x.body ?? ''), String(x.theme ?? '')));
+      w++;
+    }
+    if (w) await b.commit();
+    if (r.size < 400) break;
+    cursor = r.docs[r.size - 1].id;
+  }
+  await flag.set({ done: true, at: new Date().toISOString() });
+  ensured.add(uid);
+}
 
 async function loadAllCandidates(uid: string): Promise<Candidate[]> {
   const hit = listCache.get(uid);
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.list;
-  const snap = await col(uid).limit(2000).get();
-  const list = snap.docs.map((d) => fromDoc(d.id, d.data()));
+  const list: Candidate[] = [];
+  let cursor: string | undefined;
+  for (let page = 0; page < 5; page++) {
+    let q = col(uid).orderBy(FieldPath.documentId()).limit(1000);
+    if (cursor) q = q.startAfter(cursor);
+    const r = await q.get();
+    for (const d of r.docs) list.push(fromDoc(d.id, d.data()));
+    if (r.size < 1000) break;
+    cursor = r.docs[r.size - 1].id;
+  }
   listCache.set(uid, { at: Date.now(), list });
-  if (listCache.size > 200) listCache.delete(listCache.keys().next().value as string);
+  if (listCache.size > 100) listCache.delete(listCache.keys().next().value as string);
   return list;
 }
 
@@ -367,6 +481,7 @@ export async function importCandidates(uid: string, input: ImportInput) {
         managementId: p.managementId,
         extra: p.extra,
         mediaUrls: p.mediaUrls,
+        ...fingerprint(p.fields.title ?? '', p.fields.body ?? '', p.fields.theme ?? ''),
         selection: toSelection(p.selectionRaw),
         selectionRaw: p.selectionRaw,
         platform: p.platform,
@@ -377,7 +492,7 @@ export async function importCandidates(uid: string, input: ImportInput) {
       });
     } else {
       // 更新: シートに値がある項目だけ上書きする。人が付けた選定状況・状態・下書きとの紐づけは保持する
-      batch.set(ref, base, { merge: true });
+      batch.set(ref, p.fields.body || p.fields.title || p.fields.theme ? { ...base, ...fingerprint(p.fields.title ?? '', p.fields.body ?? '', p.fields.theme ?? '') } : base, { merge: true });
     }
     inBatch++;
     if (inBatch >= 400) await flush();
@@ -385,6 +500,7 @@ export async function importCandidates(uid: string, input: ImportInput) {
   if (!input.dryRun) {
     await flush();
     bust(uid);
+    await addSeriesNames(uid, parsed.map((p) => p.fields.series));
     await writeAuditLog(uid, 'candidates.import', `新規${created} / 更新${updated} / スキップ${skipped}`);
   }
 
@@ -402,32 +518,91 @@ export async function importCandidates(uid: string, input: ImportInput) {
 
 // ---- 取得・更新 ----
 
-export async function listCandidates(uid: string, q: { query?: string; series?: string; selection?: string; status?: string; platform?: string; limit?: number } = {}) {
-  let list = [...(await loadAllCandidates(uid))];
-  const counts: Record<string, number> = { all: list.length };
-  for (const c of list) counts[c.selection] = (counts[c.selection] ?? 0) + 1;
-  const statusCounts: Record<string, number> = {};
-  const platformCounts: Record<string, number> = {};
-  for (const c of list) {
-    statusCounts[c.status] = (statusCounts[c.status] ?? 0) + 1;
-    platformCounts[c.platform || 'none'] = (platformCounts[c.platform || 'none'] ?? 0) + 1;
-  }
-  const series = [...new Set(list.map((c) => c.series).filter(Boolean))].sort();
-  // platform: 媒体ID。カンマ区切りで複数、'+none' を付けると媒体未設定の候補も含める（SNSごとの画面用）
+export interface ListQuery {
+  query?: string;
+  series?: string;
+  selection?: string;
+  selections?: string[];
+  status?: string;
+  platform?: string;
+  limit?: number;
+  cursor?: string;
+}
+
+/**
+ * 絞り込み＋ページ送りで必要な分だけ読む(全件は読まない)。並びは管理ID(ドキュメントID)順。
+ * platform: 媒体ID。カンマ区切りで複数、'none' は媒体未設定、'+none' を付けると未設定も含める。
+ */
+export async function queryCandidates(uid: string, q: ListQuery = {}): Promise<{ candidates: Candidate[]; nextCursor?: string }> {
+  const limit = Math.min(Math.max(q.limit ?? 50, 1), 500);
+  let query: FirebaseFirestore.Query = col(uid);
   if (q.platform) {
-    const want = q.platform.split(',').map((s) => s.trim()).filter(Boolean);
-    const withNone = want.includes('+none');
-    list = list.filter((c) => want.includes(c.platform) || (withNone && !c.platform) || (want.includes('none') && !c.platform));
+    const want = q.platform.split(',').map((x) => x.trim()).filter(Boolean);
+    const vals = new Set<string>();
+    for (const w of want) { if (w === 'none' || w === '+none') vals.add(''); else vals.add(w); }
+    const arr = [...vals];
+    query = arr.length === 1 ? query.where('platform', '==', arr[0]) : query.where('platform', 'in', arr.slice(0, 30));
   }
-  if (q.series) list = list.filter((c) => c.series === q.series);
-  if (q.selection) list = list.filter((c) => c.selection === q.selection);
-  if (q.status) list = list.filter((c) => c.status === q.status);
+  if (q.series) query = query.where('series', '==', q.series);
+  if (q.selection) query = query.where('selection', '==', q.selection);
+  else if (q.selections?.length) query = query.where('selection', 'in', q.selections.slice(0, 30));
+  if (q.status) query = query.where('status', '==', q.status);
+  query = query.orderBy(FieldPath.documentId());
+  if (q.cursor) query = query.startAfter(q.cursor);
+  const snap = await query.limit(limit + 1).get();
+  const docs = snap.docs.slice(0, limit);
+  return {
+    candidates: docs.map((d) => fromDoc(d.id, d.data())),
+    nextCursor: snap.size > limit ? docs[docs.length - 1].id : undefined,
+  };
+}
+
+/** 画面・AI(MCP)共通の一覧。文字検索のときだけ(キャッシュ付きで)走査し、通常はクエリでページ送り */
+export async function listCandidates(uid: string, q: ListQuery = {}) {
+  const [cnt, series] = await Promise.all([candidateCounts(uid), getSeriesNames(uid)]);
+  const meta = { total: cnt.all, counts: cnt.counts, statusCounts: cnt.statusCounts, platformCounts: cnt.platformCounts, series };
+  const limit = Math.min(Math.max(q.limit ?? 50, 1), 500);
+
   if (q.query?.trim()) {
+    // 文字検索(本文・タイトル等の部分一致)はFirestoreでは出来ないため、直近のまとまりを(キャッシュ付きで)走査する
+    let list = [...(await loadAllCandidates(uid))];
+    if (q.platform) {
+      const want = q.platform.split(',').map((x) => x.trim()).filter(Boolean);
+      const withNone = want.includes('+none');
+      list = list.filter((c) => want.includes(c.platform) || ((withNone || want.includes('none')) && !c.platform));
+    }
+    if (q.series) list = list.filter((c) => c.series === q.series);
+    if (q.selection) list = list.filter((c) => c.selection === q.selection);
+    if (q.status) list = list.filter((c) => c.status === q.status);
     const k = q.query.normalize('NFKC').toLowerCase();
     list = list.filter((c) => `${c.managementId} ${c.title} ${c.body} ${c.series} ${c.theme} ${Object.values(c.extra).join(' ')}`.normalize('NFKC').toLowerCase().includes(k));
+    list.sort((a, b) => a.managementId.localeCompare(b.managementId, 'ja', { numeric: true }));
+    const start = q.cursor ? Math.max(0, list.findIndex((c) => c.id === q.cursor) + 1) : 0;
+    const page = list.slice(start, start + limit);
+    return { ...meta, candidates: page, nextCursor: start + limit < list.length ? page[page.length - 1]?.id : undefined };
   }
-  list.sort((a, b) => a.managementId.localeCompare(b.managementId, 'ja', { numeric: true }));
-  return { candidates: list.slice(0, q.limit ?? 500), total: list.length, counts, statusCounts, platformCounts, series };
+
+  try {
+    const r = await queryCandidates(uid, q);
+    return { ...meta, ...r };
+  } catch (e) {
+    // インデックス等でクエリが使えない場合の保険(従来方式)
+    console.error('queryCandidates fallback', e instanceof Error ? e.message : e);
+    let list = [...(await loadAllCandidates(uid))];
+    if (q.platform) {
+      const want = q.platform.split(',').map((x) => x.trim()).filter(Boolean);
+      const withNone = want.includes('+none');
+      list = list.filter((c) => want.includes(c.platform) || ((withNone || want.includes('none')) && !c.platform));
+    }
+    if (q.series) list = list.filter((c) => c.series === q.series);
+    if (q.selection) list = list.filter((c) => c.selection === q.selection);
+    else if (q.selections?.length) list = list.filter((c) => q.selections!.includes(c.selection));
+    if (q.status) list = list.filter((c) => c.status === q.status);
+    list.sort((a, b) => a.managementId.localeCompare(b.managementId, 'ja', { numeric: true }));
+    const start = q.cursor ? Math.max(0, list.findIndex((c) => c.id === q.cursor) + 1) : 0;
+    const page = list.slice(start, start + limit);
+    return { ...meta, candidates: page, nextCursor: start + limit < list.length ? page[page.length - 1]?.id : undefined };
+  }
 }
 
 export async function getCandidate(uid: string, id: string): Promise<Candidate> {
@@ -457,6 +632,11 @@ export async function updateCandidate(uid: string, id: string, patch: CandidateP
   }
   if (typeof patch.platform === 'string') upd.platform = normPlatform(patch.platform);
   if (Array.isArray(patch.mediaUrls)) upd.mediaUrls = cleanUrls(patch.mediaUrls);
+  if (typeof patch.title === 'string' || typeof patch.body === 'string' || typeof patch.theme === 'string') {
+    const cur = s.data()!;
+    Object.assign(upd, fingerprint(String(upd.title ?? cur.title ?? ''), String(upd.body ?? cur.body ?? ''), String(upd.theme ?? cur.theme ?? '')));
+  }
+  if (typeof patch.series === 'string') void addSeriesNames(uid, [String(upd.series ?? '')]);
   if (typeof patch.aiSuggestion === 'string') {
     upd.aiSuggestion = clean(patch.aiSuggestion, 3000);
     upd.aiSuggestedAt = FieldValue.serverTimestamp();
@@ -496,6 +676,7 @@ export async function createManualCandidate(uid: string, input: { body?: string;
     imageIdea: '', rating: '', checkNotes: '', editNotes: '', theme: '', conclusion: '', punchline: '',
     extra: {},
     mediaUrls: cleanUrls(input.mediaUrls),
+    ...fingerprint(clean(input.title, 200) || body.split('\n')[0].slice(0, 30), body),
     selection: 'unreviewed',
     selectionRaw: '',
     status: 'candidate',
@@ -504,6 +685,7 @@ export async function createManualCandidate(uid: string, input: { body?: string;
     updatedAt: FieldValue.serverTimestamp(),
   });
   bust(uid);
+  await addSeriesNames(uid, [input.series]);
   await writeAuditLog(uid, 'candidates.create', id);
   return getCandidate(uid, id);
 }
@@ -520,30 +702,42 @@ const statusFromJob = (s: string): CandidateStatus =>
  */
 export async function syncCandidates(ctx: AgentCtx, opts: { force?: boolean } = {}) {
   const uid = ctx.uid;
-  // 同期は全入り口(ネタ帳・シリーズ在庫・下書き)を読むため重い。5分以内に実施済みなら何もしない
+  // 5分以内に実施済みなら何もしない
   const last = lastSync.get(uid) ?? 0;
   if (!opts.force && Date.now() - last < SYNC_MIN_INTERVAL_MS) return { created: 0, refreshed: 0, skipped: true };
   lastSync.set(uid, Date.now());
-  const [existingSnap, ideas, jobs] = await Promise.all([
-    col(uid).limit(2000).get(),
-    listIdeaInbox(uid).catch(() => []),
-    getScheduledJobs(uid, undefined, ctx.personaId, 500),
-  ]);
-  const have = new Map(existingSnap.docs.map((d) => [d.id, d.data()]));
-  const linkedJobIds = new Set(existingSnap.docs.map((d) => d.data().linkedJobId).filter(Boolean) as string[]);
-  const jobById = new Map(jobs.map((j) => [j.id, j]));
+
+  // 差分同期: 前回の同期時刻より後に変わったものだけを読む(初回だけ全体)
+  const flagRef = db().doc(`users/${uid}/prefs/candidateSync`);
+  const startedAt = new Date().toISOString();
+  const sinceIso = (await flagRef.get()).data()?.at as string | undefined;
+  const sinceMs = sinceIso ? Date.parse(sinceIso) - 60_000 : 0;
+  const CREATE_CAP = 600;
+
   let batch = db().batch();
   let n = 0;
   let created = 0;
   let refreshed = 0;
+  let truncated = false;
   const commitIfFull = async () => {
     if (n >= 400) { await batch.commit(); batch = db().batch(); n = 0; }
   };
+  /** 指定IDの既存候補だけをまとめて取得(存在確認) */
+  const existing = async (ids: string[]) => {
+    const out = new Map<string, FirebaseFirestore.DocumentData>();
+    for (let i = 0; i < ids.length; i += 300) {
+      const refs = ids.slice(i, i + 300).map((x) => col(uid).doc(x));
+      if (!refs.length) continue;
+      for (const d of await db().getAll(...refs)) if (d.exists) out.set(d.id, d.data()!);
+    }
+    return out;
+  };
   const create = async (id: string, data: Record<string, unknown>) => {
-    if (have.has(id) || created >= 600) return;
+    if (created >= CREATE_CAP) { truncated = true; return; }
     batch.set(col(uid).doc(id), {
       series: '', imageIdea: '', rating: '', checkNotes: '', editNotes: '', theme: '', conclusion: '', punchline: '',
       selectionRaw: '', extra: {}, selection: 'unreviewed', ...data,
+      ...fingerprint(String(data.title ?? ''), String(data.body ?? '')),
       createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
     });
     n++; created++;
@@ -555,10 +749,14 @@ export async function syncCandidates(ctx: AgentCtx, opts: { force?: boolean } = 
     await commitIfFull();
   };
 
+  // 1) ネタ帳(新しいものだけ)
+  const ideas = (await listIdeaInbox(uid).catch(() => [])).filter((i) => i.text.trim() && (!sinceMs || Date.parse(i.createdAt) > sinceMs));
+  const haveIdeas = await existing(ideas.map((i) => `IDEA-${i.id}`));
   for (const i of ideas) {
+    const id = `IDEA-${i.id}`;
+    if (haveIdeas.has(id)) continue;
     const text = i.text.trim();
-    if (!text) continue;
-    await create(`IDEA-${i.id}`, {
+    await create(id, {
       managementId: `IDEA-${i.id.slice(0, 8)}`, title: text.split('\n')[0].slice(0, 30), body: text,
       platform: '', source: 'idea', sourceKey: `idea:${i.id}`,
       status: i.status === 'used' ? 'drafted' : 'candidate',
@@ -566,19 +764,26 @@ export async function syncCandidates(ctx: AgentCtx, opts: { force?: boolean } = 
     });
   }
 
+  // 2) Xシリーズ在庫(前回以降に追加・更新されたものだけ)
   try {
-    const series = await db().collection(`users/${uid}/xSeries`).limit(100).get();
-    for (const s of series.docs) {
-      const sname = String(s.data().name ?? '');
-      const items = await s.ref.collection('items').limit(1000).get();
+    const sinceTs = sinceMs ? Timestamp.fromMillis(sinceMs) : null;
+    const series = await db().collection(`users/${uid}/xSeries`).limit(200).get();
+    for (const sdoc of series.docs) {
+      const sname = String(sdoc.data().name ?? '');
+      let q: FirebaseFirestore.Query = sdoc.ref.collection('items');
+      if (sinceTs) q = q.where('updatedAt', '>', sinceTs);
+      const items = await q.limit(500).get();
+      if (items.size >= 500) truncated = true;
+      const have = await existing(items.docs.map((it) => `XS-${it.id}`));
       for (const it of items.docs) {
         const x = it.data();
         const text = String(x.text ?? '').trim();
         if (!text) continue;
         const id = `XS-${it.id}`;
         const status: CandidateStatus = x.status === 'published' ? 'published' : 'candidate';
-        if (have.has(id)) {
-          if (have.get(id)!.status !== status && status === 'published') await update(id, { status });
+        const cur = have.get(id);
+        if (cur) {
+          if (cur.status !== status && status === 'published') await update(id, { status });
           continue;
         }
         await create(id, {
@@ -590,34 +795,43 @@ export async function syncCandidates(ctx: AgentCtx, opts: { force?: boolean } = 
           ...(x.scheduledAt ? { scheduledAt: x.scheduledAt } : {}),
         });
       }
+      if (sname) await addSeriesNames(uid, [sname]);
     }
   } catch {
     // シリーズが無い・読めない場合は他の入り口だけで続行
   }
 
-  for (const j of jobs) {
-    const key = `DR-${j.id}`;
-    if (j.status === 'draft' && !have.has(key) && !linkedJobIds.has(j.id)) {
-      const text = jobText(j).trim();
-      if (!text) continue;
-      await create(key, {
-        managementId: key.slice(0, 11), title: String(j.topic || text.split('\n')[0]).slice(0, 30), body: text,
-        platform: platformOf(j), source: 'draft', sourceKey: `job:${j.id}`, linkedJobId: j.id, status: 'drafted', scheduledAt: j.scheduledAt,
-        extra: {}, mediaUrls: cleanUrls(j.mediaUrls),
-      });
-    }
+  // 3) カレンダーの下書き + 紐づいた候補の状態更新(直近の予約だけを対象)
+  const jobs = await getScheduledJobs(uid, undefined, ctx.personaId, 300);
+  const jobById = new Map(jobs.map((j) => [j.id, j]));
+  const linked = new Map<string, FirebaseFirestore.DocumentData & { _id: string }>();
+  const jobIds = jobs.map((j) => j.id);
+  for (let i = 0; i < jobIds.length; i += 30) {
+    const r = await col(uid).where('linkedJobId', 'in', jobIds.slice(i, i + 30)).get();
+    for (const d of r.docs) linked.set(String(d.data().linkedJobId), { ...d.data(), _id: d.id });
   }
-  // 元の投稿の状態に合わせて更新
-  for (const [id, d] of have) {
-    const jid = d.linkedJobId as string | undefined;
-    if (!jid) continue;
+  const drafts = jobs.filter((j) => j.status === 'draft' && !linked.has(j.id) && jobText(j).trim());
+  const haveDr = await existing(drafts.map((j) => `DR-${j.id}`));
+  for (const j of drafts) {
+    const key = `DR-${j.id}`;
+    if (haveDr.has(key)) continue;
+    const text = jobText(j).trim();
+    await create(key, {
+      managementId: key.slice(0, 11), title: String(j.topic || text.split('\n')[0]).slice(0, 30), body: text,
+      platform: platformOf(j), source: 'draft', sourceKey: `job:${j.id}`, linkedJobId: j.id, status: 'drafted', scheduledAt: j.scheduledAt,
+      extra: {}, mediaUrls: cleanUrls(j.mediaUrls),
+    });
+  }
+  for (const [jid, d] of linked) {
     const job = jobById.get(jid);
     if (!job) continue;
     const st = statusFromJob(job.status);
-    if (d.status !== st || d.scheduledAt !== job.scheduledAt) await update(id, { status: st, scheduledAt: job.scheduledAt });
+    if (d.status !== st || d.scheduledAt !== job.scheduledAt) await update(d._id, { status: st, scheduledAt: job.scheduledAt });
   }
   if (n) await batch.commit();
   await migrateUnsetPlatformToX(uid);
+  // 取りこぼし(件数上限)が無いときだけ、次回の差分の起点を進める
+  if (!truncated) await flagRef.set({ at: startedAt });
   if (created || refreshed) bust(uid);
   return { created, refreshed };
 }
@@ -626,16 +840,19 @@ export async function syncCandidates(ctx: AgentCtx, opts: { force?: boolean } = 
 async function migrateUnsetPlatformToX(uid: string) {
   const flag = db().doc(`users/${uid}/prefs/candidatePlatformX`);
   if ((await flag.get()).exists) return;
-  const snap = await col(uid).limit(2000).get();
-  const targets = snap.docs.filter((d) => !d.data().platform);
-  for (let i = 0; i < targets.length; i += 400) {
+  let total = 0;
+  for (let page = 0; page < 200; page++) {
+    const snap = await col(uid).where('platform', '==', '').limit(400).get();
+    if (snap.empty) break;
     const b = db().batch();
-    for (const d of targets.slice(i, i + 400)) b.update(d.ref, { platform: 'x_thread', updatedAt: FieldValue.serverTimestamp() });
+    for (const d of snap.docs) b.update(d.ref, { platform: 'x_thread', updatedAt: FieldValue.serverTimestamp() });
     await b.commit();
+    total += snap.size;
+    if (snap.size < 400) break;
   }
-  await flag.set({ done: true, count: targets.length, at: new Date().toISOString() });
+  await flag.set({ done: true, count: total, at: new Date().toISOString() });
   bust(uid);
-  if (targets.length) await writeAuditLog(uid, 'candidates.migrate_platform_x', `${targets.length}件`);
+  if (total) await writeAuditLog(uid, 'candidates.migrate_platform_x', `${total}件`);
 }
 
 /**
@@ -721,67 +938,62 @@ const JOB_STATE: Record<string, string> = {
   failed: '失敗',
 };
 
-/** 検索対象: 投稿候補・Xシリーズ在庫・下書き/予約/投稿済み・ネタ帳 のすべて。候補に取り込み済みのものは二重に数えない */
-export async function gatherDupPool(ctx: AgentCtx): Promise<DupItem[]> {
+/**
+ * 比べる相手を集める。全件ではなく、指紋(fp/fpk)が重なる「似ていそうな候補」だけを検索し、
+ * それに直近の下書き/予約/投稿済みとネタ帳(いずれも件数に上限あり)を足す。
+ * Xシリーズ在庫は同期で候補に取り込まれているため、候補側で比べる。
+ */
+export async function gatherDupPool(ctx: AgentCtx, target: DupTarget): Promise<DupItem[]> {
+  await ensureFingerprints(ctx.uid);
+  const fpr = fingerprint(target.title ?? '', target.text, target.theme ?? '');
+  const seen = new Map<string, Candidate>();
+  const run = async (field: 'fp' | 'fpk', vals: string[]) => {
+    if (!vals.length) return;
+    const r = await col(ctx.uid).where(field, 'array-contains-any', vals.slice(0, 30)).limit(60).get();
+    for (const d of r.docs) seen.set(d.id, fromDoc(d.id, d.data()));
+  };
+  await Promise.all([run('fp', fpr.fp), run('fpk', fpr.fpk)]);
+
   const key = `${ctx.uid}:${ctx.personaId ?? ''}`;
-  const hit = poolCache.get(ctx.uid);
-  if (hit && hit.key === key && Date.now() - hit.at < CACHE_TTL_MS) return hit.pool;
-  const pool = await gatherDupPoolUncached(ctx);
-  poolCache.set(ctx.uid, { at: Date.now(), key, pool });
-  if (poolCache.size > 100) poolCache.delete(poolCache.keys().next().value as string);
-  return pool;
-}
-async function gatherDupPoolUncached(ctx: AgentCtx): Promise<DupItem[]> {
+  let extra = poolCache.get(ctx.uid);
+  if (!extra || extra.key !== key || Date.now() - extra.at >= CACHE_TTL_MS) {
+    const [jobs, ideas] = await Promise.all([
+      getScheduledJobs(ctx.uid, undefined, ctx.personaId, 300),
+      listIdeaInbox(ctx.uid).catch(() => []),
+    ]);
+    const items: DupItem[] = [];
+    for (const j of jobs) {
+      items.push({
+        source: 'scheduled', id: j.id, title: j.topic,
+        text: jobText(j), stateLabel: `${JOB_STATE[j.status] ?? j.status}(${platformOf(j)})`,
+        published: j.status === 'published' || j.status === 'notified',
+      });
+    }
+    for (const i of ideas) {
+      items.push({ source: 'idea', id: i.id, text: i.text, stateLabel: i.status === 'used' ? 'ネタ帳(使用済み)' : 'ネタ帳', published: false });
+    }
+    extra = { at: Date.now(), key, pool: items };
+    poolCache.set(ctx.uid, extra);
+    if (poolCache.size > 100) poolCache.delete(poolCache.keys().next().value as string);
+  }
+
+  const linkedJobs = new Set<string>();
+  const linkedKeys = new Set<string>();
   const out: DupItem[] = [];
-  const [cands, jobs, ideas] = await Promise.all([
-    col(ctx.uid).limit(2000).get(),
-    getScheduledJobs(ctx.uid, undefined, ctx.personaId, 1500),
-    listIdeaInbox(ctx.uid).catch(() => []),
-  ]);
-  const jobById = new Map(jobs.map((j) => [j.id, j]));
-  const linked = new Set<string>();
-  for (const d of cands.docs) {
-    const c = fromDoc(d.id, d.data());
-    if (c.sourceKey) linked.add(c.sourceKey);
-    if (c.linkedJobId) linked.add(`job:${c.linkedJobId}`);
-    const job = c.linkedJobId ? jobById.get(c.linkedJobId) : undefined;
-    const status: CandidateStatus = job ? statusFromJob(job.status) : c.status;
+  for (const c of seen.values()) {
+    if (c.linkedJobId) linkedJobs.add(c.linkedJobId);
+    if (c.sourceKey) linkedKeys.add(c.sourceKey);
     out.push({
       source: 'candidate', id: c.id, managementId: c.managementId, title: c.title,
       text: c.body || c.title,
-      stateLabel: `投稿候補(${STATUS_LABEL[status]}${status === 'candidate' ? '・' + SELECTION_LABEL[c.selection] : ''}${c.platform ? '・' + (PLATFORM_LABEL[c.platform] ?? c.platform) : ''})`,
-      published: status === 'published', series: c.series, theme: c.theme, conclusion: c.conclusion, punchline: c.punchline,
+      stateLabel: `投稿候補(${STATUS_LABEL[c.status]}${c.status === 'candidate' ? '・' + SELECTION_LABEL[c.selection] : ''}${c.platform ? '・' + (PLATFORM_LABEL[c.platform] ?? c.platform) : ''})`,
+      published: c.status === 'published', series: c.series, theme: c.theme, conclusion: c.conclusion, punchline: c.punchline,
     });
   }
-  for (const j of jobs) {
-    if (linked.has(`job:${j.id}`)) continue;
-    out.push({
-      source: 'scheduled', id: j.id, title: j.topic,
-      text: jobText(j), stateLabel: `${JOB_STATE[j.status] ?? j.status}(${platformOf(j)})`,
-      published: j.status === 'published' || j.status === 'notified',
-    });
-  }
-  for (const i of ideas) {
-    if (linked.has(`idea:${i.id}`)) continue;
-    out.push({ source: 'idea', id: i.id, text: i.text, stateLabel: i.status === 'used' ? 'ネタ帳(使用済み)' : 'ネタ帳', published: false });
-  }
-  try {
-    const series = await db().collection(`users/${ctx.uid}/xSeries`).limit(100).get();
-    for (const s of series.docs) {
-      const items = await s.ref.collection('items').limit(1000).get();
-      for (const it of items.docs) {
-        if (linked.has(`xseries:${it.id}`)) continue;
-        const x = it.data();
-        out.push({
-          source: 'xseries', id: it.id, title: x.title || undefined,
-          text: String(x.text ?? ''),
-          stateLabel: `Xシリーズ在庫「${String(s.data().name ?? '')}」(${x.status === 'published' ? '投稿済み' : x.approved ? '投稿OK' : '未承認'})`,
-          published: x.status === 'published', series: String(s.data().name ?? ''),
-        });
-      }
-    }
-  } catch {
-    // シリーズが無い・読めない場合は他の対象だけで続行
+  for (const it of extra.pool) {
+    if (it.source === 'scheduled' && linkedJobs.has(it.id)) continue;
+    if (it.source === 'idea' && linkedKeys.has(`idea:${it.id}`)) continue;
+    out.push(it);
   }
   return out;
 }
@@ -806,7 +1018,7 @@ export interface DupResult {
 
 export async function checkDuplicates(ctx: AgentCtx, target: DupTarget, opts: { ai?: boolean } = {}): Promise<DupResult> {
   if (!target.text?.trim()) throw new Error('text が必要です');
-  const pool = await gatherDupPool(ctx);
+  const pool = await gatherDupPool(ctx, target);
   const { matches, pool: aiPool } = findDuplicates(target, pool);
   const wantAi = opts.ai ?? (await getDupPrefs(ctx.uid)).useAi;
   const base = { searched: pool.length, note: '自動では削除しません。似ているかどうかは人が判断してください。「結論が同じ」「オチが同じ」はルールだけでは見逃すことがあります。' };
@@ -851,7 +1063,14 @@ export const targetOf = (c: Candidate): DupTarget => ({
 const csvCell = (v: string) => (/[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
 
 export async function exportCandidatesCsv(uid: string): Promise<string> {
-  const { candidates } = await listCandidates(uid, { limit: 2000 });
+  const candidates: Candidate[] = [];
+  let cursor: string | undefined;
+  for (let page = 0; page < 40; page++) {
+    const r = await queryCandidates(uid, { limit: 500, cursor });
+    candidates.push(...r.candidates);
+    if (!r.nextCursor) break;
+    cursor = r.nextCursor;
+  }
   const extraKeys = [...new Set(candidates.flatMap((c) => Object.keys(c.extra)))];
   const head = ['管理ID', 'シリーズ', 'タイトル', '投稿本文', '画像案', '評価', '選定状況', '確認事項', '編集メモ', 'テーマ', '結論', 'オチ', '状態', ...extraKeys];
   const lines = [head.map(csvCell).join(',')];
@@ -881,7 +1100,7 @@ candidatesRouter.get('/', requireAuth, async (req: AuthedRequest, res) => {
     const q = req.query as Record<string, string | undefined>;
     const ai = await getAiSettings(req.uid!);
     const st = await getUserSettings(req.uid!);
-    const r = await listCandidates(req.uid!, { query: q.q, series: q.series, selection: q.selection, status: q.status, platform: q.platform });
+    const r = await listCandidates(req.uid!, { query: q.q, series: q.series, selection: q.selection, status: q.status, platform: q.platform, cursor: q.cursor, limit: Number(q.limit) || 50 });
     res.json({
       ...r,
       // 一覧に要らない長い項目は送らない(通信量・描画の削減)。全文は1件取得で返す
@@ -906,17 +1125,23 @@ candidatesRouter.post('/set-platform', requireAuth, async (req: AuthedRequest, r
     const b = req.body as { platform?: string; ids?: string[] };
     const platform = normPlatform(b.platform ?? '');
     if (!platform) throw new Error('媒体を選んでください');
-    const snap = await col(req.uid!).limit(2000).get();
     const only = b.ids?.length ? new Set(b.ids) : null;
-    const targets = snap.docs.filter((d) => !d.data().platform && (!only || only.has(d.id)));
-    for (let i = 0; i < targets.length; i += 400) {
-      const batch = db().batch();
-      for (const d of targets.slice(i, i + 400)) batch.update(d.ref, { platform, updatedAt: FieldValue.serverTimestamp() });
-      await batch.commit();
+    let updated = 0;
+    for (let page = 0; page < 200; page++) {
+      const snap = await col(req.uid!).where('platform', '==', '').limit(400).get();
+      const targets = snap.docs.filter((d) => !only || only.has(d.id));
+      if (targets.length) {
+        const batch = db().batch();
+        for (const d of targets) batch.update(d.ref, { platform, updatedAt: FieldValue.serverTimestamp() });
+        await batch.commit();
+        updated += targets.length;
+      }
+      // 対象を絞った(ids)場合は1回で終了。全件指定は未設定が無くなるまで繰り返す
+      if (only || snap.size < 400 || targets.length < snap.size) break;
     }
     bust(req.uid!);
-    await writeAuditLog(req.uid!, 'candidates.set_platform', `${platform}: ${targets.length}件`);
-    res.json({ updated: targets.length });
+    await writeAuditLog(req.uid!, 'candidates.set_platform', `${platform}: ${updated}件`);
+    res.json({ updated });
   } catch (e) { fail(res, e); }
 });
 
@@ -978,3 +1203,9 @@ candidatesRouter.post('/:id/draft', requireAuth, async (req: AuthedRequest, res)
     res.json(await candidateToJob(await ctxOf(req, true), String(req.params.id), { ...b, mode: 'draft' }));
   } catch (e) { fail(res, e); }
 });
+/** 次に作る投稿ネタ探し用: 未使用(まだ下書きにしていない・不採用ではない)を、採用済み→未選定→要修正/保留の順で返す */
+export async function listUnusedCandidates(uid: string, series: string | undefined, limit: number) {
+  const r = await queryCandidates(uid, { series, status: 'candidate', selections: ['adopted', 'unreviewed', 'needs_fix', 'hold'], limit: 300 });
+  const rank: Record<string, number> = { adopted: 0, unreviewed: 1, needs_fix: 2, hold: 3 };
+  return r.candidates.sort((a, b) => (rank[a.selection] ?? 9) - (rank[b.selection] ?? 9)).slice(0, limit);
+}

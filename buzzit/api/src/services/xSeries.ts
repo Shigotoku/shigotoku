@@ -5,7 +5,7 @@
  * - 投稿OK（approved）かつ未投稿のみ消化
  */
 import { createHash } from 'node:crypto';
-import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { getFirestore, FieldValue, FieldPath, Timestamp } from 'firebase-admin/firestore';
 import type { PublishMode } from '../types/schedule';
 import { createScheduledJob, type UserSettings } from './firestore';
 import { getEffectiveSettings } from './personaSettings';
@@ -718,15 +718,40 @@ async function recoverStuckPublishing(uid: string, seriesId: string): Promise<vo
   }
 }
 
+/** コレクショングループを上限なくページ送りで全部読む(ユーザー・シリーズ数が増えても取りこぼさない) */
+async function readAllGroupDocs(
+  base: FirebaseFirestore.Query,
+  pageSize = 300,
+  maxPages = 100,
+): Promise<FirebaseFirestore.QueryDocumentSnapshot[]> {
+  const out: FirebaseFirestore.QueryDocumentSnapshot[] = [];
+  let last: FirebaseFirestore.QueryDocumentSnapshot | undefined;
+  try {
+    for (let i = 0; i < maxPages; i++) {
+      let q = base.orderBy(FieldPath.documentId()).limit(pageSize);
+      if (last) q = q.startAfter(last);
+      const snap = await q.get();
+      out.push(...snap.docs);
+      if (snap.size < pageSize) break;
+      last = snap.docs[snap.size - 1];
+    }
+  } catch (err) {
+    // インデックス未作成などでページ送りが使えない場合は、従来どおり先頭の分だけ処理する(投稿が止まらないように)
+    console.error('[xSeries] ページ送り失敗、先頭分のみ処理', err instanceof Error ? err.message : err);
+    return (await base.limit(pageSize).get()).docs;
+  }
+  return out;
+}
+
 export async function processXSeriesSchedules(opts?: {
   onlyUid?: string;
   /** true でジッター／時刻判定を無視して即消化（手動実行用） */
   force?: boolean;
 }): Promise<{ users: number; fired: number; posted: number; errors: number }> {
-  const rulesSnap = await db().collectionGroup('xScheduleRules').where('enabled', '==', true).limit(200).get();
+  const ruleDocs = await readAllGroupDocs(db().collectionGroup('xScheduleRules').where('enabled', '==', true));
   const byUid = new Map<string, XScheduleRule[]>();
 
-  for (const doc of rulesSnap.docs) {
+  for (const doc of ruleDocs) {
     const uid = doc.ref.parent.parent?.id;
     if (!uid) continue;
     if (opts?.onlyUid && uid !== opts.onlyUid) continue;
@@ -789,8 +814,8 @@ export async function processXSeriesSchedules(opts?: {
 
   // 投稿時刻（scheduledAt）が指定されたネタを、時刻が来たら投稿
   if (!opts?.force) {
-    const seriesSnap = await db().collectionGroup('xSeries').limit(300).get();
-    for (const sdoc of seriesSnap.docs) {
+    const seriesDocs = await readAllGroupDocs(db().collectionGroup('xSeries'));
+    for (const sdoc of seriesDocs) {
       const uid = sdoc.ref.parent.parent?.id;
       if (!uid) continue;
       if (opts?.onlyUid && uid !== opts.onlyUid) continue;

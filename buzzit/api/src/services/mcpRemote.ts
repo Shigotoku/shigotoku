@@ -13,6 +13,7 @@ import {
   checkDuplicates,
   getCandidate,
   listCandidates,
+  listUnusedCandidates,
   targetOf,
   updateCandidate,
 } from './postCandidates';
@@ -463,9 +464,7 @@ function buildServer(ctx: AgentCtx): McpServer {
       inputSchema: { series: z.string().optional(), limit: z.number().int().min(1).max(50).default(10) },
     },
     ({ series, limit }) => run(async () => {
-      const r = await listCandidates(ctx.uid, { series, status: 'candidate', limit: 2000 });
-      const rank: Record<string, number> = { adopted: 0, unreviewed: 1, needs_fix: 2, hold: 3 };
-      const list = r.candidates.filter((c) => c.selection !== 'rejected').sort((a, b) => (rank[a.selection] ?? 9) - (rank[b.selection] ?? 9)).slice(0, limit);
+      const list = await listUnusedCandidates(ctx.uid, series, limit);
       return { count: list.length, candidates: list };
     }),
   );

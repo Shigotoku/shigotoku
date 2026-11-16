@@ -48,6 +48,8 @@ interface ListRes {
   statusCounts: Record<string, number>;
   platformCounts: Record<string, number>;
   series: string[];
+  /** 次のページがあるときの目印(「もっと見る」で使う) */
+  nextCursor?: string;
   prefs: { useAi: boolean };
   ai: { mode: 'platform' | 'own'; provider: string; hasKey: boolean; usage: { used: number; limit: number } | null };
 }
@@ -458,15 +460,33 @@ export default function CandidatesPage() {
   const [showImport, setShowImport] = useState(false);
   const [err, setErr] = useState('');
 
-  const reload = useCallback(async () => {
+  const [moreBusy, setMoreBusy] = useState(false);
+  const buildParams = useCallback(() => {
     const p = new URLSearchParams();
+    p.set('limit', '100');
     if (sel) p.set('selection', sel);
     if (stSel) p.set('status', stSel);
     if (platformSel) p.set('platform', platformSel);
     if (series) p.set('series', series);
     if (q.trim()) p.set('q', q.trim());
-    try { setData(await call<ListRes>(`?${p}`)); setErr(''); } catch (e) { setErr(e instanceof Error ? e.message : '読み込めませんでした'); }
+    return p;
   }, [sel, stSel, platformSel, series, q]);
+
+  const reload = useCallback(async () => {
+    try { setData(await call<ListRes>(`?${buildParams()}`)); setErr(''); } catch (e) { setErr(e instanceof Error ? e.message : '読み込めませんでした'); }
+  }, [buildParams]);
+
+  /** 次の100件を読み足す(全件を一度に読まない) */
+  const loadMore = async () => {
+    if (!data?.nextCursor || moreBusy) return;
+    setMoreBusy(true);
+    try {
+      const p = buildParams();
+      p.set('cursor', data.nextCursor);
+      const r = await call<ListRes>(`?${p}`);
+      setData((prev) => (prev ? { ...prev, ...r, candidates: [...prev.candidates, ...r.candidates] } : r));
+    } catch (e) { setErr(e instanceof Error ? e.message : '読み込めませんでした'); } finally { setMoreBusy(false); }
+  };
 
   // 開くたびに、ネタ帳・ネタ一括作成・AI下書きを候補へそろえる(何度でも安全・重複しない)
   const synced = useRef(false);
@@ -628,6 +648,11 @@ export default function CandidatesPage() {
               </span>
             </button>
           ))}
+          {data?.nextCursor && (
+            <button type="button" onClick={loadMore} disabled={moreBusy} className="w-full rounded-lg border py-1.5 text-xs font-semibold text-neutral-600 hover:bg-neutral-50 disabled:opacity-50">
+              {moreBusy ? '読み込み中…' : 'さらに100件を表示'}
+            </button>
+          )}
           {data && data.candidates.length === 0 && <p className="p-4 text-sm text-neutral-500">候補がありません。「追加」か取り込みから入れてください。</p>}
         </div>
         {openId && data ? (
