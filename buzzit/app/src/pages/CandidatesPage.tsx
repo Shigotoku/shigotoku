@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Download, ImageOff, ImagePlus, Plus, Search, Upload, X } from 'lucide-react';
 import { authFetch } from '../lib/api';
+import { useAuth } from '../store/authContext';
+import { readPersist, writePersist } from '../lib/persistCache';
 import SnsRulesBox, { RULE_ID_OF } from './SnsRulesBox';
 import CandidatePreview, { PLATFORM_META, isVideoUrl } from './CandidatePreview';
 
@@ -50,8 +52,8 @@ interface ListRes {
   series: string[];
   /** 次のページがあるときの目印(「もっと見る」で使う) */
   nextCursor?: string;
-  prefs: { useAi: boolean };
-  ai: { mode: 'platform' | 'own'; provider: string; hasKey: boolean; usage: { used: number; limit: number } | null };
+  version?: string;
+  notModified?: boolean;
 }
 interface ImportRes {
   dryRun: boolean;
@@ -245,10 +247,17 @@ function MediaBox({ urls, busy, onChange, hint }: { urls: string[]; busy: boolea
   );
 }
 
-interface DetailProps { id: string; list: ListRes; reload: () => void; onToggleAi: () => void }
+interface Meta {
+  prefs: { useAi: boolean };
+  ai: { mode: 'platform' | 'own'; provider: string; hasKey: boolean; usage: { used: number; limit: number } | null };
+}
+interface DetailProps { id: string; meta: Meta | null; reload: () => void; onToggleAi: () => void }
 
 /** 中央(編集)と右(スマホプレビュー)の2列を返す */
-function Workspace({ id, list, reload, onToggleAi }: DetailProps) {
+function Workspace({ id, meta, reload, onToggleAi }: DetailProps) {
+  const { user } = useAuth();
+  const uid = user?.uid;
+  const touched = useRef(false);
   const [c, setC] = useState<Candidate | null>(null);
   const [dup, setDup] = useState<Dup | null>(null);
   const [body, setBody] = useState('');
@@ -263,17 +272,32 @@ function Workspace({ id, list, reload, onToggleAi }: DetailProps) {
   const load = useCallback(async () => {
     setMsg('');
     const r = await call<{ candidate: Candidate }>(`/${encodeURIComponent(id)}`);
+    writePersist(uid, `cand:${id}`, r.candidate);
     setC(r.candidate);
-    setPlatform(r.candidate.platform || 'x_thread');
-    setBody(r.candidate.body);
-    setNote(r.candidate.editNotes);
-  }, [id]);
+    // 保存済みを先に出した後、入力が始まっていたら本文は上書きしない
+    if (!touched.current) {
+      setPlatform(r.candidate.platform || 'x_thread');
+      setBody(r.candidate.body);
+      setNote(r.candidate.editNotes);
+    }
+  }, [id, uid]);
+  // ブラウザに保存済みの内容を先に表示(待たずに編集できる) → 裏で最新を確認
+  useEffect(() => {
+    const cached = readPersist<Candidate>(uid, `cand:${id}`);
+    if (cached) {
+      setC(cached);
+      setPlatform(cached.platform || 'x_thread');
+      setBody(cached.body);
+      setNote(cached.editNotes);
+    }
+  }, [id, uid]);
   useEffect(() => { load().catch((e) => setMsg(e.message)); }, [load]);
 
   const patch = async (p: Record<string, string>, after?: () => Promise<void>) => {
     setBusy(true);
     try {
       await call(`/${encodeURIComponent(id)}`, { method: 'PATCH', body: p });
+      touched.current = false;
       await load();
       reload();
       await after?.();
@@ -299,6 +323,7 @@ function Workspace({ id, list, reload, onToggleAi }: DetailProps) {
     try {
       const r = await call<{ message: string }>(`/${encodeURIComponent(id)}/schedule`, { method: 'POST', body: { scheduledAt: new Date(when).toISOString(), platform, mode: asSchedule ? 'schedule' : 'draft' } });
       setMsg(r.message);
+      touched.current = false;
       await load();
       reload();
     } catch (e) { setMsg(e instanceof Error ? e.message : '失敗しました'); } finally { setBusy(false); }
@@ -355,9 +380,9 @@ function Workspace({ id, list, reload, onToggleAi }: DetailProps) {
         </div>
 
         <div>
-          <textarea className="h-36 w-full rounded-lg border p-2 text-sm" value={body} onChange={(e) => setBody(e.target.value)} placeholder="投稿本文" />
+          <textarea className="h-36 w-full rounded-lg border p-2 text-sm" value={body} onChange={(e) => { touched.current = true; setBody(e.target.value); }} placeholder="投稿本文" />
           <div className="mt-1 flex items-center gap-2">
-            <input className="min-w-0 flex-1 rounded-lg border p-1.5 text-xs" value={note} onChange={(e) => setNote(e.target.value)} placeholder="編集メモ(投稿されません)" />
+            <input className="min-w-0 flex-1 rounded-lg border p-1.5 text-xs" value={note} onChange={(e) => { touched.current = true; setNote(e.target.value); }} placeholder="編集メモ(投稿されません)" />
             <button disabled={!dirty || busy} onClick={() => patch({ body, editNotes: note })} className="shrink-0 rounded-lg border px-3 py-1 text-xs font-semibold disabled:opacity-40">保存</button>
           </div>
         </div>
@@ -423,10 +448,10 @@ function Workspace({ id, list, reload, onToggleAi }: DetailProps) {
             <div className="flex flex-wrap items-center gap-2">
               <button disabled={busy} onClick={() => check(false)} className="rounded border px-2 py-0.5">ルールで再確認</button>
               <button disabled={busy} onClick={() => check(true)} className="rounded border px-2 py-0.5">AIでも判定する</button>
-              <label className="flex items-center gap-1"><input type="checkbox" checked={list.prefs.useAi} onChange={onToggleAi} />常にAIも使う</label>
+              <label className="flex items-center gap-1"><input type="checkbox" checked={meta?.prefs.useAi ?? false} onChange={onToggleAi} />常にAIも使う</label>
             </div>
             <p className="text-[11px] text-neutral-500">
-              AI判定には{list.ai.mode === 'own' ? `あなたのAIキー(${list.ai.provider})` : `運営AI${list.ai.usage ? `(今月 ${list.ai.usage.used}/${list.ai.usage.limit}回)` : ''}`}を使います。切り替えは <Link to="/settings" className="underline">設定 &gt; キャラ・AI</Link>。
+              AI判定には{!meta ? '設定のAI' : meta.ai.mode === 'own' ? `あなたのAIキー(${meta.ai.provider})` : `運営AI${meta.ai.usage ? `(今月 ${meta.ai.usage.used}/${meta.ai.usage.limit}回)` : ''}`}を使います。切り替えは <Link to="/settings" className="underline">設定 &gt; キャラ・AI</Link>。
             </p>
             {dup?.aiNote && <p className="text-violet-700">{dup.aiNote}</p>}
             {dup ? <DupList dup={dup} /> : <p className="text-neutral-500">確認中…</p>}
@@ -472,9 +497,40 @@ export default function CandidatesPage() {
     return p;
   }, [sel, stSel, platformSel, series, q]);
 
+  const { user } = useAuth();
+  const uid = user?.uid;
+  const [meta, setMeta] = useState<Meta | null>(null);
+  const cacheKey = useCallback(() => (q.trim() ? '' : `list:${buildParams()}`), [buildParams, q]);
+
+  // 保存済みの一覧があれば、通信を待たずに即表示する
+  useEffect(() => {
+    const k = cacheKey();
+    const cached = k ? readPersist<ListRes>(uid, k) : null;
+    if (cached) setData((prev) => prev ?? cached);
+  }, [uid, cacheKey]);
+
   const reload = useCallback(async () => {
-    try { setData(await call<ListRes>(`?${buildParams()}`)); setErr(''); } catch (e) { setErr(e instanceof Error ? e.message : '読み込めませんでした'); }
-  }, [buildParams]);
+    try {
+      const k = cacheKey();
+      const cached = k ? readPersist<ListRes>(uid, k) : null;
+      const p = buildParams();
+      // 前回の「版」を送り、変更がなければ中身を受け取らない(DB読み取りも1回で済む)
+      if (cached?.version) p.set('v', cached.version);
+      const r = await call<ListRes>(`?${p}`);
+      if (r.notModified && cached) {
+        setData(cached);
+      } else {
+        setData(r);
+        if (k) writePersist(uid, k, r);
+      }
+      setErr('');
+    } catch (e) { setErr(e instanceof Error ? e.message : '読み込めませんでした'); }
+  }, [buildParams, cacheKey, uid]);
+
+  // 類似チェック設定・AI利用状況は一覧と別に、最初に候補を開いたときだけ取得
+  useEffect(() => {
+    if (openId && !meta) call<Meta>('/meta').then(setMeta).catch(() => undefined);
+  }, [openId, meta]);
 
   /** 次の100件を読み足す(全件を一度に読まない) */
   const loadMore = async () => {
@@ -534,9 +590,9 @@ export default function CandidatesPage() {
     URL.revokeObjectURL(a.href);
   };
   const togglePref = async () => {
-    if (!data) return;
-    const r = await call<{ useAi: boolean }>('/prefs', { method: 'PUT', body: { useAi: !data.prefs.useAi } });
-    setData({ ...data, prefs: r });
+    if (!meta) return;
+    const r = await call<{ useAi: boolean }>('/prefs', { method: 'PUT', body: { useAi: !meta.prefs.useAi } });
+    setMeta({ ...meta, prefs: r });
   };
 
   const total = data?.counts.all ?? 0;
@@ -656,7 +712,7 @@ export default function CandidatesPage() {
           {data && data.candidates.length === 0 && <p className="p-4 text-sm text-neutral-500">候補がありません。「追加」か取り込みから入れてください。</p>}
         </div>
         {openId && data ? (
-          <Workspace key={openId} id={openId} list={data} reload={reload} onToggleAi={togglePref} />
+          <Workspace key={openId} id={openId} meta={meta} reload={reload} onToggleAi={togglePref} />
         ) : (
           <>
             <div className="min-h-0 rounded-xl border bg-white p-4"><p className="text-sm text-neutral-500">左の一覧から候補を選ぶと、本文・画像・類似投稿をここで編集できます。</p></div>

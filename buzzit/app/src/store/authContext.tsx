@@ -8,6 +8,8 @@ import {
   type ReactNode,
 } from 'react';
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
+import { clearPersist } from '../lib/persistCache';
+import { clearApiCache } from '../lib/api';
 import {
   auth,
   getIdToken,
@@ -185,6 +187,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [runAuthAction]);
 
   const logout = useCallback(async () => {
+    clearPersist();
+    clearApiCache();
     await signOut(auth);
     setUser(null);
   }, []);

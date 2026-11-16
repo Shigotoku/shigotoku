@@ -101,10 +101,20 @@ function extractSnsFromUser(settings: UserSettings): PersonaSnsSettings {
   return out;
 }
 
+/** 読み取り削減: 同じキャラ情報を1リクエスト内で何度も読むため、10秒だけ記憶する(変更時は破棄) */
+const personaMemo = new Map<string, { at: number; v: PersonaRecord | null }>();
+const activeMemo = new Map<string, { at: number; id: string }>();
+const MEMO_MS = 10_000;
+export function clearPersonaMemo() { personaMemo.clear(); activeMemo.clear(); }
+
 export async function getPersona(personaId: string): Promise<PersonaRecord | null> {
+  const hit = personaMemo.get(personaId);
+  if (hit && Date.now() - hit.at < MEMO_MS) return hit.v;
   const snap = await personasCol().doc(personaId).get();
-  if (!snap.exists) return null;
-  return { id: snap.id, ...(snap.data() as Omit<PersonaRecord, 'id'>) };
+  const v = snap.exists ? ({ id: snap.id, ...(snap.data() as Omit<PersonaRecord, 'id'>) } as PersonaRecord) : null;
+  personaMemo.set(personaId, { at: Date.now(), v });
+  if (personaMemo.size > 500) personaMemo.delete(personaMemo.keys().next().value as string);
+  return v;
 }
 
 export async function assertPersonaAccess(
@@ -237,6 +247,18 @@ export async function resolveActivePersonaId(
   uid: string,
   settings?: UserSettings,
 ): Promise<string> {
+  const memo = activeMemo.get(uid);
+  if (!settings && memo && Date.now() - memo.at < MEMO_MS) return memo.id;
+  const id = await resolveActivePersonaIdUncached(uid, settings);
+  activeMemo.set(uid, { at: Date.now(), id });
+  if (activeMemo.size > 500) activeMemo.delete(activeMemo.keys().next().value as string);
+  return id;
+}
+
+async function resolveActivePersonaIdUncached(
+  uid: string,
+  settings?: UserSettings,
+): Promise<string> {
   const s = settings ?? (await getUserSettings(uid));
   if (s.activePersonaId) {
     const role = await getUserRoleInPersona(s.activePersonaId, uid);
@@ -265,6 +287,7 @@ export async function createPersona(
     brandSafetyLevel?: 'medical' | 'standard';
   },
 ): Promise<PersonaRecord> {
+  clearPersonaMemo();
   const name = input.name.trim();
   if (!name) throw new Error('ペルソナ名が必要です');
 
@@ -324,6 +347,7 @@ export async function updatePersona(
   uid: string,
   patch: Partial<PersonaRecord> & { xDisconnect?: boolean },
 ): Promise<PersonaRecord> {
+  clearPersonaMemo();
   await assertPersonaAccess(personaId, uid, 'editor');
 
   const safe: Record<string, unknown> = {};
@@ -425,6 +449,7 @@ async function ensurePersonaMembership(uid: string, personaId: string): Promise<
 }
 
 export async function setActivePersona(uid: string, personaId: string): Promise<void> {
+  clearPersonaMemo();
   await ensurePersonaMembership(uid, personaId);
   await assertPersonaAccess(personaId, uid, 'viewer');
   await db().collection('users').doc(uid).set(
@@ -434,6 +459,7 @@ export async function setActivePersona(uid: string, personaId: string): Promise<
 }
 
 export async function archivePersona(personaId: string, uid: string): Promise<void> {
+  clearPersonaMemo();
   const persona = await assertPersonaAccess(personaId, uid, 'owner');
   const settings = await getUserSettings(uid);
   const personas = await listPersonasForUser(uid, settings);
@@ -490,6 +516,7 @@ export async function addPersonaMember(
   role: Exclude<PersonaRole, 'owner'>,
   actorUid: string,
 ): Promise<void> {
+  clearPersonaMemo();
   await assertPersonaAccess(personaId, actorUid, 'owner');
   const targetSettings = await getUserSettings(targetUid);
   const batch = db().batch();
@@ -513,6 +540,7 @@ export async function removePersonaMember(
   targetUid: string,
   actorUid: string,
 ): Promise<void> {
+  clearPersonaMemo();
   await assertPersonaAccess(personaId, actorUid, 'owner');
   if (targetUid === actorUid) throw new Error('自分自身は削除できません');
   const targetRole = await getUserRoleInPersona(personaId, targetUid);

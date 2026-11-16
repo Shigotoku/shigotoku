@@ -5,6 +5,8 @@ import { fetchScheduledJobs, approveScheduledJob, retryScheduledJob, revertSched
 import { applyDateAndHour, applyDateKeepTime, buildTempoDates, findEmptyWeekdays, findSlotConflicts, nudgeToOpenSlot, shiftIsoByDays, suggestBestHours, suggestOpenSlotsForDay } from '../../lib/bulkSchedule';
 import { loadCalendarViewPref, loadDropHourPref, saveDropHourPref } from '../../lib/schedulePrefs';
 import { useStore } from '../../store/storeContext';
+import { useAuth } from '../../store/authContext';
+import { readPersist, writePersist } from '../../lib/persistCache';
 import { usePersona } from '../../store/personaContext';
 import { canApprovePosts } from '../../lib/permissions';
 import { getSnsNavPlatform, jobMatchesSnsPlatform } from '../../lib/snsPlatforms';
@@ -66,11 +68,15 @@ export function useCalendarState({ platformId, embedded }: CalendarPageProps) {
   const [tempoBusy, setTempoBusy] = useState(false);
   const [approveConfirmJob, setApproveConfirmJob] = useState<ScheduledJob | null>(null);
 
+  const { user } = useAuth();
+  const jobsCacheKey = "jobs:${activePersonaId}";
   const load = () => {
     if (!activePersonaId) return;
-    setLoading(true);
+    // ブラウザ保存済みの予定があれば先に表示し、裏で最新に差し替える
+    const cached = readPersist<ScheduledJob[]>(user?.uid, jobsCacheKey);
+    if (cached) { setJobs(cached); setLoading(false); } else setLoading(true);
     fetchScheduledJobs(undefined, activePersonaId)
-      .then((r) => setJobs(r.jobs))
+      .then((r) => { setJobs(r.jobs); writePersist(user?.uid, jobsCacheKey, r.jobs); })
       .catch(() => setJobs([]))
       .finally(() => setLoading(false));
   };

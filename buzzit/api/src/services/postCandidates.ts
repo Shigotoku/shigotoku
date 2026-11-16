@@ -46,7 +46,20 @@ const poolCache = new Map<string, { at: number; key: string; pool: DupItem[] }>(
 const lastSync = new Map<string, number>();
 const SYNC_MIN_INTERVAL_MS = 5 * 60_000;
 const countsCache = new Map<string, { at: number; v: CandidateCounts }>();
-const bust = (uid: string) => { listCache.delete(uid); poolCache.delete(uid); countsCache.delete(uid); };
+/** 候補に変更があるたびに更新する「版」。画面は前回の版を送り、同じなら中身を送り直さない(読み取り1回で済む) */
+const versionDoc = (uid: string) => db().doc(`users/${uid}/prefs/candidatesVersion`);
+const bust = (uid: string) => {
+  listCache.delete(uid); poolCache.delete(uid); countsCache.delete(uid);
+  void versionDoc(uid).set({ v: String(Date.now()) }).catch(() => undefined);
+};
+async function candidatesVersion(uid: string): Promise<string> {
+  const snap = await versionDoc(uid).get();
+  const v = snap.data()?.v as string | undefined;
+  if (v) return v;
+  const created = String(Date.now());
+  await versionDoc(uid).set({ v: created }).catch(() => undefined);
+  return created;
+}
 
 // ---- 規模対策: 全件を読まずに済むための仕組み ----
 //  ・一覧はFirestoreのクエリ(絞り込み+ページ送り)で必要な分だけ読む
@@ -1098,13 +1111,25 @@ const fail = (res: import('express').Response, err: unknown) => res.status(400).
 candidatesRouter.get('/', requireAuth, async (req: AuthedRequest, res) => {
   try {
     const q = req.query as Record<string, string | undefined>;
-    const ai = await getAiSettings(req.uid!);
-    const st = await getUserSettings(req.uid!);
+    // 前回の版と同じなら、中身を読まずに「変更なし」を返す(読み取り1回)
+    const version = await candidatesVersion(req.uid!);
+    if (q.v && q.v === version) { res.json({ notModified: true, version }); return; }
     const r = await listCandidates(req.uid!, { query: q.q, series: q.series, selection: q.selection, status: q.status, platform: q.platform, cursor: q.cursor, limit: Number(q.limit) || 50 });
     res.json({
       ...r,
+      version,
       // 一覧に要らない長い項目は送らない(通信量・描画の削減)。全文は1件取得で返す
       candidates: r.candidates.map((c) => ({ ...c, body: c.body.slice(0, 120), extra: {}, checkNotes: '', editNotes: '', aiSuggestion: undefined, imageIdea: '', mediaUrls: c.mediaUrls.slice(0, 1) })),
+    });
+  } catch (e) { fail(res, e); }
+});
+
+/** 類似投稿チェックの設定とAIの利用状況。一覧とは別に、必要になったときだけ取得する */
+candidatesRouter.get('/meta', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const ai = await getAiSettings(req.uid!);
+    const st = await getUserSettings(req.uid!);
+    res.json({
       prefs: await getDupPrefs(req.uid!),
       ai: { mode: ai.mode, provider: ai.provider, hasKey: ai.hasKey, usage: ai.mode === 'platform' ? await getAiUsage(req.uid!, st.plan) : null },
     });

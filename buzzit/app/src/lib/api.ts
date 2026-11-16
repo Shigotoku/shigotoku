@@ -15,25 +15,79 @@ async function authHeaders(extra?: Record<string, string>): Promise<Record<strin
   return headers;
 }
 
+/**
+ * 読み取り(GET)の短期キャッシュ。画面を行き来するたびに同じAPIを呼び直さない。
+ * - 15秒以内の同じGETは再通信しない / 同時に来た同じGETは1回にまとめる
+ * - 何か書き込み(POST/PUT/PATCH/DELETE)をしたら全破棄 → 常に自分の変更は反映される
+ */
+const GET_TTL_MS = 15_000;
+const getMemo = new Map<string, { at: number; value: unknown }>();
+const getInflight = new Map<string, Promise<unknown>>();
+
+export function clearApiCache() {
+  getMemo.clear();
+  getInflight.clear();
+}
+
+function scopeOf(headers: Record<string, string>): string {
+  const t = headers.Authorization?.slice(7);
+  if (!t) return '';
+  try {
+    return (JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))) as { sub?: string }).sub ?? '';
+  } catch {
+    return '';
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = await authHeaders({
     'Content-Type': 'application/json',
     ...(init?.headers as Record<string, string>),
   });
+  const method = (init?.method ?? 'GET').toUpperCase();
 
-  const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
+  const run = async (): Promise<T> => {
+    const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error((body as { error?: string }).error ?? `API error: ${res.status}`);
+    }
+    return res.json() as Promise<T>;
+  };
 
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error((body as { error?: string }).error ?? `API error: ${res.status}`);
+  if (method !== 'GET') {
+    try {
+      return await run();
+    } finally {
+      clearApiCache();
+    }
   }
 
-  return res.json() as Promise<T>;
+  const key = `${scopeOf(headers)}|${path}`;
+  const hit = getMemo.get(key);
+  if (hit && Date.now() - hit.at < GET_TTL_MS) return structuredClone(hit.value) as T;
+  const pending = getInflight.get(key);
+  if (pending) return structuredClone(await pending) as T;
+
+  const p = run();
+  getInflight.set(key, p);
+  try {
+    const value = await p;
+    getMemo.set(key, { at: Date.now(), value });
+    return structuredClone(value) as T;
+  } finally {
+    getInflight.delete(key);
+  }
 }
 
 export async function authFetch(path: string, init?: RequestInit): Promise<Response> {
   const headers = await authHeaders(init?.headers as Record<string, string>);
-  return fetch(`${API_BASE}${path}`, { ...init, headers });
+  const method = (init?.method ?? 'GET').toUpperCase();
+  try {
+    return await fetch(`${API_BASE}${path}`, { ...init, headers });
+  } finally {
+    if (method !== 'GET') clearApiCache();
+  }
 }
 
 export function bootstrapAuth(email?: string, displayName?: string) {
