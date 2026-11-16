@@ -654,6 +654,8 @@ async function publishSeriesItem(
       errorMessage: 'X API未設定',
       updatedAt: FieldValue.serverTimestamp(),
     });
+    const { alertOwnerByEmail } = await import('./ownerAlert');
+    await alertOwnerByEmail(uid, { title: 'Xシリーズを投稿できません(X未連携)', detail: 'X API のキーが未設定のため、Xシリーズの自動投稿が止まっています。設定でXを連携してください。', linkPath: '/settings' });
     return { ok: false, message: 'X API未設定' };
   }
   if (getXApiPostsThisMonth(settings) >= X_FREE_MONTHLY_SOFT_LIMIT) {
@@ -666,6 +668,10 @@ async function publishSeriesItem(
   }
 
   const result = await postTweetWithXApi(creds, text, mediaUrls, mediaAltTexts);
+  if (!result.success) {
+    const { alertOwnerByEmail } = await import('./ownerAlert');
+    await alertOwnerByEmail(uid, { title: 'Xシリーズの自動投稿に失敗しました', detail: result.message, linkPath: '/x-series' });
+  }
   if (result.success) {
     await incrementXApiPostCount(uid);
     await itemRef.update({

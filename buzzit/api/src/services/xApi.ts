@@ -210,7 +210,15 @@ async function postSingleTweet(
       data.errors?.[0]?.detail ??
       data.errors?.[0]?.message ??
       `X投稿失敗 (${res.status})`;
-    return { success: false, message: errMsg };
+    const hint =
+      res.status === 402
+        ? 'Xの利用クレジットが不足しています。X Developer Console でクレジットを追加してください。'
+        : res.status === 401 || res.status === 403
+          ? 'Xの認証・権限エラーです。App permissions が Read and Write か、トークンを作り直したか確認してください。'
+          : res.status === 429
+            ? 'Xの投稿回数制限に達しました。時間をおいて再試行されます/してください。'
+            : '';
+    return { success: false, message: hint ? `${hint}（${errMsg}）` : errMsg };
   }
 
   return {

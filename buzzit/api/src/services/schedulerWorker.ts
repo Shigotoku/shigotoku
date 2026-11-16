@@ -10,6 +10,7 @@ import { getEffectiveSettings } from './personaSettings';
 import { executePublish } from './publish';
 import { postToSlackWebhook } from './slack';
 import { canUseSlack } from './autoMode';
+import { alertOwnerByEmail } from './ownerAlert';
 
 async function notifyPublishFailure(
   uid: string,
@@ -67,7 +68,11 @@ export async function processDueScheduledJobs(): Promise<{ processed: number; er
       if (finalStatus === 'failed') {
         errors++;
         await notifyPublishFailure(job.uid, job.id, outcome.message);
+        await alertOwnerByEmail(job.uid, { title: '予約投稿に失敗しました', detail: outcome.message });
       } else {
+        if (outcome.fallback) {
+          await alertOwnerByEmail(job.uid, { title: '自動投稿できず、通知に切り替わりました', detail: `${outcome.message}\n\nSNS連携を確認してください。`, linkPath: '/settings' });
+        }
         processed++;
       }
     } catch (err) {
@@ -78,6 +83,7 @@ export async function processDueScheduledJobs(): Promise<{ processed: number; er
         errorMessage: message,
       });
       await notifyPublishFailure(job.uid, job.id, message);
+      await alertOwnerByEmail(job.uid, { title: '予約投稿に失敗しました', detail: message });
     }
   }
 

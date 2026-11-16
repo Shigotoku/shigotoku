@@ -22,7 +22,7 @@ export default function XPanel() {
               {xConnected ? `接続済み${xUsername ? ` (@${xUsername})` : ''}` : '未接続'}
             </p>
             <p className="text-xs text-neutral-500">
-              今月の投稿: {xApiPostsThisMonth} / {xApiMonthlyLimit}（ソフト上限・開発者枠に準拠）
+              今月の投稿: {xApiPostsThisMonth} / {xApiMonthlyLimit}（BuzzIt の安全上限。実際の課金は X 側のクレジット残高です）
             </p>
           </div>
           <span
@@ -96,7 +96,8 @@ export default function XPanel() {
         </div>
         <p className="text-xs text-neutral-500">
           Developer Portal で App permissions を Read and Write にし、ユーザートークンを発行してください。
-          いいね・フォロー自動化などは行いません（投稿のみ）。料金・枠は X の開発者プランに従います。
+          いいね・フォロー自動化などは行いません（投稿のみ）。
+          X API は従量課金(事前にクレジットを購入)で、無料枠はありません。目安: 通常の投稿 約$0.015/件、URL(リンク)入りの投稿 約$0.20/件。クレジットが尽きると投稿できません。最新の料金は X Developer Console で確認してください。
         </p>
         <Link to="/x-series" className="inline-block text-sm underline-offset-2 hover:underline">
           Xシリーズ（曜日キュー）の管理へ →

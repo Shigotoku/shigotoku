@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Download, ImageOff, ImagePlus, Plus, Search, Upload, X } from 'lucide-react';
 import { authFetch } from '../lib/api';
 import { useAuth } from '../store/authContext';
+import { usePersona } from '../store/personaContext';
 import { readPersist, writePersist } from '../lib/persistCache';
 import SnsRulesBox, { RULE_ID_OF } from './SnsRulesBox';
 import CandidatePreview, { PLATFORM_META, isVideoUrl } from './CandidatePreview';
@@ -257,6 +258,7 @@ interface DetailProps { id: string; meta: Meta | null; reload: () => void; onTog
 function Workspace({ id, meta, reload, onToggleAi }: DetailProps) {
   const { user } = useAuth();
   const uid = user?.uid;
+  const { activePersona } = usePersona();
   const touched = useRef(false);
   const [c, setC] = useState<Candidate | null>(null);
   const [dup, setDup] = useState<Dup | null>(null);
@@ -268,6 +270,12 @@ function Workspace({ id, meta, reload, onToggleAi }: DetailProps) {
   const [platform, setPlatform] = useState('x_thread');
   const [asSchedule, setAsSchedule] = useState(true);
   const [previewPlatform, setPreviewPlatform] = useState('');
+  // 選んだ媒体が自動投稿できない状態なら、予約前に知らせる(通知に切り替わり、実際には投稿されないため)
+  const notAutoWarn = (() => {
+    if (platform === 'x_thread') return activePersona && !activePersona.xConnected ? 'Xが未連携です。このままでは自動投稿されず、時間になると通知が届くだけです。' : '';
+    if (platform === 'line') return activePersona && !activePersona.lineConnected ? 'LINEが未連携です。このままでは自動投稿されず、通知が届くだけです。' : '';
+    return `${PLATFORMS.find(([k]) => k === platform)?.[1] ?? platform}は自動投稿に未対応です。時間になると通知でお知らせします(自分で投稿)。`;
+  })();
 
   const load = useCallback(async () => {
     setMsg('');
@@ -414,6 +422,12 @@ function Workspace({ id, meta, reload, onToggleAi }: DetailProps) {
               <label className="text-[11px]"><input type="checkbox" checked={!asSchedule} onChange={(e) => setAsSchedule(!e.target.checked)} /> 下書きにする</label>
               <button disabled={busy || !when || noImage} title={noImage ? '画像を追加してください' : undefined} onClick={toJob} className="rounded-lg bg-neutral-900 px-3 py-1 text-xs text-white disabled:opacity-40">{asSchedule ? '予約する' : '下書きにする'}</button>
             </div>
+            {asSchedule && notAutoWarn && (
+              <p className="flex flex-wrap items-center gap-1 rounded border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] text-amber-900">
+                ⚠ {notAutoWarn}
+                {platform === 'x_thread' || platform === 'line' ? <Link to="/settings" className="font-semibold underline">連携する</Link> : null}
+              </p>
+            )}
             <p className="text-[11px] text-neutral-500">{noImage ? '画像が必須です。先に画像を追加してください。' : '予約すると「採用」になり、時間になったら自動投稿(未連携の媒体は通知)。ダッシュボード・カレンダーに出ます。'}</p>
           </div>
         )}

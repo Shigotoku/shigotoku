@@ -19,6 +19,8 @@ import { publishGbpLocalPost } from './gbp';
 export interface PublishOutcome {
   status: 'published' | 'notified' | 'failed';
   message: string;
+  /** 自動投稿のつもりが、未連携などで「通知」に切り替わった(実際には投稿されていない) */
+  fallback?: boolean;
   results?: Array<{ platform: string; success: boolean; message: string; externalId?: string }>;
 }
 
@@ -52,7 +54,7 @@ export async function executePublish(
       const conn = metaConnectionFromSettings(settings);
       if (!conn) {
         const fallback = await notifyUser(settings, contents, scheduledAt);
-        return { ...fallback, message: `Meta 未連携のため通知に切替: ${fallback.message}` };
+        return { ...fallback, fallback: true, message: `Meta 未連携のため通知に切替: ${fallback.message}` };
       }
       const results = await publishToMeta(conn, contents, mediaUrls, aiGeneratedMedia);
       const anyOk = results.some((r) => r.success);
@@ -97,7 +99,8 @@ export async function executePublish(
         const fallback = await notifyUser(settings, contents, scheduledAt);
         return {
           ...fallback,
-          message: `X API未設定のため通知に切替: ${fallback.message}`,
+          fallback: true,
+          message: `X API未設定のため通知に切替(Xには投稿されていません): ${fallback.message}`,
         };
       }
       const used = getXApiPostsThisMonth(settings);
@@ -151,6 +154,7 @@ export async function executePublish(
       const notified = await notifyUser(settings, contents, scheduledAt);
       return {
         status: notified.status === 'notified' ? 'notified' : 'failed',
+        fallback: true,
         message: `${result.message}。通知にフォールバック: ${notified.message}`,
         results: [{ platform: 'gbp', success: false, message: result.message }],
       };
