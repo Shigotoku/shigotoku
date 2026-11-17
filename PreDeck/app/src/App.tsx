@@ -13,10 +13,12 @@ import {
   joinSegment,
   type SpeechVocabulary,
 } from "@/lib/speech";
-import { ApiError, getByokKey, improveScript, reviewScript, setByokKey, toEnglish } from "@/lib/aiClient";
+import { ApiError, getByokKey, improveScript, reviewScript, setByokKey, startSimulSession, toEnglish } from "@/lib/aiClient";
+import { createCloudEngine } from "@/lib/translate/cloudEngine";
 import { createLocalEngine, loadLocalConfig, saveLocalConfig } from "@/lib/translate/localEngine";
 import { createSimulTranslator } from "@/lib/translate/simul";
 import { createBrowserTts } from "@/lib/tts";
+import { createKokoroTts } from "@/lib/tts/kokoro";
 import { formatDictionaryText, loadUserDictionary, parseDictionaryText, saveUserDictionary } from "@/lib/userDictionary";
 
 const VOCAB_LABEL: Record<SpeechVocabulary, string> = {
@@ -49,12 +51,34 @@ function Workbench() {
   // 同時通訳（日本語の確定文 → ローカル翻訳 → 英語字幕・音声）
   const [simul, setSimul] = useState(false);
   const [simulSpeak, setSimulSpeak] = useState(true);
+  const [simulMode, setSimulMode] = useState<"cloud" | "local">("cloud");
   const [simulEn, setSimulEn] = useState<string[]>([]);
   const [localCfg, setLocalCfg] = useState(loadLocalConfig());
   const [cfgError, setCfgError] = useState("");
   const simulRef = useRef<ReturnType<typeof createSimulTranslator> | null>(null);
-  const tts = useRef(createBrowserTts());
-  useEffect(() => () => { simulRef.current?.cancel(); tts.current.stop(); }, []);
+  const [voiceMode, setVoiceMode] = useState<"standard" | "high">("standard");
+  const [voiceStatus, setVoiceStatus] = useState("");
+  const browserTts = useRef(createBrowserTts());
+  const kokoroTts = useRef(
+    createKokoroTts({
+      onProgress: (p) => setVoiceStatus(`高品質音声を準備中… ${p}%（初回のみ・約80MB）`),
+      onLoadError: () => {
+        setVoiceMode("standard");
+        setVoiceStatus("高品質音声を読み込めなかったため、標準の音声を使います");
+      },
+    }),
+  );
+  const tts = { current: voiceMode === "high" ? kokoroTts.current : browserTts.current };
+  useEffect(() => () => { simulRef.current?.cancel(); browserTts.current.stop(); kokoroTts.current.stop(); }, []);
+
+  async function chooseVoice(mode: "standard" | "high") {
+    tts.current.stop();
+    setVoiceMode(mode);
+    if (mode === "high") {
+      setVoiceStatus("高品質音声を準備中…");
+      if (await kokoroTts.current.preload()) setVoiceStatus("高品質音声の準備ができました");
+    } else setVoiceStatus("");
+  }
 
   const engine = pickDefaultEngine();
   const auth = useAuth();
@@ -83,8 +107,19 @@ function Workbench() {
     setSimulEn([]);
     simulRef.current = null;
     if (simul && lang === "ja-JP") {
-      simulRef.current = createSimulTranslator({
-        engine: createLocalEngine(),
+      let engineForSimul;
+      if (simulMode === "local") {
+        engineForSimul = createLocalEngine();
+      } else {
+        try {
+          const s = await startSimulSession(); // 無料枠 1 回消費。サーバーも温まる
+          engineForSimul = createCloudEngine(s.sessionId);
+        } catch (e) {
+          setError(e instanceof ApiError ? e.message : "同時通訳を開始できませんでした");
+        }
+      }
+      if (engineForSimul) simulRef.current = createSimulTranslator({
+        engine: engineForSimul,
         glossary: loadUserDictionary().map((e) => e.term),
         onTranslated: (p) => {
           setSimulEn((prev) => [...prev, p.en]);
@@ -212,14 +247,25 @@ function Workbench() {
       <details className="mt-6" open={simul}>
         <summary className="cursor-pointer text-sm font-semibold text-slate-300">同時通訳（英語字幕・英語音声）</summary>
         <p className="mt-2 text-xs text-slate-400">
-          日本語で話すと、確定した文ごとに英語へ訳します。翻訳はこの PC 上のローカルモデル（PLaMo 等）だけを使い、テキストも外に出ません。
-          事前に Ollama などの OpenAI 互換サーバーを起動し、ブラウザからの接続を許可してください（例: OLLAMA_ORIGINS）。
+          日本語で話すと、確定した文ごとに英語へ訳します。音声は端末の外に出ません。
+          「クラウド」は文のテキストだけを AI に送ります（録音 1 回につき無料枠を 1 回消費。BYOK は消費しません）。
+          「ローカル」は、この PC 上のモデル（PLaMo 等）だけを使い、テキストも外に出ません。
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-4 text-sm">
+          <select value={simulMode} onChange={(e) => setSimulMode(e.target.value as "cloud" | "local")} disabled={recording} className="rounded border border-slate-600 bg-slate-900 px-2 py-1">
+            <option value="cloud">クラウド翻訳（標準）</option>
+            <option value="local">ローカル翻訳（機密向け・要セットアップ）</option>
+          </select>
           <label className="flex items-center gap-1"><input type="checkbox" checked={simul} disabled={recording} onChange={(e) => setSimul(e.target.checked)} />同時通訳を使う（録音開始時に有効）</label>
           <label className="flex items-center gap-1"><input type="checkbox" checked={simulSpeak} onChange={(e) => { setSimulSpeak(e.target.checked); if (!e.target.checked) tts.current.stop(); }} />英語を音声で読み上げる</label>
+          <select value={voiceMode} onChange={(e) => void chooseVoice(e.target.value as "standard" | "high")} disabled={recording || !simulSpeak} className="rounded border border-slate-600 bg-slate-900 px-2 py-1">
+            <option value="standard">標準の音声（すぐ使える）</option>
+            <option value="high">高品質の音声（初回に約80MB取得）</option>
+          </select>
         </div>
-        <div className="mt-2 grid gap-2 md:grid-cols-2">
+        {voiceStatus && <p className="mt-1 text-xs text-slate-400">{voiceStatus}</p>}
+        {simulMode === "local" && <p className="mt-2 text-xs text-slate-400">Ollama 等の OpenAI 互換サーバーを起動し、ブラウザからの接続を許可してください（例: OLLAMA_ORIGINS）。</p>}
+        <div className={`mt-2 grid gap-2 md:grid-cols-2 ${simulMode === "local" ? "" : "hidden"}`}>
           <input value={localCfg.baseUrl} onChange={(e) => setLocalCfg({ ...localCfg, baseUrl: e.target.value })} disabled={recording} className="rounded border border-slate-700 bg-slate-900 p-2 text-sm" placeholder="http://127.0.0.1:11434/v1" />
           <input value={localCfg.model} onChange={(e) => setLocalCfg({ ...localCfg, model: e.target.value })} onBlur={() => { try { saveLocalConfig(localCfg); setCfgError(""); } catch (err) { setCfgError(err instanceof Error ? err.message : "設定を保存できません"); } }} disabled={recording} className="rounded border border-slate-700 bg-slate-900 p-2 text-sm" placeholder="モデル名（例: plamo-3）" />
         </div>

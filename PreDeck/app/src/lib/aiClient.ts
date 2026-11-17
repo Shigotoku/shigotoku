@@ -45,6 +45,15 @@ export const improveScript = (text: string, o: Common = {}) =>
 export const toEnglish = (text: string, o: Common = {}) =>
   post<{ english: string; pronunciationTips: string[] }>("/v1/ai/english", { text, ...o });
 
+/** 同時通訳セッション開始（無料枠を 1 回消費。BYOK なら sessionId は null）。 */
+export const startSimulSession = () =>
+  post<{ sessionId: string | null; byok: boolean; maxSegments?: number }>("/v1/ai/session/start", {});
+
+export const translateSegment = (
+  text: string,
+  o: { sessionId: string | null; context?: { ja: string; en: string }[]; glossary?: string[] },
+) => post<{ english: string }>("/v1/ai/translate-segment", { text, ...o });
+
 export const reviewScript = (text: string, o: Common = {}) =>
   post<{ structure: string[]; clarity: string[]; likelyQuestions: string[]; estimatedMinutes: number }>(
     "/v1/ai/review",

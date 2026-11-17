@@ -49,6 +49,30 @@ export function englishPrompt(i: { text: string; purpose?: string; glossary?: st
     .join("\n");
 }
 
+export function segmentPrompt(i: {
+  text: string;
+  context?: { ja: string; en: string }[];
+  glossary?: string[];
+}): string {
+  const ctx = (i.context ?? [])
+    .slice(-3)
+    .map((p) => `JA: ${p.ja}\nEN: ${p.en}`)
+    .join("\n");
+  return [
+    "You are a simultaneous interpreter for scientific and medical presentations.",
+    "Translate the final Japanese segment into natural spoken English that is easy to say aloud.",
+    "Keep numbers, units and proper nouns. Use standard international terminology.",
+    "Previous segments are context only (consistent terms, omitted subjects). Do not repeat them.",
+    glossaryLine(i.glossary),
+    'Output JSON only: {"english": string}',
+    ctx ? `\n[Previous segments]\n${ctx}` : "",
+    "\n[Segment to translate]",
+    i.text,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 export function reviewPrompt(i: { text: string; purpose?: string; durationMin?: number }): string {
   return [
     "あなたはプレゼンのコーチです。原稿を評価し、改善点を具体的に挙げてください。",
