@@ -1,6 +1,7 @@
 import type { PublishMode, ScheduleContentItem } from '../types/schedule';
 import type { EffectiveUserSettings } from './personaSettings';
 import { credentialsFromSettings } from './xApi';
+import { bufferConnected } from './buffer';
 
 const AUTO_PUBLISH_MODES: PublishMode[] = ['meta', 'line', 'gbp', 'x_free', 'ayrshare', 'auto'];
 
@@ -18,7 +19,7 @@ function resolveAutoMode(settings: EffectiveUserSettings): PublishMode {
     if (settings.metaAccessToken && settings.metaIgUserId) return 'meta';
     if (settings.lineChannelAccessToken) return 'line';
   }
-  if (credentialsFromSettings(settings)) return 'x_free';
+  if (credentialsFromSettings(settings) || bufferConnected(settings)) return 'x_free';
   if (process.env.AYRSHARE_API_KEY && settings.ayrshareProfileKey) return 'ayrshare';
   return 'notify';
 }
@@ -32,7 +33,7 @@ export function assertConnectedForPublishMode(
 
   switch (effective) {
     case 'x_free':
-      if (!credentialsFromSettings(settings)) {
+      if (!credentialsFromSettings(settings) && !bufferConnected(settings)) {
         return 'X（Twitter）がこの配信キャラで未連携です。設定の SNS 連携で接続するか、通知モードに変更してください。';
       }
       return null;

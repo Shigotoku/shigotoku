@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Route, Routes } from "react-router-dom";
 import { Mic, Square, Upload } from "lucide-react";
 import { loadPdf, type SlidePage } from "@/lib/pdf";
@@ -14,6 +14,9 @@ import {
   type SpeechVocabulary,
 } from "@/lib/speech";
 import { ApiError, getByokKey, improveScript, reviewScript, setByokKey, toEnglish } from "@/lib/aiClient";
+import { createLocalEngine, loadLocalConfig, saveLocalConfig } from "@/lib/translate/localEngine";
+import { createSimulTranslator } from "@/lib/translate/simul";
+import { createBrowserTts } from "@/lib/tts";
 import { formatDictionaryText, loadUserDictionary, parseDictionaryText, saveUserDictionary } from "@/lib/userDictionary";
 
 const VOCAB_LABEL: Record<SpeechVocabulary, string> = {
@@ -43,6 +46,16 @@ function Workbench() {
   const recorder = useRef(new SlideRecorder());
   const speech = useRef<AsrSession | null>(null);
 
+  // 同時通訳（日本語の確定文 → ローカル翻訳 → 英語字幕・音声）
+  const [simul, setSimul] = useState(false);
+  const [simulSpeak, setSimulSpeak] = useState(true);
+  const [simulEn, setSimulEn] = useState<string[]>([]);
+  const [localCfg, setLocalCfg] = useState(loadLocalConfig());
+  const [cfgError, setCfgError] = useState("");
+  const simulRef = useRef<ReturnType<typeof createSimulTranslator> | null>(null);
+  const tts = useRef(createBrowserTts());
+  useEffect(() => () => { simulRef.current?.cancel(); tts.current.stop(); }, []);
+
   const engine = pickDefaultEngine();
   const auth = useAuth();
   const canUseAi = Boolean(auth.user) || (import.meta.env.DEV && !auth.configured);
@@ -67,6 +80,19 @@ function Workbench() {
       await recorder.current.stop().catch(() => undefined);
       return;
     }
+    setSimulEn([]);
+    simulRef.current = null;
+    if (simul && lang === "ja-JP") {
+      simulRef.current = createSimulTranslator({
+        engine: createLocalEngine(),
+        glossary: loadUserDictionary().map((e) => e.term),
+        onTranslated: (p) => {
+          setSimulEn((prev) => [...prev, p.en]);
+          if (simulSpeak) tts.current.speak(p.en);
+        },
+        onError: setError,
+      });
+    }
     // 音声が端末外に出ないエンジンだけを既定で使う（pickDefaultEngine）
     const handle = await engine.start({
       lang,
@@ -76,6 +102,7 @@ function Workbench() {
       onInterim: (t) => setInterim(t),
       onFinal: (t) => {
         setInterim("");
+        if (lang === "ja-JP") simulRef.current?.enqueue(cleanSegment(t, vocab));
         setTranscript((prev) => (lang === "ja-JP" ? joinSegment(prev, cleanSegment(t, vocab)) : `${prev} ${t}`.trim()));
       },
       onError: setError,
@@ -181,6 +208,26 @@ function Workbench() {
           </div>
         </div>
       )}
+
+      <details className="mt-6" open={simul}>
+        <summary className="cursor-pointer text-sm font-semibold text-slate-300">同時通訳（英語字幕・英語音声）</summary>
+        <p className="mt-2 text-xs text-slate-400">
+          日本語で話すと、確定した文ごとに英語へ訳します。翻訳はこの PC 上のローカルモデル（PLaMo 等）だけを使い、テキストも外に出ません。
+          事前に Ollama などの OpenAI 互換サーバーを起動し、ブラウザからの接続を許可してください（例: OLLAMA_ORIGINS）。
+        </p>
+        <div className="mt-2 flex flex-wrap items-center gap-4 text-sm">
+          <label className="flex items-center gap-1"><input type="checkbox" checked={simul} disabled={recording} onChange={(e) => setSimul(e.target.checked)} />同時通訳を使う（録音開始時に有効）</label>
+          <label className="flex items-center gap-1"><input type="checkbox" checked={simulSpeak} onChange={(e) => { setSimulSpeak(e.target.checked); if (!e.target.checked) tts.current.stop(); }} />英語を音声で読み上げる</label>
+        </div>
+        <div className="mt-2 grid gap-2 md:grid-cols-2">
+          <input value={localCfg.baseUrl} onChange={(e) => setLocalCfg({ ...localCfg, baseUrl: e.target.value })} disabled={recording} className="rounded border border-slate-700 bg-slate-900 p-2 text-sm" placeholder="http://127.0.0.1:11434/v1" />
+          <input value={localCfg.model} onChange={(e) => setLocalCfg({ ...localCfg, model: e.target.value })} onBlur={() => { try { saveLocalConfig(localCfg); setCfgError(""); } catch (err) { setCfgError(err instanceof Error ? err.message : "設定を保存できません"); } }} disabled={recording} className="rounded border border-slate-700 bg-slate-900 p-2 text-sm" placeholder="モデル名（例: plamo-3）" />
+        </div>
+        {cfgError && <p className="mt-1 text-xs text-red-400">{cfgError}</p>}
+        {simulEn.length > 0 && (
+          <div className="mt-3 rounded border border-slate-700 bg-slate-900 p-3 text-base leading-relaxed">{simulEn.join(" ")}</div>
+        )}
+      </details>
 
       <h2 className="mt-8 text-sm font-semibold text-slate-300">文字起こし</h2>
       <textarea

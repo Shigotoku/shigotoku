@@ -17,6 +17,7 @@ import {
 } from './xApi';
 import { getXApiPostsThisMonth, incrementXApiPostCount } from './firestore';
 import { executePublish } from './publish';
+import { bufferConnected, postViaBuffer } from './buffer';
 import { getUserSettingsWithDevBoost } from './devAccess';
 import { xSeriesCapabilities } from './xSeriesFeatures';
 
@@ -647,6 +648,30 @@ async function publishSeriesItem(
     return { ok, message: outcome.message };
   }
 
+  if (bufferConnected(settings)) {
+    const r = await postViaBuffer(settings, text, mediaUrls);
+    if (!r.success) {
+      await itemRef.update({ status: 'failed', errorMessage: r.message, updatedAt: FieldValue.serverTimestamp() });
+      const { alertOwnerByEmail } = await import('./ownerAlert');
+      await alertOwnerByEmail(uid, { title: 'Xシリーズの自動投稿に失敗しました(Buffer)', detail: r.message, linkPath: '/x-series' });
+      return { ok: false, message: r.message };
+    }
+    await itemRef.update({
+      status: 'published',
+      publishedAt: new Date().toISOString(),
+      tweetId: null,
+      errorMessage: FieldValue.delete(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    await createScheduledJob(uid, {
+      contents: [{ platform: 'x_thread', label: 'Xシリーズ', content: text }],
+      scheduledAt: new Date().toISOString(),
+      publishMode: 'x_free' as PublishMode,
+      status: 'published',
+      mediaUrls,
+    });
+    return { ok: true, message: r.message };
+  }
   const creds = credentialsFromSettings(settings);
   if (!creds) {
     await itemRef.update({
@@ -900,7 +925,7 @@ export async function processXSeriesSchedules(opts?: {
           continue;
         }
         const settings = await getEffectiveSettings(uid, sdoc.data().personaId as string | undefined);
-        const mode = credentialsFromSettings(settings) ? 'x_free' : 'notify';
+        const mode = credentialsFromSettings(settings) || bufferConnected(settings) ? 'x_free' : 'notify';
         for (const item of claimed) {
           const result = await publishSeriesItem(uid, settings, sdoc.id, item.id, item.data, mode);
           fired++;

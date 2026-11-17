@@ -15,6 +15,8 @@ import {
   X_FREE_MONTHLY_SOFT_LIMIT,
 } from './xApi';
 import { publishGbpLocalPost } from './gbp';
+import { bufferConnected, postViaBuffer } from './buffer';
+import { splitThreadParts } from './xApi';
 
 export interface PublishOutcome {
   status: 'published' | 'notified' | 'failed';
@@ -94,6 +96,17 @@ export async function executePublish(
     }
 
     case 'x_free': {
+      // Buffer 連携があれば Buffer 経由で投稿(無料。X API の料金がかからない)
+      if (bufferConnected(settings)) {
+        const text = pickXPostText(contents);
+        if (splitThreadParts(text).length > 1) {
+          return { status: 'failed', message: 'スレッド(複数ポスト)は Buffer 連携では未対応です。1ポストに分けるか、X API 連携をお使いください' };
+        }
+        const r = await postViaBuffer(settings, text, mediaUrls);
+        return r.success
+          ? { status: 'published', message: r.message, results: [{ platform: 'x_thread', success: true, message: r.message, externalId: r.postId }] }
+          : { status: 'failed', message: r.message, results: [{ platform: 'x_thread', success: false, message: r.message }] };
+      }
       const creds = credentialsFromSettings(settings);
       if (!creds) {
         const fallback = await notifyUser(settings, contents, scheduledAt);
@@ -175,7 +188,7 @@ function resolveAutoMode(settings: UserSettings): PublishMode {
     if (settings.metaAccessToken && settings.metaIgUserId) return 'meta';
     if (settings.lineChannelAccessToken) return 'line';
   }
-  if (credentialsFromSettings(settings)) return 'x_free';
+  if (credentialsFromSettings(settings) || bufferConnected(settings)) return 'x_free';
   if (process.env.AYRSHARE_API_KEY && settings.ayrshareProfileKey) return 'ayrshare';
   return 'notify';
 }

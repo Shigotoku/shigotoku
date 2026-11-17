@@ -93,6 +93,7 @@ import {
 } from './services/productExtras';
 import { notifyApprovalNeeded } from './services/approvalNotify';
 import { assertConnectedForPublishMode, isAutoPublishMode } from './services/schedulePublishSafety';
+import { bufferConnected, listBufferChannels } from './services/buffer';
 import {
   verifySlackSignature,
   formatSlackIdeaReply,
@@ -1031,7 +1032,7 @@ api.get('/v1/settings', requireAuth, async (req: AuthedRequest, res) => {
   const account = await getAccountForUser(req.uid!);
   const entitlements = await resolveEntitlements(req.uid!);
   const metaConnected = !!(settings.metaAccessToken && settings.metaIgUserId);
-  const xConnected = !!credentialsFromSettings(settings);
+  const xConnected = !!credentialsFromSettings(settings) || bufferConnected(settings);
   // 秘密鍵はクライアントに返さない
   const {
     xApiKey: _xk,
@@ -1040,6 +1041,7 @@ api.get('/v1/settings', requireAuth, async (req: AuthedRequest, res) => {
     xAccessSecret: _xas,
     metaAccessToken: _mt,
     metaPageAccessToken: _mpt,
+    bufferApiKey: _bk,
     ...safeSettings
   } = settings as UserSettings & Record<string, unknown>;
   // Ayrshare 外部 API は別エンドポイントへ分離（設定画面の初期表示を高速化）
@@ -1048,6 +1050,8 @@ api.get('/v1/settings', requireAuth, async (req: AuthedRequest, res) => {
     snsConnections: DEFAULT_SNS_CONNECTIONS,
     metaConnected,
     xConnected,
+    bufferConnected: bufferConnected(settings),
+    bufferChannelName: settings.bufferChannelName,
     xUsername: settings.xUsername,
     xApiPostsThisMonth: getXApiPostsThisMonth(settings),
     xApiMonthlyLimit: X_FREE_MONTHLY_SOFT_LIMIT,
@@ -1145,11 +1149,14 @@ api.put('/v1/settings', requireAuth, async (req: AuthedRequest, res) => {
     xAccessSecret: _xas,
     metaAccessToken: _mt,
     metaPageAccessToken: _mpt,
+    bufferApiKey: _bk,
     ...safe
   } = settings;
   res.json({
     ...safe,
-    xConnected: !!credentialsFromSettings(settings),
+    xConnected: !!credentialsFromSettings(settings) || bufferConnected(settings),
+    bufferConnected: bufferConnected(settings),
+    bufferChannelName: settings.bufferChannelName,
     xApiPostsThisMonth: getXApiPostsThisMonth(settings),
     xApiMonthlyLimit: X_FREE_MONTHLY_SOFT_LIMIT,
     activePersonaId: settings.activePersonaId,
@@ -1187,6 +1194,62 @@ api.post('/v1/x/selftest', requireAuth, async (req: AuthedRequest, res) => {
     });
   }
   res.status(result.ok ? 200 : 400).json(result);
+});
+
+// --- Buffer 連携(Buffer の無料プラン・個人用APIキーで X に自動投稿) ---
+api.post('/v1/buffer/channels', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const stored = await getEffectiveSettings(req.uid!);
+    const key = String((req.body as { apiKey?: string })?.apiKey ?? '').trim() || stored.bufferApiKey || '';
+    if (!key) {
+      res.status(400).json({ error: 'Buffer の API キーを入力してください' });
+      return;
+    }
+    res.json({ channels: await listBufferChannels(key) });
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : 'チャンネルを取得できませんでした' });
+  }
+});
+
+api.post('/v1/buffer/connect', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const body = req.body as { apiKey?: string; channelId?: string };
+    const stored = await getEffectiveSettings(req.uid!);
+    const key = String(body.apiKey ?? '').trim() || stored.bufferApiKey || '';
+    const channelId = String(body.channelId ?? '').trim();
+    if (!key || !channelId) {
+      res.status(400).json({ error: 'API キーと投稿先チャンネルを選んでください' });
+      return;
+    }
+    const channel = (await listBufferChannels(key)).find((c) => c.id === channelId);
+    if (!channel) {
+      res.status(400).json({ error: '選んだチャンネルが見つかりません' });
+      return;
+    }
+    const personaId = await resolveActivePersonaId(req.uid!);
+    await updatePersona(personaId, req.uid!, {
+      bufferApiKey: key,
+      bufferChannelId: channel.id,
+      bufferChannelName: `${channel.name}(${channel.service})`,
+    } as Partial<import('./types/persona').PersonaRecord>);
+    res.json({ success: true, channelName: channel.name });
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : '連携できませんでした' });
+  }
+});
+
+api.post('/v1/buffer/disconnect', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const personaId = await resolveActivePersonaId(req.uid!);
+    await updatePersona(personaId, req.uid!, {
+      bufferApiKey: '',
+      bufferChannelId: '',
+      bufferChannelName: '',
+    } as Partial<import('./types/persona').PersonaRecord>);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : '解除できませんでした' });
+  }
 });
 
 // --- X シリーズ（キュー＋曜日スケジュール） ---

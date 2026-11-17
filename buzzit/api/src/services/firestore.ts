@@ -48,6 +48,9 @@ export interface UserSettings {
   xAccessToken?: string;
   xAccessSecret?: string;
   xUsername?: string;
+  bufferApiKey?: string;
+  bufferChannelId?: string;
+  bufferChannelName?: string;
   /** 当月の X API 投稿成功数（ソフト上限管理用） */
   xApiPostsMonthKey?: string;
   xApiPostsThisMonth?: number;

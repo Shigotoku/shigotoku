@@ -23,6 +23,10 @@ export interface PersonaSnsSettings {
   xAccessToken?: string;
   xAccessSecret?: string;
   xUsername?: string;
+  /** Buffer 経由で X に投稿する場合(無料プラン可・個人用APIキー) */
+  bufferApiKey?: string;
+  bufferChannelId?: string;
+  bufferChannelName?: string;
   xApiPostsMonthKey?: string;
   xApiPostsThisMonth?: number;
   gbpConnected?: boolean;

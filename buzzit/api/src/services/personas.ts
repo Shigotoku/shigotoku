@@ -38,6 +38,9 @@ const PERSONA_SNS_FIELD_KEYS: (keyof PersonaSnsSettings)[] = [
   'xAccessToken',
   'xAccessSecret',
   'xUsername',
+  'bufferApiKey',
+  'bufferChannelId',
+  'bufferChannelName',
   'xApiPostsMonthKey',
   'xApiPostsThisMonth',
   'gbpConnected',
@@ -593,7 +596,7 @@ export function personaRequiresApproval(persona: PersonaRecord): boolean {
 }
 
 const PERSONA_SECRET_KEYS = [
-  'xApiKey', 'xApiSecret', 'xAccessToken', 'xAccessSecret',
+  'xApiKey', 'xApiSecret', 'xAccessToken', 'xAccessSecret', 'bufferApiKey',
   'metaAccessToken', 'metaPageAccessToken',
   'lineChannelSecret', 'lineChannelAccessToken',
   'gbpAccessToken', 'gbpRefreshToken',
@@ -626,15 +629,18 @@ export function safePersonaForClient(persona: PersonaRecord) {
     if (safe[key]) safe[key] = '***';
   }
   const metaConnected = !!(persona.metaAccessToken && persona.metaIgUserId);
+  const bufferConnected = !!(persona.bufferApiKey && persona.bufferChannelId);
+  // Buffer 経由でも「Xに自動投稿できる」状態なので、X連携済みとして扱う
   const xConnected = !!(
     persona.xApiKey && persona.xApiSecret && persona.xAccessToken && persona.xAccessSecret
-  );
+  ) || bufferConnected;
   const lineConnected = !!persona.lineChannelAccessToken?.trim();
   const gbpConnected = !!(persona.gbpAccessToken?.trim() || persona.gbpConnected);
   return {
     ...safe,
     metaConnected,
     xConnected,
+    bufferConnected,
     lineConnected,
     gbpConnected,
     xUsername: persona.xUsername,

@@ -1,6 +1,73 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Share2 } from 'lucide-react';
 import { useSettings } from '../SettingsContext';
+import { authFetch } from '../../../lib/api';
+import { usePersona } from '../../../store/personaContext';
+
+interface BufferChannel { id: string; name: string; service: string }
+
+async function bufferCall<T>(path: string, body?: unknown): Promise<T> {
+  const res = await authFetch(`/v1/buffer/${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body ?? {}) });
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((j as { error?: string }).error ?? `エラー(${res.status})`);
+  return j as T;
+}
+
+/** Buffer(無料プラン可)経由で X に自動投稿する設定。連携すると X API の料金はかかりません */
+function BufferSection() {
+  const { activePersona } = usePersona();
+  const connected = !!(activePersona as { bufferConnected?: boolean } | null)?.bufferConnected;
+  const channelName = (activePersona as { bufferChannelName?: string } | null)?.bufferChannelName;
+  const [key, setKey] = useState('');
+  const [channels, setChannels] = useState<BufferChannel[]>([]);
+  const [channelId, setChannelId] = useState('');
+  const [msg, setMsg] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const run = async (fn: () => Promise<void>) => {
+    setBusy(true); setMsg('');
+    try { await fn(); } catch (e) { setMsg(e instanceof Error ? e.message : '失敗しました'); } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="space-y-2 border border-neutral-200 bg-neutral-50 p-4">
+      <h4 className="text-sm font-bold">Buffer 経由で X に投稿(無料・X API 料金なし)</h4>
+      <p className="text-xs text-neutral-600">
+        <a className="underline" href="https://buffer.com" target="_blank" rel="noreferrer">Buffer</a> の無料プランに X を接続し、
+        Buffer の設定で発行した API キー(個人用)を入力します。予約時刻になると BuzzIt が Buffer に渡し、約2分後に X へ投稿されます。
+        無料プランは 1 チャンネルあたり月 1,000 件まで。連携すると、このキャラの X 投稿は Buffer が優先されます。
+      </p>
+      {connected ? (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="rounded-full border border-neutral-300 bg-white px-3 py-1 text-xs">接続済み: {channelName}</span>
+          <button type="button" disabled={busy} className="buzz-btn-secondary" onClick={() => run(async () => { await bufferCall('disconnect'); window.location.reload(); })}>連携解除</button>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <div className="flex flex-wrap gap-2">
+            <input type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder="Buffer の API キー" className="buzz-input max-w-xs" autoComplete="off" />
+            <button type="button" disabled={busy || !key.trim()} className="buzz-btn-secondary" onClick={() => run(async () => {
+              const r = await bufferCall<{ channels: BufferChannel[] }>('channels', { apiKey: key.trim() });
+              setChannels(r.channels); setChannelId(r.channels.find((c) => /twitter|^x$/i.test(c.service))?.id ?? r.channels[0]?.id ?? '');
+              if (!r.channels.length) setMsg('チャンネルがありません。Buffer で X を接続してください');
+            })}>チャンネルを取得</button>
+          </div>
+          {channels.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <select className="buzz-input max-w-xs" value={channelId} onChange={(e) => setChannelId(e.target.value)}>
+                {channels.map((c) => <option key={c.id} value={c.id}>{c.name}（{c.service}）</option>)}
+              </select>
+              <button type="button" disabled={busy || !channelId} className="buzz-btn-primary" onClick={() => run(async () => { await bufferCall('connect', { apiKey: key.trim(), channelId }); window.location.reload(); })}>このキャラの X 投稿先にする</button>
+            </div>
+          )}
+        </div>
+      )}
+      {msg && <p className="text-xs text-red-600">{msg}</p>}
+      <p className="text-[11px] text-neutral-500">スレッド(複数ポスト)は Buffer 連携では未対応です。リンク入りでも追加料金はかかりません。</p>
+    </div>
+  );
+}
 
 
 export default function XPanel() {
@@ -35,6 +102,8 @@ export default function XPanel() {
             {xConnected ? '接続済み' : '未接続'}
           </span>
         </div>
+        <BufferSection />
+        <p className="text-xs font-semibold text-neutral-700">または X API のキーで直接投稿(従量課金)</p>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <label className="buzz-label">API Key</label>
