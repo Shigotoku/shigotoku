@@ -5,13 +5,14 @@ import {
   Circle, TrendingUp, FileText, BarChart3,
   CalendarClock, Scale, Target, Crown, ScrollText, Shield,
   Handshake, Lightbulb, Map, Rocket, Settings,
-  ChevronRight, PlusCircle, AlertCircle,
+  ChevronRight, PlusCircle, AlertCircle, Calculator,
 } from "lucide-react";
 import { useCompanyStore, PHASE_LABELS } from "../../store/company";
 import { useAuthStore } from "../../store/auth";
 import { useProgressStore, TASK_GROUPS, TASK_IDS } from "../../store/progress";
 import { useState, useEffect } from "react";
 import { getStorageJson } from "../../lib/companyStorage";
+import UpcomingDeadlines from "./UpcomingDeadlines";
 
 const quickActions = [
   { icon: Building2, label: "会社設立ナビ", path: "/incorporation", color: "bg-blue-50 text-blue-600 hover:bg-blue-100" },
@@ -32,7 +33,7 @@ const nextActions = [
   { id: TASK_IDS.BANK_OPENED, label: "法人口座を開設する", link: "/bank", category: "基盤" },
   { id: TASK_IDS.CREDIT_APPLIED, label: "法人カードを申し込む", link: "/credit", category: "基盤" },
   { id: TASK_IDS.NOTIF_HEALTH_PENSION, label: "社会保険の加入手続き", link: "/notifications", category: "労務" },
-  { id: TASK_IDS.ACC_SOFTWARE, label: "会計ソフトを導入する", link: "/settings", category: "基盤" },
+  { id: TASK_IDS.ACC_SOFTWARE, label: "会計ソフトを導入する", link: "/journey/post-registration", category: "基盤" },
 ];
 
 interface KpiSnapshot {
@@ -44,10 +45,12 @@ interface KpiSnapshot {
 const allTools = [
   { icon: Building2, label: "会社設立ナビ", path: "/incorporation" },
   { icon: FileText, label: "届出・手続きナビ", path: "/notifications" },
+  { icon: FileText, label: "書類自動作成", path: "/documents" },
   { icon: Landmark, label: "銀行口座開設", path: "/bank" },
   { icon: CreditCard, label: "法人カード", path: "/credit" },
   { icon: ScrollText, label: "契約書テンプレート", path: "/contracts" },
   { icon: CalendarClock, label: "税務カレンダー", path: "/tax-calendar" },
+  { icon: Calculator, label: "決算・申告ナビ", path: "/journey/settlement" },
   { icon: Shield, label: "労務管理ガイド", path: "/labor" },
   { icon: Banknote, label: "補助金・助成金", path: "/funding" },
   { icon: LineChart, label: "事業シミュレーション", path: "/simulator" },
@@ -58,7 +61,6 @@ const allTools = [
   { icon: Target, label: "DD対策", path: "/dd-preparation" },
   { icon: Crown, label: "IPOロードマップ", path: "/ipo-roadmap" },
   { icon: Users, label: "チーム管理", path: "/team" },
-  { icon: Scale, label: "知財ポートフォリオ", path: "/ip-management" },
 ];
 
 export default function DashboardPage() {
@@ -215,6 +217,8 @@ export default function DashboardPage() {
             </div>
           )}
 
+          <UpcomingDeadlines />
+
           {/* やることリスト */}
           <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
             <div className="mb-4 flex items-center justify-between">
@@ -283,7 +287,7 @@ export default function DashboardPage() {
                 { label: "会社設立", done: incDone, total: TASK_GROUPS.incorporation.length, color: "#6366f1", link: "/incorporation" },
                 { label: "届出・手続き", done: notifDone, total: TASK_GROUPS.notifications.length, color: "#0ea5e9", link: "/notifications" },
                 { label: "口座・カード", done: bankDone, total: TASK_GROUPS.bankAndCard.length, color: "#10b981", link: "/bank" },
-                { label: "会計設定", done: accDone, total: TASK_GROUPS.accounting.length, color: "#8b5cf6", link: "/settings" },
+                { label: "会計設定", done: accDone, total: TASK_GROUPS.accounting.length, color: "#8b5cf6", link: "/journey/post-registration" },
               ].map((item) => {
                 const pct = item.total > 0 ? (item.done / item.total) * 100 : 0;
                 return (
@@ -367,7 +371,7 @@ export default function DashboardPage() {
               <Lightbulb className="h-3.5 w-3.5 text-slate-300" />
             </div>
             <div className="space-y-0.5">
-              {allTools.slice(0, 15).map((item) => {
+              {allTools.map((item) => {
                 const Icon = item.icon;
                 return (
                   <Link key={item.path + item.label} to={item.path} className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-xs text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">

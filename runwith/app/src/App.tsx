@@ -72,6 +72,8 @@ const CommunityPage = lazy(routeLoaders['/community']!);
 const MvpPage = lazy(routeLoaders['/journey/mvp']!);
 const FirstCustomersPage = lazy(routeLoaders['/journey/first-customers']!);
 const CustomerInterviewPage = lazy(routeLoaders['/journey/customer-interview']!);
+const SettlementPage = lazy(routeLoaders['/journey/settlement']!);
+const DocumentsPage = lazy(routeLoaders['/documents']!);
 
 function P({ C }: { C: React.LazyExoticComponent<React.ComponentType<any>> }) {
   return (
@@ -142,6 +144,8 @@ export default function App() {
         <Route path="/journey/mvp" element={<P C={MvpPage} />} />
         <Route path="/journey/first-customers" element={<P C={FirstCustomersPage} />} />
         <Route path="/journey/customer-interview" element={<P C={CustomerInterviewPage} />} />
+        <Route path="/journey/settlement" element={<P C={SettlementPage} />} />
+        <Route path="/documents" element={<P C={DocumentsPage} />} />
 
         <Route path="/team/invite" element={<P C={InvitePage} />} />
         <Route path="/settings" element={<P C={SettingsPage} />} />

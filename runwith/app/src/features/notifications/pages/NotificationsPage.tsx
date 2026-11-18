@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useState } from "react";
 import {
   Bell,
@@ -204,6 +205,13 @@ export default function NotificationsPage() {
         <p className="mt-1 text-sm text-slate-500">
           法人設立後に必要な届出・手続きを一覧で管理できます。提出済みにすると自動保存されます。
         </p>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary-200 bg-primary-50/60 p-4">
+        <p className="text-sm text-slate-700">
+          法人設立届出書・青色申告承認申請書・給与支払事務所開設届などの<b>記入用下書きを会社情報から自動作成</b>できます。
+        </p>
+        <Link to="/documents" state={{ fromJourney: true }} className="rounded-lg bg-primary-600 px-3 py-2 text-xs font-medium text-white hover:bg-primary-700">書類自動作成を開く</Link>
       </div>
 
       {/* 進捗サマリー */}

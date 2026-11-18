@@ -22,32 +22,32 @@ export const useProgressStore = create<ProgressState>()(
       completedTasks: new Set<string>(),
 
       toggleTask: (taskId) => {
-        const current = get().completedTasks;
-        const next = new Set(current);
-        if (next.has(taskId)) {
-          next.delete(taskId);
+        const next = new Set(get().completedTasks);
+        const ids = aliasesOf(taskId);
+        if (ids.some((id) => next.has(id))) {
+          ids.forEach((id) => next.delete(id));
         } else {
-          next.add(taskId);
+          ids.forEach((id) => next.add(id));
         }
         set({ completedTasks: next });
       },
 
       markDone: (taskId) => {
         const next = new Set(get().completedTasks);
-        next.add(taskId);
+        aliasesOf(taskId).forEach((id) => next.add(id));
         set({ completedTasks: next });
       },
 
       markUndone: (taskId) => {
         const next = new Set(get().completedTasks);
-        next.delete(taskId);
+        aliasesOf(taskId).forEach((id) => next.delete(id));
         set({ completedTasks: next });
       },
 
-      isDone: (taskId) => get().completedTasks.has(taskId),
+      isDone: (taskId) => aliasesOf(taskId).some((id) => get().completedTasks.has(id)),
 
       getCompletedCount: (ids) =>
-        ids.filter((id) => get().completedTasks.has(id)).length,
+        ids.filter((id) => aliasesOf(id).some((a) => get().completedTasks.has(a))).length,
 
       reset: () => set({ completedTasks: new Set() }),
     }),
@@ -176,6 +176,7 @@ export const TASK_IDS = {
   SEED_INTERVIEWS: "seed_interviews",
   SEED_KPI: "seed_kpi",
   SEED_LEGAL_DOCS: "seed_legal_docs",
+  SEED_FIRST_SETTLEMENT: "seed_first_settlement",
   SEED_MEDICAL_CLINICAL: "seed_medical_clinical",
   SEED_MEDICAL_PMDA: "seed_medical_pmda",
 
@@ -290,5 +291,44 @@ export const TASK_GROUPS = {
     TASK_IDS.SEED_BUSINESS_PLAN, TASK_IDS.SEED_MVP,
     TASK_IDS.SEED_IP_STRATEGY, TASK_IDS.SEED_FIRST_CUSTOMERS,
     TASK_IDS.SEED_INTERVIEWS, TASK_IDS.SEED_KPI, TASK_IDS.SEED_LEGAL_DOCS,
+    TASK_IDS.SEED_FIRST_SETTLEMENT,
   ],
 };
+
+
+/**
+ * 同じ作業を指す別IDのグループ。
+ * 会社設立ナビ・届出ナビ（INC_/NOTIF_/BANK_...）とジャーニーマップ（PRE_/FOUNDED_...）で
+ * どちらか一方を完了にすればもう一方にも反映される。
+ */
+const ALIAS_GROUPS: string[][] = [
+  [TASK_IDS.INC_BASICS, TASK_IDS.PRE_BASICS],
+  [TASK_IDS.INC_ARTICLES, TASK_IDS.PRE_ARTICLES],
+  [TASK_IDS.INC_NOTARIZATION, TASK_IDS.PRE_NOTARIZATION],
+  [TASK_IDS.INC_CAPITAL, TASK_IDS.PRE_CAPITAL_PAYMENT],
+  [TASK_IDS.INC_REGISTRATION, TASK_IDS.PRE_REGISTRATION],
+  [TASK_IDS.NOTIF_TAX_ESTABLISHMENT, TASK_IDS.FOUNDED_TAX_NOTIF],
+  [TASK_IDS.NOTIF_BLUE_RETURN, TASK_IDS.FOUNDED_BLUE_RETURN],
+  [TASK_IDS.NOTIF_SALARY_OFFICE, TASK_IDS.FOUNDED_SALARY_OFFICE],
+  [TASK_IDS.NOTIF_WITHHOLDING_SPECIAL, TASK_IDS.FOUNDED_WITHHOLDING],
+  [TASK_IDS.NOTIF_CONSUMPTION_TAX, TASK_IDS.FOUNDED_CONSUMPTION_TAX],
+  [TASK_IDS.NOTIF_PREF_TAX, TASK_IDS.FOUNDED_PREF_TAX],
+  [TASK_IDS.NOTIF_CITY_TAX, TASK_IDS.FOUNDED_CITY_TAX],
+  [TASK_IDS.NOTIF_HEALTH_PENSION, TASK_IDS.FOUNDED_SOCIAL_INS],
+  [TASK_IDS.NOTIF_LABOR_INSURANCE, TASK_IDS.FOUNDED_LABOR_INS],
+  [TASK_IDS.NOTIF_EMPLOYMENT_INSURANCE, TASK_IDS.FOUNDED_EMP_INS],
+  [TASK_IDS.NOTIF_MEDICAL_CLINIC, TASK_IDS.FOUNDED_MEDICAL_CLINIC],
+  [TASK_IDS.NOTIF_MEDICAL_DEVICE, TASK_IDS.FOUNDED_MEDICAL_DEVICE],
+  [TASK_IDS.BANK_OPENED, TASK_IDS.PRE_BANK_ACCOUNT],
+  [TASK_IDS.CREDIT_APPLIED, TASK_IDS.PRE_CORP_CARD],
+  [TASK_IDS.BANK_GBIZID, TASK_IDS.PRE_GBIZID],
+  [TASK_IDS.ACC_SOFTWARE, TASK_IDS.PRE_ACCOUNTING],
+];
+
+const ALIAS_MAP: Map<string, string[]> = new Map(
+  ALIAS_GROUPS.flatMap((g) => g.map((id) => [id, g] as [string, string[]])),
+);
+
+function aliasesOf(taskId: string): string[] {
+  return ALIAS_MAP.get(taskId) ?? [taskId];
+}

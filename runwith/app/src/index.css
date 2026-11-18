@@ -77,3 +77,10 @@ input[type="range"] {
   overflow-wrap: break-word;
   text-wrap: pretty;
 }
+
+/* 印刷時はサイドバー・ヘッダーを非表示 */
+@media print {
+  aside, nav, header { display: none !important; }
+  main { margin: 0 !important; padding: 0 !important; }
+}
+

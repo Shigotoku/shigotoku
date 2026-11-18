@@ -4,6 +4,7 @@ import {
   CheckCircle2, Circle, Bell, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { useCompanyStorageState } from "../../../hooks/useCompanyStorageState";
+import { useFiscalEndMonth } from "../../../hooks/useFiscalEndMonth";
 
 const monthNames = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"];
 
@@ -23,17 +24,17 @@ const deadlines: DeadlineItem[] = [
   {
     id: "corporate-tax", label: "法人税確定申告", category: "tax",
     description: "決算日から2ヶ月以内", type: "fiscal",
-    getMonths: (m) => [(m % 12) + 1], icon: FileText,
+    getMonths: (m) => [((m + 1) % 12) + 1], icon: FileText,
   },
   {
     id: "local-tax", label: "法人住民税・事業税", category: "tax",
     description: "決算日から2ヶ月以内", type: "fiscal",
-    getMonths: (m) => [(m % 12) + 1], icon: Banknote,
+    getMonths: (m) => [((m + 1) % 12) + 1], icon: Banknote,
   },
   {
     id: "consumption-tax", label: "消費税申告", category: "tax",
     description: "決算日から2ヶ月以内", type: "fiscal",
-    getMonths: (m) => [(m % 12) + 1], icon: FileText,
+    getMonths: (m) => [((m + 1) % 12) + 1], icon: FileText,
   },
   {
     id: "interim-tax", label: "中間申告（法人税）", category: "tax",
@@ -116,7 +117,7 @@ const categoryLabels: Record<string, string> = {
 const STORAGE_KEY = "runwith-tax-done";
 
 export default function TaxCalendarPage() {
-  const [fiscalEndMonth, setFiscalEndMonth] = useState(3);
+  const [fiscalEndMonth, setFiscalEndMonth] = useFiscalEndMonth();
   const [showFiscalSelector, setShowFiscalSelector] = useState(false);
   const [doneArr, setDoneArr] = useCompanyStorageState<string[]>(STORAGE_KEY, []);
   const doneItems = useMemo(() => new Set(doneArr), [doneArr]);
@@ -314,3 +315,4 @@ export default function TaxCalendarPage() {
     </div>
   );
 }
+

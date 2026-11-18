@@ -7,8 +7,8 @@
 | フォルダ | 内容 |
 |---------|------|
 | [`landing-page/`](./landing-page/) | ランディングページ（Astro） |
-| [`app/`](./app/) | Webアプリ（React + Vite + Supabase） |
-| [`supabase/`](./supabase/) | DB マイグレーション |
+| [`app/`](./app/) | Webアプリ（React + Vite + Firebase） |
+| [`supabase/`](./supabase/) | 旧Supabase用のDBマイグレーション（現在のアプリはFirebaseを使用。参照用） |
 
 ## 開発
 

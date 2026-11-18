@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useCompanyStore, type Company } from "../../../store/company";
 import { useCompanyStorageState } from "../../../hooks/useCompanyStorageState";
+import JGrantsTab from "../components/JGrantsTab";
 
 /* ================================================================
    データ型
@@ -45,7 +46,7 @@ interface Subsidy {
 }
 
 type ApplicationStatus = "none" | "interested" | "preparing" | "applied" | "approved" | "rejected" | "completed";
-type TabId = "search" | "calendar" | "tracker" | "docs" | "knowledge";
+type TabId = "live" | "search" | "calendar" | "tracker" | "docs" | "knowledge";
 
 interface AppStatusEntry {
   status: ApplicationStatus;
@@ -86,6 +87,7 @@ const DIFFICULTY_LABELS: Record<string, { label: string; color: string }> = {
 };
 
 const TAB_ITEMS: { id: TabId; label: string; icon: typeof Search }[] = [
+  { id: "live", label: "公募中（Jグランツ・自動更新）", icon: Zap },
   { id: "search", label: "マッチング検索", icon: Sparkles },
   { id: "calendar", label: "締切カレンダー", icon: CalendarDays },
   { id: "tracker", label: "申請管理", icon: Target },
@@ -338,6 +340,16 @@ function daysUntil(dateStr: string): number {
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
 }
 
+/** 掲載データの基準時期（締切日は前回公募のもの。公募は年度ごとに更新されるため公式サイトで最新を確認） */
+const DATA_AS_OF = "2026年春";
+
+function isExpiredSub(s: { deadline: string }): boolean {
+  if (s.deadline === "通年") return false;
+  const t = new Date(s.deadline).getTime();
+  if (Number.isNaN(t)) return false;
+  return daysUntil(s.deadline) <= 0;
+}
+
 function calcMatchScore(s: Subsidy, company: Company | null): number {
   if (!company) return 50;
   let score = 50;
@@ -391,7 +403,7 @@ function getMonthName(m: number): string {
 
 export default function FundingSearchPage() {
   const { company } = useCompanyStore();
-  const [tab, setTab] = useState<TabId>("search");
+  const [tab, setTab] = useState<TabId>("live");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("すべて");
   const [showMedicalOnly, setShowMedicalOnly] = useState(false);
@@ -445,6 +457,10 @@ export default function FundingSearchPage() {
         return true;
       })
       .sort((a, b) => {
+        // 公募終了（締切超過）は常に後ろへ
+        const ea = isExpiredSub(a) ? 1 : 0;
+        const eb = isExpiredSub(b) ? 1 : 0;
+        if (ea !== eb) return ea - eb;
         if (sortBy === "match") return b.match - a.match;
         if (sortBy === "amount") return b.maxAmountNum - a.maxAmountNum;
         const da = a.deadline === "通年" ? Infinity : new Date(a.deadline).getTime();
@@ -478,6 +494,34 @@ export default function FundingSearchPage() {
           あなたの会社に最適な補助金を検索し、申請から採択までをサポートします
         </p>
       </div>
+
+      {/* データの鮮度に関する注意 */}
+      {(() => {
+        const expiredCount = subsidies.filter(isExpiredSub).length;
+        const openCount = subsidies.length - expiredCount;
+        return (
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs leading-relaxed text-slate-600">
+            <p className="flex items-center gap-1.5 font-bold text-slate-800">
+              <Info className="h-4 w-4" /> 掲載情報について（{DATA_AS_OF}時点の公募情報）
+            </p>
+            <p className="mt-1">
+              現在受付中または通年の制度：{openCount}件／公募終了：{expiredCount}件。
+              公募終了の制度は「前回公募の締切」を表示しており、次回公募の日程・要件は年度ごとに変わります。
+              申請前に必ず各制度の公式サイト・Jグランツ・ミラサポplusで最新の公募要領を確認してください。
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <a href="https://www.jgrants-portal.go.jp/" target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-medium text-primary-700 hover:bg-primary-50">
+                <ExternalLink className="h-3 w-3" /> Jグランツ（公募中の補助金を検索）
+              </a>
+              <a href="https://mirasapo-plus.go.jp/subsidy/" target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-medium text-primary-700 hover:bg-primary-50">
+                <ExternalLink className="h-3 w-3" /> ミラサポplus 補助金・給付金
+              </a>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* アラート */}
       {alertSubsidies.length > 0 && (
@@ -589,6 +633,7 @@ export default function FundingSearchPage() {
       </div>
 
       {/* タブコンテンツ */}
+      {tab === "live" && <JGrantsTab company={company} />}
       {tab === "search" && (
         <SearchTab
           filtered={filtered}
@@ -729,7 +774,7 @@ function SearchTab({
               key={s.id}
               className={`rounded-2xl border bg-white shadow-sm transition-all hover:shadow-md ${
                 isUrgent ? "border-amber-200" : "border-slate-200/60"
-              }`}
+              } ${isExpired ? "opacity-70" : ""}`}
             >
               <div className="p-5">
                 <div className="flex items-start justify-between gap-3">
@@ -743,7 +788,7 @@ function SearchTab({
                           <AlertTriangle className="h-3 w-3" /> 締切まで{days}日
                         </span>
                       )}
-                      {isExpired && <span className="rounded-md bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-600">締切済</span>}
+                      {isExpired && <span className="rounded-md bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-600">前回公募は終了・次回は公式サイトで確認</span>}
                       {s.tags.map((tag) => (
                         <span key={tag} className="rounded-md bg-primary-50 px-2 py-0.5 text-[11px] font-medium text-primary-600">{tag}</span>
                       ))}
@@ -793,7 +838,7 @@ function SearchTab({
                   </div>
                   <div className={`flex items-center gap-1.5 ${isUrgent ? "text-amber-600 font-semibold" : "text-slate-600"}`}>
                     <Clock className="h-4 w-4 text-slate-400" />
-                    <span className="text-sm">〆切 {s.deadline}</span>
+                    <span className="text-sm">{isExpired ? "前回の締切" : "〆切"} {s.deadline}</span>
                     {s.deadline !== "通年" && !isExpired && days > 0 && (
                       <span className="text-xs text-slate-400">（あと{days}日）</span>
                     )}
@@ -873,6 +918,11 @@ function CalendarTab({
       <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
         <h2 className="text-lg font-bold text-slate-900">締切カレンダー</h2>
         <p className="text-xs text-slate-500">今後6ヶ月の補助金締切を一覧表示。アラートを設定すると締切30日前に通知されます。</p>
+        {months.every((m) => m.subsidies.length === 0) && (
+          <p className="mt-2 rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
+            掲載中の制度で今後6か月に締切が確定しているものはありません（{DATA_AS_OF}時点のデータ）。最新の公募はJグランツ・ミラサポplusで確認してください。
+          </p>
+        )}
       </div>
 
       {months.map(({ year, month, subsidies: subs }) => (

@@ -5,6 +5,9 @@ on:
     branches:
       - main
   workflow_dispatch:
+  schedule:
+    # 毎朝5:30(JST)に再デプロイし、Jグランツの公募データを更新する
+    - cron: '30 20 * * *'
 
 concurrency:
   group: firebase-deploy
@@ -52,6 +55,10 @@ jobs:
           npm ci --prefix clipit/app
           npm ci --prefix clipit/api
           npm ci --prefix deploy
+
+      - name: Update Jグランツ subsidy data (Runwith)
+        continue-on-error: true
+        run: node runwith/app/scripts/fetch-jgrants.mjs
 
       - name: Deploy to Firebase (BuzzIt + Runwith + ClipIt)
         env:

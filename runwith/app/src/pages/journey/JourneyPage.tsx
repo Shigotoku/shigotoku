@@ -108,6 +108,7 @@ const journeyPhases: JourneyPhase[] = [
       { id: TASK_IDS.SEED_INTERVIEWS, label: "顧客インタビューを実施する", description: "ペインポイントの深掘り", link: "/journey/customer-interview" },
       { id: TASK_IDS.SEED_KPI, label: "KPIを設定し追跡を開始する", description: "MRR, Churn, LTV/CACの計測", link: "/kpi-tracker", requiredPlan: "growth" },
       { id: TASK_IDS.SEED_LEGAL_DOCS, label: "利用規約・プライバシーポリシーを整備する", description: "弁護士レビューを推奨", link: "/contracts", requiredPlan: "growth" },
+      { id: TASK_IDS.SEED_FIRST_SETTLEMENT, label: "決算・法人税申告を行う（第1期）", description: "e-Tax・eLTAXなど政府の無料システムを活用し、期限（決算日から2ヶ月以内）までに申告・納税", link: "/journey/settlement", highlight: true },
       { id: TASK_IDS.SEED_MEDICAL_CLINICAL, label: "【医療】臨床研究計画を策定する", description: "倫理審査委員会への申請準備", isMedical: true },
       { id: TASK_IDS.SEED_MEDICAL_PMDA, label: "【医療】PMDA事前面談を実施する", description: "薬事戦略の確認", isMedical: true },
     ],
@@ -128,7 +129,7 @@ const journeyPhases: JourneyPhase[] = [
       { id: TASK_IDS.EARLY_CUSTOMER_SUCCESS, label: "カスタマーサクセス体制を構築する", description: "オンボーディングフロー、チャーン防止" },
       { id: TASK_IDS.EARLY_PR, label: "PR・広報戦略を策定する", description: "メディア露出、プレスリリースの計画" },
       { id: TASK_IDS.EARLY_LABOR, label: "労務管理体制を整備する", description: "勤怠管理、36協定、有給管理", link: "/labor", requiredPlan: "growth" },
-      { id: TASK_IDS.EARLY_MONTHLY_CLOSING, label: "月次決算のサイクルを確立する", description: "会計ソフトとの連携" },
+      { id: TASK_IDS.EARLY_MONTHLY_CLOSING, label: "月次決算のサイクルを確立する", description: "会計ソフトとの連携。毎期の決算・申告の流れも確認", link: "/journey/settlement" },
     ],
   },
   {

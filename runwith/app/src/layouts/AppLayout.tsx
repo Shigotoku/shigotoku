@@ -6,7 +6,7 @@ import {
   Menu, X, LogOut, ChevronLeft, ChevronRight, FileText,
   ScrollText, CalendarClock, Shield, Scale, BarChart3,
   Target, Crown, Lock, Star, ArrowLeft, ArrowRight, ShieldCheck,
-  ChevronDown, Mail, Megaphone, Mic, MessageSquare, Search,
+  ChevronDown, Mail, Megaphone, Mic, MessageSquare, Search, Calculator,
 } from "lucide-react";
 import { useAuthStore } from "../store/auth";
 import { useCompanyStore } from "../store/company";
@@ -47,11 +47,13 @@ const navSections: NavSection[] = [
       { path: "/incorporation", label: "会社設立ナビ", icon: Building2 },
       { path: "/journey/post-registration", label: "登記後の手続き", icon: FileText },
       { path: "/notifications", label: "届出・手続きナビ", icon: ScrollText },
+      { path: "/documents", label: "書類自動作成", icon: FileText },
       { path: "/bank", label: "銀行口座開設", icon: Landmark },
       { path: "/credit", label: "法人カード", icon: CreditCard },
       { path: "/labor", label: "労務管理ガイド", icon: Shield, plan: "growth" },
       { path: "/contracts", label: "契約書テンプレート", icon: ScrollText, plan: "growth" },
       { path: "/tax-calendar", label: "税務カレンダー", icon: CalendarClock, plan: "growth" },
+      { path: "/journey/settlement", label: "決算・申告ナビ", icon: Calculator },
     ],
   },
   {
