@@ -30,9 +30,43 @@ async function gql<T>(apiKey: string, query: string): Promise<T> {
   if (res.status === 401 || res.status === 403) throw new Error('Buffer の API キーが正しくありません');
   if (res.status === 429) throw new Error('Buffer の API 利用上限に達しました。時間をおいて再試行してください');
   if (!res.ok) throw new Error(`Buffer API エラー (${res.status})`);
-  if (json.errors?.length) throw new Error(`Buffer: ${json.errors[0]?.message ?? '不明なエラー'}`);
-  if (!json.data) throw new Error('Buffer から想定外の応答がありました');
+  // data と errors が両方返ることがある。mutation 成功時は data を優先する
+  if (!json.data) {
+    if (json.errors?.length) throw new Error(`Buffer: ${json.errors[0]?.message ?? '不明なエラー'}`);
+    throw new Error('Buffer から想定外の応答がありました');
+  }
   return json.data;
+}
+
+type CreatePostPayload = {
+  __typename?: string;
+  post?: { id?: string; dueAt?: string };
+  message?: string;
+};
+
+function parseCreatePostResult(cp: CreatePostPayload | null | undefined): {
+  success: boolean;
+  message: string;
+  postId?: string;
+} {
+  if (!cp) {
+    return { success: false, message: 'Buffer: 登録できませんでした' };
+  }
+  if (cp.__typename === 'MutationError') {
+    return { success: false, message: `Buffer: ${cp.message ?? '登録できませんでした'}` };
+  }
+  const postId = cp.post?.id;
+  if (cp.__typename === 'PostActionSuccess' || postId) {
+    return {
+      success: true,
+      message: 'Buffer に登録しました(約2分後にXへ投稿されます)',
+      postId,
+    };
+  }
+  if (cp.message) {
+    return { success: false, message: `Buffer: ${cp.message}` };
+  }
+  return { success: false, message: 'Buffer: 登録できませんでした' };
 }
 
 /** API キーで見える全チャンネル(接続済みの X など)を返す */
@@ -82,15 +116,13 @@ export async function postViaBuffer(
         dueAt: ${JSON.stringify(dueAt)}
         ${assets.length ? `assets: [${assets.join(', ')}]` : ''}
       }) {
+        __typename
         ... on PostActionSuccess { post { id dueAt } }
         ... on MutationError { message }
       }
     }`;
-    const data = await gql<{ createPost: { post?: { id: string }; message?: string } }>(settings.bufferApiKey!, q);
-    if (data.createPost.post?.id) {
-      return { success: true, message: 'Buffer に登録しました(約2分後にXへ投稿されます)', postId: data.createPost.post.id };
-    }
-    return { success: false, message: `Buffer: ${data.createPost.message ?? '登録できませんでした'}` };
+    const data = await gql<{ createPost: CreatePostPayload }>(settings.bufferApiKey!, q);
+    return parseCreatePostResult(data.createPost);
   } catch (err) {
     return { success: false, message: err instanceof Error ? err.message : 'Buffer への登録に失敗しました' };
   }
