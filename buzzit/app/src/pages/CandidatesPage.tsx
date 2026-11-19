@@ -530,7 +530,7 @@ function Workspace({ id, meta, reload, onToggleAi }: DetailProps) {
       </div>
 
       <SplitHandle pct={editorPreviewSplit.pct} handleProps={editorPreviewSplit.handleProps} />
-      <div className="min-h-0 overflow-y-auto rounded-xl border bg-neutral-50 p-3 max-lg:min-h-[280px]">
+      <div className="min-h-0 overflow-hidden rounded-xl border bg-neutral-50 p-3 max-lg:min-h-[280px]">
         <CandidatePreview platform={previewPlatform || c.platform} body={body} mediaUrls={c.mediaUrls} onPlatformChange={setPreviewPlatform} />
       </div>
     </div>
@@ -549,7 +549,7 @@ function EmptyWorkspacePane() {
         <p className="text-sm text-neutral-500">左の一覧から候補を選ぶと、本文・画像・類似投稿をここで編集できます。</p>
       </div>
       <SplitHandle pct={editorPreviewSplit.pct} handleProps={editorPreviewSplit.handleProps} />
-      <div className="hidden min-h-0 overflow-y-auto rounded-xl border bg-neutral-50 p-3 lg:block">
+      <div className="hidden min-h-0 overflow-hidden rounded-xl border bg-neutral-50 p-3 lg:block">
         <CandidatePreview platform="x_thread" body="" mediaUrls={[]} />
       </div>
     </div>
