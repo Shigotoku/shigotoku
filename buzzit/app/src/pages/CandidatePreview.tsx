@@ -20,6 +20,35 @@ const PHONE_W = 272;
 const PHONE_H = 520;
 const PHONE_ASPECT = PHONE_H / PHONE_W;
 
+function phoneBezel(screenW: number) {
+  return Math.max(6, Math.round(7 * (screenW / PHONE_W)));
+}
+
+/** 画面幅(内側)から外枠のピクセルサイズ(border-box) */
+function phoneOuterSize(screenW: number) {
+  const b = phoneBezel(screenW);
+  return { outerW: screenW + 2 * b, outerH: screenW * PHONE_ASPECT + 2 * b };
+}
+
+/** 枠内に収まる最大の携帯画面幅(内側) */
+function fitPhoneScreenWidth(boxW: number, boxH: number): number {
+  if (boxW < 80 || boxH < 120) return PHONE_W;
+  let lo = 80;
+  let hi = Math.min(Math.floor(boxW), 560);
+  let best = lo;
+  while (lo <= hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    const { outerW, outerH } = phoneOuterSize(mid);
+    if (outerW <= boxW + 0.5 && outerH <= boxH + 0.5) {
+      best = mid;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  return best;
+}
+
 function Media({ url, className }: { url?: string; className?: string }) {
   if (!url) return null;
   return isVideoUrl(url)
@@ -43,7 +72,7 @@ interface Props {
 function PhoneFrame({ children, width, className = '' }: { children: ReactNode; width: number; className?: string }) {
   const scale = width / PHONE_W;
   const screenH = width * PHONE_ASPECT;
-  const border = Math.max(6, Math.round(7 * scale));
+  const border = phoneBezel(width);
   const outerR = Math.round(34 * scale);
   const innerR = Math.max(12, outerR - border);
   const notchW = Math.round(80 * scale);
@@ -52,8 +81,8 @@ function PhoneFrame({ children, width, className = '' }: { children: ReactNode; 
 
   return (
     <div
-      className={`mx-auto shrink-0 bg-neutral-800 shadow-lg ${className}`}
-      style={{ width: width + border * 2, padding: border, borderRadius: outerR }}
+      className={`mx-auto max-w-full shrink-0 bg-neutral-800 shadow-lg ${className}`}
+      style={{ width: width + border * 2, padding: border, borderRadius: outerR, boxSizing: 'border-box' }}
     >
       <div className="relative overflow-hidden bg-white" style={{ height: screenH, borderRadius: innerR }}>
         <div
@@ -92,14 +121,22 @@ export default function CandidatePreview({ platform, body, mediaUrls, onPlatform
   useEffect(() => {
     const el = previewWrapRef.current;
     if (!el) return;
-    const update = () => {
-      const w = el.clientWidth;
-      if (w > 0) setPhoneWidth(Math.floor(w));
+    const measure = () => {
+      const pad = 8;
+      const boxW = el.clientWidth - pad;
+      const rect = el.getBoundingClientRect();
+      const viewportRoom = Math.max(120, window.innerHeight - rect.top - pad);
+      const boxH = Math.min(el.clientHeight - pad, viewportRoom);
+      if (boxW > 0 && boxH > 0) setPhoneWidth(fitPhoneScreenWidth(boxW, boxH));
     };
-    update();
-    const ro = new ResizeObserver(update);
+    measure();
+    const ro = new ResizeObserver(measure);
     ro.observe(el);
-    return () => ro.disconnect();
+    window.addEventListener('resize', measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', measure);
+    };
   }, []);
 
   const previewBody = (
@@ -261,9 +298,9 @@ function CandidatePreviewView({
   previewWrapRef: React.RefObject<HTMLDivElement | null>;
 }) {
   return (
-    <div className="flex w-full min-w-0 flex-col items-stretch gap-2">
-      <p className="text-center text-xs font-semibold text-neutral-700">プレビュー媒体を選ぶ</p>
-      <div className="flex flex-wrap justify-center gap-1.5">
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-col items-stretch gap-2">
+      <p className="shrink-0 text-center text-xs font-semibold text-neutral-700">プレビュー媒体を選ぶ</p>
+      <div className="flex shrink-0 flex-wrap justify-center gap-1.5">
         {PLATFORM_META.map((p) => {
           const selected = current === p.id;
           return (
@@ -279,12 +316,12 @@ function CandidatePreviewView({
           );
         })}
       </div>
-      <p className="text-center text-[11px] text-neutral-500">
+      <p className="shrink-0 text-center text-[11px] text-neutral-500">
         表示中: <span className="font-semibold text-neutral-800">{currentMeta.name}</span>
         {current === 'x_thread' ? ` · ${name}` : ''}
         <span className="text-neutral-400"> · 目安のプレビュー（各SNSと多少異なります）</span>
       </p>
-      <div className="flex flex-wrap items-center justify-center gap-2">
+      <div className="flex shrink-0 flex-wrap items-center justify-center gap-2">
         <button
           type="button"
           onClick={() => setEnlarged(true)}
@@ -294,7 +331,10 @@ function CandidatePreviewView({
           画面いっぱいで見る
         </button>
       </div>
-      <div ref={previewWrapRef} className="w-full overflow-hidden rounded-lg bg-neutral-100/80 p-1">
+      <div
+        ref={previewWrapRef}
+        className="flex min-h-[140px] w-full min-w-0 flex-1 items-center justify-center overflow-hidden rounded-lg bg-neutral-100/80 p-1"
+      >
         <PhoneFrame width={phoneWidth}>{previewBody}</PhoneFrame>
       </div>
     </div>

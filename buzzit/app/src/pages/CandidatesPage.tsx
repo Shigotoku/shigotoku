@@ -402,7 +402,7 @@ function Workspace({ id, meta, reload, onToggleAi }: DetailProps) {
     <div
       ref={editorPreviewSplit.ref}
       style={editorPreviewSplit.gridStyle}
-      className="grid min-h-0 min-w-0 max-lg:grid-cols-1 max-lg:gap-2 lg:grid-rows-[minmax(0,1fr)] lg:[grid-template-columns:var(--split-cols)]"
+      className="grid min-h-0 min-w-0 max-lg:grid-cols-1 max-lg:gap-2 lg:h-full lg:grid-rows-[minmax(0,1fr)] lg:[grid-template-columns:var(--split-cols)]"
     >
       <div className="min-h-0 space-y-3 overflow-y-auto rounded-xl border bg-white p-3" onPaste={onPaste}>
         <div>
@@ -530,7 +530,7 @@ function Workspace({ id, meta, reload, onToggleAi }: DetailProps) {
       </div>
 
       <SplitHandle pct={editorPreviewSplit.pct} handleProps={editorPreviewSplit.handleProps} />
-      <div className="min-h-0 overflow-hidden rounded-xl border bg-neutral-50 p-3 max-lg:min-h-[280px]">
+      <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border bg-neutral-50 p-3 max-lg:min-h-[280px] lg:h-full">
         <CandidatePreview platform={previewPlatform || c.platform} body={body} mediaUrls={c.mediaUrls} onPlatformChange={setPreviewPlatform} />
       </div>
     </div>
@@ -543,13 +543,13 @@ function EmptyWorkspacePane() {
     <div
       ref={editorPreviewSplit.ref}
       style={editorPreviewSplit.gridStyle}
-      className="grid min-h-0 min-w-0 max-lg:grid-cols-1 max-lg:gap-2 lg:grid-rows-[minmax(0,1fr)] lg:[grid-template-columns:var(--split-cols)]"
+      className="grid min-h-0 min-w-0 max-lg:grid-cols-1 max-lg:gap-2 lg:h-full lg:grid-rows-[minmax(0,1fr)] lg:[grid-template-columns:var(--split-cols)]"
     >
       <div className="min-h-0 rounded-xl border bg-white p-4">
         <p className="text-sm text-neutral-500">左の一覧から候補を選ぶと、本文・画像・類似投稿をここで編集できます。</p>
       </div>
       <SplitHandle pct={editorPreviewSplit.pct} handleProps={editorPreviewSplit.handleProps} />
-      <div className="hidden min-h-0 overflow-hidden rounded-xl border bg-neutral-50 p-3 lg:block">
+      <div className="hidden min-h-0 flex-col overflow-hidden rounded-xl border bg-neutral-50 p-3 lg:flex lg:h-full">
         <CandidatePreview platform="x_thread" body="" mediaUrls={[]} />
       </div>
     </div>
