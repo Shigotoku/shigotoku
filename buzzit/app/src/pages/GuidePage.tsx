@@ -49,6 +49,51 @@ export default function GuidePage() {
         </p>
       </section>
 
+      <section className="buzz-card-pad !p-4 sm:!p-5">
+        <p className="buzz-section-label">Xを複数キャラでつなぐ（Buffer）</p>
+        <p className="mt-2 text-sm text-neutral-600">
+          Buffer 無料プランは3チャンネルまで。1つの Buffer に X アカウントを追加し、キャラごとに投稿先を割り当てます。
+        </p>
+
+        <p className="mt-4 text-xs font-semibold text-neutral-700">1. Buffer 側: X アカウントを追加する</p>
+        <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-neutral-700">
+          <li>
+            <a href="https://publish.buffer.com/" target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:underline">Buffer</a>{' '}
+            にログインし、「Channels」→「Add channel」→「X」を選びます。
+          </li>
+          <li>
+            先にシークレットウィンドウを開き、<strong>追加したい X アカウントでログイン</strong>してから進めます
+            （ログイン中の別アカウントが接続されるのを防ぐため）。
+          </li>
+          <li>追加したいキャラの数だけ繰り返し、チャンネル一覧にそれぞれの X が並べば完了です。</li>
+        </ol>
+
+        <p className="mt-4 text-xs font-semibold text-neutral-700">2. バジット側: キャラごとに投稿先を割り当てる</p>
+        <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-neutral-700">
+          <li>
+            <Link to="/settings?tab=sns" className="underline-offset-2 hover:underline">設定 → SNS連携</Link>{' '}
+            の「配信キャラごとの連携状況」で、割り当てたいキャラの「このキャラを編集」を押します。
+          </li>
+          <li>「X」を開き、「Buffer 経由で X に投稿」に Buffer の API キーを入力します（キーは Buffer アカウント単位で、全キャラ共通で使えます）。</li>
+          <li>「チャンネルを取得」を押し、<strong>そのキャラの X アカウントのチャンネル</strong>を選びます。</li>
+          <li>「このキャラの X 投稿先にする」を押し、「接続済み」と表示されれば完了です。残りのキャラも同じ手順で行います。</li>
+        </ol>
+
+        <p className="mt-4 text-xs font-semibold text-neutral-700">3. 動作確認（キャラごと）</p>
+        <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-neutral-700">
+          <li>短い文章を3分後に予約します。</li>
+          <li>カレンダーで「投稿済み」になることを確認します。</li>
+          <li>X のタイムラインに、<strong>そのキャラのアカウント</strong>で投稿されていることを確認します。</li>
+        </ol>
+
+        <ul className="mt-4 space-y-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          <li>• キャラとチャンネルの対応を間違えると別のアカウントに投稿されます。接続後は必ずテスト投稿で確認してください。</li>
+          <li>• Buffer の API は約3,000リクエスト/30日で、全キャラ合計で共有されます。</li>
+          <li>• スレッド（複数ポスト）は Buffer 経由では使えません。280字以内の1本投稿にしてください。</li>
+          <li>• 各 X アカウントのログイン情報は、設定の「アカウント台帳」に残しておくと引き継ぎが楽です。</li>
+        </ul>
+      </section>
+
       <SetupDiagnosisCard signals={signals} />
 
       <section className="buzz-card-pad !p-4 sm:!p-5">
