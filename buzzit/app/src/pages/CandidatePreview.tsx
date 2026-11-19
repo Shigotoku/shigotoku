@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Bookmark, Heart, MessageCircle, Music2, Repeat2, Send, Share2, ThumbsUp } from 'lucide-react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Bookmark, Heart, Maximize2, MessageCircle, Music2, Repeat2, Send, Share2, ThumbsUp, X } from 'lucide-react';
 import { usePersona } from '../store/personaContext';
 
 /** 投稿候補の媒体 → 表示名・ブランド色・短いラベル */
@@ -36,11 +36,28 @@ interface Props {
   onPlatformChange?: (p: string) => void;
 }
 
+const PHONE_W = 272;
+const PHONE_H = 520;
+
+function PhoneFrame({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return (
+    <div className={`w-[272px] shrink-0 rounded-[34px] border-[7px] border-neutral-800 bg-neutral-800 shadow-lg ${className}`}>
+      <div className="relative h-[520px] overflow-hidden rounded-[26px] bg-white">
+        <div className="absolute left-1/2 top-0 z-10 h-4 w-20 -translate-x-1/2 rounded-b-xl bg-neutral-800" />
+        <div className="h-full overflow-y-auto pt-5 text-[12px] leading-snug text-neutral-900">{children}</div>
+      </div>
+    </div>
+  );
+}
+
 /** 携帯サイズの投稿プレビュー(媒体ごとに見た目を切り替える)。実際の表示と完全には一致しません */
 export default function CandidatePreview({ platform, body, mediaUrls, onPlatformChange }: Props) {
   const { activePersona } = usePersona();
   const [local, setLocal] = useState('');
+  const [enlarged, setEnlarged] = useState(false);
+  const [scale, setScale] = useState(1);
   const current = local || platform || 'x_thread';
+  const currentMeta = PLATFORM_META.find((p) => p.id === current) ?? PLATFORM_META[0];
   const name = activePersona?.name ?? 'アカウント名';
   const handle = activePersona?.xUsername?.replace(/^@/, '') || 'account';
   const avatar = activePersona?.avatarUrl;
@@ -49,26 +66,24 @@ export default function CandidatePreview({ platform, body, mediaUrls, onPlatform
   const posts = current === 'x_thread' ? text.split(/\n-{3,}\n/).map((t) => t.trim()).filter(Boolean) : [text];
 
   const pick = (id: string) => { setLocal(id); onPlatformChange?.(id); };
+  const previewWrapRef = useRef<HTMLDivElement>(null);
+  const [fitScale, setFitScale] = useState(1);
 
-  return (
-    <div className="flex flex-col items-center gap-2">
-      <div className="flex flex-wrap justify-center gap-1">
-        {PLATFORM_META.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            title={p.name}
-            onClick={() => pick(p.id)}
-            style={current === p.id ? { backgroundColor: p.color, borderColor: p.color } : undefined}
-            className={`h-6 min-w-[1.5rem] rounded-full border px-1.5 text-[10px] font-bold ${current === p.id ? 'text-white' : 'bg-white text-neutral-600'}`}
-          >{p.short}</button>
-        ))}
-      </div>
+  useEffect(() => {
+    const el = previewWrapRef.current;
+    if (!el) return;
+    const update = () => {
+      const w = el.clientWidth - 16;
+      setFitScale(Math.min(1.65, Math.max(1, w / PHONE_W)));
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
-      <div className="w-[272px] shrink-0 rounded-[34px] border-[7px] border-neutral-800 bg-neutral-800 shadow-lg">
-        <div className="relative h-[520px] overflow-hidden rounded-[26px] bg-white">
-          <div className="absolute left-1/2 top-0 z-10 h-4 w-20 -translate-x-1/2 rounded-b-xl bg-neutral-800" />
-          <div className="h-full overflow-y-auto pt-5 text-[12px] leading-snug text-neutral-900">
+  const previewBody = (
+    <>
             {(current === 'x_thread' || current === 'threads') && (
               <div className="divide-y">
                 {posts.map((t, i) => (
@@ -141,10 +156,153 @@ export default function CandidatePreview({ platform, body, mediaUrls, onPlatform
                 <div className="mt-3 inline-block rounded-full border border-blue-500 px-3 py-1 text-[11px] font-semibold text-blue-600">詳細</div>
               </div>
             )}
+    </>
+  );
+
+  const view = (
+    <CandidatePreviewView
+      current={current}
+      currentMeta={currentMeta}
+      name={name}
+      scale={scale}
+      setScale={setScale}
+      setEnlarged={setEnlarged}
+      pick={pick}
+      previewBody={previewBody}
+      fitScale={fitScale}
+      previewWrapRef={previewWrapRef}
+    />
+  );
+
+  if (!enlarged) return view;
+
+  return (
+    <>
+      {view}
+      <div
+        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/55 p-4"
+        role="dialog"
+        aria-modal
+        aria-label="投稿プレビューを拡大表示"
+        onClick={() => setEnlarged(false)}
+      >
+        <div
+          className="flex max-h-[95vh] max-w-lg flex-col gap-3 overflow-auto rounded-2xl bg-white p-4 shadow-xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-bold text-neutral-900">プレビュー（{currentMeta.name}）</p>
+            <button
+              type="button"
+              onClick={() => setEnlarged(false)}
+              className="inline-flex items-center gap-1 rounded-lg border border-neutral-200 px-2 py-1 text-xs font-semibold text-neutral-700 hover:bg-neutral-50"
+            >
+              <X className="h-4 w-4" />
+              閉じる
+            </button>
+          </div>
+          <div className="flex flex-wrap justify-center gap-1.5">
+            {PLATFORM_META.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => pick(p.id)}
+                style={current === p.id ? { backgroundColor: p.color, borderColor: p.color } : undefined}
+                className={`rounded-lg border px-2.5 py-1 text-xs font-semibold ${current === p.id ? 'text-white' : 'border-neutral-200 bg-white text-neutral-800'}`}
+              >
+                {p.name}
+              </button>
+            ))}
+          </div>
+          <div className="flex justify-center overflow-auto py-2">
+            <PhoneFrame className="scale-[1.35] origin-top">{previewBody}</PhoneFrame>
           </div>
         </div>
       </div>
-      <p className="px-2 text-center text-[10px] text-neutral-400">目安のプレビューです。実際の表示は各SNSで多少異なります。</p>
+    </>
+  );
+}
+
+function CandidatePreviewView({
+  current,
+  currentMeta,
+  name,
+  scale,
+  setScale,
+  setEnlarged,
+  pick,
+  previewBody,
+  fitScale,
+  previewWrapRef,
+}: {
+  current: string;
+  currentMeta: (typeof PLATFORM_META)[number];
+  name: string;
+  scale: number;
+  setScale: (n: number) => void;
+  setEnlarged: (v: boolean) => void;
+  pick: (id: string) => void;
+  previewBody: ReactNode;
+  fitScale: number;
+  previewWrapRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  const effectiveScale = scale * fitScale;
+  return (
+    <div className="flex w-full min-w-0 flex-col items-stretch gap-2">
+      <p className="text-center text-xs font-semibold text-neutral-700">プレビュー媒体を選ぶ</p>
+      <div className="flex flex-wrap justify-center gap-1.5">
+        {PLATFORM_META.map((p) => {
+          const selected = current === p.id;
+          return (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => pick(p.id)}
+              style={selected ? { backgroundColor: p.color, borderColor: p.color } : undefined}
+              className={`rounded-lg border px-2.5 py-1 text-[11px] font-semibold leading-tight ${selected ? 'text-white shadow-sm' : 'border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50'}`}
+            >
+              {p.name}
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-center text-[11px] text-neutral-500">
+        表示中: <span className="font-semibold text-neutral-800">{currentMeta.name}</span>
+        {current === 'x_thread' ? ` · ${name}` : ''}
+        {fitScale > 1.02 ? (
+          <span className="text-neutral-400"> · 列の幅に合わせて拡大中</span>
+        ) : null}
+      </p>
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        <span className="text-[11px] text-neutral-500">サイズ</span>
+        {([1, 1.25, 1.5] as const).map((s) => (
+          <button
+            key={s}
+            type="button"
+            onClick={() => setScale(s)}
+            className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${scale === s ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50'}`}
+          >
+            {s === 1 ? '標準' : s === 1.25 ? '大' : '特大'}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => setEnlarged(true)}
+          className="inline-flex items-center gap-1 rounded-md border border-violet-200 bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-800 hover:bg-violet-100"
+        >
+          <Maximize2 className="h-3 w-3" />
+          画面いっぱいで見る
+        </button>
+      </div>
+      <div ref={previewWrapRef} className="min-h-0 w-full overflow-auto rounded-lg bg-neutral-100/80 p-2">
+        <div
+          className="mx-auto origin-top transition-transform duration-200"
+          style={{ transform: `scale(${effectiveScale})`, width: PHONE_W, minHeight: PHONE_H * effectiveScale }}
+        >
+          <PhoneFrame>{previewBody}</PhoneFrame>
+        </div>
+      </div>
+      <p className="px-1 text-center text-[10px] text-neutral-400">目安のプレビューです。実際の表示は各SNSで多少異なります。</p>
     </div>
   );
 }

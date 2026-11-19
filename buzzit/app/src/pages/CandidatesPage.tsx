@@ -687,7 +687,13 @@ export default function CandidatesPage() {
 
   const total = data?.counts.all ?? 0;
   const platChips = useMemo(
-    () => [{ id: '', short: '全', name: 'すべてのSNS', color: '#171717', n: total }, ...PLATFORM_META.map((p) => ({ ...p, n: data?.platformCounts[p.id] ?? 0 })), ...((data?.platformCounts.none ?? 0) > 0 ? [{ id: 'none', short: '未', name: '媒体未設定', color: '#d97706', n: data?.platformCounts.none ?? 0 }] : [])],
+    () => [
+      { id: '', chipLabel: 'すべて', name: 'すべてのSNS', color: '#171717', n: total },
+      ...PLATFORM_META.map((p) => ({ ...p, chipLabel: p.name, n: data?.platformCounts[p.id] ?? 0 })),
+      ...((data?.platformCounts.none ?? 0) > 0
+        ? [{ id: 'none', chipLabel: '未設定', name: '媒体未設定', color: '#d97706', n: data?.platformCounts.none ?? 0 }]
+        : []),
+    ],
     [data, total],
   );
   const selectCls = 'h-7 rounded-md border bg-white px-1.5 text-xs';
@@ -696,7 +702,8 @@ export default function CandidatesPage() {
     <div className="flex min-h-0 flex-1 flex-col gap-2">
       {/* 1行のコンパクトなツールバー: 媒体(アイコン) / 進み具合 / 選定 / シリーズ / 検索 / 追加・取込・CSV */}
       <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1.5 rounded-xl border bg-white px-2 py-1.5">
-        <div className="flex items-center gap-1">
+        <div className="flex max-w-full flex-wrap items-center gap-1">
+          <span className="sr-only">SNSで絞り込み</span>
           {platChips.map((p) => {
             const on = platformSel === p.id;
             return (
@@ -706,10 +713,10 @@ export default function CandidatesPage() {
                 title={`${p.name} ${p.n}件`}
                 onClick={() => setPlatformSel(p.id)}
                 style={on ? { backgroundColor: p.color, borderColor: p.color } : undefined}
-                className={`relative flex h-7 min-w-[1.75rem] items-center justify-center rounded-full border px-1.5 text-[11px] font-bold ${on ? 'text-white' : 'bg-white text-neutral-700 hover:bg-neutral-50'}`}
+                className={`inline-flex h-7 max-w-full items-center gap-1 rounded-md border px-2 text-[11px] font-semibold ${on ? 'text-white' : 'bg-white text-neutral-700 hover:bg-neutral-50'}`}
               >
-                {p.short}
-                <span className={`ml-0.5 text-[9px] font-semibold ${on ? 'text-white/80' : 'text-neutral-400'}`}>{p.n}</span>
+                <span className="truncate">{p.chipLabel}</span>
+                <span className={`shrink-0 text-[10px] font-semibold tabular-nums ${on ? 'text-white/85' : 'text-neutral-400'}`}>{p.n}</span>
               </button>
             );
           })}
@@ -792,7 +799,9 @@ export default function CandidatesPage() {
                   <span className="font-mono text-[10px] text-neutral-500">{c.managementId}</span>
                   <Badge s={c.selection} />
                   {c.status !== 'candidate' && <span className={`rounded-full px-1.5 text-[10px] ${STATUS[c.status]?.cls}`}>{STATUS[c.status]?.label}</span>}
-                  <span className="ml-auto text-[10px] font-semibold text-neutral-500">{PLATFORM_META.find((p) => p.id === c.platform)?.short ?? '未'}</span>
+                  <span className="ml-auto truncate text-[10px] font-semibold text-neutral-500" title={PLATFORM_META.find((p) => p.id === c.platform)?.name ?? '媒体未設定'}>
+                    {PLATFORM_META.find((p) => p.id === c.platform)?.name ?? '未設定'}
+                  </span>
                 </span>
                 <span className="block truncate text-[13px] font-semibold">{c.title || c.body.slice(0, 40)}</span>
               </span>
