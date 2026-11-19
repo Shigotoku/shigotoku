@@ -50,7 +50,7 @@ jobs:
           npm ci --prefix clipit/landing-page
           npm ci --prefix deckit/landing-page
           npm ci --prefix PreDeck/landing-page
-          npm ci --prefix PreDeck/app
+          npm ci --prefix PreDeck/app --onnxruntime-node-install-cuda=skip
           npm ci --prefix raiseit/landing-page
           npm ci --prefix clipit/app
           npm ci --prefix clipit/api
