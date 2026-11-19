@@ -779,7 +779,9 @@ export default function CandidatesPage() {
           <button disabled={!bulkPlatform} onClick={bulkSet} className="rounded-lg bg-neutral-900 px-2 py-0.5 text-white disabled:opacity-40">まとめて設定</button>
         </div>
       )}
-      {platformSel !== '' && platformSel !== 'none' && RULE_ID_OF[platformSel] && <SnsRulesBox ruleId={RULE_ID_OF[platformSel]} />}
+      {platformSel !== '' && platformSel !== 'none' && RULE_ID_OF[platformSel] ? (
+        <SnsRulesBox ruleId={RULE_ID_OF[platformSel]} />
+      ) : null}
       {showImport && <div className="max-h-[40vh] shrink-0 overflow-y-auto"><ImportPanel onDone={reload} /></div>}
 
       {/* 3列: 一覧 / 編集 / スマホプレビュー。lg以上で幅をドラッグ調整(デフォルト 1:1:1) */}
