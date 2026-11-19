@@ -8,6 +8,7 @@ import { readPersist, writePersist } from '../lib/persistCache';
 import SnsRulesBox, { RULE_ID_OF } from './SnsRulesBox';
 import CandidatePreview, { PLATFORM_META, isVideoUrl } from './CandidatePreview';
 import { mediaRequiredForPlatform, mediaRequirementHint } from '../lib/platformMedia';
+import { SplitHandle, useSplitPane } from '../components/SplitPane';
 
 type Selection = 'unreviewed' | 'adopted' | 'needs_fix' | 'hold' | 'rejected';
 interface Candidate {
@@ -275,8 +276,12 @@ interface Meta {
 }
 interface DetailProps { id: string; meta: Meta | null; reload: () => void; onToggleAi: () => void }
 
-/** 中央(編集)と右(スマホプレビュー)の2列を返す */
+const EDITOR_PREVIEW_SPLIT_KEY = 'buzzit.candidates.editorPreviewPct';
+const LIST_SPLIT_KEY = 'buzzit.candidates.listPct';
+
+/** 中央(編集)と右(スマホプレビュー)。幅はドラッグで変更可能 */
 function Workspace({ id, meta, reload, onToggleAi }: DetailProps) {
+  const editorPreviewSplit = useSplitPane(EDITOR_PREVIEW_SPLIT_KEY, 50);
   const { user } = useAuth();
   const uid = user?.uid;
   const { activePersona } = usePersona();
@@ -375,10 +380,15 @@ function Workspace({ id, meta, reload, onToggleAi }: DetailProps) {
 
   if (!c) {
     return (
-      <>
+      <div
+        ref={editorPreviewSplit.ref}
+        style={editorPreviewSplit.gridStyle}
+        className="grid min-h-0 min-w-0 max-lg:grid-cols-1 max-lg:gap-2 lg:grid-rows-[minmax(0,1fr)] lg:[grid-template-columns:var(--split-cols)]"
+      >
         <div className="min-h-0 overflow-y-auto rounded-xl border bg-white p-4"><p className="text-sm text-neutral-500">{msg || '読み込み中…'}</p></div>
+        <SplitHandle pct={editorPreviewSplit.pct} handleProps={editorPreviewSplit.handleProps} />
         <div className="hidden min-h-0 lg:block" />
-      </>
+      </div>
     );
   }
   const dirty = body !== c.body || note !== c.editNotes;
@@ -389,7 +399,11 @@ function Workspace({ id, meta, reload, onToggleAi }: DetailProps) {
   const hasMore = !!(c.checkNotes || c.theme || c.conclusion || c.punchline || extras.length);
 
   return (
-    <>
+    <div
+      ref={editorPreviewSplit.ref}
+      style={editorPreviewSplit.gridStyle}
+      className="grid min-h-0 min-w-0 max-lg:grid-cols-1 max-lg:gap-2 lg:grid-rows-[minmax(0,1fr)] lg:[grid-template-columns:var(--split-cols)]"
+    >
       <div className="min-h-0 space-y-3 overflow-y-auto rounded-xl border bg-white p-3" onPaste={onPaste}>
         <div>
           <div className="flex flex-wrap items-center gap-1.5 text-xs">
@@ -411,7 +425,7 @@ function Workspace({ id, meta, reload, onToggleAi }: DetailProps) {
         </div>
 
         <div>
-          <textarea className="h-36 w-full rounded-lg border p-2 text-sm" value={body} onChange={(e) => { touched.current = true; setBody(e.target.value); }} placeholder="投稿本文" />
+          <textarea className="h-48 min-h-[12rem] w-full rounded-lg border p-2 text-sm" value={body} onChange={(e) => { touched.current = true; setBody(e.target.value); }} placeholder="投稿本文" />
           <div className="mt-1 flex items-center gap-2">
             <input className="min-w-0 flex-1 rounded-lg border p-1.5 text-xs" value={note} onChange={(e) => { touched.current = true; setNote(e.target.value); }} placeholder="編集メモ(投稿されません)" />
             <button disabled={!dirty || busy} onClick={() => patch({ body, editNotes: note })} className="shrink-0 rounded-lg border px-3 py-1 text-xs font-semibold disabled:opacity-40">保存</button>
@@ -515,14 +529,35 @@ function Workspace({ id, meta, reload, onToggleAi }: DetailProps) {
         </details>
       </div>
 
-      <div className="min-h-0 overflow-y-auto rounded-xl border bg-neutral-50 p-3">
+      <SplitHandle pct={editorPreviewSplit.pct} handleProps={editorPreviewSplit.handleProps} />
+      <div className="min-h-0 overflow-y-auto rounded-xl border bg-neutral-50 p-3 max-lg:min-h-[280px]">
         <CandidatePreview platform={previewPlatform || c.platform} body={body} mediaUrls={c.mediaUrls} onPlatformChange={setPreviewPlatform} />
       </div>
-    </>
+    </div>
+  );
+}
+
+function EmptyWorkspacePane() {
+  const editorPreviewSplit = useSplitPane(EDITOR_PREVIEW_SPLIT_KEY, 50);
+  return (
+    <div
+      ref={editorPreviewSplit.ref}
+      style={editorPreviewSplit.gridStyle}
+      className="grid min-h-0 min-w-0 max-lg:grid-cols-1 max-lg:gap-2 lg:grid-rows-[minmax(0,1fr)] lg:[grid-template-columns:var(--split-cols)]"
+    >
+      <div className="min-h-0 rounded-xl border bg-white p-4">
+        <p className="text-sm text-neutral-500">左の一覧から候補を選ぶと、本文・画像・類似投稿をここで編集できます。</p>
+      </div>
+      <SplitHandle pct={editorPreviewSplit.pct} handleProps={editorPreviewSplit.handleProps} />
+      <div className="hidden min-h-0 overflow-y-auto rounded-xl border bg-neutral-50 p-3 lg:block">
+        <CandidatePreview platform="x_thread" body="" mediaUrls={[]} />
+      </div>
+    </div>
   );
 }
 
 export default function CandidatesPage() {
+  const listSplit = useSplitPane(LIST_SPLIT_KEY, 33.33);
   const [data, setData] = useState<ListRes | null>(null);
   const [params, setParams] = useSearchParams();
   const platformSel = params.get('platform') ?? '';
@@ -740,8 +775,12 @@ export default function CandidatesPage() {
       {platformSel !== '' && platformSel !== 'none' && RULE_ID_OF[platformSel] && <SnsRulesBox ruleId={RULE_ID_OF[platformSel]} />}
       {showImport && <div className="max-h-[40vh] shrink-0 overflow-y-auto"><ImportPanel onDone={reload} /></div>}
 
-      {/* 3列: 一覧 / 編集 / スマホプレビュー(それぞれ単独でスクロール) */}
-      <div className="grid min-h-0 flex-1 gap-2 lg:grid-cols-[minmax(200px,0.9fr)_minmax(0,1.7fr)_320px] lg:grid-rows-[minmax(0,1fr)]">
+      {/* 3列: 一覧 / 編集 / スマホプレビュー。lg以上で幅をドラッグ調整(デフォルト 1:1:1) */}
+      <div
+        ref={listSplit.ref}
+        style={listSplit.gridStyle}
+        className="grid min-h-0 flex-1 gap-0 max-lg:grid-cols-1 max-lg:gap-2 lg:grid-rows-[minmax(0,1fr)] lg:[grid-template-columns:var(--split-cols)]"
+      >
         <div className="max-h-[50vh] min-h-0 space-y-0.5 overflow-y-auto rounded-xl border bg-white p-1.5 lg:max-h-none">
           {data?.candidates.map((c) => (
             <button key={c.id} onClick={() => setOpenId(c.id)} className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-neutral-50 ${openId === c.id ? 'bg-neutral-100' : ''}`}>
@@ -766,13 +805,11 @@ export default function CandidatesPage() {
           )}
           {data && data.candidates.length === 0 && <p className="p-4 text-sm text-neutral-500">候補がありません。「追加」か取り込みから入れてください。</p>}
         </div>
+        <SplitHandle pct={listSplit.pct} handleProps={listSplit.handleProps} />
         {openId && data ? (
           <Workspace key={openId} id={openId} meta={meta} reload={reload} onToggleAi={togglePref} />
         ) : (
-          <>
-            <div className="min-h-0 rounded-xl border bg-white p-4"><p className="text-sm text-neutral-500">左の一覧から候補を選ぶと、本文・画像・類似投稿をここで編集できます。</p></div>
-            <div className="hidden min-h-0 overflow-y-auto rounded-xl border bg-neutral-50 p-3 lg:block"><CandidatePreview platform="x_thread" body="" mediaUrls={[]} /></div>
-          </>
+          <EmptyWorkspacePane />
         )}
       </div>
     </div>
