@@ -16,6 +16,10 @@ import {
   listUnusedCandidates,
   targetOf,
   updateCandidate,
+  deleteCandidates,
+  deleteCandidatesByFilter,
+  rescheduleCandidate,
+  unscheduleCandidate,
 } from './postCandidates';
 import {
   APP_ORIGIN,
@@ -560,15 +564,59 @@ function buildServer(ctx: AgentCtx): McpServer {
   server.registerTool(
     'candidates_update',
     {
-      description: '投稿候補の本文・画像案・タイトル・テーマ・結論・オチ・確認事項・編集メモの修正、および aiSuggestion（改善提案。画面に表示され、人が採否を決める）の保存。選定状況（採用など）と下書きへの移行は人だけが行う。',
+      description: '投稿候補を自由に修正する: 本文・画像(mediaUrls)・タイトル・投稿先(platform)・シリーズ・テーマ・結論・オチ・確認事項・編集メモ・選定状況(selection)・予定日時(scheduledAt)。予約済み/下書きの投稿は本文・画像・日時が連動して更新される（投稿済みは変わらない）。scheduledAt に空文字を渡すと日時を消す。aiSuggestion は改善提案の保存。予約日時だけ変えたいときは candidates_reschedule が確実。',
       inputSchema: {
         id: z.string(),
+        selection: z.enum(['unreviewed', 'adopted', 'needs_fix', 'hold', 'rejected']).optional(),
+        series: z.string().max(100).optional(),
+        scheduledAt: z.string().optional().describe('ISO8601。予約済みなら未来の日時のみ。空文字で日時クリア'),
         title: z.string().max(200).optional(), body: z.string().max(5000).optional(), imageIdea: z.string().max(2000).optional(),
         theme: z.string().max(200).optional(), conclusion: z.string().max(300).optional(), punchline: z.string().max(300).optional(),
         mediaUrls: z.array(z.string().url()).max(6).optional(), platform: PLATFORM.optional(), checkNotes: z.string().max(2000).optional(), editNotes: z.string().max(2000).optional(), aiSuggestion: z.string().max(3000).optional(),
       },
     },
     ({ id, ...patch }) => run(() => updateCandidate(ctx.uid, id, patch, 'ai')),
+  );
+  server.registerTool(
+    'candidates_reschedule',
+    {
+      description: '予約済み・下書きの投稿候補の投稿日時を変える（カレンダーの予約も動く）。投稿済み・処理中は不可。未来の日時のみ。',
+      inputSchema: { id: z.string(), scheduledAt: z.string().describe('ISO8601 例 2026-11-21T09:00:00+09:00') },
+    },
+    ({ id, scheduledAt }) => run(() => rescheduleCandidate(ctx.uid, id, scheduledAt, 'ai')),
+  );
+  server.registerTool(
+    'candidates_unschedule',
+    {
+      description: '予約・下書きを取り消して、ただの候補に戻す（候補は残る）。投稿済みは不可。',
+      inputSchema: { id: z.string() },
+    },
+    ({ id }) => run(() => unscheduleCandidate(ctx.uid, id, 'ai')),
+  );
+  server.registerTool(
+    'candidates_delete',
+    {
+      description: '投稿候補を削除する（1件または複数。ids は管理ID）。紐づく予約・下書きがあれば一緒に取り消す（投稿済みの投稿は残る）。元に戻せないので、ユーザーが削除を依頼したときだけ使い、confirm=true を付ける。',
+      inputSchema: { ids: z.array(z.string()).min(1).max(500), confirm: z.boolean().describe('ユーザーが削除を依頼したら true') },
+    },
+    ({ ids, confirm }) => run(async () => {
+      if (!confirm) throw new Error('削除にはユーザーの確認が必要です（confirm=true）');
+      return deleteCandidates(ctx.uid, ids, 'ai');
+    }),
+  );
+  server.registerTool(
+    'candidates_delete_all',
+    {
+      description: '条件に合う投稿候補をまとめて削除する。条件(platform / series / selection / status)を省略すると全候補が対象。元に戻せない。必ず先に candidates_search で件数を確認し、ユーザーが「全部消して」等と明確に依頼したときだけ confirm=true で実行する。',
+      inputSchema: {
+        platform: z.string().optional(), series: z.string().optional(), selection: z.string().optional(), status: z.string().optional(),
+        confirm: z.boolean().describe('ユーザーが一括削除を依頼したら true'),
+      },
+    },
+    ({ confirm, ...f }) => run(async () => {
+      if (!confirm) throw new Error('一括削除にはユーザーの確認が必要です（confirm=true）');
+      return deleteCandidatesByFilter(ctx.uid, f, 'ai');
+    }),
   );
   return server;
 }

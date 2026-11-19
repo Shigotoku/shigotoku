@@ -631,14 +631,18 @@ export interface CandidatePatch extends Partial<Record<TextField, string>> {
   mediaUrls?: string[];
 }
 
-/** 人による更新。AI（MCP）経由では selection は変更できない（採用の判断は人） */
-export async function updateCandidate(uid: string, id: string, patch: CandidatePatch, by: 'human' | 'ai') {
+/** 予約・下書きとして編集できる状態(投稿済み・処理中は触らない) */
+const EDITABLE_JOB_STATUSES = ['draft', 'pending', 'pending_approval', 'failed'];
+const jobCol = (uid: string) => db().collection(`users/${uid}/scheduled`);
+
+/** 人・AI(MCP)共通の更新。本文・画像・日時・選定状況まで自由に直せる。予約済み/下書きの本文は連動して更新する */
+export async function updateCandidate(uid: string, id: string, patch: CandidatePatch & { scheduledAt?: string }, by: 'human' | 'ai') {
   const ref = col(uid).doc(id);
   const s = await ref.get();
   if (!s.exists) throw new Error('投稿候補が見つかりません');
   const upd: Record<string, unknown> = { updatedAt: FieldValue.serverTimestamp() };
   for (const f of TEXT_FIELDS) if (typeof patch[f] === 'string') upd[f] = clean(patch[f]);
-  if (by === 'human' && patch.selection) {
+  if (patch.selection) {
     if (!(patch.selection in SELECTION_LABEL)) throw new Error('選定状況が正しくありません');
     upd.selection = patch.selection;
     upd.selectionRaw = SELECTION_LABEL[patch.selection];
@@ -654,9 +658,106 @@ export async function updateCandidate(uid: string, id: string, patch: CandidateP
     upd.aiSuggestion = clean(patch.aiSuggestion, 3000);
     upd.aiSuggestedAt = FieldValue.serverTimestamp();
   }
+  // 日時の変更(予約済みなら予約も動かす)
+  const linkedJobId = s.data()!.linkedJobId as string | undefined;
+  if (typeof patch.scheduledAt === 'string') {
+    if (patch.scheduledAt === '') {
+      upd.scheduledAt = FieldValue.delete();
+    } else {
+      const when = new Date(patch.scheduledAt);
+      if (Number.isNaN(when.getTime())) throw new Error('日時の形式が正しくありません');
+      if (linkedJobId && when.getTime() <= Date.now()) throw new Error('予約の日時は未来にしてください');
+      upd.scheduledAt = when.toISOString();
+    }
+  }
   await ref.update(upd);
+  // 予約済み・下書きの投稿にも本文・画像・日時を反映(投稿済み・処理中は変えない)
+  if (linkedJobId && (upd.body !== undefined || upd.mediaUrls !== undefined || typeof upd.scheduledAt === 'string')) {
+    const jobSnap = await jobCol(uid).doc(linkedJobId).get();
+    if (jobSnap.exists && EDITABLE_JOB_STATUSES.includes(String(jobSnap.data()!.status))) {
+      const jp: Record<string, unknown> = { updatedAt: FieldValue.serverTimestamp() };
+      const contents = jobSnap.data()!.contents as Array<Record<string, unknown>> | undefined;
+      if (upd.body !== undefined && contents?.length) jp.contents = [{ ...contents[0], content: String(upd.body) }, ...contents.slice(1)];
+      if (upd.mediaUrls !== undefined) jp.mediaUrls = upd.mediaUrls;
+      if (typeof upd.scheduledAt === 'string') jp.scheduledAt = upd.scheduledAt;
+      await jobSnap.ref.update(jp);
+    }
+  }
   bust(uid);
   await writeAuditLog(uid, by === 'ai' ? 'candidates.update.ai' : 'candidates.update', `${s.data()!.managementId ?? id}: ${Object.keys(upd).filter((k) => k !== 'updatedAt').join(',')}`);
+  return getCandidate(uid, id);
+}
+
+/** 候補を削除する。予約済み・下書きの投稿が紐づいていれば、それも取り消す(投稿済みは残す) */
+export async function deleteCandidates(uid: string, ids: string[], by: 'human' | 'ai' = 'human') {
+  const unique = [...new Set(ids.map((x) => String(x)).filter(Boolean))];
+  let deleted = 0;
+  let jobsCancelled = 0;
+  for (let i = 0; i < unique.length; i += 200) {
+    const refs = unique.slice(i, i + 200).map((x) => col(uid).doc(x));
+    const snaps = await db().getAll(...refs);
+    const batch = db().batch();
+    for (const sn of snaps) {
+      if (!sn.exists) continue;
+      const jobId = sn.data()!.linkedJobId as string | undefined;
+      if (jobId) {
+        const j = await jobCol(uid).doc(jobId).get();
+        if (j.exists && EDITABLE_JOB_STATUSES.includes(String(j.data()!.status))) { batch.delete(j.ref); jobsCancelled++; }
+      }
+      batch.delete(sn.ref);
+      deleted++;
+    }
+    await batch.commit();
+  }
+  bust(uid);
+  await writeAuditLog(uid, by === 'ai' ? 'candidates.delete.ai' : 'candidates.delete', `${deleted}件(予約取消${jobsCancelled}件)`);
+  return { deleted, jobsCancelled };
+}
+
+export interface DeleteFilter { platform?: string; series?: string; selection?: string; status?: string }
+
+/** 条件に合う候補をまとめて削除(条件なし=全部)。1回に最大5000件 */
+export async function deleteCandidatesByFilter(uid: string, f: DeleteFilter, by: 'human' | 'ai' = 'human') {
+  const ids: string[] = [];
+  let cursor: string | undefined;
+  for (let page = 0; page < 10; page++) {
+    const r = await queryCandidates(uid, { ...f, limit: 500, cursor });
+    ids.push(...r.candidates.map((c) => c.id));
+    if (!r.nextCursor) break;
+    cursor = r.nextCursor;
+  }
+  return deleteCandidates(uid, ids, by);
+}
+
+/** 予約・下書きの日時を変える(候補側の日時も更新)。投稿済み・処理中は変更不可 */
+export async function rescheduleCandidate(uid: string, id: string, scheduledAt: string, by: 'human' | 'ai' = 'human') {
+  const c = await getCandidate(uid, id);
+  const when = new Date(scheduledAt);
+  if (Number.isNaN(when.getTime())) throw new Error('日時の形式が正しくありません');
+  if (when.getTime() <= Date.now()) throw new Error('日時は未来にしてください');
+  if (!c.linkedJobId) throw new Error('まだ予約されていません。先に予約してください(candidates_schedule)');
+  const jobSnap = await jobCol(uid).doc(c.linkedJobId).get();
+  if (!jobSnap.exists) throw new Error('紐づく予約が見つかりません');
+  if (!EDITABLE_JOB_STATUSES.includes(String(jobSnap.data()!.status))) throw new Error('投稿済み・処理中の予約は日時を変えられません');
+  await jobSnap.ref.update({ scheduledAt: when.toISOString(), updatedAt: FieldValue.serverTimestamp() });
+  await col(uid).doc(id).update({ scheduledAt: when.toISOString(), updatedAt: FieldValue.serverTimestamp() });
+  bust(uid);
+  await writeAuditLog(uid, by === 'ai' ? 'candidates.reschedule.ai' : 'candidates.reschedule', `${c.managementId} → ${when.toISOString()}`);
+  return getCandidate(uid, id);
+}
+
+/** 予約・下書きを取り消して、ただの候補に戻す(候補は残る) */
+export async function unscheduleCandidate(uid: string, id: string, by: 'human' | 'ai' = 'human') {
+  const c = await getCandidate(uid, id);
+  if (!c.linkedJobId) throw new Error('予約されていません');
+  const jobSnap = await jobCol(uid).doc(c.linkedJobId).get();
+  if (jobSnap.exists) {
+    if (!EDITABLE_JOB_STATUSES.includes(String(jobSnap.data()!.status))) throw new Error('投稿済み・処理中の予約は取り消せません');
+    await jobSnap.ref.delete();
+  }
+  await col(uid).doc(id).update({ status: 'candidate', linkedJobId: FieldValue.delete(), scheduledAt: FieldValue.delete(), updatedAt: FieldValue.serverTimestamp() });
+  bust(uid);
+  await writeAuditLog(uid, by === 'ai' ? 'candidates.unschedule.ai' : 'candidates.unschedule', c.managementId);
   return getCandidate(uid, id);
 }
 
@@ -1217,6 +1318,33 @@ candidatesRouter.patch('/:id', requireAuth, async (req: AuthedRequest, res) => {
   } catch (e) { fail(res, e); }
 });
 
+candidatesRouter.delete('/:id', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    await ctxOf(req, true);
+    res.json(await deleteCandidates(req.uid!, [String(req.params.id)]));
+  } catch (e) { fail(res, e); }
+});
+candidatesRouter.post('/bulk-delete', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    await ctxOf(req, true);
+    const b = req.body as { ids?: string[]; filter?: DeleteFilter; all?: boolean };
+    if (b.ids?.length) res.json(await deleteCandidates(req.uid!, b.ids));
+    else if (b.all === true || b.filter) res.json(await deleteCandidatesByFilter(req.uid!, b.filter ?? {}));
+    else throw new Error('削除対象(ids / filter / all)を指定してください');
+  } catch (e) { fail(res, e); }
+});
+candidatesRouter.post('/:id/reschedule', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    await ctxOf(req, true);
+    res.json({ candidate: await rescheduleCandidate(req.uid!, String(req.params.id), String((req.body as { scheduledAt?: string }).scheduledAt ?? '')) });
+  } catch (e) { fail(res, e); }
+});
+candidatesRouter.post('/:id/unschedule', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    await ctxOf(req, true);
+    res.json({ candidate: await unscheduleCandidate(req.uid!, String(req.params.id)) });
+  } catch (e) { fail(res, e); }
+});
 candidatesRouter.post('/:id/schedule', requireAuth, async (req: AuthedRequest, res) => {
   try {
     const b = req.body as { scheduledAt?: string; platform?: string; mode?: 'draft' | 'schedule' };

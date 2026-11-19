@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Download, ImageOff, ImagePlus, Plus, Search, Upload, X } from 'lucide-react';
+import { Download, ImageOff, ImagePlus, Plus, Search, Trash2, Upload, X } from 'lucide-react';
 import { authFetch } from '../lib/api';
 import { useAuth } from '../store/authContext';
 import { usePersona } from '../store/personaContext';
@@ -274,13 +274,13 @@ interface Meta {
   prefs: { useAi: boolean };
   ai: { mode: 'platform' | 'own'; provider: string; hasKey: boolean; usage: { used: number; limit: number } | null };
 }
-interface DetailProps { id: string; meta: Meta | null; reload: () => void; onToggleAi: () => void }
+interface DetailProps { id: string; meta: Meta | null; reload: () => void; onToggleAi: () => void; onDeleted: () => void }
 
 const EDITOR_PREVIEW_SPLIT_KEY = 'buzzit.candidates.editorPreviewPct';
 const LIST_SPLIT_KEY = 'buzzit.candidates.listPct';
 
 /** 中央(編集)と右(スマホプレビュー)。幅はドラッグで変更可能 */
-function Workspace({ id, meta, reload, onToggleAi }: DetailProps) {
+function Workspace({ id, meta, reload, onToggleAi, onDeleted }: DetailProps) {
   const editorPreviewSplit = useSplitPane(EDITOR_PREVIEW_SPLIT_KEY, 50);
   const { user } = useAuth();
   const uid = user?.uid;
@@ -336,6 +336,38 @@ function Workspace({ id, meta, reload, onToggleAi }: DetailProps) {
       reload();
       await after?.();
     } catch (e) { setMsg(e instanceof Error ? e.message : '失敗しました'); } finally { setBusy(false); }
+  };
+  const removeThis = async () => {
+    if (!c) return;
+    const linked = c.status === 'scheduled' || c.status === 'drafted';
+    if (!window.confirm(`「${c.title || c.managementId}」を削除します。${linked ? '予約・下書きも取り消されます。' : ''}元に戻せません。よろしいですか？`)) return;
+    setBusy(true);
+    try {
+      await call(`/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      reload();
+      onDeleted();
+    } catch (e) { setMsg(e instanceof Error ? e.message : '削除できませんでした'); setBusy(false); }
+  };
+  const reschedule = async () => {
+    setBusy(true);
+    setMsg('');
+    try {
+      await call(`/${encodeURIComponent(id)}/reschedule`, { method: 'POST', body: { scheduledAt: new Date(when).toISOString() } });
+      setMsg('投稿日時を変更しました。');
+      await load();
+      reload();
+    } catch (e) { setMsg(e instanceof Error ? e.message : '変更できませんでした'); } finally { setBusy(false); }
+  };
+  const unschedule = async () => {
+    if (!window.confirm('予約・下書きを取り消して、候補に戻します。よろしいですか？')) return;
+    setBusy(true);
+    setMsg('');
+    try {
+      await call(`/${encodeURIComponent(id)}/unschedule`, { method: 'POST' });
+      setMsg('予約を取り消しました。');
+      await load();
+      reload();
+    } catch (e) { setMsg(e instanceof Error ? e.message : '取り消せませんでした'); } finally { setBusy(false); }
   };
   /** 画像の保存。入力中の本文は消さない */
   const saveMedia = async (urls: string[]) => {
@@ -487,10 +519,23 @@ function Workspace({ id, meta, reload, onToggleAi }: DetailProps) {
           </div>
         )}
         {c.status !== 'candidate' && (
-          <p className="rounded-lg bg-neutral-50 p-2 text-xs text-neutral-600">
-            {STATUS[c.status]?.label}{c.scheduledAt ? `(${new Date(c.scheduledAt).toLocaleString('ja-JP')})` : ''}。確認・変更は <Link to="/calendar" className="underline">週表示・編集</Link> で行えます。
-          </p>
+          <div className="space-y-1.5 rounded-lg bg-neutral-50 p-2 text-xs text-neutral-600">
+            <p>
+              {STATUS[c.status]?.label}{c.scheduledAt ? `(${new Date(c.scheduledAt).toLocaleString('ja-JP')})` : ''}。本文を直して保存すると予約にも反映されます。詳しくは <Link to="/calendar" className="underline">週表示・編集</Link>。
+            </p>
+            {c.status !== 'published' && c.linkedJobId && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="font-semibold">日時を変更</span>
+                <input type="datetime-local" className="rounded border p-0.5 text-xs" value={when} onChange={(e) => setWhen(e.target.value)} />
+                <button disabled={busy || !when} onClick={reschedule} className="rounded-lg bg-neutral-900 px-3 py-1 text-xs text-white disabled:opacity-40">変更する</button>
+                <button disabled={busy} onClick={unschedule} className="rounded-lg border px-3 py-1 text-xs font-semibold">予約を取り消す</button>
+              </div>
+            )}
+          </div>
         )}
+        <div className="flex justify-end">
+          <button disabled={busy} onClick={removeThis} className="inline-flex items-center gap-1 rounded-lg border border-rose-200 px-3 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-40"><Trash2 className="h-3.5 w-3.5" />この候補を削除</button>
+        </div>
         {msg && <p className="text-xs text-neutral-700">{msg}</p>}
 
         {hasMore && (
@@ -576,6 +621,8 @@ export default function CandidatesPage() {
   const [err, setErr] = useState('');
 
   const [moreBusy, setMoreBusy] = useState(false);
+  const [checked, setChecked] = useState<Set<string>>(new Set());
+  const toggleCheck = (cid: string) => setChecked((prev) => { const n = new Set(prev); if (n.has(cid)) n.delete(cid); else n.add(cid); return n; });
   const buildParams = useCallback(() => {
     const p = new URLSearchParams();
     p.set('limit', '100');
@@ -670,6 +717,31 @@ export default function CandidatesPage() {
   };
   useEffect(() => { const t = setTimeout(() => void reload(), 400); return () => clearTimeout(t); }, [reload]);
 
+  const afterDelete = (r: { deleted: number; jobsCancelled: number }) => {
+    setSyncMsg(`${r.deleted}件を削除しました${r.jobsCancelled ? `(予約・下書き ${r.jobsCancelled}件も取り消し)` : ''}。`);
+    setChecked(new Set());
+    setOpenId(null);
+    void reload();
+  };
+  const deleteChecked = async () => {
+    if (!checked.size || !window.confirm(`選んだ ${checked.size}件 を削除します。予約・下書きも取り消されます。元に戻せません。よろしいですか？`)) return;
+    try { afterDelete(await call('/bulk-delete', { method: 'POST', body: { ids: [...checked] } })); }
+    catch (e) { setErr(e instanceof Error ? e.message : '削除できませんでした'); }
+  };
+  const deleteFiltered = async () => {
+    const filtered = !!(sel || stSel || platformSel || series);
+    const n = data?.total ?? 0;
+    const label = filtered ? `いま絞り込んでいる ${n}件` : `すべての候補 ${n}件`;
+    if (!n || !window.confirm(`${label}を削除します。予約・下書きも取り消されます。元に戻せません。よろしいですか？`)) return;
+    if (!filtered && !window.confirm('本当に全部削除しますか？（最終確認）')) return;
+    const filter: Record<string, string> = {};
+    if (sel) filter.selection = sel;
+    if (stSel) filter.status = stSel;
+    if (platformSel) filter.platform = platformSel;
+    if (series) filter.series = series;
+    try { afterDelete(await call('/bulk-delete', { method: 'POST', body: { filter } })); }
+    catch (e) { setErr(e instanceof Error ? e.message : '削除できませんでした'); }
+  };
   const exportCsv = async () => {
     const res = await authFetch('/v1/candidates/export-csv');
     const blob = await res.blob();
@@ -745,6 +817,10 @@ export default function CandidatesPage() {
           <input className="h-7 w-36 rounded-md border pl-6 pr-1.5 text-xs" placeholder="ID・本文で検索" value={q} onChange={(e) => setQ(e.target.value)} />
         </label>
         <div className="ml-auto flex items-center gap-1">
+          {checked.size > 0 && (
+            <button type="button" onClick={deleteChecked} className="flex h-7 items-center gap-1 rounded-md bg-rose-600 px-2 text-xs font-semibold text-white"><Trash2 className="h-4 w-4" />選択を削除({checked.size})</button>
+          )}
+          <button type="button" title="いま表示している絞り込み(なければ全部)をまとめて削除" onClick={deleteFiltered} className="flex h-7 items-center gap-1 rounded-md border border-rose-200 bg-white px-2 text-xs font-semibold text-rose-700"><Trash2 className="h-4 w-4" />{platformSel || sel || stSel || series ? '絞込を全削除' : '全部削除'}</button>
           <button type="button" title="ネタを追加" onClick={() => setShowQuick(!showQuick)} className={`flex h-7 items-center gap-1 rounded-md border px-2 text-xs font-semibold ${showQuick ? 'bg-neutral-900 text-white' : 'bg-white'}`}><Plus className="h-4 w-4" />追加</button>
           <button type="button" title="スプレッドシート/CSVから取り込む" onClick={() => setShowImport(!showImport)} className={`flex h-7 w-7 items-center justify-center rounded-md border ${showImport ? 'bg-neutral-900 text-white' : 'bg-white'}`}><Upload className="h-4 w-4" /></button>
           <button type="button" title="CSVで書き出す(バックアップ)" onClick={exportCsv} className="flex h-7 w-7 items-center justify-center rounded-md border bg-white"><Download className="h-4 w-4" /></button>
@@ -792,7 +868,9 @@ export default function CandidatesPage() {
       >
         <div className="max-h-[50vh] min-h-0 space-y-0.5 overflow-y-auto rounded-xl border bg-white p-1.5 lg:max-h-none">
           {data?.candidates.map((c) => (
-            <button key={c.id} onClick={() => setOpenId(c.id)} className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-neutral-50 ${openId === c.id ? 'bg-neutral-100' : ''}`}>
+            <div key={c.id} className={`flex items-center gap-1 rounded-lg hover:bg-neutral-50 ${openId === c.id ? 'bg-neutral-100' : ''}`}>
+            <input type="checkbox" aria-label="選択" className="ml-1.5 h-3.5 w-3.5 shrink-0 cursor-pointer" checked={checked.has(c.id)} onChange={() => toggleCheck(c.id)} />
+            <button onClick={() => setOpenId(c.id)} className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1 py-1.5 text-left">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-neutral-50">
                 {c.mediaUrls[0] && !isVideoUrl(c.mediaUrls[0]) ? <img src={c.mediaUrls[0]} alt="" className="h-full w-full object-cover" /> : <ImageOff className={`h-4 w-4 ${c.mediaUrls[0] ? 'text-neutral-400' : 'text-rose-400'}`} />}
               </span>
@@ -808,6 +886,7 @@ export default function CandidatesPage() {
                 <span className="block truncate text-[13px] font-semibold">{c.title || c.body.slice(0, 40)}</span>
               </span>
             </button>
+            </div>
           ))}
           {data?.nextCursor && (
             <button type="button" onClick={loadMore} disabled={moreBusy} className="w-full rounded-lg border py-1.5 text-xs font-semibold text-neutral-600 hover:bg-neutral-50 disabled:opacity-50">
@@ -818,7 +897,7 @@ export default function CandidatesPage() {
         </div>
         <SplitHandle pct={listSplit.pct} handleProps={listSplit.handleProps} />
         {openId && data ? (
-          <Workspace key={openId} id={openId} meta={meta} reload={reload} onToggleAi={togglePref} />
+          <Workspace key={openId} id={openId} meta={meta} reload={reload} onToggleAi={togglePref} onDeleted={() => setOpenId(null)} />
         ) : (
           <EmptyWorkspacePane />
         )}
