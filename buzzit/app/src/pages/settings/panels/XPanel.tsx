@@ -31,12 +31,16 @@ function BufferSection() {
   };
 
   return (
-    <div className="space-y-2 border border-neutral-200 bg-neutral-50 p-4">
-      <h4 className="text-sm font-bold">Buffer 経由で X に投稿(無料・X API 料金なし)</h4>
+    <div className="space-y-2 border border-violet-200 bg-violet-50/40 p-4">
+      <h4 className="text-sm font-bold">
+        Buffer 経由で X に投稿
+        <span className="ml-2 rounded-full bg-violet-600 px-2 py-0.5 text-[10px] font-semibold text-white">推奨・無料</span>
+      </h4>
       <p className="text-xs text-neutral-600">
-        <a className="underline" href="https://buffer.com" target="_blank" rel="noreferrer">Buffer</a> の無料プランに X を接続し、
-        Buffer の設定で発行した API キー(個人用)を入力します。予約時刻になると BuzzIt が Buffer に渡し、約2分後に X へ投稿されます。
-        無料プランは 1 チャンネルあたり月 1,000 件まで。連携すると、このキャラの X 投稿は Buffer が優先されます。
+        <a className="underline" href="https://buffer.com" target="_blank" rel="noreferrer">Buffer</a> は<strong>個人メールで登録して構いません</strong>。
+        その中に<strong>会社の X アカウントをチャンネルとして接続</strong>し、発行した API キー(個人用)を入力します。
+        予約時刻になると BuzzIt が Buffer に渡し、約2分後に X へ投稿されます(X API の従量課金はかかりません)。
+        無料プランは 3 チャンネルまで。API はおおむね 30 日で 3,000 リクエスト(アカウント共有)。連携キャラは Buffer が優先されます。
       </p>
       {connected ? (
         <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -80,8 +84,8 @@ export default function XPanel() {
           X（旧Twitter）API 連携
         </h3>
         <p className="text-sm text-neutral-600">
-          ご自身の X Developer アプリのキー（Read and Write）を登録すると、予約時刻に公式 API で自動投稿できます。
-          鍵はサーバーのみに保存し、画面には再表示しません。自アカウントへの投稿用途向けです。
+          X の自動投稿は、下の <strong>Buffer 連携(推奨)</strong> か、X Developer のキー(従量課金)のどちらかです。
+          鍵はサーバーのみに保存し、画面には再表示しません。
         </p>
         <div className="flex flex-wrap items-center justify-between gap-2 border border-neutral-200 bg-neutral-50 p-4">
           <div>

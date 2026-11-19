@@ -7,6 +7,7 @@ import { usePersona } from '../store/personaContext';
 import { readPersist, writePersist } from '../lib/persistCache';
 import SnsRulesBox, { RULE_ID_OF } from './SnsRulesBox';
 import CandidatePreview, { PLATFORM_META, isVideoUrl } from './CandidatePreview';
+import { mediaRequiredForPlatform, mediaRequirementHint } from '../lib/platformMedia';
 
 type Selection = 'unreviewed' | 'adopted' | 'needs_fix' | 'hold' | 'rejected';
 interface Candidate {
@@ -196,8 +197,22 @@ function DupList({ dup }: { dup: Dup }) {
   );
 }
 
-/** 画像の貼り付け・ドロップ・選択。投稿には画像が必須 */
-function MediaBox({ urls, busy, onChange, hint }: { urls: string[]; busy: boolean; onChange: (u: string[]) => Promise<void>; hint?: string }) {
+/** 画像の貼り付け・ドロップ・選択。媒体によっては画像/動画必須 */
+function MediaBox({
+  urls,
+  busy,
+  onChange,
+  hint,
+  mediaRequired,
+  requirementHint,
+}: {
+  urls: string[];
+  busy: boolean;
+  onChange: (u: string[]) => Promise<void>;
+  hint?: string;
+  mediaRequired: boolean;
+  requirementHint: string;
+}) {
   const [up, setUp] = useState(false);
   const [err, setErr] = useState('');
   const [over, setOver] = useState(false);
@@ -220,7 +235,7 @@ function MediaBox({ urls, busy, onChange, hint }: { urls: string[]; busy: boolea
       onDragOver={(e) => { e.preventDefault(); setOver(true); }}
       onDragLeave={() => setOver(false)}
       onDrop={(e) => { e.preventDefault(); setOver(false); void add(Array.from(e.dataTransfer.files)); }}
-      className={`rounded-lg border border-dashed p-2 ${over ? 'border-violet-500 bg-violet-50' : urls.length ? 'border-neutral-300' : 'border-rose-300 bg-rose-50/50'}`}
+      className={`rounded-lg border border-dashed p-2 ${over ? 'border-violet-500 bg-violet-50' : urls.length ? 'border-neutral-300' : mediaRequired ? 'border-rose-300 bg-rose-50/50' : 'border-neutral-300'}`}
     >
       <div className="flex flex-wrap items-center gap-2">
         {urls.map((u, i) => (
@@ -238,7 +253,13 @@ function MediaBox({ urls, busy, onChange, hint }: { urls: string[]; busy: boolea
         )}
         <input ref={inputRef} type="file" accept="image/*,video/*" multiple className="hidden" onChange={(e) => { void add(Array.from(e.target.files ?? [])); e.target.value = ''; }} />
         <div className="min-w-0 flex-1 text-[11px] text-neutral-500">
-          {urls.length === 0 ? <span className="font-semibold text-rose-600">画像が必須です。</span> : null}
+          {urls.length === 0 ? (
+            mediaRequired ? (
+              <span className="font-semibold text-rose-600">画像が必須です。</span>
+            ) : (
+              <span className="text-neutral-600">{requirementHint}</span>
+            )
+          ) : null}
           ここに画像をドラッグ、またはこの画面で Ctrl+V で貼り付け
           {hint && <div className="mt-0.5 truncate text-neutral-400" title={hint}>画像案: {hint}</div>}
         </div>
@@ -361,7 +382,9 @@ function Workspace({ id, meta, reload, onToggleAi }: DetailProps) {
     );
   }
   const dirty = body !== c.body || note !== c.editNotes;
-  const noImage = c.mediaUrls.length === 0;
+  const schedulePlatform = platform || c.platform || 'x_thread';
+  const mediaRequired = mediaRequiredForPlatform(schedulePlatform);
+  const missingMedia = mediaRequired && c.mediaUrls.length === 0;
   const extras = Object.entries(c.extra);
   const hasMore = !!(c.checkNotes || c.theme || c.conclusion || c.punchline || extras.length);
 
@@ -395,7 +418,14 @@ function Workspace({ id, meta, reload, onToggleAi }: DetailProps) {
           </div>
         </div>
 
-        <MediaBox urls={c.mediaUrls} busy={busy} onChange={saveMedia} hint={c.imageIdea} />
+        <MediaBox
+          urls={c.mediaUrls}
+          busy={busy}
+          onChange={saveMedia}
+          hint={c.imageIdea}
+          mediaRequired={mediaRequiredForPlatform(c.platform || platform || 'x_thread')}
+          requirementHint={mediaRequirementHint(c.platform || platform || 'x_thread')}
+        />
 
         {c.aiSuggestion && (
           <div className="rounded-lg border border-violet-200 bg-violet-50 p-2 text-xs">
@@ -420,7 +450,14 @@ function Workspace({ id, meta, reload, onToggleAi }: DetailProps) {
                 {PLATFORMS.map(([k, n]) => <option key={k} value={k}>{n}</option>)}
               </select>
               <label className="text-[11px]"><input type="checkbox" checked={!asSchedule} onChange={(e) => setAsSchedule(!e.target.checked)} /> 下書きにする</label>
-              <button disabled={busy || !when || noImage} title={noImage ? '画像を追加してください' : undefined} onClick={toJob} className="rounded-lg bg-neutral-900 px-3 py-1 text-xs text-white disabled:opacity-40">{asSchedule ? '予約する' : '下書きにする'}</button>
+              <button
+                disabled={busy || !when || missingMedia}
+                title={missingMedia ? 'この媒体では画像または動画が必要です' : undefined}
+                onClick={toJob}
+                className="rounded-lg bg-neutral-900 px-3 py-1 text-xs text-white disabled:opacity-40"
+              >
+                {asSchedule ? '予約する' : '下書きにする'}
+              </button>
             </div>
             {asSchedule && notAutoWarn && (
               <p className="flex flex-wrap items-center gap-1 rounded border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] text-amber-900">
@@ -428,7 +465,11 @@ function Workspace({ id, meta, reload, onToggleAi }: DetailProps) {
                 {platform === 'x_thread' || platform === 'line' ? <Link to="/settings" className="font-semibold underline">連携する</Link> : null}
               </p>
             )}
-            <p className="text-[11px] text-neutral-500">{noImage ? '画像が必須です。先に画像を追加してください。' : '予約すると「採用」になり、時間になったら自動投稿(未連携の媒体は通知)。ダッシュボード・カレンダーに出ます。'}</p>
+            <p className="text-[11px] text-neutral-500">
+              {missingMedia
+                ? mediaRequirementHint(schedulePlatform)
+                : '予約すると「採用」になり、時間になったら自動投稿(未連携の媒体は通知)。ダッシュボード・カレンダーに出ます。'}
+            </p>
           </div>
         )}
         {c.status !== 'candidate' && (

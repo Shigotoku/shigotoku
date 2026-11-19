@@ -70,7 +70,7 @@ const PLATFORM = z
 const INSTRUCTIONS = `バジット(Buzzit)は SNS 投稿の管理アプリです。あなたは「編集長」として下書きを作り、人が確認・承認・予約します（あなたは投稿できません）。
 まず whoami で「接続中のキャラ（ID・名前）」と接続済みSNSアカウントを確認する。この接続はそのキャラ専用で、別キャラ・別アカウントは操作できない（曖昧なら中止して人に確認する）。投稿シリーズは list_series、登録は upsert_plan（既定はプレビューのみ。保存は人が内容と対象キャラを確認してから dryRun=false + characterId）。実績は未取得を0として扱わず、無いデータの成果や理由を創作しない（get_series_report / get_weekly_report の facts と hypotheses を区別して報告）。X APIの読み取りは費用がかかるため使わず、実績は人が手入力またはCSV取り込みする。
 推奨手順: 0) 投稿計画があれば plan_gaps で埋めるべき枠（日時・媒体・テーマ）を取得し、その枠に沿って作る 1) overview か tag_report / performance_report で現状と過去の実績（伸びた型）を確認 2) 使用回数の多いタグ・直近の内容と被らない切り口を選ぶ 3) check_duplicate で重複確認 / lint_post で表現チェック 4) 画像/動画があれば upload_media か get_upload_url で送る 5) tags を付けて create_draft 6) 他SNSに展開するなら adapt_post(dryRun で確認→作成)。
-投稿候補は BuzzIt が正本。candidates_unused でネタを探し、candidates_check_duplicate（完全一致・表現・テーマ・結論・オチ・投稿済み）で確認してから create_draft。ネタや下書きを作る前に、sns_rules_get で対象SNSのルール（曜日ごとのネタ・載せない内容など）を読んで従う。ユーザーに頼まれたら sns_rules_set で追記する。ネタを作ったら candidates_add で候補に保存する。どのSNS用か(platform)は必須（省略不可）で、画像は必須のため mediaUrls に upload_media で得たURLを付ける（表の一括取り込み candidates_import も各行に「媒体」列が必須）。修正案は candidates_update の aiSuggestion。ユーザーが「この日時に投稿して」と明確に頼んだときは candidates_schedule で予約できる（時間になったら自動投稿／未連携媒体は通知）。頼まれていない予約・投稿は絶対にしない。
+投稿候補は BuzzIt が正本。candidates_unused でネタを探し、candidates_check_duplicate（完全一致・表現・テーマ・結論・オチ・投稿済み）で確認してから create_draft。ネタや下書きを作る前に、sns_rules_get で対象SNSのルール（曜日ごとのネタ・載せない内容など）を読んで従う。ユーザーに頼まれたら sns_rules_set で追記する。ネタを作ったら candidates_add で候補に保存する。どのSNS用か(platform)は必須（省略不可）。X は画像なし可。Instagram・GBP は画像必須、YouTube Shorts・TikTok は動画必須（mediaUrls は upload_media で得たURL。表の一括取り込み candidates_import も各行に「媒体」列が必須）。修正案は candidates_update の aiSuggestion。ユーザーが「この日時に投稿して」と明確に頼んだときは candidates_schedule で予約できる（時間になったら自動投稿／未連携媒体は通知）。頼まれていない予約・投稿は絶対にしない。
 X自動投稿のシリーズ（カテゴリ別の在庫）は x_series_list → x_series_create → x_series_add_items で自由に作れる（投稿OKは人が画面で付ける）。
 X は本文280字（スレッドは「---」だけの行で区切る・最大5投稿）。Instagram は画像必須、YouTube Shorts / TikTok は動画必須、Googleビジネスはハッシュタグ不要。`;
 
@@ -518,7 +518,7 @@ function buildServer(ctx: AgentCtx): McpServer {
           title: z.string().max(200).optional(),
           body: z.string().min(1).max(5000),
           platform: PLATFORM.describe('必須。このネタを投稿するSNS'),
-          mediaUrls: z.array(z.string().url()).max(6).optional().describe('投稿に付ける画像のURL（https）。upload_media で得たURL。投稿には画像が必須'),
+          mediaUrls: z.array(z.string().url()).max(6).optional().describe('投稿に付ける画像/動画URL（https）。upload_media で得たURL。Xは任意、Instagram・GBPは画像必須、Shorts/TikTokは動画必須'),
           series: z.string().max(100).optional(),
           imageIdea: z.string().max(2000).optional(),
           theme: z.string().max(200).optional(),

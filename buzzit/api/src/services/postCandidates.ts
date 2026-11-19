@@ -15,7 +15,7 @@ import { createScheduledJob, getScheduledJobs, getUserSettings } from './firesto
 import { getEffectiveSettings } from './personaSettings';
 import { assertConnectedForPublishMode } from './schedulePublishSafety';
 import { notifyApprovalNeeded } from './approvalNotify';
-import { TARGET_PLATFORMS } from './crosspostRules';
+import { TARGET_PLATFORMS, mediaRequirementMessage } from './crosspostRules';
 import type { PublishMode } from '../types/schedule';
 import { jobText, opCreateDraft, platformOf, type AgentCtx } from './agentApi';
 import { parseCsv } from './agentExtras';
@@ -878,8 +878,9 @@ export async function candidateToJob(ctx: AgentCtx, id: string, input: { schedul
   if (c.selection === 'rejected') throw new Error('「不採用」の候補は予定にできません。先に未選定などへ戻してください');
   if (c.linkedJobId && c.status !== 'candidate') throw new Error(`すでにカレンダーに入っています（${STATUS_LABEL[c.status]}）。二重に作らないよう止めました。カレンダーで確認してください`);
   if (!c.body.trim()) throw new Error('投稿本文が空です');
-  if (!c.mediaUrls.length) throw new Error('画像が未設定です。投稿には画像が必須のため、候補の画面で画像を貼り付けてから予約してください');
   const platform = input.platform || c.platform || 'x_thread';
+  const mediaErr = mediaRequirementMessage(platform, c.mediaUrls);
+  if (mediaErr) throw new Error(mediaErr);
   if (!(TARGET_PLATFORMS as string[]).includes(platform)) throw new Error(`媒体は ${TARGET_PLATFORMS.join(' / ')} のいずれかです`);
   const when = new Date(input.scheduledAt ?? '');
   if (Number.isNaN(when.getTime()) || when.getTime() <= Date.now()) throw new Error('投稿日時は未来の日時を指定してください');

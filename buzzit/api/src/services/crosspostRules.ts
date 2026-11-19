@@ -47,6 +47,15 @@ const MEDIA_RULE: Record<TargetPlatform, 'none' | 'image' | 'video'> = {
   tiktok: 'video',
 };
 
+/** 予約・投稿前のメディア要件（X などは画像なし可） */
+export function mediaRequirementMessage(platform: string, mediaUrls: string[]): string | null {
+  const rule = MEDIA_RULE[platform as TargetPlatform];
+  if (!rule || rule === 'none' || mediaUrls.length > 0) return null;
+  if (rule === 'image') return 'この媒体では画像が必要です。候補の画面で画像を追加してから予約してください。';
+  if (rule === 'video') return 'この媒体では動画が必要です。動画を追加してから予約してください。';
+  return null;
+}
+
 const HASHTAG_RE = /[#＃][^\s#＃]+/g;
 const MENTION_RE = /(^|\s)@[A-Za-z0-9_]+/g;
 

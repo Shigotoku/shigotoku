@@ -42,7 +42,11 @@ export default function GuidePage() {
           <Link to="/settings?tab=personas" className="buzz-btn-secondary !px-3 !py-2 text-sm">配信キャラを設定</Link>
           <Link to="/onboarding?edit=1" className="buzz-btn-secondary !px-3 !py-2 text-sm">業種・目的の見直し</Link>
           <Link to="/settings?tab=sns" className="buzz-btn-secondary !px-3 !py-2 text-sm">SNS連携</Link>
+          <Link to="/settings#settings-x" className="buzz-btn-secondary !px-3 !py-2 text-sm">X（Buffer 推奨）</Link>
         </div>
+        <p className="mt-2 text-xs text-neutral-500">
+          X の自動投稿は X API の従量課金に代え、Buffer 無料プラン経由が推奨です。会社の X を個人の Buffer に接続して運用できます。
+        </p>
       </section>
 
       <SetupDiagnosisCard signals={signals} />
