@@ -1,0 +1,58 @@
+name: CI
+
+# 本番デプロイは行わない（deploy.yml とは独立）。
+# main への push は deploy.yml が担当するため、ここでは PR・他ブランチ・手動実行のみ。
+on:
+  pull_request:
+  push:
+    branches-ignore:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  billing-tests:
+    name: 課金計算テスト
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm run test:billing
+
+  build:
+    name: build / test (${{ matrix.project }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { project: buzzit/api, test: false }
+          - { project: buzzit/app, test: false }
+          - { project: clipit/api, test: false }
+          - { project: clipit/app, test: false }
+          - { project: runwith/app, test: false }
+          - { project: shapeit/app, test: true }
+          - { project: PreDeck/app, test: true }
+          - { project: corporate-site, test: false }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: ${{ matrix.project }}/package-lock.json
+      - name: Install
+        working-directory: ${{ matrix.project }}
+        run: npm ci
+      - name: Build (型チェック含む)
+        working-directory: ${{ matrix.project }}
+        run: npm run build
+      - name: Unit test
+        if: ${{ matrix.test }}
+        working-directory: ${{ matrix.project }}
+        run: npm test

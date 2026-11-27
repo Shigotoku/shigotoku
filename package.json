@@ -1,0 +1,8 @@
+{
+  "name": "shigotoku-monorepo-tools",
+  "private": true,
+  "description": "モノレポ横断のテスト実行用（各アプリは独立。依存なし）。",
+  "scripts": {
+    "test:billing": "node --test --experimental-strip-types \"tests/**/*.test.mjs\""
+  }
+}
