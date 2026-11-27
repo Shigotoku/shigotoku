@@ -16,3 +16,6 @@ export function assetPath(path: string) {
 }
 
 export const wrapitFaviconPath = `${import.meta.env.BASE_URL}favicon.svg`;
+
+export const FORMSPREE_FORM_ID = import.meta.env.PUBLIC_WRAPIT_FORMSPREE_FORM_ID ?? '';
+export const WAITLIST_MAIL = 'support@shigotoku.com';
