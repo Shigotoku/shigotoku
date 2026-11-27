@@ -16,6 +16,8 @@ Allow: /clipit/
 Allow: /shapeit/
 Allow: /deckit/
 Allow: /raiseit/
+# WrapIt は商標確認・公開判断まで非公開扱い
+Disallow: /wrapit/
 
 Sitemap: https://shigotoku.com/sitemap.xml
 `,

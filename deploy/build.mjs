@@ -16,6 +16,7 @@ const projects = [
   { name: 'clipit-landing', cwd: join(root, 'clipit/landing-page'), out: join(out, 'web/clipit') },
   { name: 'shapeit-landing', cwd: join(root, 'shapeit/landing-page'), out: join(out, 'web/shapeit') },
   { name: 'deckit-landing', cwd: join(root, 'deckit/landing-page'), out: join(out, 'web/deckit') },
+  { name: 'wrapit-landing', cwd: join(root, 'wrapit/landing-page'), out: join(out, 'web/wrapit') },
   { name: 'predeck-landing', cwd: join(root, 'PreDeck/landing-page'), out: join(out, 'web/predeck') },
   { name: 'raiseit-landing', cwd: join(root, 'raiseit/landing-page'), out: join(out, 'web/raiseit') },
   { name: 'runwith-app', cwd: join(root, 'runwith/app'), out: join(out, 'runwith-app') },

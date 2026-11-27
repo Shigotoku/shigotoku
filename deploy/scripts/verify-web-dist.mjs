@@ -16,6 +16,7 @@ const required = [
   'clipit/index.html',
   'shapeit/index.html',
   'predeck/index.html',
+  'wrapit/index.html',
   'raiseit/index.html',
   'sitemap.xml',
   'robots.txt',

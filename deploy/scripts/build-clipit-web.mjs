@@ -3,7 +3,7 @@
  * 用法: node scripts/build-clipit-web.mjs
  *
  * Firebase Hosting はアップロード対象以外のファイルを削除するため、
- * runwith / buzzit / clipit / shapeit / deckit の LP を常に含めること。
+ * runwith / buzzit / clipit / shapeit / deckit / wrapit の LP を常に含めること。
  */
 import { execSync } from 'node:child_process';
 import { cpSync, mkdirSync, existsSync, rmSync, statSync } from 'node:fs';
@@ -53,6 +53,12 @@ const landingPages = [
     cwd: join(root, 'deckit', 'landing-page'),
     out: join(webOut, 'deckit'),
     env: projectEnv['deckit-landing'],
+  },
+  {
+    name: 'wrapit-landing',
+    cwd: join(root, 'wrapit', 'landing-page'),
+    out: join(webOut, 'wrapit'),
+    env: projectEnv['wrapit-landing'],
   },
   {
     name: 'predeck-landing',

@@ -23,7 +23,6 @@ npm run dev
 cd ../e2e && npm install && npx playwright install chromium && npm test
 ```
 
-## Firebase
+## Firebase / デプロイ
 
-`shigotoku-wrapit-prod` は**未作成**。作成後、`docs/FIREBASE-DECKIT-SETUP.md` を参考に
-`docs/FIREBASE-WRAPIT-SETUP.md` を追加する。本番デプロイ設定（`deploy/`）も未追加。
+本番は `shigotoku-wrapit-prod`。手順と手動作業は `docs/FIREBASE-WRAPIT-SETUP.md` を参照。

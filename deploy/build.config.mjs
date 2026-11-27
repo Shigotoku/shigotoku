@@ -9,6 +9,7 @@ export const BUZZIT_APP_URL = 'https://app.buzzit.shigotoku.com';
 export const CLIPIT_APP_URL = 'https://app.clipit.shigotoku.com';
 export const SHAPEIT_APP_URL = 'https://app.shapeit.shigotoku.com';
 export const DECKIT_APP_URL = 'https://app.deckit.shigotoku.com';
+export const WRAPIT_APP_URL = 'https://app.wrapit.shigotoku.com';
 export const RAISEIT_APP_URL = 'https://app.raiseit.shigotoku.com';
 export const PREDECK_APP_URL = 'https://app.predeck.shigotoku.com';
 export const CORPORATE_URL = 'https://shigotoku.com';
@@ -17,6 +18,7 @@ export const BUZZIT_LP_URL = 'https://shigotoku.com/buzzit';
 export const CLIPIT_LP_URL = 'https://shigotoku.com/clipit';
 export const SHAPEIT_LP_URL = 'https://shigotoku.com/shapeit';
 export const DECKIT_LP_URL = 'https://shigotoku.com/deckit';
+export const WRAPIT_LP_URL = 'https://shigotoku.com/wrapit';
 
 /** GA4 測定 ID（未設定時は計測タグを出力しない） */
 export const GA_MEASUREMENT_ID = process.env.PUBLIC_GA_MEASUREMENT_ID ?? '';
@@ -70,6 +72,17 @@ export const DECKIT_FIREBASE = {
     process.env.DECKIT_FIREBASE_STORAGE_BUCKET ?? 'shigotoku-deckit-prod.firebasestorage.app',
   messagingSenderId: process.env.DECKIT_FIREBASE_MESSAGING_SENDER_ID ?? '174186643296',
   appId: process.env.DECKIT_FIREBASE_APP_ID ?? '1:174186643296:web:687b7796001cb98c78a805',
+};
+
+/** WrapIt 専用（shigotoku-wrapit-prod）。公開 Web キー（秘密ではない） */
+export const WRAPIT_FIREBASE = {
+  apiKey: process.env.WRAPIT_FIREBASE_API_KEY ?? 'AIzaSyChE7qAlrPsT5zG9lQNxqFiFXtc3y5CbIM',
+  authDomain: process.env.WRAPIT_FIREBASE_AUTH_DOMAIN ?? 'shigotoku-wrapit-prod.firebaseapp.com',
+  projectId: process.env.WRAPIT_FIREBASE_PROJECT_ID ?? 'shigotoku-wrapit-prod',
+  storageBucket:
+    process.env.WRAPIT_FIREBASE_STORAGE_BUCKET ?? 'shigotoku-wrapit-prod.firebasestorage.app',
+  messagingSenderId: process.env.WRAPIT_FIREBASE_MESSAGING_SENDER_ID ?? '389583286040',
+  appId: process.env.WRAPIT_FIREBASE_APP_ID ?? '1:389583286040:web:31a4d8d8f2381ac1c3f86d',
 };
 
 /**
@@ -130,6 +143,11 @@ export const projectEnv = {
     PUBLIC_APP_URL: DECKIT_APP_URL,
     PUBLIC_GA_MEASUREMENT_ID: GA_MEASUREMENT_ID,
   },
+  'wrapit-landing': {
+    PUBLIC_APP_URL: WRAPIT_APP_URL,
+    PUBLIC_GA_MEASUREMENT_ID: GA_MEASUREMENT_ID,
+    PUBLIC_WRAPIT_FORMSPREE_FORM_ID: process.env.PUBLIC_WRAPIT_FORMSPREE_FORM_ID ?? '',
+  },
   'raiseit-landing': {
     PUBLIC_APP_URL: RAISEIT_APP_URL,
     PUBLIC_CORPORATE_URL: `${CORPORATE_URL}/`,
@@ -172,6 +190,16 @@ export const projectEnv = {
     VITE_FIREBASE_STORAGE_BUCKET: SHAPEIT_FIREBASE.storageBucket,
     VITE_FIREBASE_MESSAGING_SENDER_ID: SHAPEIT_FIREBASE.messagingSenderId,
     VITE_FIREBASE_APP_ID: SHAPEIT_FIREBASE.appId,
+  },
+  'wrapit-app': {
+    NEXT_PUBLIC_LANDING_URL: WRAPIT_LP_URL,
+    NEXT_PUBLIC_WRAPIT_DATA_MODE: 'firebase',
+    NEXT_PUBLIC_FIREBASE_API_KEY: WRAPIT_FIREBASE.apiKey,
+    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: WRAPIT_FIREBASE.authDomain,
+    NEXT_PUBLIC_FIREBASE_PROJECT_ID: WRAPIT_FIREBASE.projectId,
+    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: WRAPIT_FIREBASE.storageBucket,
+    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: WRAPIT_FIREBASE.messagingSenderId,
+    NEXT_PUBLIC_FIREBASE_APP_ID: WRAPIT_FIREBASE.appId,
   },
   'deckit-app': {
     NEXT_PUBLIC_LANDING_URL: DECKIT_LP_URL,
