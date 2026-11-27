@@ -13,6 +13,7 @@ import {
 } from "../lib/types";
 import type { Ctx } from "../components/ui";
 import OverviewTab from "../components/OverviewTab";
+import CompanionTab from "../components/CompanionTab";
 import TaxTab from "../components/TaxTab";
 import InterimTab from "../components/InterimTab";
 import MonthlyTab from "../components/MonthlyTab";
@@ -22,6 +23,7 @@ import HistoryTab from "../components/HistoryTab";
 const STORAGE_KEY = "settlement-v2";
 
 const TABS = [
+  { id: "companion", label: "伴走（今日やること）" },
   { id: "overview", label: "進め方" },
   { id: "tax", label: "税額計算" },
   { id: "interim", label: "中間申告" },
@@ -35,7 +37,7 @@ export default function SettlementPage() {
   const company = useCompanyStore((s) => s.company);
   const { markDone, markUndone } = useProgressStore();
   const [state, setState, ready] = useCompanyStorageState<SettlementState>(STORAGE_KEY, DEFAULT_STATE);
-  const [tab, setTab] = useState<TabId>("overview");
+  const [tab, setTab] = useState<TabId>("companion");
 
   const today = useMemo(() => {
     const t = new Date();
@@ -71,7 +73,12 @@ export default function SettlementPage() {
     setState((prev) => {
       const t = prev.terms[currentEnd];
       if (!t) return prev;
-      return { ...prev, terms: { ...prev.terms, [currentEnd]: { ...t, done: { ...t.done, [id]: !t.done[id] } } } };
+      const nowDone = !t.done[id];
+      const step = STEPS.find((s) => s.id === id);
+      const journal = step
+        ? [...(t.journal ?? []), { id: Math.random().toString(36).slice(2, 9), at: new Date().toISOString(), text: `${step.title}：${nowDone ? "完了" : "未完了に戻した"}`, tag: (nowDone ? "完了" : "進捗") as "完了" | "進捗", auto: true }]
+        : t.journal;
+      return { ...prev, terms: { ...prev.terms, [currentEnd]: { ...t, done: { ...t.done, [id]: nowDone }, journal } } };
     });
 
   const toggleMonthly = (month: string, id: string) =>
@@ -220,7 +227,7 @@ export default function SettlementPage() {
         {(urgency === "danger" || urgency === "over") && (
           <p className="mt-3 flex gap-2 text-xs text-red-700">
             <AlertCircle className="h-4 w-4 shrink-0" />
-            期限が迫っています。間に合わない場合は「申告期限の延長の特例」（法人税：届出で原則1か月延長、納付期限は延びません）を検討してください。
+            期限が迫っています。「申告期限の延長の特例」は事業年度終了後45日以内の申請が必要で、納付期限は延びません。「伴走」タブの計画に沿って進めましょう。
           </p>
         )}
       </div>
@@ -235,6 +242,7 @@ export default function SettlementPage() {
         ))}
       </div>
 
+      {tab === "companion" && <CompanionTab ctx={ctx} />}
       {tab === "overview" && <OverviewTab ctx={ctx} toggleDone={toggleDone} />}
       {tab === "tax" && <TaxTab ctx={ctx} />}
       {tab === "interim" && <InterimTab ctx={ctx} />}

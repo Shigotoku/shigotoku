@@ -1,6 +1,23 @@
 import { addDays, lastDayOfMonth, monthsInPeriod, parseIso, toIso } from "./dates";
 import { calcTax, DEFAULT_RATES, EMPTY_PREV, type InterimAmounts, type PrevTax, type TaxRates } from "./taxEngine";
 
+export interface JournalEntry {
+  id: string;
+  at: string; // ISO日時
+  text: string;
+  tag: "進捗" | "課題" | "判断" | "完了";
+  auto?: boolean;
+}
+
+export interface ReconRow {
+  id: string;
+  name: string;
+  bank: number;
+  freee: number;
+}
+
+export type FilingRoute = "software" | "free-etax" | "paper";
+
 export interface TermData {
   termNo: number;
   startDate: string;
@@ -21,6 +38,11 @@ export interface TermData {
   taxablePurchases?: number;
   /** 0=原則課税、1〜6=簡易課税の事業区分 */
   simpleType?: number;
+  /** 決算の伴走：経過ログ・残高照合・申告ルート・貸借チェック */
+  journal?: JournalEntry[];
+  recon?: ReconRow[];
+  route?: FilingRoute;
+  bs?: { assets: number; liabilities: number; equity: number };
   done: Record<string, boolean>;
   monthly: Record<string, Record<string, boolean>>;
   filedDate: string;

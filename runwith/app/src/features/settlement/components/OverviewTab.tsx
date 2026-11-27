@@ -141,7 +141,7 @@ export default function OverviewTab({ ctx, toggleDone }: { ctx: Ctx; toggleDone:
             </tbody>
           </table>
         </div>
-        <Advice kind="tip">申告期限は原則「決算日から2か月以内」。法人税は届出により1か月延長できますが、納付期限は延びません（地方税は別途届出が必要）。</Advice>
+        <Advice kind="tip">申告期限は原則「決算日から2か月以内」。法人税は事業年度終了後45日以内に申請すれば1か月延長できますが、納付期限は延びません（地方税は別途届出が必要）。</Advice>
       </Card>
     </div>
   );

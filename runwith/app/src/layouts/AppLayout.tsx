@@ -47,13 +47,19 @@ const navSections: NavSection[] = [
       { path: "/incorporation", label: "会社設立ナビ", icon: Building2 },
       { path: "/journey/post-registration", label: "登記後の手続き", icon: FileText },
       { path: "/notifications", label: "届出・手続きナビ", icon: ScrollText },
-      { path: "/documents", label: "書類自動作成", icon: FileText },
       { path: "/bank", label: "銀行口座開設", icon: Landmark },
       { path: "/credit", label: "法人カード", icon: CreditCard },
       { path: "/labor", label: "労務管理ガイド", icon: Shield, plan: "growth" },
       { path: "/contracts", label: "契約書テンプレート", icon: ScrollText, plan: "growth" },
-      { path: "/tax-calendar", label: "税務カレンダー", icon: CalendarClock, plan: "growth" },
+    ],
+  },
+  {
+    label: "会計・決算",
+    collapsible: true,
+    items: [
       { path: "/journey/settlement", label: "決算・申告ナビ", icon: Calculator },
+      { path: "/tax-calendar", label: "税務カレンダー", icon: CalendarClock, plan: "growth" },
+      { path: "/documents", label: "書類自動作成", icon: FileText },
     ],
   },
   {
@@ -222,6 +228,8 @@ export default function AppLayout() {
                         ? "text-primary-600"
                         : section.label === "設立・基盤"
                         ? "text-blue-500 hover:text-blue-700"
+                        : section.label === "会計・決算"
+                        ? "text-amber-500 hover:text-amber-700"
                         : section.label === "資金・成長"
                         ? "text-emerald-500 hover:text-emerald-700"
                         : section.label === "調達・Exit"
