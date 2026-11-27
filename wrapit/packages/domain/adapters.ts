@@ -1,6 +1,6 @@
 /**
  * 外部サービス固有処理のポート。
- * 保存先は Firebase Storage を標準とし、Google Drive などは後から実装を追加する（ADR / docs/wrapit/DESIGN.md §4.4）。
+ * 保存先は Google Drive（専用フォルダ or 指定の共有フォルダ）を標準とする（docs/wrapit/DESIGN.md §4.4）。
  */
 
 import type { DriveFolderRef } from './types';

@@ -1,0 +1,35 @@
+{
+  "hosting": [
+    {
+      "target": "wrapit-app",
+      "public": "dist/wrapit-hosting-stub",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [
+        {
+          "source": "**",
+          "run": {
+            "serviceId": "wrapit-app",
+            "region": "asia-northeast1"
+          }
+        }
+      ],
+      "headers": [
+        {
+          "source": "**",
+          "headers": [
+            {
+              "key": "Strict-Transport-Security",
+              "value": "max-age=31536000; includeSubDomains; preload"
+            },
+            { "key": "X-Content-Type-Options", "value": "nosniff" },
+            { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+          ]
+        }
+      ]
+    }
+  ],
+  "firestore": {
+    "rules": "firestore.wrapit.rules",
+    "indexes": "firestore.wrapit.indexes.json"
+  }
+}

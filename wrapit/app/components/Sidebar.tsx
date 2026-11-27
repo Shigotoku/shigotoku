@@ -66,7 +66,7 @@ export function Sidebar() {
         <section>
           <div className="px-2 pb-1 text-[11px] text-[#8a97a3]">ワークスペース</div>
           <div className="rounded-md bg-[var(--side-2)] px-2 py-2 text-xs text-[#b8c4cc]">
-            {driveConnected ? '保存先 接続済み' : '保存先 未接続（モック）'}
+            {driveConnected ? 'Google Drive 接続済み' : 'Google Drive 未接続（モック）'}
           </div>
         </section>
 

@@ -55,4 +55,18 @@ test.describe('WrapIt shell (mock)', () => {
     await page.getByTestId('login-continue').click();
     await expect(page.getByTestId('app-shell')).toBeVisible();
   });
+
+  test('settings can set a shared Drive folder as the save target', async ({ page }) => {
+    await page.goto('/');
+    await page.getByTestId('settings-btn').click();
+    await page.getByTestId('ws-mode-shared').check();
+    await page.getByTestId('ws-folder-input').fill('not a folder');
+    await page.getByTestId('ws-save').click();
+    await expect(page.getByTestId('ws-message')).toContainText('フォルダ');
+    await page.getByTestId('ws-folder-input').fill(
+      'https://drive.google.com/drive/folders/1AbCdEfGhIjKlMnOpQrStUvWxYz_-0123',
+    );
+    await page.getByTestId('ws-save').click();
+    await expect(page.getByTestId('ws-message')).toContainText('共有フォルダを保存先に設定しました');
+  });
 });

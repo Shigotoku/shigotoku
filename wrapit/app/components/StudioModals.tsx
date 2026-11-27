@@ -2,8 +2,9 @@
 
 import { Modal } from '@/components/Modal';
 import { useStudio } from '@/lib/studio-context';
-import { fetchGoogleDriveStatus } from '@/lib/api-client';
-import { useEffect, useState } from 'react';
+import { fetchGoogleDriveStatus, fetchWorkspaceTarget, saveWorkspaceTarget } from '@/lib/api-client';
+import type { WorkspaceMode } from '@wrapit/domain';
+import { useEffect, useRef, useState } from 'react';
 
 export function StudioModals() {
   const {
@@ -18,10 +19,31 @@ export function StudioModals() {
     null,
   );
 
+  const [wsMode, setWsMode] = useState<WorkspaceMode>('auto');
+  const [wsFolder, setWsFolder] = useState('');
+  const wsDirty = useRef(false);
+  const [wsMessage, setWsMessage] = useState<{ ok: boolean; text: string } | null>(null);
+
   useEffect(() => {
     if (openModal !== 'settings') return;
     void fetchGoogleDriveStatus().then(setDriveStatus);
+    wsDirty.current = false;
+    void fetchWorkspaceTarget().then((t) => {
+      if (wsDirty.current) return;
+      setWsMode(t.mode);
+      setWsFolder(t.folderUrl ?? '');
+    });
   }, [openModal]);
+
+  async function saveWorkspace() {
+    try {
+      const t = await saveWorkspaceTarget(wsMode, wsFolder);
+      setWsFolder(t.folderUrl ?? '');
+      setWsMessage({ ok: true, text: t.mode === 'shared' ? '共有フォルダを保存先に設定しました' : 'WrapIt 専用フォルダを保存先に設定しました' });
+    } catch (e) {
+      setWsMessage({ ok: false, text: e instanceof Error ? e.message : '保存に失敗しました' });
+    }
+  }
 
   return (
     <>
@@ -82,16 +104,49 @@ export function StudioModals() {
         onClose={() => setOpenModal(null)}
       >
         <p className="text-sm text-[var(--muted)]" data-testid="drive-status-text">
-          {driveStatus?.message ?? '保存先の接続状態を読み込み中…'}
+          {driveStatus?.message ?? 'Google Drive の接続状態を読み込み中…'}
         </p>
         <button
           type="button"
           data-testid="connect-drive-btn"
           className="mt-3 rounded border border-[var(--line)] px-3 py-2 text-sm text-[var(--accent)]"
-          onClick={() => touchAction('保存先の接続は実装後に有効になります')}
+          onClick={() => touchAction('Google Drive の接続は実装後に有効になります')}
         >
-          保存先を接続（Google Drive など）
+          Google Drive を接続
         </button>
+        <fieldset className="mt-4 space-y-2 text-sm" data-testid="workspace-target">
+          <legend className="text-xs text-[var(--muted)]">素材と動画の保存先</legend>
+          <label className="flex items-center gap-2">
+            <input type="radio" name="ws-mode" checked={wsMode === 'auto'} onChange={() => { wsDirty.current = true; setWsMode('auto'); }} />
+            WrapIt 専用フォルダを自動で作る
+          </label>
+          <label className="flex items-center gap-2">
+            <input type="radio" name="ws-mode" data-testid="ws-mode-shared" checked={wsMode === 'shared'} onChange={() => { wsDirty.current = true; setWsMode('shared'); }} />
+            共有フォルダを指定する（チームの共有ドライブなど）
+          </label>
+          {wsMode === 'shared' && (
+            <input
+              data-testid="ws-folder-input"
+              className="w-full rounded border border-[var(--line)] px-2 py-2"
+              value={wsFolder}
+              onChange={(e) => { wsDirty.current = true; setWsFolder(e.target.value); }}
+              placeholder="https://drive.google.com/drive/folders/…"
+            />
+          )}
+          <button
+            type="button"
+            data-testid="ws-save"
+            className="rounded bg-[var(--accent)] px-3 py-1.5 text-sm font-semibold text-white"
+            onClick={() => void saveWorkspace()}
+          >
+            保存先を保存
+          </button>
+          {wsMessage && (
+            <p data-testid="ws-message" className={wsMessage.ok ? 'text-xs text-green-700' : 'text-xs text-red-600'}>
+              {wsMessage.text}
+            </p>
+          )}
+        </fieldset>
         <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
           <div>
             <label className="text-xs text-[var(--muted)]">字幕の量</label>

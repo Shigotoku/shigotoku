@@ -97,8 +97,10 @@
 
 ### 4.4 入出力とストレージ
 
-- 素材・成果物の保管先は **Firebase Storage(自社管理)を初期標準**。Google Drive 連携は DeckIt の Phase C 実績を踏まえて**後から追加**(Google 必須にしない = Google 非利用の個人事業主も使える)。
-- ストレージ参照は `StorageAdapter`(ADR-0002)で包み、Drive 追加時に差し替え可能にする。
+- **保存先は Google Drive を標準**とする(DeckIt と同じ形)。選択肢は2つ: ①WrapIt 専用フォルダを自動作成 ②ユーザー/組織が指定した共有フォルダ(チームの共有ドライブ等)。設定画面で切替(`/api/google/drive/folder`、型は `packages/domain/drive-folder.ts`)。
+- **OAuth スコープは `drive.file`**(最小権限)。このスコープではアプリが作成した/ユーザーが **Google Picker で選択した**ファイルしか触れない。したがって共有フォルダ指定の本番実装は URL 貼り付けではなく **Picker 選択**が必須(現状の URL 入力は暫定・モック用)。
+- 出力動画は指定フォルダの `WrapIt/<プロジェクト名>/` 配下に保存。レンダリング中の一時ファイルは自社管理の Cloud Storage に置き、完了後に Drive へ書き出す。
+- Google 非利用のユーザー向けに Firebase Storage 保管を代替として残す余地はあるが、MVP では作らない。ストレージ参照は `DriveProvider`/`StorageAdapter`(ADR-0002)で包んでおく。
 - 一時ファイルは暗号化・期限付き(目標 24 時間以内に削除、失敗時もライフサイクルで回収)。素材の永続的な二重保存は避ける(ユーザーのダウンロードを正とする)。
 
 ### 4.5 AI(台本)

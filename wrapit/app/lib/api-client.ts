@@ -1,6 +1,6 @@
 'use client';
 
-import type { BootstrapPayload } from '@wrapit/domain';
+import type { BootstrapPayload, WorkspaceMode, WorkspaceTarget } from '@wrapit/domain';
 import { getFirebaseAuth, isFirebaseClientConfigured } from '@/lib/firebase/client';
 import { isMockDataMode } from '@/lib/config';
 
@@ -50,4 +50,22 @@ export async function fetchGoogleDriveStatus(): Promise<{ connected: boolean; me
     return { connected: false, message: '状態を取得できませんでした' };
   }
   return res.json() as Promise<{ connected: boolean; message: string }>;
+}
+
+export async function fetchWorkspaceTarget(): Promise<WorkspaceTarget> {
+  const res = await fetch('/api/google/drive/folder', { headers: await authHeaders() });
+  if (!res.ok) return { mode: 'auto' };
+  const body = (await res.json()) as { target: WorkspaceTarget };
+  return body.target;
+}
+
+export async function saveWorkspaceTarget(mode: WorkspaceMode, folder?: string): Promise<WorkspaceTarget> {
+  const res = await fetch('/api/google/drive/folder', {
+    method: 'POST',
+    headers: await authHeaders(),
+    body: JSON.stringify({ mode, folder }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body?.error?.message ?? '保存先の保存に失敗しました');
+  return body.target as WorkspaceTarget;
 }
