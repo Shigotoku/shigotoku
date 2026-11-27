@@ -1,0 +1,49 @@
+---
+import { assetPath } from '../lib/urls';
+
+const clips = [
+  { src: assetPath('videos/wrapit-recruit-short.mp4'), label: '採用', caption: '職場の雰囲気が伝わる、採用ショート。' },
+  { src: assetPath('videos/wrapit-anime-mascot.mp4'), label: 'キャラクター', caption: 'アニメ調のキャラクターで、親しみやすく。' },
+  { src: assetPath('videos/wrapit-hero-team.mp4'), label: 'チーム紹介', caption: '人が動く、会社らしい紹介動画。' },
+];
+const mangaVideo = assetPath('videos/wrapit-manga-panels.mp4');
+---
+
+<section id="showcase" class="wrapit-section bg-wrap-panel">
+  <div class="mx-auto max-w-3xl px-6 text-center">
+    <p class="text-sm font-semibold uppercase tracking-widest text-wrap-accent" data-reveal>Showcase</p>
+    <h2 class="wrapit-h2 mt-3 font-bold text-wrap-text" data-reveal data-reveal-delay="1" data-jp-heading>
+      人も、アニメも、マンガも。<span class="wrapit-em">動く</span>のが、WrapIt。
+    </h2>
+    <p class="wrapit-lead mt-4 text-wrap-muted" data-reveal data-reveal-delay="2" data-jp-wrap>
+      どんな表現でも、ロゴ・色・言い回しは会社の決まりのまま。
+    </p>
+  </div>
+
+  <div class="mx-auto mt-14 grid max-w-5xl gap-8 px-6 sm:grid-cols-3">
+    {clips.map((c, i) => (
+      <figure class="flex flex-col items-center gap-4" data-reveal data-reveal-delay={i + 1}>
+        <div class="phone w-full max-w-[14rem]">
+          <video src={c.src} muted loop playsinline preload="metadata" data-autoplay></video>
+        </div>
+        <figcaption class="text-center">
+          <span class="inline-block rounded-full bg-wrap-accent-soft px-3 py-0.5 text-xs font-bold text-wrap-accent-2">{c.label}</span>
+          <p class="wrapit-body mt-2 text-wrap-muted" data-jp-wrap>{c.caption}</p>
+        </figcaption>
+      </figure>
+    ))}
+  </div>
+
+  <div class="mx-auto mt-20 max-w-4xl px-6" data-reveal>
+    <div class="overflow-hidden rounded-2xl border border-wrap-line bg-wrap-side shadow-xl shadow-wrap-accent/10">
+      <video class="block w-full" src={mangaVideo} muted loop playsinline preload="none" data-autoplay></video>
+    </div>
+    <p class="wrapit-body mt-4 text-center text-wrap-muted" data-jp-wrap>
+      マンガ調の演出も。アイデアがひらめく瞬間から、完成動画のお披露目まで。
+    </p>
+  </div>
+
+  <p class="mx-auto mt-10 max-w-2xl px-6 text-center text-xs text-wrap-muted" data-jp-wrap>
+    ※ 掲載の動画は AI で生成したイメージです。実際の仕上がりは素材とルール設定によって異なります。
+  </p>
+</section>

@@ -1,0 +1,22 @@
+<script>
+  function initVideos() {
+    const videos = document.querySelectorAll<HTMLVideoElement>('video[data-autoplay]');
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      videos.forEach((v) => v.removeAttribute('autoplay'));
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          const v = e.target as HTMLVideoElement;
+          if (e.isIntersecting) v.play().catch(() => {});
+          else v.pause();
+        });
+      },
+      { threshold: 0.25 },
+    );
+    videos.forEach((v) => io.observe(v));
+  }
+  initVideos();
+  document.addEventListener('astro:page-load', initVideos);
+</script>

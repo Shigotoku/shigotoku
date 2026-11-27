@@ -1,0 +1,26 @@
+---
+const faqs = [
+  { q: '動画づくりの経験がなくても使えますか？', a: '使えます。素材を選び、台本を確認して承認するだけの流れです。編集ソフトの操作は不要です。' },
+  { q: '会社のロゴや色は守られますか？', a: 'ブランドルールとして一度登録すると、すべての動画に適用されます。禁止表現のチェックも行います。' },
+  { q: 'AI が作った内容をそのまま公開しますか？', a: 'いいえ。AI は台本のたたき台を作るだけで、人が確認して承認するまで書き出しも公開もされません。' },
+  { q: '人物やキャラクターの動画も作れますか？', a: '作れます。実写風・アニメ調・マンガ調など表現を選べるよう準備しています。ページの動画は AI で生成したイメージです。' },
+  { q: '料金と提供開始はいつですか？', a: '現在準備中です。先行利用をご希望の方には、料金と提供時期が決まり次第ご案内します。' },
+];
+---
+
+<section id="faq" class="wrapit-section border-t border-wrap-line bg-wrap-panel">
+  <div class="mx-auto max-w-3xl px-6">
+    <h2 class="wrapit-h2 text-center font-bold text-wrap-text" data-reveal data-jp-heading>よくあるご質問</h2>
+    <div class="mt-10 space-y-3">
+      {faqs.map((f, i) => (
+        <details class="group rounded-xl border border-wrap-line bg-wrap-bg p-5" data-reveal data-reveal-delay={(i % 3) + 1}>
+          <summary class="wrapit-tap flex cursor-pointer list-none items-center justify-between font-semibold text-wrap-text">
+            <span data-jp-heading>{f.q}</span>
+            <span class="ml-4 text-wrap-accent transition-transform group-open:rotate-45" aria-hidden="true">＋</span>
+          </summary>
+          <p class="wrapit-body mt-3 text-wrap-muted" data-jp-wrap>{f.a}</p>
+        </details>
+      ))}
+    </div>
+  </div>
+</section>

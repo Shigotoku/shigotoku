@@ -1,26 +1,66 @@
+---
+import { assetPath } from '../lib/urls';
+
+const heroVideo = assetPath('videos/wrapit-hero-team.mp4');
+const mascotVideo = assetPath('videos/wrapit-anime-mascot.mp4');
+const recruitVideo = assetPath('videos/wrapit-recruit-short.mp4');
+---
+
 <section
   id="top"
-  class="relative flex min-h-[100svh] flex-col items-center justify-center gap-10 bg-wrap-side px-6 pb-24 pt-[env(safe-area-inset-top)] text-center text-white"
+  class="relative flex min-h-[100svh] items-center overflow-hidden bg-wrap-side px-6 pb-24 pt-[max(3rem,env(safe-area-inset-top))] text-white"
   aria-label="WrapIt"
 >
-  <div class="space-y-3" data-reveal>
-    <h1 class="text-6xl font-bold tracking-tight sm:text-7xl">WrapIt</h1>
-    <p class="text-3xl font-medium text-wrap-accent-soft sm:text-4xl">動画、仕上がった。</p>
-  </div>
+  <video
+    class="absolute inset-0 h-full w-full object-cover opacity-60"
+    src={heroVideo}
+    muted
+    loop
+    playsinline
+    preload="metadata"
+    data-autoplay
+    aria-hidden="true"
+  ></video>
+  <div class="absolute inset-0 bg-gradient-to-r from-wrap-side via-wrap-side/80 to-wrap-side/30" aria-hidden="true"></div>
 
-  <div class="wrapit-hero-copy max-w-2xl space-y-5" data-reveal data-reveal-delay="1">
-    <p class="leading-relaxed text-[#c8d4dc]" data-jp-wrap>
-      写真と文章から、<span class="wrapit-em-dark">会社らしいショート動画</span>をすぐ。
-    </p>
-    <p class="leading-relaxed text-[#c8d4dc]" data-jp-wrap>
-      <span class="wrapit-em-dark">ロゴ・色・言い回し</span>は会社の決まりどおり。<span class="wrapit-em-dark">AI</span> が台本のたたき台を作り、
-      あなたが確認して<span class="wrapit-em-dark">承認</span>するだけ。
-    </p>
+  <div class="relative z-10 mx-auto grid w-full max-w-6xl items-center gap-12 lg:grid-cols-[1.1fr_0.9fr]">
+    <div class="space-y-8 text-center lg:text-left">
+      <div class="space-y-3" data-reveal>
+        <h1 class="text-6xl font-bold tracking-tight sm:text-7xl">WrapIt</h1>
+        <p class="text-3xl font-medium text-wrap-accent-soft sm:text-4xl">動画、仕上がった。</p>
+      </div>
+      <div class="wrapit-hero-copy max-w-xl space-y-4 lg:max-w-none" data-reveal data-reveal-delay="1">
+        <p class="leading-relaxed text-[#d5dee6]" data-jp-wrap>
+          写真と文章から、<span class="wrapit-em-dark">会社らしいショート動画</span>をすぐ。
+        </p>
+        <p class="leading-relaxed text-[#d5dee6]" data-jp-wrap>
+          <span class="wrapit-em-dark">ロゴ・色・言い回し</span>は会社の決まりどおり。<span class="wrapit-em-dark">AI</span> が台本のたたき台、
+          あなたは確認して<span class="wrapit-em-dark">承認</span>するだけ。
+        </p>
+      </div>
+      <div class="flex flex-wrap justify-center gap-3 lg:justify-start" data-reveal data-reveal-delay="2">
+        <a href="#showcase" class="wrapit-tap inline-flex items-center rounded-lg bg-wrap-highlight px-7 py-3 font-semibold text-wrap-side transition-colors hover:bg-wrap-accent-soft">
+          動画を見る
+        </a>
+        <a href="#cta" class="wrapit-tap inline-flex items-center rounded-lg border border-white/30 px-7 py-3 font-semibold text-white transition-colors hover:bg-white/10">
+          先行利用を申し込む
+        </a>
+      </div>
+    </div>
+
+    <div class="relative mx-auto flex h-[26rem] w-full max-w-sm items-center justify-center sm:h-[30rem]" data-reveal data-reveal-delay="2">
+      <figure class="phone phone--back absolute left-0 top-10 w-40 sm:w-44">
+        <video src={recruitVideo} muted loop playsinline preload="metadata" data-autoplay></video>
+      </figure>
+      <figure class="phone phone--front absolute right-0 top-0 w-44 sm:w-52">
+        <video src={mascotVideo} muted loop playsinline preload="metadata" data-autoplay></video>
+      </figure>
+    </div>
   </div>
 
   <a
-    href="#story"
-    class="wrapit-scroll-hint absolute bottom-[max(1.5rem,env(safe-area-inset-bottom))] flex flex-col items-center gap-1.5 text-sm text-[#9fb0bc] transition-colors hover:text-wrap-highlight"
+    href="#showcase"
+    class="wrapit-scroll-hint absolute bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-1/2 flex -translate-x-1/2 flex-col items-center gap-1.5 text-sm text-[#9fb0bc] transition-colors hover:text-wrap-highlight"
     aria-label="下にスクロール"
   >
     <span>くわしく見る</span>
@@ -29,3 +69,27 @@
     </svg>
   </a>
 </section>
+
+<style is:global>
+  .phone {
+    margin: 0;
+    aspect-ratio: 9 / 16;
+    overflow: hidden;
+    border-radius: 1.75rem;
+    border: 6px solid #1c1530;
+    background: #1c1530;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.12);
+  }
+  .phone video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .phone--back {
+    transform: rotate(-6deg);
+  }
+  .phone--front {
+    transform: rotate(4deg);
+  }
+</style>

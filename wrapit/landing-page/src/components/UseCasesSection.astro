@@ -1,0 +1,28 @@
+---
+const cases = [
+  { title: '採用広報', body: '職場紹介・社員インタビュー・募集のお知らせを、毎回同じトーンで。' },
+  { title: 'お知らせ・キャンペーン', body: '休診日、イベント、新サービスの告知を、短い動画でさっと発信。' },
+  { title: 'サービス紹介', body: '店舗やサービスの魅力を、ロゴと色をそろえた縦型動画で。' },
+  { title: '社内共有', body: '研修、マニュアル、朝礼の連絡を、見やすい短尺にまとめて。' },
+];
+const trust = ['ロゴ・色・フォントを固定', '禁止表現のチェック', '承認前は公開されない', '担当者が変わっても同じ品質'];
+---
+
+<section id="usecases" class="wrapit-section border-t border-wrap-line bg-wrap-bg">
+  <div class="mx-auto max-w-5xl px-6">
+    <h2 class="wrapit-h2 text-center font-bold text-wrap-text" data-reveal data-jp-heading>こんな動画に使えます</h2>
+    <div class="mt-10 grid gap-5 sm:grid-cols-2">
+      {cases.map((c, i) => (
+        <article class="rounded-xl border border-wrap-line bg-wrap-panel p-6" data-reveal data-reveal-delay={(i % 2) + 1}>
+          <h3 class="wrapit-h3 font-bold text-wrap-text" data-jp-heading>{c.title}</h3>
+          <p class="wrapit-body mt-2 text-wrap-muted" data-jp-wrap>{c.body}</p>
+        </article>
+      ))}
+    </div>
+    <ul class="mt-12 flex flex-wrap justify-center gap-3" data-reveal>
+      {trust.map((t) => (
+        <li class="rounded-full border border-wrap-accent/30 bg-wrap-accent-soft px-4 py-1.5 text-sm font-semibold text-wrap-accent-2">{t}</li>
+      ))}
+    </ul>
+  </div>
+</section>
