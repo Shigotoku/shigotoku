@@ -1,15 +1,16 @@
-# Reelit(仮称)設計メモ — DeckIt の動画版
+# WrapIt(ラップイット)設計メモ — DeckIt の動画版
 
-- 状態: 構想・設計(未実装)。2026-11-27
+- 状態: 構想・設計(未実装)。2026-11-27。名称は WrapIt に決定(商標は未確認。ADR-0003)。
+- 旧仮称 Reelit は既存サービス(reelit.ai 等)と衝突するため使用しない。
 - 位置づけ: 「資料、できた。」の DeckIt に対する「**ショート動画、できた。**」。ブランド・スタイルを守ったまま、短尺縦動画(Instagram リール / TikTok / YouTube Shorts)を量産する。
-- 前提: 既存製品は変更しない。Reelit は独立した新製品として追加する(ADR-0001, ADR-0002)。
+- 前提: 既存製品は変更しない。wrapit は独立した新製品として追加する(ADR-0001, ADR-0002)。
 - 注意: 競合の最新価格・各社の最新仕様・ライセンス条件は**未検証**。「要確認」は着手前に必ず公式資料で確認する。
 
 ---
 
 ## 1. 何を解決するか(ユーザー価値)
 
-| 課題 | Reelit の答え |
+| 課題 | wrapit の答え |
 |------|---------------|
 | 動画制作は時間がかかり、毎回デザインがばらつく | ブランド(ロゴ・色・フォント・口調)を固定したテンプレートで量産 |
 | AI 動画は「AIっぽい」「事実が不正確」 | 実写・実素材+文字演出が中心。事実は承認済み情報だけ使う |
@@ -23,10 +24,13 @@
 
 ## 2. 名前
 
-- 現行ネーミング規則は「◯◯It」(BuzzIt/ClipIt/ShapeIt/DeckIt/RaiseIt)。**Reelit は規則に合っている**。
-- 懸念: 「Reel」は Instagram の機能名で、商標・混同の確認が必要。**J-PlatPat(商標)・ドメイン・各 SNS ハンドル**で確認してから確定。
-- 代替案(規則を保つ): `Moveit`, `Shortit`, `Playit`, `Frameit`(いずれも未調査。商標リスクは同等に要確認)。
-- 結論: コード上のフォルダ・ID は一旦 `reelit` で作り、名称は**公開前に**確定。名前変更はドキュメントと `deploy/build.config.mjs` の定数だけで済むようにする(名称を散在させない)。
+- **決定: WrapIt(ラップイット)**。詳細な経緯は [ADR-0003](../adr/0003-product-name-wrapit.md)。
+- 由来: ① 映画の "It's a wrap!"(撮影完了=「できた」)。② 日本で通じる「ラッピング(広告)」=会社のブランドで包む。→ 「会社の決まりで包んで、動画を完成させる」。DeckIt の「資料、できた。」に対し、**「動画、仕上がった。」**。
+- 英語サブ案: Your Brand. Your Rules. Wrapped.
+- 懸念: ラップ(食品用・音楽)との混同、映画用語としての日本での知名度の低さ。
+- **公開前に必須**: J-PlatPat(第9・35・41・42類、称呼「ラップイット」)と WIPO Global Brand Database の確認、弁理士への相談。
+- 名称は `deploy/build.config.mjs` の定数・フォルダ名・Firebase プロジェクト名に集約し、万一の変更はそこだけで済むようにする(名称を散在させない)。
+- 第二候補: CrankIt(クランキット)。第三候補: RollIt。
 
 ## 3. 製品スコープ
 
@@ -52,8 +56,8 @@
 
 | 項目 | 方針 | 根拠 |
 |------|------|------|
-| フォルダ | `reelit/`(`landing-page/` `app/` `api/` `render/`) | 他製品と同じ分離 |
-| Firebase | 専用 `shigotoku-reelit-prod`(Auth/Firestore/Storage) | ADR-0001 |
+| フォルダ | `wrapit/`(`landing-page/` `app/` `api/` `render/`) | 他製品と同じ分離 |
+| Firebase | 専用 `shigotoku-wrapit-prod`(Auth/Firestore/Storage) | ADR-0001 |
 | フロント | React + Vite(多数派)または Next.js(DeckIt と同じ) | 要決定。DeckIt と**ブランド/スタイル資産を共有する**なら Next.js、独立性重視なら Vite。推奨: **Vite**(エディタ UI が中心で SSR 不要。ビルド/デプロイが他製品と同じ) |
 | API | Cloud Functions(受付・認可)+ **Cloud Run Jobs(レンダリング)** | レンダーは長時間・高メモリで Functions に不向き |
 | ジョブ | Firestore に job ドキュメント → Cloud Tasks/Pub/Sub で Job 起動 | 受付と実行の分離、再試行・冪等 |
@@ -71,13 +75,13 @@
 
 - テンプレ = `Template { id, version, aspect, fps, scenes[], slots[], theme }`。公開版は不変、変更は新バージョン。
 - スロット制約: `type(text/image/video)`, `maxChars`, `maxLines`, `fitPolicy`。**時間・座標はテンプレートが決め、AI に決めさせない**。
-- 将来: DeckIt のスライド → Reelit のシーンへ**変換インポート**(ブランド/文面の再利用)を別フェーズで検討。
+- 将来: DeckIt のスライド → wrapit のシーンへ**変換インポート**(ブランド/文面の再利用)を別フェーズで検討。
 
 ### 4.3 レンダリング方式 — PoC で比較して決める(結論を先に出さない)
 
 | 案 | 長所 | 懸念 |
 |----|------|------|
-| A. **Remotion**(React で動画)+ Cloud Run Jobs | React/TS で実装でき、日本語組版・アニメが書きやすい。プレビューと出力を同じコンポーネントで共有 | **商用/SaaS ライセンス条件を要確認**(会社規模・SaaS 配信での利用条件)。チェックは最優先 |
+| A. **Remotion**(React で動画)+ Cloud Run Jobs | React/TS で実装でき、日本語組版・アニメが書きやすい。プレビューと出力を同じコンポーネントで共有 | **ライセンス(2026-11-27 公式確認)**: 組織全体で3人以下なら無料(商用・SaaS・自動化も可)。4人以上は Company License が必要で、自動レンダリングは 1 レンダー $0.01(最小 $100/月)。人数の数え方は R0 で確認([詳細](./R0-LICENSE-AND-POC-PLAN.md)) |
 | B. Revideo / Motion Canvas 系(OSS) | ライセンスが緩い傾向(要確認)。コード駆動 | 成熟度・日本語組版・保守性を PoC で確認 |
 | C. FFmpeg + 事前レンダー済みテキストレイヤー(Skia/Canvas) | 依存が軽く原価が低い。完全に自制御 | タイポグラフィ・アニメを自前実装(工数大) |
 | D. ブラウザ内レンダー(WebCodecs 等) | **サーバー原価ほぼゼロ**。待ち時間なし | 端末差・長尺・安定性。モバイル対応が課題 |
@@ -117,19 +121,19 @@
 
 ## 5. 既存資産の再利用
 
-| 既存 | 場所 | Reelit での使い道 |
+| 既存 | 場所 | wrapit での使い道 |
 |------|------|-------------------|
 | 医療広告チェッカー | `raiseit/scripts/medical-ad-check.mjs`(テスト付き) | 台本・字幕・キャプションの自動検査(補助。最終判断は人) |
 | AI 台本の知見 | `buzzit/api`(Magic Creator / Repurpose) | プロンプト設計・JSON 出力・クォータ |
 | 動画付き投稿の経路 | `buzzit/api/src/services/buffer.ts`(`.mp4` 等を動画として送る処理) | 書き出し MP4 の公開 URL を渡して予約投稿(承認後) |
 | ブランド/スタイル概念 | `deckit/docs`(Style / Reference / Design DNA) | 同じ概念モデルを動画に適用(コードは共有せず設計を踏襲) |
 | クォータ・原価管理 | `clipit/docs/BILLING-RULES.md` / `OPERATIONAL-COST.md` | 動画本数・秒数ベースの利用枠設計 |
-| デプロイ型 | `deploy/`(`firebase.<product>.json`、`deploy-<product>-*.mjs`) | Reelit 用の同型スクリプトを追加 |
+| デプロイ型 | `deploy/`(`firebase.<product>.json`、`deploy-<product>-*.mjs`) | wrapit 用の同型スクリプトを追加 |
 
 ## 6. データモデル(最小)
 
 ```
-reelit_tenants/{tenantId}                      会社(契約単位)
+wrapit_tenants/{tenantId}                      会社(契約単位)
   members/{uid}                                role: owner|admin|editor|reviewer|viewer
   brand/current                                version, logo, colors, fonts, tone, prohibited[], defaultCta
   assets/{assetId}                             storagePath, mime, tags[], rights, consent, expiry, active
@@ -188,7 +192,7 @@ reelit_tenants/{tenantId}                      会社(契約単位)
 
 1. ライセンス確認: Remotion(SaaS/商用条件)、候補フォント、BGM 音源。
 2. 名称・商標・ドメインの確認(§2)。
-3. `reelit-poc/`(リポジトリ外または未追跡ディレクトリ)で 25 秒動画を A と D で作り、実測表を作成。
+3. `wrapit-poc/`(リポジトリ外または未追跡ディレクトリ)で 25 秒動画を A と D で作り、実測表を作成。
 4. ADR-0003(レンダリング方式・テンプレ方式)を記述。
 
 > 実装に進む前に、PoC の結果と原価を見て最終判断する。ここまでで本番・既存製品への変更はない。

@@ -15,7 +15,7 @@
 | DeckIt(デキット) | `deckit/` | LP + App(**Next.js**)+ packages/domain, google-adapters | `shigotoku-deckit-prod` | app.deckit.shigotoku.com | Slides 生成。Phase A(mock)から段階実装。Cloud Run 想定 |
 | PreDeck(プレデキ) | `PreDeck/` | LP + App + API | `shigotoku-predeck-prod` | app.predeck.shigotoku.com | プレゼン練習・音声 |
 | RaiseIt(レイズイット) | `raiseit/` | LP + App + スクリプト(Cloud Run Job 想定) | `shigotoku-raiseit-prod` | app.raiseit.shigotoku.com | 競合調査・医療広告チェック等 |
-| (構想)Reelit | `reelit/`(未作成) | — | `shigotoku-reelit-prod`(未作成) | — | 動画版 DeckIt。[`docs/reelit/DESIGN.md`](./reelit/DESIGN.md) |
+| (構想)WrapIt | `wrapit/`(未作成) | — | `shigotoku-wrapit-prod`(未作成) | — | 動画版 DeckIt。[`docs/wrapit/DESIGN.md`](./wrapit/DESIGN.md) |
 
 ## 2. 横断ルール(現状の事実)
 
