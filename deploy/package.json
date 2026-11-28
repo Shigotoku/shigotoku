@@ -41,7 +41,7 @@
     "deploy:wrapit-firestore": "firebase deploy --project wrapit --config firebase.wrapit.json --only firestore",
     "deploy:wrapit-cloudrun": "node scripts/deploy-wrapit-cloudrun.mjs",
     "setup:wrapit-hosting": "node scripts/setup-wrapit-hosting.mjs",
-    "deploy:wrapit-hosting": "firebase deploy --project wrapit --config firebase.wrapit.json --only hosting:wrapit-app",
+    "deploy:wrapit-hosting": "node scripts/prepare-wrapit-hosting-stub.mjs && firebase deploy --project wrapit --config firebase.wrapit.json --only hosting:wrapit-app",
     "deploy:wrapit": "npm run build:wrapit-app && npm run deploy:wrapit-cloudrun",
     "copy:storage-rules": "node scripts/copy-storage-rules.mjs",
     "deploy:buzzit": "npm run deploy:clipit-web",
